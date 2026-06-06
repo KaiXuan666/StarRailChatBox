@@ -129,17 +129,16 @@ fun ApiSettingsScreen(
                     // Back navigation button
                     Surface(
                         onClick = { onMainAction(MainAction.PopBackStack) },
-                        modifier = Modifier.size(if (compact) 36.dp else 42.dp),
+                        modifier = Modifier.size(48.dp),
                         shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.8f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f))
+                        color = Color.Transparent,
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             StarRailIcon(
                                 kind = StarRailIconKind.CHEVRON_LEFT,
                                 contentDescription = "Back",
                                 tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.size(if (compact) 18.dp else 22.dp)
+                                modifier = Modifier.size(if (compact) 28.dp else 32.dp),
                             )
                         }
                     }

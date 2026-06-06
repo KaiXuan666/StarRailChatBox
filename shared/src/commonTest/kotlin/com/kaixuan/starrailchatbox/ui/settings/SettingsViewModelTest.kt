@@ -2,6 +2,7 @@ package com.kaixuan.starrailchatbox.ui.settings
 
 import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.api.OpenAiRepository
+import com.kaixuan.starrailchatbox.data.settings.ApiSettingsDefaults
 import com.kaixuan.starrailchatbox.data.settings.ApiSettingsStore
 import com.kaixuan.starrailchatbox.data.settings.StoredApiSettings
 import kotlinx.coroutines.async
@@ -50,6 +51,45 @@ class SettingsViewModelTest {
         assertEquals("stored-key", viewModel.uiState.value.apiKey)
         assertEquals("model-b", viewModel.uiState.value.selectedModel)
         assertEquals(listOf("model-b"), viewModel.uiState.value.modelsList)
+    }
+
+    @Test
+    fun localDefaultsAreUsedWhenStoredSettingsAreMissing() = runTest {
+        val viewModel = createViewModel(
+            defaults = ApiSettingsDefaults(
+                apiHost = "https://local.example.com/v1",
+                apiKey = "local-key",
+            ),
+            scope = this,
+        )
+        runCurrent()
+
+        assertEquals("https://local.example.com/v1", viewModel.uiState.value.apiHost)
+        assertEquals("local-key", viewModel.uiState.value.apiKey)
+    }
+
+    @Test
+    fun localDefaultsFillBlankStoredFields() = runTest {
+        val store = FakeApiSettingsStore(
+            StoredApiSettings(
+                apiHost = "",
+                apiKey = "",
+                selectedModel = "model-a",
+            ),
+        )
+        val viewModel = createViewModel(
+            store = store,
+            defaults = ApiSettingsDefaults(
+                apiHost = "https://local.example.com/v1",
+                apiKey = "local-key",
+            ),
+            scope = this,
+        )
+        runCurrent()
+
+        assertEquals("https://local.example.com/v1", viewModel.uiState.value.apiHost)
+        assertEquals("local-key", viewModel.uiState.value.apiKey)
+        assertEquals("model-a", viewModel.uiState.value.selectedModel)
     }
 
     @Test
@@ -141,11 +181,13 @@ class SettingsViewModelTest {
     private fun createViewModel(
         repository: OpenAiRepository = FakeOpenAiRepository(ApiResult.Success(emptyList())),
         store: ApiSettingsStore = FakeApiSettingsStore(),
+        defaults: ApiSettingsDefaults = ApiSettingsDefaults(),
         scope: kotlinx.coroutines.CoroutineScope,
     ) = SettingsViewModel(
         openAiRepository = repository,
         apiSettingsStore = store,
         coroutineScope = scope,
+        defaultApiSettings = defaults,
     )
 }
 

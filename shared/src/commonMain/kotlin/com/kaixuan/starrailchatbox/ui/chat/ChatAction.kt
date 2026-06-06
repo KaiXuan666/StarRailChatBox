@@ -1,7 +1,7 @@
 package com.kaixuan.starrailchatbox.ui.chat
 
 sealed interface ChatAction {
-    data class CharacterSelected(val character: CharacterId) : ChatAction
+    data class CharacterSelected(val characterId: String) : ChatAction
     data class MessageChanged(val message: String) : ChatAction
     data object SendClicked : ChatAction
     data class QuickReplyClicked(val message: String) : ChatAction

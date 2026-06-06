@@ -37,7 +37,7 @@ internal fun HttpClientConfig<*>.configureOpenAiClient() {
                 Napier.d(message, tag = "OpenAiHttp")
             }
         }
-        level = LogLevel.HEADERS
+        level = LogLevel.BODY
         sanitizeHeader { header -> header == HttpHeaders.Authorization }
     }
 }

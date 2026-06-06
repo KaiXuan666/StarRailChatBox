@@ -6,6 +6,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import com.kaixuan.starrailchatbox.data.character.DefaultCharacterRepository
+import com.kaixuan.starrailchatbox.data.character.createCharacterStorage
 import com.kaixuan.starrailchatbox.data.settings.createApiSettingsStore
 
 class MainActivity : ComponentActivity() {
@@ -17,6 +19,9 @@ class MainActivity : ComponentActivity() {
             App(
                 apiSettingsStore = createApiSettingsStore(
                     filesDir.resolve("api_settings.preferences_pb").absolutePath,
+                ),
+                characterRepository = DefaultCharacterRepository(
+                    createCharacterStorage(filesDir.resolve("characters").absolutePath),
                 ),
             )
         }

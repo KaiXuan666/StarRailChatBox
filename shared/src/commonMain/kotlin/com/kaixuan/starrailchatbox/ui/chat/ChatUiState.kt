@@ -1,13 +1,7 @@
 package com.kaixuan.starrailchatbox.ui.chat
 
 import androidx.compose.runtime.Immutable
-
-enum class CharacterId {
-    LIU_YING,
-    TIAN_SHU,
-    LI_GUANG,
-    XI,
-}
+import com.kaixuan.starrailchatbox.data.character.Character
 
 enum class ChatCopy {
     WELCOME,
@@ -32,7 +26,7 @@ sealed interface ChatMessageUiModel {
         override val id: String,
         override val timestamp: String,
         override val content: MessageContent,
-        val sender: CharacterId,
+        val senderId: String,
     ) : ChatMessageUiModel
 
     data class Sent(
@@ -45,18 +39,24 @@ sealed interface ChatMessageUiModel {
 
 @Immutable
 data class ChatUiState(
-    val selectedCharacter: CharacterId = CharacterId.LIU_YING,
+    val characters: List<Character> = emptyList(),
+    val selectedCharacterId: String? = null,
     val messages: List<ChatMessageUiModel> = initialMessages,
     val messageDraft: String = "",
     val isSending: Boolean = false,
-)
+    val isLoadingCharacters: Boolean = true,
+) {
+    val selectedCharacter: Character?
+        get() = characters.firstOrNull { it.id == selectedCharacterId }
+            ?: characters.firstOrNull()
+}
 
 private val initialMessages = listOf(
     ChatMessageUiModel.Received(
         id = "message-1",
         timestamp = "10:21",
         content = MessageContent.Resource(ChatCopy.WELCOME),
-        sender = CharacterId.LIU_YING,
+        senderId = "流萤",
     ),
     ChatMessageUiModel.Sent(
         id = "message-2",
@@ -68,7 +68,7 @@ private val initialMessages = listOf(
         id = "message-3",
         timestamp = "10:23",
         content = MessageContent.Resource(ChatCopy.COMFORT),
-        sender = CharacterId.LIU_YING,
+        senderId = "流萤",
     ),
     ChatMessageUiModel.Sent(
         id = "message-4",
@@ -80,6 +80,6 @@ private val initialMessages = listOf(
         id = "message-5",
         timestamp = "10:25",
         content = MessageContent.Resource(ChatCopy.CARE),
-        sender = CharacterId.LIU_YING,
+        senderId = "流萤",
     ),
 )

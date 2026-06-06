@@ -4,8 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.api.OpenAiRepository
+import com.kaixuan.starrailchatbox.data.settings.ApiSettingsDefaults
 import com.kaixuan.starrailchatbox.data.settings.ApiSettingsStore
 import com.kaixuan.starrailchatbox.data.settings.StoredApiSettings
+import com.kaixuan.starrailchatbox.data.settings.localApiSettingsDefaults
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
@@ -19,6 +21,7 @@ class SettingsViewModel(
     private val openAiRepository: OpenAiRepository,
     private val apiSettingsStore: ApiSettingsStore,
     private val coroutineScope: CoroutineScope? = null,
+    private val defaultApiSettings: ApiSettingsDefaults = localApiSettingsDefaults(),
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState = _uiState.asStateFlow()
@@ -28,15 +31,20 @@ class SettingsViewModel(
 
     init {
         scope().launch {
-            apiSettingsStore.load()?.let { settings ->
-                _uiState.update {
-                    it.copy(
-                        apiHost = settings.apiHost,
-                        apiKey = settings.apiKey,
-                        selectedModel = settings.selectedModel,
-                        modelsList = listOfNotNull(settings.selectedModel.takeIf(String::isNotBlank)),
-                    )
-                }
+            val settings = apiSettingsStore.load()
+            _uiState.update { state ->
+                val selectedModel = settings?.selectedModel.orEmpty()
+                state.copy(
+                    apiHost = settings?.apiHost
+                        ?.takeIf(String::isNotBlank)
+                        ?: defaultApiSettings.apiHost.takeIf(String::isNotBlank)
+                        ?: state.apiHost,
+                    apiKey = settings?.apiKey
+                        ?.takeIf(String::isNotBlank)
+                        ?: defaultApiSettings.apiKey,
+                    selectedModel = selectedModel,
+                    modelsList = listOfNotNull(selectedModel.takeIf(String::isNotBlank)),
+                )
             }
         }
     }

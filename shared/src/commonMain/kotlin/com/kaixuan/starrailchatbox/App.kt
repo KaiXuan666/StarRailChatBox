@@ -6,6 +6,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.kaixuan.starrailchatbox.data.character.CharacterRepository
+import com.kaixuan.starrailchatbox.data.character.DefaultCharacterRepository
+import com.kaixuan.starrailchatbox.data.character.createCharacterStorage
 import com.kaixuan.starrailchatbox.data.settings.ApiSettingsStore
 import com.kaixuan.starrailchatbox.data.settings.createApiSettingsStore
 import com.kaixuan.starrailchatbox.design.StarRailTheme
@@ -19,6 +22,9 @@ import org.koin.dsl.koinApplication
 @Composable
 fun App(
     apiSettingsStore: ApiSettingsStore = remember { createApiSettingsStore() },
+    characterRepository: CharacterRepository = remember {
+        DefaultCharacterRepository(createCharacterStorage())
+    },
 ) {
     val koinApplication = remember(apiSettingsStore) {
         koinApplication {
@@ -34,7 +40,7 @@ fun App(
     val mainViewModel = viewModel { MainViewModel() }
     val mainState by mainViewModel.uiState.collectAsStateWithLifecycle()
 
-    val chatViewModel = viewModel { ChatViewModel() }
+    val chatViewModel = viewModel { ChatViewModel(characterRepository) }
     val chatState by chatViewModel.uiState.collectAsStateWithLifecycle()
 
     val settingsViewModel = viewModel { koinApplication.koin.get<SettingsViewModel>() }

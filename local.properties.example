@@ -1,0 +1,3 @@
+# Copy these entries into the ignored local.properties file for local API testing.
+OPENAI_API_HOST=https://api.openai.com/v1
+OPENAI_API_KEY=

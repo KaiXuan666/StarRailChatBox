@@ -34,6 +34,7 @@
     <string name="read_status">已读</string>
     <string name="character_selection_description">选择角色：%1$s</string>
     <string name="character_selected_description">选择角色：%1$s，当前已选择</string>
+    <string name="no_characters">角色目录中没有可用角色</string>
     <string name="received_message_description">%1$s，%2$s，%3$s</string>
     <string name="sent_message_description">我，%1$s，%2$s，已读</string>
     <string name="voice_not_ready">语音功能正在准备中</string>

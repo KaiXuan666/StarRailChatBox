@@ -1,5 +1,80 @@
+import org.gradle.api.DefaultTask
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.Optional
+import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
+import org.gradle.api.tasks.TaskAction
+import org.gradle.work.DisableCachingByDefault
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
+
+@DisableCachingByDefault(because = "The generated source contains local development credentials.")
+abstract class GenerateLocalApiSettingsTask : DefaultTask() {
+    @get:InputFile
+    @get:Optional
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val localPropertiesFile: RegularFileProperty
+
+    @get:OutputDirectory
+    abstract val outputDirectory: DirectoryProperty
+
+    @get:Input
+    abstract val hostPropertyName: Property<String>
+
+    @get:Input
+    abstract val keyPropertyName: Property<String>
+
+    @TaskAction
+    fun generate() {
+        val properties = Properties()
+        localPropertiesFile.asFile.get()
+            .takeIf(File::isFile)
+            ?.reader(Charsets.UTF_8)
+            ?.use(properties::load)
+
+        fun propertyValue(name: String): String {
+            return properties.getProperty(name).orEmpty()
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\r", "\\r")
+                .replace("\n", "\\n")
+                .replace("$", "\\$")
+        }
+
+        val outputFile = outputDirectory.file(
+            "com/kaixuan/starrailchatbox/data/settings/LocalApiSettings.kt",
+        ).get().asFile
+        outputFile.parentFile.mkdirs()
+        outputFile.writeText(
+            """
+            package com.kaixuan.starrailchatbox.data.settings
+
+            internal object LocalApiSettings {
+                const val apiHost = "${propertyValue(hostPropertyName.get())}"
+                const val apiKey = "${propertyValue(keyPropertyName.get())}"
+            }
+            """.trimIndent() + "\n",
+            Charsets.UTF_8,
+        )
+    }
+}
+
+val rootLocalPropertiesFile = rootProject.layout.projectDirectory.file("local.properties")
+val generatedLocalApiSettingsDirectory =
+    layout.buildDirectory.dir("generated/localApiSettings/commonMain/kotlin")
+
+val generateLocalApiSettings by tasks.registering(GenerateLocalApiSettingsTask::class) {
+    localPropertiesFile.set(rootLocalPropertiesFile)
+    outputDirectory.set(generatedLocalApiSettingsDirectory)
+    hostPropertyName.set("OPENAI_API_HOST")
+    keyPropertyName.set("OPENAI_API_KEY")
+}
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -80,6 +155,7 @@ kotlin {
         }
         commonMain {
             kotlin.srcDir(layout.buildDirectory.dir("generated/ksp/metadata/commonMain/kotlin"))
+            kotlin.srcDir(generatedLocalApiSettingsDirectory)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -91,6 +167,7 @@ kotlin {
             implementation(libs.ktor.client.js)
         }
         wasmJsMain.dependencies {
+            implementation(libs.wrappers.browser)
             implementation(libs.ktor.client.js)
         }
         jvmMain.dependencies {
@@ -119,4 +196,11 @@ tasks.matching {
     it.name.startsWith("compileKotlin") || it.name == "compileAndroidMain"
 }.configureEach {
     dependsOn("kspCommonMainKotlinMetadata")
+    dependsOn(generateLocalApiSettings)
+}
+
+tasks.matching {
+    it.name.startsWith("ksp")
+}.configureEach {
+    dependsOn(generateLocalApiSettings)
 }

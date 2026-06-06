@@ -21,8 +21,18 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "com.kaixuan.starrailchatbox"
+            packageName = "崩铁ChatBox"
             packageVersion = "1.0.0"
+
+            windows {
+                iconFile.set(project.file("src/main/resources/app-icon.ico"))
+            }
+            macOS {
+                iconFile.set(project.file("src/main/resources/app-icon.icns"))
+            }
+            linux {
+                iconFile.set(project.file("src/main/resources/app-icon.png"))
+            }
         }
     }
 }

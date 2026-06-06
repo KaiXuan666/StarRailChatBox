@@ -1,13 +1,18 @@
 package com.kaixuan.starrailchatbox.ui.chat
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.kaixuan.starrailchatbox.data.character.CharacterRepository
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
-class ChatViewModel : ViewModel() {
+class ChatViewModel(
+    private val characterRepository: CharacterRepository,
+) : ViewModel() {
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState = _uiState.asStateFlow()
 
@@ -16,10 +21,33 @@ class ChatViewModel : ViewModel() {
 
     private var sentMessageCount = 0
 
+    init {
+        viewModelScope.launch {
+            val characters = runCatching { characterRepository.loadCharacters() }
+                .getOrDefault(emptyList())
+            _uiState.update { state ->
+                state.copy(
+                    characters = characters,
+                    selectedCharacterId = state.selectedCharacterId
+                        ?.takeIf { selectedId -> characters.any { it.id == selectedId } }
+                        ?: characters.firstOrNull { it.id == "流萤" }?.id
+                        ?: characters.firstOrNull()?.id,
+                    isLoadingCharacters = false,
+                )
+            }
+        }
+    }
+
     fun onAction(action: ChatAction) {
         when (action) {
             is ChatAction.CharacterSelected -> {
-                _uiState.update { it.copy(selectedCharacter = action.character) }
+                _uiState.update { state ->
+                    if (state.characters.any { it.id == action.characterId }) {
+                        state.copy(selectedCharacterId = action.characterId)
+                    } else {
+                        state
+                    }
+                }
             }
 
             is ChatAction.MessageChanged -> {

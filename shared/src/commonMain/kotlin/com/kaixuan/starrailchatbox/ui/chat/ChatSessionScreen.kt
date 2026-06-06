@@ -50,15 +50,15 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
-import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.decodeToImageBitmap
 import org.jetbrains.compose.resources.stringResource
 import starrailchatbox.shared.generated.resources.Res
 import starrailchatbox.shared.generated.resources.action_profile
@@ -66,22 +66,15 @@ import starrailchatbox.shared.generated.resources.action_settings
 import starrailchatbox.shared.generated.resources.action_voice
 import starrailchatbox.shared.generated.resources.add_attachment
 import starrailchatbox.shared.generated.resources.app_title
-import starrailchatbox.shared.generated.resources.avatar_liguang
-import starrailchatbox.shared.generated.resources.avatar_liuying
-import starrailchatbox.shared.generated.resources.avatar_tianqu
-import starrailchatbox.shared.generated.resources.avatar_xi
-import starrailchatbox.shared.generated.resources.character_liguang
-import starrailchatbox.shared.generated.resources.character_liuying
 import starrailchatbox.shared.generated.resources.character_selected_description
 import starrailchatbox.shared.generated.resources.character_selection_description
-import starrailchatbox.shared.generated.resources.character_tianshu
-import starrailchatbox.shared.generated.resources.character_xi
 import starrailchatbox.shared.generated.resources.message_care
 import starrailchatbox.shared.generated.resources.message_comfort
 import starrailchatbox.shared.generated.resources.message_placeholder
 import starrailchatbox.shared.generated.resources.message_user_thanks
 import starrailchatbox.shared.generated.resources.message_user_tired
 import starrailchatbox.shared.generated.resources.message_welcome
+import starrailchatbox.shared.generated.resources.no_characters
 import starrailchatbox.shared.generated.resources.online
 import starrailchatbox.shared.generated.resources.open_emoji
 import starrailchatbox.shared.generated.resources.quick_reply_mood
@@ -96,6 +89,7 @@ import starrailchatbox.shared.generated.resources.sent_message_description
 import starrailchatbox.shared.generated.resources.today
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.starRailColors
+import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -120,6 +114,10 @@ fun ChatSessionScreen(
     val listState = rememberLazyListState()
     val messagesStartIndex = 3
     var previousMessageCount by remember { mutableStateOf(state.messages.size) }
+    val selectedCharacter = state.selectedCharacter
+    val charactersById = remember(state.characters) {
+        state.characters.associateBy(Character::id)
+    }
 
     LaunchedEffect(state.messages.size) {
         val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
@@ -149,12 +147,29 @@ fun ChatSessionScreen(
         verticalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
     ) {
         item(key = "header") {
-            ChatHeader(
-                selectedCharacter = state.selectedCharacter,
-                compact = compact,
-                onAction = onAction,
-                onMainAction = onMainAction,
-            )
+            if (selectedCharacter != null) {
+                ChatHeader(
+                    selectedCharacter = selectedCharacter,
+                    compact = compact,
+                    onAction = onAction,
+                    onMainAction = onMainAction,
+                )
+            } else {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(StarRailSpacing.xl),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (state.isLoadingCharacters) {
+                        CircularProgressIndicator()
+                    } else {
+                        Text(
+                            text = stringResource(Res.string.no_characters),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    }
+                }
+            }
         }
         stickyHeader(key = "characters") {
             Box(
@@ -164,7 +179,8 @@ fun ChatSessionScreen(
                     .padding(top = StarRailSpacing.xxs),
             ) {
                 CharacterSelector(
-                    selectedCharacter = state.selectedCharacter,
+                    characters = state.characters,
+                    selectedCharacterId = selectedCharacter?.id,
                     compact = compact,
                     onCharacterSelected = {
                         onAction(ChatAction.CharacterSelected(it))
@@ -181,6 +197,7 @@ fun ChatSessionScreen(
         ) { message ->
             MessageItem(
                 message = message,
+                charactersById = charactersById,
                 compact = compact,
             )
         }
@@ -189,7 +206,7 @@ fun ChatSessionScreen(
 
 @Composable
 private fun ChatHeader(
-    selectedCharacter: CharacterId,
+    selectedCharacter: Character,
     compact: Boolean,
     onAction: (ChatAction) -> Unit,
     onMainAction: (MainAction) -> Unit,
@@ -233,11 +250,11 @@ private fun ChatHeader(
 
 @Composable
 private fun CharacterSummary(
-    character: CharacterId,
+    character: Character,
     compact: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val name = stringResource(character.nameResource())
+    val name = character.name
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
@@ -367,9 +384,10 @@ private fun HeaderActions(
 
 @Composable
 private fun CharacterSelector(
-    selectedCharacter: CharacterId,
+    characters: List<Character>,
+    selectedCharacterId: String?,
     compact: Boolean,
-    onCharacterSelected: (CharacterId) -> Unit,
+    onCharacterSelected: (String) -> Unit,
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -377,41 +395,27 @@ private fun CharacterSelector(
         color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.92f),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        if (compact) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = StarRailSpacing.xxs, vertical = StarRailSpacing.xs),
-                horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.xxs),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                CharacterId.entries.forEach { character ->
-                    CharacterSelectorItem(
-                        character = character,
-                        selected = character == selectedCharacter,
-                        compact = true,
-                        onClick = { onCharacterSelected(character) },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-            }
-        } else {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = StarRailSpacing.sm, vertical = StarRailSpacing.sm),
-                horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                CharacterId.entries.forEach { character ->
-                    CharacterSelectorItem(
-                        character = character,
-                        selected = character == selectedCharacter,
-                        compact = false,
-                        onClick = { onCharacterSelected(character) },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(
+                    horizontal = if (compact) StarRailSpacing.xxs else StarRailSpacing.sm,
+                    vertical = if (compact) StarRailSpacing.xs else StarRailSpacing.sm,
+                ),
+            horizontalArrangement = Arrangement.spacedBy(
+                if (compact) StarRailSpacing.xxs else StarRailSpacing.sm,
+            ),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            characters.forEach { character ->
+                CharacterSelectorItem(
+                    character = character,
+                    selected = character.id == selectedCharacterId,
+                    compact = compact,
+                    onClick = { onCharacterSelected(character.id) },
+                    modifier = Modifier.width(if (compact) 82.dp else 104.dp),
+                )
             }
         }
     }
@@ -419,13 +423,13 @@ private fun CharacterSelector(
 
 @Composable
 private fun CharacterSelectorItem(
-    character: CharacterId,
+    character: Character,
     selected: Boolean,
     compact: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val name = stringResource(character.nameResource())
+    val name = character.name
     val selectionDescription = stringResource(
         if (selected) {
             Res.string.character_selected_description
@@ -494,11 +498,16 @@ private fun CharacterSelectorItem(
 
 @Composable
 fun CharacterAvatar(
-    character: CharacterId,
+    character: Character,
     size: androidx.compose.ui.unit.Dp,
     selected: Boolean,
     contentDescription: String?,
 ) {
+    val painter = remember(character.avatarBytes) {
+        runCatching {
+            BitmapPainter(character.avatarBytes.decodeToImageBitmap())
+        }.getOrNull()
+    }
     val ringBrush = if (selected) {
         Brush.linearGradient(
             listOf(
@@ -523,12 +532,21 @@ fun CharacterAvatar(
             .padding(3.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Image(
-            painter = painterResource(character.avatarResource()),
-            contentDescription = contentDescription,
-            modifier = Modifier.fillMaxSize().clip(CircleShape),
-            contentScale = ContentScale.Crop,
-        )
+        if (painter != null) {
+            Image(
+                painter = painter,
+                contentDescription = contentDescription,
+                modifier = Modifier.fillMaxSize().clip(CircleShape),
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            StarRailIcon(
+                kind = StarRailIconKind.PROFILE,
+                contentDescription = contentDescription,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(size / 2),
+            )
+        }
     }
 }
 
@@ -571,11 +589,13 @@ private fun DateDivider() {
 @Composable
 private fun MessageItem(
     message: ChatMessageUiModel,
+    charactersById: Map<String, Character>,
     compact: Boolean,
 ) {
     when (message) {
         is ChatMessageUiModel.Received -> ReceivedMessage(
             message = message,
+            sender = charactersById[message.senderId],
             compact = compact,
         )
         is ChatMessageUiModel.Sent -> SentMessage(
@@ -588,10 +608,11 @@ private fun MessageItem(
 @Composable
 private fun ReceivedMessage(
     message: ChatMessageUiModel.Received,
+    sender: Character?,
     compact: Boolean,
 ) {
     val text = message.content.resolve()
-    val senderName = stringResource(message.sender.nameResource())
+    val senderName = sender?.name ?: message.senderId
     val semanticDescription = stringResource(
         Res.string.received_message_description,
         senderName,
@@ -608,12 +629,14 @@ private fun ReceivedMessage(
             horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
             verticalAlignment = Alignment.Top,
         ) {
-            CharacterAvatar(
-                character = message.sender,
-                size = if (compact) 40.dp else 44.dp,
-                selected = true,
-                contentDescription = null,
-            )
+            if (sender != null) {
+                CharacterAvatar(
+                    character = sender,
+                    size = if (compact) 40.dp else 44.dp,
+                    selected = true,
+                    contentDescription = null,
+                )
+            }
             Column(
                 modifier = Modifier.widthIn(max = bubbleMaxWidth),
                 verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
@@ -986,20 +1009,6 @@ private fun ChatCopy.resource(): StringResource = when (this) {
     ChatCopy.COMFORT -> Res.string.message_comfort
     ChatCopy.USER_THANKS -> Res.string.message_user_thanks
     ChatCopy.CARE -> Res.string.message_care
-}
-
-internal fun CharacterId.nameResource(): StringResource = when (this) {
-    CharacterId.LIU_YING -> Res.string.character_liuying
-    CharacterId.TIAN_SHU -> Res.string.character_tianshu
-    CharacterId.LI_GUANG -> Res.string.character_liguang
-    CharacterId.XI -> Res.string.character_xi
-}
-
-internal fun CharacterId.avatarResource(): DrawableResource = when (this) {
-    CharacterId.LIU_YING -> Res.drawable.avatar_liuying
-    CharacterId.TIAN_SHU -> Res.drawable.avatar_tianqu
-    CharacterId.LI_GUANG -> Res.drawable.avatar_liguang
-    CharacterId.XI -> Res.drawable.avatar_xi
 }
 
 @Preview(widthDp = 360, heightDp = 800)

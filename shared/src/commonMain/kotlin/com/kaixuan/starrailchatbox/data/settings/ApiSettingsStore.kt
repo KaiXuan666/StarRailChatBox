@@ -6,6 +6,16 @@ data class StoredApiSettings(
     val selectedModel: String,
 )
 
+data class ApiSettingsDefaults(
+    val apiHost: String = "",
+    val apiKey: String = "",
+)
+
+internal fun localApiSettingsDefaults() = ApiSettingsDefaults(
+    apiHost = LocalApiSettings.apiHost,
+    apiKey = LocalApiSettings.apiKey,
+)
+
 interface ApiSettingsStore {
     suspend fun load(): StoredApiSettings?
 
