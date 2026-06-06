@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -234,6 +235,7 @@ fun ChatScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ChatContent(
     state: ChatUiState,
@@ -261,10 +263,12 @@ private fun ChatContent(
 
     LazyColumn(
         state = listState,
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.statusBars),
         contentPadding = PaddingValues(
             start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-            top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + StarRailSpacing.lg,
+            top = StarRailSpacing.lg,
             end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
             bottom = contentPadding.calculateBottomPadding() + StarRailSpacing.lg,
         ),
@@ -277,14 +281,21 @@ private fun ChatContent(
                 onAction = onAction,
             )
         }
-        item(key = "characters") {
-            CharacterSelector(
-                selectedCharacter = state.selectedCharacter,
-                compact = compact,
-                onCharacterSelected = {
-                    onAction(ChatAction.CharacterSelected(it))
-                },
-            )
+        stickyHeader(key = "characters") {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.Transparent)
+                    .padding(top = StarRailSpacing.xxs),
+            ) {
+                CharacterSelector(
+                    selectedCharacter = state.selectedCharacter,
+                    compact = compact,
+                    onCharacterSelected = {
+                        onAction(ChatAction.CharacterSelected(it))
+                    },
+                )
+            }
         }
         item(key = "date") {
             DateDivider()
@@ -504,16 +515,20 @@ private fun CharacterSelector(
                 }
             }
         } else {
-            LazyRow(
-                contentPadding = PaddingValues(StarRailSpacing.sm),
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = StarRailSpacing.sm, vertical = StarRailSpacing.sm),
                 horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                items(CharacterId.entries) { character ->
+                CharacterId.entries.forEach { character ->
                     CharacterSelectorItem(
                         character = character,
                         selected = character == selectedCharacter,
                         compact = false,
                         onClick = { onCharacterSelected(character) },
+                        modifier = Modifier.weight(1f),
                     )
                 }
             }
@@ -540,7 +555,6 @@ private fun CharacterSelectorItem(
     )
     Column(
         modifier = modifier
-            .then(if (compact) Modifier else Modifier.width(132.dp))
             .clip(MaterialTheme.shapes.medium)
             .clickable(onClick = onClick)
             .semantics {
@@ -909,7 +923,7 @@ private fun QuickReplies(
             .horizontalScroll(rememberScrollState())
             .padding(
                 horizontal = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                vertical = if (compact) StarRailSpacing.xs else StarRailSpacing.sm,
+                vertical = if (compact) StarRailSpacing.xxs else StarRailSpacing.xs,
             ),
         horizontalArrangement = Arrangement.spacedBy(
             if (compact) StarRailSpacing.xxs else StarRailSpacing.xs
@@ -930,7 +944,7 @@ private fun QuickReplies(
                 Row(
                     modifier = Modifier.padding(
                         horizontal = if (compact) 12.dp else StarRailSpacing.md,
-                        vertical = if (compact) 6.dp else StarRailSpacing.sm,
+                        vertical = if (compact) 4.dp else StarRailSpacing.xs,
                     ),
                     horizontalArrangement = Arrangement.spacedBy(
                         if (compact) StarRailSpacing.xxs else StarRailSpacing.xs
