@@ -140,6 +140,10 @@ import com.kaixuan.starrailchatbox.design.starRailColors
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import com.kaixuan.starrailchatbox.ui.settings.SettingsScreen
+import com.kaixuan.starrailchatbox.ui.settings.ApiSettingsScreen
+import starrailchatbox.shared.generated.resources.settings_api_saved
+import starrailchatbox.shared.generated.resources.settings_api_fetching
+import starrailchatbox.shared.generated.resources.settings_api_fetch_success
 
 @Composable
 fun ChatRoute(
@@ -160,6 +164,9 @@ fun ChatRoute(
         EffectMessage.SETTINGS_NOTICE_NOT_READY to stringResource(Res.string.settings_notice_not_ready),
         EffectMessage.SETTINGS_ABOUT_INFO to stringResource(Res.string.settings_about_desc_toast),
         EffectMessage.SETTINGS_PRIVACY_INFO to stringResource(Res.string.settings_privacy_not_ready),
+        EffectMessage.SETTINGS_API_SAVED to stringResource(Res.string.settings_api_saved),
+        EffectMessage.SETTINGS_API_FETCH_START to stringResource(Res.string.settings_api_fetching),
+        EffectMessage.SETTINGS_API_FETCH_SUCCESS to stringResource(Res.string.settings_api_fetch_success),
     )
 
     LaunchedEffect(effects, effectMessages) {
@@ -245,12 +252,21 @@ fun ChatScreen(
                         )
                     }
                     NavigationDestination.PROFILE -> {
-                        SettingsScreen(
-                            state = state,
-                            contentPadding = contentPadding,
-                            compact = compact,
-                            onAction = onAction,
-                        )
+                        if (state.showApiSettings) {
+                            ApiSettingsScreen(
+                                state = state,
+                                contentPadding = contentPadding,
+                                compact = compact,
+                                onAction = onAction,
+                            )
+                        } else {
+                            SettingsScreen(
+                                state = state,
+                                contentPadding = contentPadding,
+                                compact = compact,
+                                onAction = onAction,
+                            )
+                        }
                     }
                     NavigationDestination.CHARACTERS -> {
                         PlaceholderScreen(

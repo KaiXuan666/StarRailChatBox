@@ -71,4 +71,15 @@
     <string name="theme_dark">深色</string>
     <string name="cancel">取消</string>
     <string name="confirm">确定</string>
+    
+    <!-- API设置界面相关 -->
+    <string name="settings_api_host">API主机</string>
+    <string name="settings_api_key">API密钥</string>
+    <string name="settings_model_list">模型列表</string>
+    <string name="settings_get">获取</string>
+    <string name="settings_save_config">保存配置</string>
+    <string name="settings_api_saved">API配置已保存</string>
+    <string name="settings_api_fetching">正在拉取模型列表中...</string>
+    <string name="settings_api_fetch_success">已成功拉取最新模型列表</string>
+    <string name="settings_api_model_selected">已选</string>
 </resources>

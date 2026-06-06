@@ -1,0 +1,699 @@
+package com.kaixuan.starrailchatbox.ui.settings
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.kaixuan.starrailchatbox.design.StarRailSpacing
+import com.kaixuan.starrailchatbox.design.starRailColors
+import com.kaixuan.starrailchatbox.ui.chat.ChatAction
+import com.kaixuan.starrailchatbox.ui.chat.ChatUiState
+import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
+import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
+import org.jetbrains.compose.resources.stringResource
+import starrailchatbox.shared.generated.resources.Res
+import androidx.compose.ui.tooling.preview.Preview
+import com.kaixuan.starrailchatbox.design.StarRailTheme
+import starrailchatbox.shared.generated.resources.settings_api_fetching
+import starrailchatbox.shared.generated.resources.settings_api_host
+import starrailchatbox.shared.generated.resources.settings_api_key
+import starrailchatbox.shared.generated.resources.settings_api_model_selected
+import starrailchatbox.shared.generated.resources.settings_api_title
+import starrailchatbox.shared.generated.resources.settings_get
+import starrailchatbox.shared.generated.resources.settings_model_list
+import starrailchatbox.shared.generated.resources.settings_save_config
+
+@Composable
+fun ApiSettingsScreen(
+    state: ChatUiState,
+    contentPadding: PaddingValues,
+    compact: Boolean,
+    onAction: (ChatAction) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MaterialTheme.starRailColors
+    
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(
+                start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + StarRailSpacing.xs,
+                end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                bottom = contentPadding.calculateBottomPadding() + StarRailSpacing.lg
+            )
+    ) {
+        // High fidelity decorative Compass background
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val mainColor = colors.constellation.copy(alpha = 0.08f)
+            val subColor = colors.constellationMuted.copy(alpha = 0.04f)
+            
+            // Top Right Compass
+            drawCompassDecor(
+                center = Offset(size.width * 0.9f, size.height * 0.15f),
+                radius = 120.dp.toPx(),
+                mainColor = mainColor,
+                subColor = subColor
+            )
+            
+            // Bottom Left Compass
+            drawCompassDecor(
+                center = Offset(size.width * 0.1f, size.height * 0.95f),
+                radius = 100.dp.toPx(),
+                mainColor = mainColor,
+                subColor = subColor
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(StarRailSpacing.md)
+        ) {
+            // Header Top Bar with Back Chevron Button and Title
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = StarRailSpacing.xs),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm)
+            ) {
+                // Back button without circular background
+                Box(
+                    modifier = Modifier
+                        .size(if (compact) 36.dp else 40.dp)
+                        .clip(CircleShape)
+                        .clickable { onAction(ChatAction.BackFromApiSettings) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    StarRailIcon(
+                        kind = StarRailIconKind.CHEVRON_LEFT,
+                        contentDescription = "返回",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(if (compact) 24.dp else 36.dp)
+                    )
+                }
+                
+                Text(
+                    text = stringResource(Res.string.settings_api_title),
+                    color = MaterialTheme.colorScheme.onBackground,
+                    style = if (compact) {
+                        MaterialTheme.typography.titleLarge
+                    } else {
+                        MaterialTheme.typography.headlineSmall
+                    },
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // --- API Host Section ---
+            Column(
+                verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs)
+            ) {
+                Text(
+                    text = stringResource(Res.string.settings_api_host),
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.9f),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+                
+                ApiInputField(
+                    value = state.apiHost,
+                    onValueChange = { onAction(ChatAction.ApiHostChanged(it)) },
+                    placeholder = "https://api.example.com/v1",
+                    leadingIcon = StarRailIconKind.GLOBE,
+                    compact = compact
+                )
+            }
+
+            // --- API Key Section ---
+            Column(
+                verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs)
+            ) {
+                Text(
+                    text = stringResource(Res.string.settings_api_key),
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.9f),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+                
+                ApiInputField(
+                    value = state.apiKey,
+                    onValueChange = { onAction(ChatAction.ApiKeyChanged(it)) },
+                    placeholder = "sk-••••••••••••••••••••••••",
+                    leadingIcon = StarRailIconKind.KEY,
+                    isPasswordField = true,
+                    passwordVisible = state.showApiKey,
+                    onPasswordToggle = { onAction(ChatAction.ToggleApiKeyVisibility) },
+                    compact = compact
+                )
+            }
+
+            // --- Model List Section ---
+            Column(
+                verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(Res.string.settings_model_list),
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.9f),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(start = 4.dp)
+                    )
+                    
+                    // Fetch models button
+                    val fetchInteractionSource = remember { MutableInteractionSource() }
+                    val isFetchPressed by fetchInteractionSource.collectIsPressedAsState()
+                    val fetchScale by animateFloatAsState(if (isFetchPressed) 0.92f else 1f)
+                    
+                    Surface(
+                        onClick = { onAction(ChatAction.FetchModelsClicked) },
+                        interactionSource = fetchInteractionSource,
+                        modifier = Modifier
+                            .scale(fetchScale),
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            if (state.isFetchingModels) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(14.dp),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    strokeWidth = 1.5.dp
+                                )
+                            }
+                            Text(
+                                text = stringResource(Res.string.settings_get),
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+                
+                // Show loading placeholder if loading but empty list, or overlay animation
+                Box(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs)
+                    ) {
+                        state.modelsList.forEach { model ->
+                            ModelCardItem(
+                                model = model,
+                                isSelected = state.selectedModel == model,
+                                onClick = { onAction(ChatAction.SelectModel(model)) },
+                                compact = compact
+                            )
+                        }
+                    }
+                    
+                    // Loading Overlay banner
+                    if (state.isFetchingModels && state.modelsList.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(160.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.85f),
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(28.dp),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = stringResource(Res.string.settings_api_fetching),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(10.dp))
+            
+            // --- Save Configuration Button ---
+            val saveInteractionSource = remember { MutableInteractionSource() }
+            val isSavePressed by saveInteractionSource.collectIsPressedAsState()
+            val saveScale by animateFloatAsState(if (isSavePressed) 0.95f else 1f)
+            
+            val saveGradient = Brush.horizontalGradient(
+                listOf(
+                    Color(0xFF5D7AFF), // StarRail primary signature blue
+                    Color(0xFF385EFF)
+                )
+            )
+            
+            Surface(
+                onClick = { onAction(ChatAction.SaveApiSettingsClicked) },
+                interactionSource = saveInteractionSource,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(if (compact) 46.dp else 52.dp)
+                    .scale(saveScale),
+                shape = RoundedCornerShape(50),
+                color = Color.Transparent
+            ) {
+                Box(
+                    modifier = Modifier
+                        .background(saveGradient)
+                        .fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = stringResource(Res.string.settings_save_config),
+                        color = Color.White,
+                        style = if (compact) {
+                            MaterialTheme.typography.titleMedium
+                        } else {
+                            MaterialTheme.typography.titleLarge
+                        },
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ApiInputField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    leadingIcon: StarRailIconKind,
+    modifier: Modifier = Modifier,
+    isPasswordField: Boolean = false,
+    passwordVisible: Boolean = false,
+    onPasswordToggle: () -> Unit = {},
+    compact: Boolean = false
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.7f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = if (compact) 10.dp else 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            StarRailIcon(
+                kind = leadingIcon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(if (compact) 18.dp else 22.dp)
+            )
+            
+            Spacer(modifier = Modifier.width(12.dp))
+            
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (value.isEmpty()) {
+                    Text(
+                        text = placeholder,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 1
+                    )
+                }
+                
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    textStyle = TextStyle(
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 16.sp,
+                        fontFamily = MaterialTheme.typography.bodyLarge.fontFamily
+                    ),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    singleLine = true,
+                    visualTransformation = if (isPasswordField && !passwordVisible) {
+                        PasswordVisualTransformation()
+                    } else {
+                        VisualTransformation.None
+                    }
+                )
+            }
+            
+            if (isPasswordField) {
+                Spacer(modifier = Modifier.width(8.dp))
+                val eyeIcon = if (passwordVisible) StarRailIconKind.EYE_VISIBLE else StarRailIconKind.EYE_HIDDEN
+                
+                Surface(
+                    onClick = onPasswordToggle,
+                    shape = CircleShape,
+                    color = Color.Transparent,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        StarRailIcon(
+                            kind = eyeIcon,
+                            contentDescription = "切换密码可见性",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModelCardItem(
+    model: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    compact: Boolean = false
+) {
+    val outlineBrushColor = if (isSelected) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+    } else {
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+    }
+    
+    val bgGradient = if (isSelected) {
+        Brush.horizontalGradient(
+            listOf(
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.02f)
+            )
+        )
+    } else {
+        Brush.horizontalGradient(
+            listOf(
+                MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.15f),
+                MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.15f)
+            )
+        )
+    }
+
+    Surface(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = Color.Transparent,
+        border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, outlineBrushColor)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(bgGradient)
+                .padding(horizontal = 14.dp, vertical = if (compact) 12.dp else 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                // Cube Icon
+                Box(
+                    modifier = Modifier
+                        .size(if (compact) 32.dp else 38.dp)
+                        .background(
+                            if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                            else MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
+                            CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    StarRailIcon(
+                        kind = StarRailIconKind.CUBE,
+                        contentDescription = null,
+                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(if (compact) 16.dp else 18.dp)
+                    )
+                }
+                
+                Spacer(modifier = Modifier.width(12.dp))
+                
+                Text(
+                    text = model,
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                )
+                
+                if (isSelected) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
+                    // Selected Pill Badge
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                RoundedCornerShape(50)
+                            )
+                            .padding(horizontal = 8.dp, vertical = 2.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.settings_api_model_selected),
+                            color = MaterialTheme.colorScheme.primary,
+                            style = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        )
+                    }
+                }
+            }
+            
+            // Radio Circle
+            Box(
+                modifier = Modifier
+                    .size(if (compact) 18.dp else 22.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                        else Color.Transparent
+                    )
+                    .border(
+                        if (isSelected) 2.dp else 1.5.dp,
+                        if (isSelected) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isSelected) {
+                    StarRailIcon(
+                        kind = StarRailIconKind.CHECK,
+                        contentDescription = "已选",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(if (compact) 10.dp else 12.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+// Draw decorative compass pattern helper
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCompassDecor(
+    center: Offset,
+    radius: Float,
+    mainColor: Color,
+    subColor: Color
+) {
+    val thinStroke = Stroke(width = 1.dp.toPx())
+    
+    // Outer circle
+    drawCircle(
+        color = mainColor,
+        radius = radius,
+        center = center,
+        style = thinStroke
+    )
+    
+    // Inner dotted circle (modeled by dashed sweep arcs or simpler double circle)
+    drawCircle(
+        color = subColor,
+        radius = radius * 0.8f,
+        center = center,
+        style = thinStroke
+    )
+    
+    drawCircle(
+        color = mainColor,
+        radius = radius * 0.3f,
+        center = center,
+        style = thinStroke
+    )
+
+    // Compass Cross lines
+    drawLine(
+        color = subColor,
+        start = Offset(center.x - radius * 1.1f, center.y),
+        end = Offset(center.x + radius * 1.1f, center.y),
+        strokeWidth = 1.dp.toPx()
+    )
+    drawLine(
+        color = subColor,
+        start = Offset(center.x, center.y - radius * 1.1f),
+        end = Offset(center.x, center.y + radius * 1.1f),
+        strokeWidth = 1.dp.toPx()
+    )
+    
+    // Inner star points (8 directions)
+    val path = Path().apply {
+        // Main NSEW points
+        for (i in 0 until 4) {
+            val angle = i * (Math.PI / 2).toFloat()
+            val outerX = center.x + Math.cos(angle.toDouble()).toFloat() * radius * 0.75f
+            val outerY = center.y + Math.sin(angle.toDouble()).toFloat() * radius * 0.75f
+            
+            val rightAngle = angle + (Math.PI / 8).toFloat()
+            val leftAngle = angle - (Math.PI / 8).toFloat()
+            val innerRX = center.x + Math.cos(rightAngle.toDouble()).toFloat() * radius * 0.15f
+            val innerRY = center.y + Math.sin(rightAngle.toDouble()).toFloat() * radius * 0.15f
+            val innerLX = center.x + Math.cos(leftAngle.toDouble()).toFloat() * radius * 0.15f
+            val innerLY = center.y + Math.sin(leftAngle.toDouble()).toFloat() * radius * 0.15f
+            
+            moveTo(outerX, outerY)
+            lineTo(innerRX, innerRY)
+            lineTo(center.x, center.y)
+            lineTo(innerLX, innerLY)
+            close()
+        }
+    }
+    drawPath(path, mainColor)
+    
+    val pathDiag = Path().apply {
+        // Diagonal points
+        for (i in 0 until 4) {
+            val angle = (i * (Math.PI / 2) + (Math.PI / 4)).toFloat()
+            val outerX = center.x + Math.cos(angle.toDouble()).toFloat() * radius * 0.5f
+            val outerY = center.y + Math.sin(angle.toDouble()).toFloat() * radius * 0.5f
+            
+            val rightAngle = angle + (Math.PI / 8).toFloat()
+            val leftAngle = angle - (Math.PI / 8).toFloat()
+            val innerRX = center.x + Math.cos(rightAngle.toDouble()).toFloat() * radius * 0.12f
+            val innerRY = center.y + Math.sin(rightAngle.toDouble()).toFloat() * radius * 0.12f
+            val innerLX = center.x + Math.cos(leftAngle.toDouble()).toFloat() * radius * 0.12f
+            val innerLY = center.y + Math.sin(leftAngle.toDouble()).toFloat() * radius * 0.12f
+            
+            moveTo(outerX, outerY)
+            lineTo(innerRX, innerRY)
+            lineTo(center.x, center.y)
+            lineTo(innerLX, innerLY)
+            close()
+        }
+    }
+    drawPath(pathDiag, subColor)
+}
+
+@Preview(widthDp = 360, heightDp = 800)
+@Composable
+private fun ApiSettingsScreenLightPreview() {
+    StarRailTheme(darkThemeOverride = false) {
+        ApiSettingsScreen(
+            state = ChatUiState(
+                apiHost = "https://api.example.com/v1",
+                apiKey = "sk-1234567890",
+                selectedModel = "gpt-4o-mini"
+            ),
+            contentPadding = PaddingValues(0.dp),
+            compact = true,
+            onAction = {}
+        )
+    }
+}
+
+@Preview(widthDp = 360, heightDp = 800)
+@Composable
+private fun ApiSettingsScreenDarkPreview() {
+    StarRailTheme(darkThemeOverride = true) {
+        ApiSettingsScreen(
+            state = ChatUiState(
+                darkThemeOverride = true,
+                apiHost = "https://api.example.com/v1",
+                apiKey = "sk-1234567890",
+                selectedModel = "gpt-4o-mini"
+            ),
+            contentPadding = PaddingValues(0.dp),
+            compact = true,
+            onAction = {}
+        )
+    }
+}

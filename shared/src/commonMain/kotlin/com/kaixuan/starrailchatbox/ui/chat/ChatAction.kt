@@ -13,6 +13,13 @@ sealed interface ChatAction {
     data class SettingsItemClicked(val item: SettingsItem) : ChatAction
     data class ThemeDialogConfirm(val themeOverride: Boolean?) : ChatAction
     data object ThemeDialogDismiss : ChatAction
+    data class ApiHostChanged(val host: String) : ChatAction
+    data class ApiKeyChanged(val key: String) : ChatAction
+    data object ToggleApiKeyVisibility : ChatAction
+    data object FetchModelsClicked : ChatAction
+    data class SelectModel(val model: String) : ChatAction
+    data object SaveApiSettingsClicked : ChatAction
+    data object BackFromApiSettings : ChatAction
 }
 
 enum class SettingsItem {

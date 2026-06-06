@@ -39,6 +39,11 @@ enum class StarRailIconKind {
     INFO,
     SHIELD,
     CHEVRON_RIGHT,
+    GLOBE,
+    KEY,
+    EYE_VISIBLE,
+    EYE_HIDDEN,
+    CHEVRON_LEFT,
 }
 
 @Composable
@@ -409,6 +414,57 @@ fun StarRailIcon(
                     moveTo(size.width * 0.42f, size.height * 0.32f)
                     lineTo(size.width * 0.6f, size.height * 0.5f)
                     lineTo(size.width * 0.42f, size.height * 0.68f)
+                }
+                drawPath(path, tint, style = stroke)
+            }
+
+            StarRailIconKind.GLOBE -> {
+                drawCircle(tint, side * 0.38f, point(0.5f, 0.5f), style = stroke)
+                drawLine(tint, point(0.12f, 0.5f), point(0.88f, 0.5f), strokeWidth)
+                drawLine(tint, point(0.5f, 0.12f), point(0.5f, 0.88f), strokeWidth)
+                drawOval(
+                    color = tint,
+                    topLeft = point(0.32f, 0.12f),
+                    size = Size(side * 0.36f, side * 0.76f),
+                    style = stroke
+                )
+            }
+
+            StarRailIconKind.KEY -> {
+                drawCircle(tint, side * 0.15f, point(0.35f, 0.35f), style = stroke)
+                drawLine(tint, point(0.45f, 0.45f), point(0.8f, 0.8f), strokeWidth)
+                drawLine(tint, point(0.65f, 0.65f), point(0.73f, 0.57f), strokeWidth)
+                drawLine(tint, point(0.73f, 0.73f), point(0.81f, 0.65f), strokeWidth)
+            }
+
+            StarRailIconKind.EYE_VISIBLE -> {
+                val path = Path().apply {
+                    moveTo(size.width * 0.18f, size.height * 0.5f)
+                    quadraticTo(size.width * 0.5f, size.height * 0.22f, size.width * 0.82f, size.height * 0.5f)
+                    quadraticTo(size.width * 0.5f, size.height * 0.78f, size.width * 0.18f, size.height * 0.5f)
+                    close()
+                }
+                drawPath(path, tint, style = stroke)
+                drawCircle(tint, side * 0.12f, point(0.5f, 0.5f))
+            }
+
+            StarRailIconKind.EYE_HIDDEN -> {
+                val path = Path().apply {
+                    moveTo(size.width * 0.18f, size.height * 0.5f)
+                    quadraticTo(size.width * 0.5f, size.height * 0.22f, size.width * 0.82f, size.height * 0.5f)
+                    quadraticTo(size.width * 0.5f, size.height * 0.78f, size.width * 0.18f, size.height * 0.5f)
+                    close()
+                }
+                drawPath(path, tint, style = stroke)
+                drawCircle(tint, side * 0.12f, point(0.5f, 0.5f))
+                drawLine(tint, point(0.25f, 0.25f), point(0.75f, 0.75f), strokeWidth)
+            }
+
+            StarRailIconKind.CHEVRON_LEFT -> {
+                val path = Path().apply {
+                    moveTo(size.width * 0.58f, size.height * 0.32f)
+                    lineTo(size.width * 0.4f, size.height * 0.5f)
+                    lineTo(size.width * 0.58f, size.height * 0.68f)
                 }
                 drawPath(path, tint, style = stroke)
             }
