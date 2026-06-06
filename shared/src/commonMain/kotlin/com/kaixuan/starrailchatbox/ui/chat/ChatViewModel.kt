@@ -40,6 +40,32 @@ class ChatViewModel : ViewModel() {
 
             is ChatAction.HeaderActionClicked -> handleHeaderAction(action.action)
             is ChatAction.ComposerActionClicked -> handleComposerAction(action.action)
+            is ChatAction.SettingsItemClicked -> handleSettingsItemClick(action.item)
+            is ChatAction.ThemeDialogConfirm -> {
+                _uiState.update { state ->
+                    state.copy(
+                        darkThemeOverride = action.themeOverride,
+                        showThemeDialog = false
+                    )
+                }
+                emitMessage(EffectMessage.THEME_CHANGED)
+            }
+            is ChatAction.ThemeDialogDismiss -> {
+                _uiState.update { it.copy(showThemeDialog = false) }
+            }
+        }
+    }
+
+    private fun handleSettingsItemClick(item: SettingsItem) {
+        when (item) {
+            SettingsItem.API_SETTINGS -> emitMessage(EffectMessage.SETTINGS_API_NOT_READY)
+            SettingsItem.CHECK_UPDATE -> emitMessage(EffectMessage.SETTINGS_UPDATE_CHECK)
+            SettingsItem.MESSAGE_NOTIFICATION -> emitMessage(EffectMessage.SETTINGS_NOTICE_NOT_READY)
+            SettingsItem.THEME_STYLE -> {
+                _uiState.update { it.copy(showThemeDialog = true) }
+            }
+            SettingsItem.ABOUT_US -> emitMessage(EffectMessage.SETTINGS_ABOUT_INFO)
+            SettingsItem.PRIVACY_SECURITY -> emitMessage(EffectMessage.SETTINGS_PRIVACY_INFO)
         }
     }
 

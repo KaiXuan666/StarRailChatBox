@@ -129,11 +129,17 @@ import starrailchatbox.shared.generated.resources.sent_message_description
 import starrailchatbox.shared.generated.resources.theme_changed
 import starrailchatbox.shared.generated.resources.today
 import starrailchatbox.shared.generated.resources.voice_not_ready
+import starrailchatbox.shared.generated.resources.settings_api_not_ready
+import starrailchatbox.shared.generated.resources.settings_update_check
+import starrailchatbox.shared.generated.resources.settings_notice_not_ready
+import starrailchatbox.shared.generated.resources.settings_about_desc_toast
+import starrailchatbox.shared.generated.resources.settings_privacy_not_ready
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
+import com.kaixuan.starrailchatbox.ui.settings.SettingsScreen
 
 @Composable
 fun ChatRoute(
@@ -149,6 +155,11 @@ fun ChatRoute(
         EffectMessage.EMOJI_NOT_READY to stringResource(Res.string.emoji_not_ready),
         EffectMessage.MICROPHONE_NOT_READY to stringResource(Res.string.microphone_not_ready),
         EffectMessage.THEME_CHANGED to stringResource(Res.string.theme_changed),
+        EffectMessage.SETTINGS_API_NOT_READY to stringResource(Res.string.settings_api_not_ready),
+        EffectMessage.SETTINGS_UPDATE_CHECK to stringResource(Res.string.settings_update_check),
+        EffectMessage.SETTINGS_NOTICE_NOT_READY to stringResource(Res.string.settings_notice_not_ready),
+        EffectMessage.SETTINGS_ABOUT_INFO to stringResource(Res.string.settings_about_desc_toast),
+        EffectMessage.SETTINGS_PRIVACY_INFO to stringResource(Res.string.settings_privacy_not_ready),
     )
 
     LaunchedEffect(effects, effectMessages) {
@@ -224,12 +235,36 @@ fun ChatScreen(
                     )
                 },
             ) { contentPadding ->
-                ChatContent(
-                    state = state,
-                    contentPadding = contentPadding,
-                    compact = compact,
-                    onAction = onAction,
-                )
+                when (state.selectedDestination) {
+                    NavigationDestination.CHAT -> {
+                        ChatContent(
+                            state = state,
+                            contentPadding = contentPadding,
+                            compact = compact,
+                            onAction = onAction,
+                        )
+                    }
+                    NavigationDestination.PROFILE -> {
+                        SettingsScreen(
+                            state = state,
+                            contentPadding = contentPadding,
+                            compact = compact,
+                            onAction = onAction,
+                        )
+                    }
+                    NavigationDestination.CHARACTERS -> {
+                        PlaceholderScreen(
+                            title = stringResource(Res.string.nav_characters),
+                            contentPadding = contentPadding,
+                        )
+                    }
+                    NavigationDestination.DISCOVER -> {
+                        PlaceholderScreen(
+                            title = stringResource(Res.string.nav_discover),
+                            contentPadding = contentPadding,
+                        )
+                    }
+                }
             }
         }
     }
@@ -860,6 +895,11 @@ private fun ChatBottomArea(
     compact: Boolean,
     onAction: (ChatAction) -> Unit,
 ) {
+    val isChat = state.selectedDestination == NavigationDestination.CHAT
+    if (!isChat && !showNavigationBar) {
+        return
+    }
+
     Column {
         Surface(
             color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.97f),
@@ -868,24 +908,26 @@ private fun ChatBottomArea(
             Column(
                 modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
             ) {
-                QuickReplies(
-                    compact = compact,
-                    onReplyClicked = {
-                        onAction(ChatAction.QuickReplyClicked(it))
-                    },
-                )
-                MessageComposer(
-                    value = state.messageDraft,
-                    isSending = state.isSending,
-                    compact = compact,
-                    onValueChange = {
-                        onAction(ChatAction.MessageChanged(it))
-                    },
-                    onSend = { onAction(ChatAction.SendClicked) },
-                    onComposerAction = {
-                        onAction(ChatAction.ComposerActionClicked(it))
-                    },
-                )
+                if (isChat) {
+                    QuickReplies(
+                        compact = compact,
+                        onReplyClicked = {
+                            onAction(ChatAction.QuickReplyClicked(it))
+                        },
+                    )
+                    MessageComposer(
+                        value = state.messageDraft,
+                        isSending = state.isSending,
+                        compact = compact,
+                        onValueChange = {
+                            onAction(ChatAction.MessageChanged(it))
+                        },
+                        onSend = { onAction(ChatAction.SendClicked) },
+                        onComposerAction = {
+                            onAction(ChatAction.ComposerActionClicked(it))
+                        },
+                    )
+                }
                 if (showNavigationBar) {
                     ChatNavigationBar(
                         selectedDestination = state.selectedDestination,
@@ -1320,6 +1362,42 @@ private fun ChatScreenDarkPreview() {
             state = ChatUiState(darkThemeOverride = true),
             effects = emptyFlow(),
             onAction = {},
+        )
+    }
+}
+
+@Composable
+private fun PlaceholderScreen(
+    title: String,
+    contentPadding: PaddingValues,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(contentPadding)
+            .padding(StarRailSpacing.md),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        StarRailIcon(
+            kind = StarRailIconKind.SPARKLE,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+            modifier = Modifier.size(64.dp),
+        )
+        Spacer(Modifier.height(StarRailSpacing.md))
+        Text(
+            text = title,
+            color = MaterialTheme.colorScheme.onBackground,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.height(StarRailSpacing.xs))
+        Text(
+            text = "功能正在探索中，敬请期待...",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyMedium,
         )
     }
 }

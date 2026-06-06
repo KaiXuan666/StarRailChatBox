@@ -42,4 +42,33 @@
     <string name="emoji_not_ready">表情功能正在准备中</string>
     <string name="microphone_not_ready">录音功能正在准备中</string>
     <string name="theme_changed">已切换主题显示模式</string>
+    
+    <!-- 设置界面 -->
+    <string name="settings_title">设置</string>
+    <string name="settings_api_title">API设置</string>
+    <string name="settings_api_desc">配置模型接口、Key 与请求参数</string>
+    <string name="settings_update_title">检查更新</string>
+    <string name="settings_update_desc">当前版本 v1.0.0，查看是否有新版本</string>
+    <string name="settings_notice_title">消息通知</string>
+    <string name="settings_notice_desc">管理消息提醒与通知方式</string>
+    <string name="settings_theme_title">主题风格</string>
+    <string name="settings_theme_desc">选择你喜欢的界面主题与风格</string>
+    <string name="settings_about_title">关于我们</string>
+    <string name="settings_about_desc">了解崩铁Chat Box与开发团队</string>
+    <string name="settings_privacy_title">隐私与安全</string>
+    <string name="settings_privacy_desc">查看隐私政策与数据安全说明</string>
+    
+    <!-- 设置项点击反馈 -->
+    <string name="settings_api_not_ready">API设置功能开发中...</string>
+    <string name="settings_update_check">当前已是最新版本 v1.0.0</string>
+    <string name="settings_notice_not_ready">通知设置功能开发中...</string>
+    <string name="settings_about_desc_toast">崩铁Chat Box v1.0.0 - 探索星轨的聊天助手</string>
+    <string name="settings_privacy_not_ready">隐私政策与数据安全说明已加载</string>
+    
+    <!-- 主题风格弹窗 -->
+    <string name="theme_follow_system">跟随系统</string>
+    <string name="theme_light">浅色</string>
+    <string name="theme_dark">深色</string>
+    <string name="cancel">取消</string>
+    <string name="confirm">确定</string>
 </resources>

@@ -58,6 +58,7 @@ data class ChatUiState(
     val selectedDestination: NavigationDestination = NavigationDestination.CHAT,
     val darkThemeOverride: Boolean? = null,
     val isSending: Boolean = false,
+    val showThemeDialog: Boolean = false,
 )
 
 private val initialMessages = listOf(

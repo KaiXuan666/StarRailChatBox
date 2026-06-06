@@ -10,6 +10,18 @@ sealed interface ChatAction {
     ) : ChatAction
     data class HeaderActionClicked(val action: HeaderAction) : ChatAction
     data class ComposerActionClicked(val action: ComposerAction) : ChatAction
+    data class SettingsItemClicked(val item: SettingsItem) : ChatAction
+    data class ThemeDialogConfirm(val themeOverride: Boolean?) : ChatAction
+    data object ThemeDialogDismiss : ChatAction
+}
+
+enum class SettingsItem {
+    API_SETTINGS,
+    CHECK_UPDATE,
+    MESSAGE_NOTIFICATION,
+    THEME_STYLE,
+    ABOUT_US,
+    PRIVACY_SECURITY,
 }
 
 enum class HeaderAction {

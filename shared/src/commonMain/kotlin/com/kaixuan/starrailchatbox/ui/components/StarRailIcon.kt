@@ -32,6 +32,13 @@ enum class StarRailIconKind {
     PERSON,
     COMPASS,
     CHECK,
+    CUBE,
+    UPDATE,
+    BELL,
+    PALETTE,
+    INFO,
+    SHIELD,
+    CHEVRON_RIGHT,
 }
 
 @Composable
@@ -272,6 +279,138 @@ fun StarRailIcon(
             StarRailIconKind.CHECK -> {
                 drawLine(tint, point(0.18f, 0.52f), point(0.42f, 0.76f), strokeWidth)
                 drawLine(tint, point(0.42f, 0.76f), point(0.84f, 0.24f), strokeWidth)
+            }
+
+            StarRailIconKind.CUBE -> {
+                val path = Path().apply {
+                    moveTo(size.width * 0.5f, size.height * 0.18f)
+                    lineTo(size.width * 0.82f, size.height * 0.34f)
+                    lineTo(size.width * 0.82f, size.height * 0.66f)
+                    lineTo(size.width * 0.5f, size.height * 0.82f)
+                    lineTo(size.width * 0.18f, size.height * 0.66f)
+                    lineTo(size.width * 0.18f, size.height * 0.34f)
+                    close()
+                }
+                drawPath(path, tint, style = stroke)
+                drawLine(tint, point(0.5f, 0.5f), point(0.5f, 0.82f), strokeWidth)
+                drawLine(tint, point(0.5f, 0.5f), point(0.18f, 0.34f), strokeWidth)
+                drawLine(tint, point(0.5f, 0.5f), point(0.82f, 0.34f), strokeWidth)
+            }
+
+            StarRailIconKind.UPDATE -> {
+                drawArc(
+                    color = tint,
+                    startAngle = -30f,
+                    sweepAngle = 290f,
+                    useCenter = false,
+                    topLeft = point(0.2f, 0.2f),
+                    size = Size(side * 0.6f, side * 0.6f),
+                    style = stroke,
+                )
+                val path = Path().apply {
+                    moveTo(size.width * 0.7f, size.height * 0.14f)
+                    lineTo(size.width * 0.82f, size.height * 0.34f)
+                    lineTo(size.width * 0.58f, size.height * 0.38f)
+                }
+                drawPath(path, tint, style = stroke)
+            }
+
+            StarRailIconKind.BELL -> {
+                val path = Path().apply {
+                    moveTo(size.width * 0.5f, size.height * 0.14f)
+                    cubicTo(
+                        size.width * 0.46f, size.height * 0.14f,
+                        size.width * 0.46f, size.height * 0.22f,
+                        size.width * 0.5f, size.height * 0.22f
+                    )
+                    lineTo(size.width * 0.5f, size.height * 0.26f)
+                    cubicTo(
+                        size.width * 0.34f, size.height * 0.3f,
+                        size.width * 0.26f, size.height * 0.5f,
+                        size.width * 0.22f, size.height * 0.72f
+                    )
+                    lineTo(size.width * 0.78f, size.height * 0.72f)
+                    cubicTo(
+                        size.width * 0.74f, size.height * 0.5f,
+                        size.width * 0.66f, size.height * 0.3f,
+                        size.width * 0.5f, size.height * 0.26f
+                    )
+                }
+                drawPath(path, tint, style = stroke)
+                drawArc(
+                    color = tint,
+                    startAngle = 0f,
+                    sweepAngle = 180f,
+                    useCenter = false,
+                    topLeft = point(0.42f, 0.72f),
+                    size = Size(side * 0.16f, side * 0.12f),
+                    style = stroke
+                )
+                drawLine(tint, point(0.16f, 0.72f), point(0.84f, 0.72f), strokeWidth)
+            }
+
+            StarRailIconKind.PALETTE -> {
+                val path = Path().apply {
+                    moveTo(size.width * 0.5f, size.height * 0.16f)
+                    cubicTo(
+                        size.width * 0.85f, size.height * 0.16f,
+                        size.width * 0.9f, size.height * 0.65f,
+                        size.width * 0.75f, size.height * 0.82f
+                    )
+                    cubicTo(
+                        size.width * 0.65f, size.height * 0.94f,
+                        size.width * 0.35f, size.height * 0.94f,
+                        size.width * 0.2f, size.height * 0.78f
+                    )
+                    cubicTo(
+                        size.width * 0.05f, size.height * 0.62f,
+                        size.width * 0.15f, size.height * 0.16f,
+                        size.width * 0.5f, size.height * 0.16f
+                    )
+                }
+                drawPath(path, tint, style = stroke)
+                drawCircle(tint, side * 0.06f, point(0.35f, 0.72f), style = stroke)
+                drawCircle(tint, side * 0.045f, point(0.45f, 0.34f))
+                drawCircle(tint, side * 0.045f, point(0.68f, 0.38f))
+                drawCircle(tint, side * 0.045f, point(0.68f, 0.62f))
+                drawCircle(tint, side * 0.045f, point(0.52f, 0.54f))
+            }
+
+            StarRailIconKind.INFO -> {
+                drawCircle(tint, side * 0.38f, point(0.5f, 0.5f), style = stroke)
+                drawCircle(tint, side * 0.04f, point(0.5f, 0.34f))
+                drawLine(tint, point(0.5f, 0.46f), point(0.5f, 0.7f), strokeWidth)
+            }
+
+            StarRailIconKind.SHIELD -> {
+                val path = Path().apply {
+                    moveTo(size.width * 0.24f, size.height * 0.24f)
+                    lineTo(size.width * 0.76f, size.height * 0.24f)
+                    lineTo(size.width * 0.76f, size.height * 0.54f)
+                    cubicTo(
+                        size.width * 0.76f, size.height * 0.72f,
+                        size.width * 0.62f, size.height * 0.84f,
+                        size.width * 0.5f, size.height * 0.88f
+                    )
+                    cubicTo(
+                        size.width * 0.38f, size.height * 0.84f,
+                        size.width * 0.24f, size.height * 0.72f,
+                        size.width * 0.24f, size.height * 0.54f
+                    )
+                    close()
+                }
+                drawPath(path, tint, style = stroke)
+                drawLine(tint, point(0.42f, 0.5f), point(0.58f, 0.5f), strokeWidth)
+                drawLine(tint, point(0.5f, 0.42f), point(0.5f, 0.58f), strokeWidth)
+            }
+
+            StarRailIconKind.CHEVRON_RIGHT -> {
+                val path = Path().apply {
+                    moveTo(size.width * 0.42f, size.height * 0.32f)
+                    lineTo(size.width * 0.6f, size.height * 0.5f)
+                    lineTo(size.width * 0.42f, size.height * 0.68f)
+                }
+                drawPath(path, tint, style = stroke)
             }
         }
     }

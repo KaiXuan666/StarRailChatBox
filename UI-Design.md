@@ -623,7 +623,7 @@ Modifier.semantics {
 6. 不以绝对坐标复刻设计图，必须使用 Compose 布局约束。
 7. 不将整张设计图作为背景图片冒充 UI。
 8. 所有文字进入资源文件，不直接散落在 Composable 中。
-9. 新组件必须提供浅色和深色 Preview。
+9. 新组件及新页面必须提供浅色和深色 Preview（所有后续编写的界面都应加上 `@Preview` 预览）。
 10. 新页面必须验证 Compact、Medium、Expanded 三种宽度。
 11. 新交互必须包含 enabled、disabled、pressed、focused 状态。
 12. 修改完成后至少构建 Android 或 Desktop，并尽可能验证 Web。
@@ -666,5 +666,6 @@ private fun ChatScreenDarkPreview() {
 - [ ] 消息列表、输入区和导航在窄屏与宽屏均合理。
 - [ ] 深色模式主要依靠语义表面分层，而非纯黑背景和过度阴影。
 - [ ] 组件状态与 Material Design 3 行为一致。
+- [ ] 所有新编写的页面和组件都编写了浅色与深色的 `@Preview` 预览。
 - [ ] Android/Desktop 至少一个目标构建通过。
 
