@@ -2,6 +2,8 @@ package com.kaixuan.starrailchatbox.ui.chat
 
 import androidx.compose.runtime.Immutable
 
+import com.kaixuan.starrailchatbox.ui.navigation.Route
+
 enum class CharacterId {
     LIU_YING,
     TIAN_SHU,
@@ -43,23 +45,15 @@ sealed interface ChatMessageUiModel {
     ) : ChatMessageUiModel
 }
 
-enum class NavigationDestination {
-    CHAT,
-    CHARACTERS,
-    DISCOVER,
-    PROFILE,
-}
-
 @Immutable
 data class ChatUiState(
     val selectedCharacter: CharacterId = CharacterId.LIU_YING,
     val messages: List<ChatMessageUiModel> = initialMessages,
     val messageDraft: String = "",
-    val selectedDestination: NavigationDestination = NavigationDestination.CHAT,
+    val backStack: List<Route> = listOf(Route.ChatSession),
     val darkThemeOverride: Boolean? = null,
     val isSending: Boolean = false,
     val showThemeDialog: Boolean = false,
-    val showApiSettings: Boolean = false,
     val apiHost: String = "https://api.example.com/v1",
     val apiKey: String = "",
     val showApiKey: Boolean = false,

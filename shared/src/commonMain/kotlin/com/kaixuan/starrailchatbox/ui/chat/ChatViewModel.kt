@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.kaixuan.starrailchatbox.ui.navigation.Route
 
 class ChatViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(ChatUiState())
@@ -37,7 +38,17 @@ class ChatViewModel : ViewModel() {
 
             is ChatAction.NavigationSelected -> {
                 _uiState.update {
-                    it.copy(selectedDestination = action.destination)
+                    it.copy(backStack = listOf(action.route))
+                }
+            }
+
+            ChatAction.PopBackStack -> {
+                _uiState.update { state ->
+                    if (state.backStack.size > 1) {
+                        state.copy(backStack = state.backStack.dropLast(1))
+                    } else {
+                        state
+                    }
                 }
             }
 
@@ -73,11 +84,23 @@ class ChatViewModel : ViewModel() {
                 _uiState.update { it.copy(selectedModel = action.model) }
             }
             ChatAction.SaveApiSettingsClicked -> {
-                _uiState.update { it.copy(showApiSettings = false) }
+                _uiState.update { state ->
+                    if (state.backStack.lastOrNull() == Route.ApiSettings) {
+                        state.copy(backStack = state.backStack.dropLast(1))
+                    } else {
+                        state
+                    }
+                }
                 emitMessage(EffectMessage.SETTINGS_API_SAVED)
             }
             ChatAction.BackFromApiSettings -> {
-                _uiState.update { it.copy(showApiSettings = false) }
+                _uiState.update { state ->
+                    if (state.backStack.lastOrNull() == Route.ApiSettings) {
+                        state.copy(backStack = state.backStack.dropLast(1))
+                    } else {
+                        state
+                    }
+                }
             }
         }
     }
@@ -85,7 +108,9 @@ class ChatViewModel : ViewModel() {
     private fun handleSettingsItemClick(item: SettingsItem) {
         when (item) {
             SettingsItem.API_SETTINGS -> {
-                _uiState.update { it.copy(showApiSettings = true) }
+                _uiState.update { state ->
+                    state.copy(backStack = state.backStack + Route.ApiSettings)
+                }
             }
             SettingsItem.CHECK_UPDATE -> emitMessage(EffectMessage.SETTINGS_UPDATE_CHECK)
             SettingsItem.MESSAGE_NOTIFICATION -> emitMessage(EffectMessage.SETTINGS_NOTICE_NOT_READY)

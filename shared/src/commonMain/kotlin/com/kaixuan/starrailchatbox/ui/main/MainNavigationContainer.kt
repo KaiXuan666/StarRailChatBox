@@ -1,0 +1,468 @@
+package com.kaixuan.starrailchatbox.ui.main
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.collectLatest
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
+import starrailchatbox.shared.generated.resources.Res
+import starrailchatbox.shared.generated.resources.attach_not_ready
+import starrailchatbox.shared.generated.resources.emoji_not_ready
+import starrailchatbox.shared.generated.resources.microphone_not_ready
+import starrailchatbox.shared.generated.resources.nav_characters
+import starrailchatbox.shared.generated.resources.nav_chat
+import starrailchatbox.shared.generated.resources.nav_discover
+import starrailchatbox.shared.generated.resources.nav_profile
+import starrailchatbox.shared.generated.resources.profile_not_ready
+import starrailchatbox.shared.generated.resources.settings_api_not_ready
+import starrailchatbox.shared.generated.resources.settings_update_check
+import starrailchatbox.shared.generated.resources.settings_notice_not_ready
+import starrailchatbox.shared.generated.resources.settings_about_desc_toast
+import starrailchatbox.shared.generated.resources.settings_privacy_not_ready
+import starrailchatbox.shared.generated.resources.settings_api_saved
+import starrailchatbox.shared.generated.resources.settings_api_fetching
+import starrailchatbox.shared.generated.resources.settings_api_fetch_success
+import starrailchatbox.shared.generated.resources.theme_changed
+import starrailchatbox.shared.generated.resources.voice_not_ready
+import com.kaixuan.starrailchatbox.design.StarRailSpacing
+import com.kaixuan.starrailchatbox.design.StarRailTheme
+import com.kaixuan.starrailchatbox.design.starRailColors
+import com.kaixuan.starrailchatbox.ui.chat.ChatAction
+import com.kaixuan.starrailchatbox.ui.chat.ChatEffect
+import com.kaixuan.starrailchatbox.ui.chat.ChatSessionBottomBar
+import com.kaixuan.starrailchatbox.ui.chat.ChatSessionScreen
+import com.kaixuan.starrailchatbox.ui.chat.ChatUiState
+import com.kaixuan.starrailchatbox.ui.chat.EffectMessage
+import com.kaixuan.starrailchatbox.ui.components.NavigationPlaceholderScreen
+import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
+import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
+import com.kaixuan.starrailchatbox.ui.navigation.NavDisplay
+import com.kaixuan.starrailchatbox.ui.navigation.Route
+import com.kaixuan.starrailchatbox.ui.navigation.entryProvider
+import com.kaixuan.starrailchatbox.ui.settings.ApiSettingsScreen
+import com.kaixuan.starrailchatbox.ui.settings.SettingsScreen
+
+@Composable
+fun MainRoute(
+    state: ChatUiState,
+    effects: Flow<ChatEffect>,
+    onAction: (ChatAction) -> Unit,
+) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    val effectMessages = mapOf(
+        EffectMessage.VOICE_NOT_READY to stringResource(Res.string.voice_not_ready),
+        EffectMessage.PROFILE_NOT_READY to stringResource(Res.string.profile_not_ready),
+        EffectMessage.ATTACH_NOT_READY to stringResource(Res.string.attach_not_ready),
+        EffectMessage.EMOJI_NOT_READY to stringResource(Res.string.emoji_not_ready),
+        EffectMessage.MICROPHONE_NOT_READY to stringResource(Res.string.microphone_not_ready),
+        EffectMessage.THEME_CHANGED to stringResource(Res.string.theme_changed),
+        EffectMessage.SETTINGS_API_NOT_READY to stringResource(Res.string.settings_api_not_ready),
+        EffectMessage.SETTINGS_UPDATE_CHECK to stringResource(Res.string.settings_update_check),
+        EffectMessage.SETTINGS_NOTICE_NOT_READY to stringResource(Res.string.settings_notice_not_ready),
+        EffectMessage.SETTINGS_ABOUT_INFO to stringResource(Res.string.settings_about_desc_toast),
+        EffectMessage.SETTINGS_PRIVACY_INFO to stringResource(Res.string.settings_privacy_not_ready),
+        EffectMessage.SETTINGS_API_SAVED to stringResource(Res.string.settings_api_saved),
+        EffectMessage.SETTINGS_API_FETCH_START to stringResource(Res.string.settings_api_fetching),
+        EffectMessage.SETTINGS_API_FETCH_SUCCESS to stringResource(Res.string.settings_api_fetch_success),
+    )
+
+    LaunchedEffect(effects, effectMessages) {
+        effects.collectLatest { effect ->
+            when (effect) {
+                is ChatEffect.ShowMessage -> {
+                    snackbarHostState.showSnackbar(
+                        effectMessages.getValue(effect.message),
+                    )
+                }
+            }
+        }
+    }
+
+    MainNavigationContainer(
+        state = state,
+        snackbarHostState = snackbarHostState,
+        onAction = onAction,
+    )
+}
+
+@Composable
+fun MainNavigationContainer(
+    state: ChatUiState,
+    snackbarHostState: SnackbarHostState,
+    onAction: (ChatAction) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MaterialTheme.starRailColors
+    val currentRoute = state.backStack.lastOrNull() ?: Route.ChatSession
+
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxSize()
+            .background(
+                Brush.linearGradient(
+                    listOf(
+                        MaterialTheme.colorScheme.background,
+                        colors.backgroundGlow.copy(alpha = 0.38f),
+                        MaterialTheme.colorScheme.background,
+                    ),
+                ),
+            ),
+    ) {
+        val expanded = maxWidth >= 840.dp
+        val compact = maxWidth < 480.dp
+        StarfieldBackground()
+
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            val showRail = expanded && state.backStack.size <= 1
+            if (showRail) {
+                MainNavigationRail(
+                    currentRoute = currentRoute,
+                    onDestinationSelected = {
+                        onAction(ChatAction.NavigationSelected(it))
+                    },
+                )
+            }
+
+            Scaffold(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .widthIn(max = 840.dp),
+                containerColor = Color.Transparent,
+                contentWindowInsets = WindowInsets(0),
+                snackbarHost = { SnackbarHost(snackbarHostState) },
+                bottomBar = {
+                    MainBottomArea(
+                        state = state,
+                        showNavigationBar = !showRail,
+                        compact = compact,
+                        onAction = onAction,
+                    )
+                },
+            ) { contentPadding ->
+                val entryProvider = entryProvider<Route> {
+                    entry<Route.ChatSession> {
+                        ChatSessionScreen(
+                            state = state,
+                            contentPadding = contentPadding,
+                            compact = compact,
+                            onAction = onAction,
+                        )
+                    }
+                    entry<Route.Characters> {
+                        NavigationPlaceholderScreen(
+                            title = stringResource(Res.string.nav_characters),
+                            contentPadding = contentPadding,
+                        )
+                    }
+                    entry<Route.Discover> {
+                        NavigationPlaceholderScreen(
+                            title = stringResource(Res.string.nav_discover),
+                            contentPadding = contentPadding,
+                        )
+                    }
+                    entry<Route.Settings> {
+                        SettingsScreen(
+                            state = state,
+                            contentPadding = contentPadding,
+                            compact = compact,
+                            onAction = onAction,
+                        )
+                    }
+                    entry<Route.ApiSettings> {
+                        ApiSettingsScreen(
+                            state = state,
+                            contentPadding = contentPadding,
+                            compact = compact,
+                            onAction = onAction,
+                        )
+                    }
+                }
+
+                NavDisplay(
+                    backstack = state.backStack,
+                    entryProvider = entryProvider
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MainBottomArea(
+    state: ChatUiState,
+    showNavigationBar: Boolean,
+    compact: Boolean,
+    onAction: (ChatAction) -> Unit,
+) {
+    val currentRoute = state.backStack.lastOrNull() ?: Route.ChatSession
+    val isChat = currentRoute == Route.ChatSession
+    if (!isChat && !showNavigationBar) {
+        return
+    }
+
+    Column {
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.97f),
+            shadowElevation = 8.dp,
+        ) {
+            Column(
+                modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
+            ) {
+                if (isChat) {
+                    ChatSessionBottomBar(
+                        state = state,
+                        compact = compact,
+                        onAction = onAction,
+                    )
+                }
+                if (showNavigationBar && state.backStack.size <= 1) {
+                    MainNavigationBar(
+                        currentRoute = currentRoute,
+                        compact = compact,
+                        onDestinationSelected = {
+                            onAction(ChatAction.NavigationSelected(it))
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+private data class NavigationItem(
+    val route: Route,
+    val label: StringResource,
+    val icon: StarRailIconKind,
+)
+
+private val navigationItems = listOf(
+    NavigationItem(
+        Route.ChatSession,
+        Res.string.nav_chat,
+        StarRailIconKind.CONVERSATION,
+    ),
+    NavigationItem(
+        Route.Characters,
+        Res.string.nav_characters,
+        StarRailIconKind.PERSON,
+    ),
+    NavigationItem(
+        Route.Discover,
+        Res.string.nav_discover,
+        StarRailIconKind.COMPASS,
+    ),
+    NavigationItem(
+        Route.Settings,
+        Res.string.nav_profile,
+        StarRailIconKind.PERSON,
+    ),
+)
+
+@Composable
+private fun MainNavigationBar(
+    currentRoute: Route,
+    compact: Boolean,
+    onDestinationSelected: (Route) -> Unit,
+) {
+    NavigationBar(
+        modifier = Modifier.height(if (compact) 72.dp else 80.dp),
+        containerColor = Color.Transparent,
+        tonalElevation = 0.dp,
+    ) {
+        navigationItems.forEach { item ->
+            val selected = when (item.route) {
+                Route.Settings -> currentRoute == Route.Settings || currentRoute == Route.ApiSettings
+                else -> item.route == currentRoute
+            }
+            val label = stringResource(item.label)
+            NavigationBarItem(
+                selected = selected,
+                onClick = { onDestinationSelected(item.route) },
+                icon = {
+                    StarRailIcon(
+                        kind = item.icon,
+                        contentDescription = label,
+                        tint = if (selected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        modifier = Modifier.size(if (compact) 24.dp else 26.dp),
+                    )
+                },
+                label = { Text(label) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun MainNavigationRail(
+    currentRoute: Route,
+    onDestinationSelected: (Route) -> Unit,
+) {
+    NavigationRail(
+        modifier = Modifier.fillMaxHeight(),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.94f),
+    ) {
+        Spacer(Modifier.height(StarRailSpacing.lg))
+        navigationItems.forEach { item ->
+            val selected = when (item.route) {
+                Route.Settings -> currentRoute == Route.Settings || currentRoute == Route.ApiSettings
+                else -> item.route == currentRoute
+            }
+            val label = stringResource(item.label)
+            NavigationRailItem(
+                selected = selected,
+                onClick = { onDestinationSelected(item.route) },
+                icon = {
+                    StarRailIcon(
+                        kind = item.icon,
+                        contentDescription = label,
+                        tint = if (selected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        modifier = Modifier.size(26.dp),
+                    )
+                },
+                label = { Text(label) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun StarfieldBackground() {
+    val colors = MaterialTheme.starRailColors
+    Canvas(Modifier.fillMaxSize()) {
+        val thinStroke = Stroke(width = 1.dp.toPx())
+        drawOval(
+            color = colors.constellationMuted.copy(alpha = 0.45f),
+            topLeft = Offset(size.width * 0.62f, size.height * 0.02f),
+            size = Size(size.width * 0.48f, size.height * 0.18f),
+            style = thinStroke,
+        )
+        drawOval(
+            color = colors.constellationMuted.copy(alpha = 0.38f),
+            topLeft = Offset(size.width * 0.68f, size.height * 0.045f),
+            size = Size(size.width * 0.34f, size.height * 0.12f),
+            style = thinStroke,
+        )
+        val stars = listOf(
+            0.08f to 0.26f,
+            0.93f to 0.31f,
+            0.81f to 0.52f,
+            0.12f to 0.72f,
+            0.9f to 0.84f,
+            0.46f to 0.18f,
+        )
+        stars.forEachIndexed { index, (x, y) ->
+            val radius = if (index % 2 == 0) 2.2.dp.toPx() else 1.4.dp.toPx()
+            drawCircle(
+                color = colors.constellation.copy(alpha = 0.58f),
+                radius = radius,
+                center = Offset(size.width * x, size.height * y),
+            )
+        }
+        drawDecorativeSparkle(
+            center = Offset(size.width * 0.84f, size.height * 0.42f),
+            radius = 12.dp.toPx(),
+            color = colors.constellationMuted.copy(alpha = 0.64f),
+        )
+        drawDecorativeSparkle(
+            center = Offset(size.width * 0.17f, size.height * 0.62f),
+            radius = 8.dp.toPx(),
+            color = colors.constellation.copy(alpha = 0.42f),
+        )
+    }
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDecorativeSparkle(
+    center: Offset,
+    radius: Float,
+    color: Color,
+) {
+    val path = Path().apply {
+        moveTo(center.x, center.y - radius)
+        lineTo(center.x + radius * 0.2f, center.y - radius * 0.2f)
+        lineTo(center.x + radius, center.y)
+        lineTo(center.x + radius * 0.2f, center.y + radius * 0.2f)
+        lineTo(center.x, center.y + radius)
+        lineTo(center.x - radius * 0.2f, center.y + radius * 0.2f)
+        lineTo(center.x - radius, center.y)
+        lineTo(center.x - radius * 0.2f, center.y - radius * 0.2f)
+        close()
+    }
+    drawPath(path, color)
+}
+
+@Preview(widthDp = 360, heightDp = 800)
+@Composable
+private fun MainContainerLightPreview() {
+    StarRailTheme(darkThemeOverride = false) {
+        MainRoute(
+            state = ChatUiState(),
+            effects = kotlinx.coroutines.flow.emptyFlow(),
+            onAction = {},
+        )
+    }
+}
+
+@Preview(widthDp = 360, heightDp = 800)
+@Composable
+private fun MainContainerDarkPreview() {
+    StarRailTheme(darkThemeOverride = true) {
+        MainRoute(
+            state = ChatUiState(darkThemeOverride = true),
+            effects = kotlinx.coroutines.flow.emptyFlow(),
+            onAction = {},
+        )
+    }
+}
