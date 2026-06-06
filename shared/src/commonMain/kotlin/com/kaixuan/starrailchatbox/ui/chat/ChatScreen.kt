@@ -494,7 +494,6 @@ private fun CharacterSelector(
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.92f),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        shadowElevation = 2.dp,
     ) {
         if (compact) {
             Row(
@@ -722,7 +721,7 @@ private fun ReceivedMessage(
             .fillMaxWidth()
             .semantics { contentDescription = semanticDescription },
     ) {
-        val bubbleMaxWidth = maxWidth * if (compact) 0.76f else 0.74f
+        val bubbleMaxWidth = maxWidth * if (compact) 0.72f else 0.74f
         Row(
             horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
             verticalAlignment = Alignment.Top,
@@ -749,8 +748,8 @@ private fun ReceivedMessage(
                     Text(
                         text = text,
                         modifier = Modifier.padding(
-                            horizontal = if (compact) 14.dp else StarRailSpacing.md,
-                            vertical = if (compact) 10.dp else StarRailSpacing.sm,
+                            horizontal = if (compact) 12.dp else StarRailSpacing.md,
+                            vertical = if (compact) 8.dp else StarRailSpacing.sm,
                         ),
                         color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.bodyLarge,
@@ -782,7 +781,7 @@ private fun SentMessage(
             .fillMaxWidth()
             .semantics { contentDescription = semanticDescription },
     ) {
-        val bubbleMaxWidth = maxWidth * if (compact) 0.76f else 0.74f
+        val bubbleMaxWidth = maxWidth * if (compact) 0.72f else 0.74f
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End,
@@ -805,8 +804,8 @@ private fun SentMessage(
                     Text(
                         text = text,
                         modifier = Modifier.padding(
-                            horizontal = if (compact) 14.dp else StarRailSpacing.md,
-                            vertical = if (compact) 10.dp else StarRailSpacing.sm,
+                            horizontal = if (compact) 12.dp else StarRailSpacing.md,
+                            vertical = if (compact) 8.dp else StarRailSpacing.sm,
                         ),
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                         style = MaterialTheme.typography.bodyLarge,
@@ -833,7 +832,7 @@ private fun SentMessage(
             }
             Spacer(Modifier.width(StarRailSpacing.sm))
             Surface(
-                modifier = Modifier.size(if (compact) 40.dp else 48.dp),
+                modifier = Modifier.size(if (compact) 32.dp else 48.dp),
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 border = BorderStroke(
@@ -846,7 +845,7 @@ private fun SentMessage(
                         kind = StarRailIconKind.SPARKLE,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(if (compact) 22.dp else 26.dp),
+                        modifier = Modifier.size(if (compact) 18.dp else 26.dp),
                     )
                 }
             }
@@ -1008,7 +1007,7 @@ private fun MessageComposer(
             onValueChange = onValueChange,
             modifier = Modifier
                 .weight(1f)
-                .defaultMinSize(minWidth = 0.dp, minHeight = if (compact) 44.dp else 56.dp)
+                .defaultMinSize(minWidth = 0.dp, minHeight = if (compact) 38.dp else 56.dp)
                 .animateContentSize(),
             placeholder = {
                 Text(stringResource(Res.string.message_placeholder))
@@ -1078,7 +1077,7 @@ private fun ComposerIconButton(
     Surface(
         onClick = onClick,
         enabled = enabled,
-        modifier = Modifier.size(if (compact) 44.dp else 52.dp),
+        modifier = Modifier.size(if (compact) 38.dp else 52.dp),
         shape = CircleShape,
         color = containerColor,
         contentColor = contentColor,
@@ -1092,7 +1091,7 @@ private fun ComposerIconButton(
         Box(contentAlignment = Alignment.Center) {
             if (loading) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(if (compact) 20.dp else 22.dp),
+                    modifier = Modifier.size(if (compact) 18.dp else 22.dp),
                     color = contentColor,
                     strokeWidth = 2.dp,
                 )
@@ -1101,7 +1100,7 @@ private fun ComposerIconButton(
                     kind = icon,
                     contentDescription = contentDescription,
                     tint = contentColor,
-                    modifier = Modifier.size(if (compact) 22.dp else 24.dp),
+                    modifier = Modifier.size(if (compact) 20.dp else 24.dp),
                 )
             }
         }
@@ -1144,8 +1143,8 @@ private fun ChatNavigationBar(
     onDestinationSelected: (NavigationDestination) -> Unit,
 ) {
     NavigationBar(
-        modifier = Modifier.height(if (compact) 64.dp else 80.dp),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+        modifier = Modifier.height(if (compact) 72.dp else 80.dp),
+        containerColor = Color.Transparent,
         tonalElevation = 0.dp,
     ) {
         navigationItems.forEach { item ->
@@ -1163,7 +1162,7 @@ private fun ChatNavigationBar(
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
                         },
-                        modifier = Modifier.size(if (compact) 22.dp else 26.dp),
+                        modifier = Modifier.size(if (compact) 24.dp else 26.dp),
                     )
                 },
                 label = { Text(label) },
