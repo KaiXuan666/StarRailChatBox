@@ -26,7 +26,7 @@
     <string name="nav_chat">对话</string>
     <string name="nav_characters">角色</string>
     <string name="nav_discover">发现</string>
-    <string name="nav_profile">我的</string>
+    <string name="nav_settings">设置</string>
     <string name="send_message">发送消息</string>
     <string name="add_attachment">添加附件</string>
     <string name="open_emoji">选择表情</string>

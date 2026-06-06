@@ -53,8 +53,7 @@ import starrailchatbox.shared.generated.resources.emoji_not_ready
 import starrailchatbox.shared.generated.resources.microphone_not_ready
 import starrailchatbox.shared.generated.resources.nav_characters
 import starrailchatbox.shared.generated.resources.nav_chat
-import starrailchatbox.shared.generated.resources.nav_discover
-import starrailchatbox.shared.generated.resources.nav_profile
+import starrailchatbox.shared.generated.resources.nav_settings
 import starrailchatbox.shared.generated.resources.profile_not_ready
 import starrailchatbox.shared.generated.resources.settings_api_not_ready
 import starrailchatbox.shared.generated.resources.settings_update_check
@@ -264,12 +263,6 @@ fun MainNavigationContainer(
                             contentPadding = contentPadding,
                         )
                     }
-                    entry<Route.Discover> {
-                        NavigationPlaceholderScreen(
-                            title = stringResource(Res.string.nav_discover),
-                            contentPadding = contentPadding,
-                        )
-                    }
                     entry<Route.Settings> {
                         SettingsScreen(
                             mainState = mainState,
@@ -352,24 +345,19 @@ private data class NavigationItem(
 
 private val navigationItems = listOf(
     NavigationItem(
-        Route.ChatSession,
-        Res.string.nav_chat,
-        StarRailIconKind.CONVERSATION,
-    ),
-    NavigationItem(
         Route.Characters,
         Res.string.nav_characters,
         StarRailIconKind.PERSON,
     ),
     NavigationItem(
-        Route.Discover,
-        Res.string.nav_discover,
-        StarRailIconKind.COMPASS,
+        Route.ChatSession,
+        Res.string.nav_chat,
+        StarRailIconKind.CONVERSATION,
     ),
     NavigationItem(
         Route.Settings,
-        Res.string.nav_profile,
-        StarRailIconKind.PERSON,
+        Res.string.nav_settings,
+        StarRailIconKind.SETTINGS,
     ),
 )
 

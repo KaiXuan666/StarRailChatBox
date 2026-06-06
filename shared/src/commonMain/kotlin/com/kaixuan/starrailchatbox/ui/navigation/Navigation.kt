@@ -16,9 +16,6 @@ sealed interface Route {
     // “角色” Tab 占位屏幕
     data object Characters : Route
     
-    // “发现” Tab 占位屏幕
-    data object Discover : Route
-    
     // “我的/设置” Tab 主屏幕
     data object Settings : Route
     
