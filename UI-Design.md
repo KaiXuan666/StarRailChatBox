@@ -80,16 +80,27 @@ shared/src/commonMain/kotlin/com/kaixuan/starrailchatbox/
 │   ├── CharacterUiModel.kt
 │   └── ChatMessageUiModel.kt
 ├── ui/
+│   ├── main/
+│   │   ├── MainNavigationContainer.kt
+│   │   ├── MainUiState.kt
+│   │   ├── MainAction.kt
+│   │   ├── MainEffect.kt
+│   │   └── MainViewModel.kt
 │   ├── chat/
-│   │   ├── ChatScreen.kt
-│   │   ├── ChatHeader.kt
-│   │   ├── CharacterSelector.kt
-│   │   ├── MessageList.kt
-│   │   ├── MessageBubble.kt
-│   │   ├── QuickReplyRow.kt
-│   │   └── MessageComposer.kt
+│   │   ├── ChatSessionScreen.kt
+│   │   ├── ChatUiState.kt
+│   │   ├── ChatAction.kt
+│   │   ├── ChatEffect.kt
+│   │   └── ChatViewModel.kt
+│   ├── settings/
+│   │   ├── SettingsScreen.kt
+│   │   ├── ApiSettingsScreen.kt
+│   │   ├── SettingsUiState.kt
+│   │   ├── SettingsAction.kt
+│   │   ├── SettingsEffect.kt
+│   │   └── SettingsViewModel.kt
 │   └── navigation/
-│       └── StarRailNavigationBar.kt
+│       └── Navigation.kt
 └── resources/
 ```
 
@@ -623,7 +634,7 @@ Modifier.semantics {
 6. 不以绝对坐标复刻设计图，必须使用 Compose 布局约束。
 7. 不将整张设计图作为背景图片冒充 UI。
 8. 所有文字进入资源文件，不直接散落在 Composable 中。
-9. 新组件及新页面必须提供浅色和深色 Preview（所有后续编写的界面都应加上 `@Preview` 预览）。
+9. 新组件及新页面必须提供浅色和深色 Preview，且统一尺寸规范为 `@Preview(widthDp = 360, heightDp = 800)`（所有后续编写的界面都应加上该规格的预览）。
 10. 新页面必须验证 Compact、Medium、Expanded 三种宽度。
 11. 新交互必须包含 enabled、disabled、pressed、focused 状态。
 12. 修改完成后至少构建 Android 或 Desktop，并尽可能验证 Web。
@@ -631,19 +642,19 @@ Modifier.semantics {
 推荐 Preview：
 
 ```kotlin
-@Preview
+@Preview(widthDp = 360, heightDp = 800)
 @Composable
-private fun ChatScreenLightPreview() {
-    StarRailTheme(darkTheme = false) {
-        ChatScreen(state = previewState, onAction = {})
+private fun ChatSessionScreenLightPreview() {
+    StarRailTheme(darkThemeOverride = false) {
+        ChatSessionScreen(state = previewState, onAction = {}, onMainAction = {})
     }
 }
 
-@Preview
+@Preview(widthDp = 360, heightDp = 800)
 @Composable
-private fun ChatScreenDarkPreview() {
-    StarRailTheme(darkTheme = true) {
-        ChatScreen(state = previewState, onAction = {})
+private fun ChatSessionScreenDarkPreview() {
+    StarRailTheme(darkThemeOverride = true) {
+        ChatSessionScreen(state = previewState, onAction = {}, onMainAction = {})
     }
 }
 ```
