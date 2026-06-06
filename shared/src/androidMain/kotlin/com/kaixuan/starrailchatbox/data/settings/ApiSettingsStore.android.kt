@@ -11,7 +11,12 @@ import okio.Path.Companion.toPath
 actual fun createApiSettingsStore(path: String?): ApiSettingsStore {
     if (path == null) return InMemoryApiSettingsStore()
     val keyDataStore = PreferenceDataStoreFactory.createWithPath {
-        "$path.encryption_key".toPath()
+        val keyPath = if (path.endsWith(".preferences_pb")) {
+            path.replace(".preferences_pb", ".key.preferences_pb")
+        } else {
+            "$path.key.preferences_pb"
+        }
+        keyPath.toPath()
     }
     return DataStoreApiSettingsStore(
         dataStore = PreferenceDataStoreFactory.createWithPath { path.toPath() },

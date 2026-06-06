@@ -172,7 +172,8 @@ class SettingsViewModel(
                 _effects.send(SettingsEffect.ApiSettingsSaved)
             } catch (cancellation: CancellationException) {
                 throw cancellation
-            } catch (_: Throwable) {
+            } catch (t: Throwable) {
+                t.printStackTrace()
                 _uiState.update { it.copy(isSaving = false) }
                 emitMessage(SettingsEffectMessage.SETTINGS_API_SAVE_FAILED)
             }

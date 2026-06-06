@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.androidApplication)
@@ -24,6 +25,22 @@ android {
     namespace = "com.kaixuan.starrailchatbox"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
+    val props = Properties().apply {
+        val localPropertiesFile = rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+            localPropertiesFile.inputStream().use { load(it) }
+        }
+    }
+
+    signingConfigs {
+        create("release") {
+            storeFile = rootProject.file("key/kaixuan.jks")
+            storePassword = props.getProperty("SIGNING_STORE_PASSWORD")
+            keyAlias = props.getProperty("SIGNING_KEY_ALIAS")
+            keyPassword = props.getProperty("SIGNING_KEY_PASSWORD")
+        }
+    }
+
     defaultConfig {
         applicationId = "com.kaixuan.starrailchatbox"
         minSdk = libs.versions.android.minSdk.get().toInt()
@@ -39,6 +56,10 @@ android {
     buildTypes {
         getByName("release") {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
+        }
+        getByName("debug") {
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {

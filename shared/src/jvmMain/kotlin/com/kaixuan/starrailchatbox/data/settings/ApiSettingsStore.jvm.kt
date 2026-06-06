@@ -16,7 +16,12 @@ actual fun createApiSettingsStore(path: String?): ApiSettingsStore {
     ).also { it.parentFile.mkdirs() }.absolutePath
 
     val keyDataStore = PreferenceDataStoreFactory.createWithPath {
-        "$resolvedPath.encryption_key".toPath()
+        val keyPath = if (resolvedPath.endsWith(".preferences_pb")) {
+            resolvedPath.replace(".preferences_pb", ".key.preferences_pb")
+        } else {
+            "$resolvedPath.key.preferences_pb"
+        }
+        keyPath.toPath()
     }
     return DataStoreApiSettingsStore(
         dataStore = PreferenceDataStoreFactory.createWithPath { resolvedPath.toPath() },

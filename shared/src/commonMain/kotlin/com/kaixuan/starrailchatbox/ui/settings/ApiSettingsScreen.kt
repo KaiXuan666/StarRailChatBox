@@ -73,6 +73,7 @@ import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
+import com.kaixuan.starrailchatbox.ui.components.BackHandler
 import com.kaixuan.starrailchatbox.ui.main.MainAction
 import kotlin.math.PI
 import kotlin.math.cos
@@ -89,6 +90,10 @@ fun ApiSettingsScreen(
 ) {
     val colors = MaterialTheme.starRailColors
     
+    BackHandler {
+        onMainAction(MainAction.PopBackStack)
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
