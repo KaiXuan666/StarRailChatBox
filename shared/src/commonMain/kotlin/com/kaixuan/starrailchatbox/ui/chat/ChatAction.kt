@@ -1,0 +1,25 @@
+package com.kaixuan.starrailchatbox.ui.chat
+
+sealed interface ChatAction {
+    data class CharacterSelected(val character: CharacterId) : ChatAction
+    data class MessageChanged(val message: String) : ChatAction
+    data object SendClicked : ChatAction
+    data class QuickReplyClicked(val message: String) : ChatAction
+    data class NavigationSelected(
+        val destination: NavigationDestination,
+    ) : ChatAction
+    data class HeaderActionClicked(val action: HeaderAction) : ChatAction
+    data class ComposerActionClicked(val action: ComposerAction) : ChatAction
+}
+
+enum class HeaderAction {
+    VOICE,
+    PROFILE,
+    SETTINGS,
+}
+
+enum class ComposerAction {
+    ATTACH,
+    EMOJI,
+    VOICE,
+}
