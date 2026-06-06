@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import com.kaixuan.starrailchatbox.data.settings.createApiSettingsStore
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -13,7 +14,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            App()
+            App(
+                apiSettingsStore = createApiSettingsStore(
+                    filesDir.resolve("api_settings.preferences_pb").absolutePath,
+                ),
+            )
         }
     }
 }

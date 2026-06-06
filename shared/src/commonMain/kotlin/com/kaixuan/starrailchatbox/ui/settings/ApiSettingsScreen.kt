@@ -62,10 +62,12 @@ import starrailchatbox.shared.generated.resources.settings_api_fetching
 import starrailchatbox.shared.generated.resources.settings_api_host
 import starrailchatbox.shared.generated.resources.settings_api_key
 import starrailchatbox.shared.generated.resources.settings_api_model_selected
+import starrailchatbox.shared.generated.resources.settings_api_empty_models
 import starrailchatbox.shared.generated.resources.settings_api_title
 import starrailchatbox.shared.generated.resources.settings_get
 import starrailchatbox.shared.generated.resources.settings_model_list
 import starrailchatbox.shared.generated.resources.settings_save_config
+import starrailchatbox.shared.generated.resources.settings_saving
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
@@ -209,7 +211,7 @@ fun ApiSettingsScreen(
                 ApiInputField(
                     value = state.apiKey,
                     onValueChange = { onSettingsAction(SettingsAction.ApiKeyChanged(it)) },
-                    placeholder = "sk-????????????????????????",
+                    placeholder = "sk-",
                     leadingIcon = StarRailIconKind.KEY,
                     isPasswordField = true,
                     passwordVisible = state.showApiKey,
@@ -242,6 +244,7 @@ fun ApiSettingsScreen(
                     
                     Surface(
                         onClick = { onSettingsAction(SettingsAction.FetchModelsClicked) },
+                        enabled = !state.isFetchingModels,
                         interactionSource = fetchInteractionSource,
                         modifier = Modifier.scale(fetchScale),
                         shape = RoundedCornerShape(50),
@@ -283,6 +286,14 @@ fun ApiSettingsScreen(
                                 isSelected = state.selectedModel == model,
                                 onClick = { onSettingsAction(SettingsAction.SelectModel(model)) },
                                 compact = compact
+                            )
+                        }
+                        if (!state.isFetchingModels && state.modelsList.isEmpty()) {
+                            Text(
+                                text = stringResource(Res.string.settings_api_empty_models),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(StarRailSpacing.md),
                             )
                         }
                     }
@@ -336,8 +347,8 @@ fun ApiSettingsScreen(
             Surface(
                 onClick = {
                     onSettingsAction(SettingsAction.SaveApiSettingsClicked)
-                    onMainAction(MainAction.PopBackStack)
                 },
+                enabled = !state.isSaving,
                 interactionSource = saveInteractionSource,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -352,16 +363,34 @@ fun ApiSettingsScreen(
                         .fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = stringResource(Res.string.settings_save_config),
-                        color = Color.White,
-                        style = if (compact) {
-                            MaterialTheme.typography.titleMedium
-                        } else {
-                            MaterialTheme.typography.titleLarge
-                        },
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
+                    ) {
+                        if (state.isSaving) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp,
+                            )
+                        }
+                        Text(
+                            text = stringResource(
+                                if (state.isSaving) {
+                                    Res.string.settings_saving
+                                } else {
+                                    Res.string.settings_save_config
+                                },
+                            ),
+                            color = Color.White,
+                            style = if (compact) {
+                                MaterialTheme.typography.titleMedium
+                            } else {
+                                MaterialTheme.typography.titleLarge
+                            },
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }

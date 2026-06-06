@@ -2,20 +2,44 @@ package com.kaixuan.starrailchatbox.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kaixuan.starrailchatbox.data.api.ApiResult
+import com.kaixuan.starrailchatbox.data.api.OpenAiRepository
+import com.kaixuan.starrailchatbox.data.settings.ApiSettingsStore
+import com.kaixuan.starrailchatbox.data.settings.StoredApiSettings
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class SettingsViewModel : ViewModel() {
+class SettingsViewModel(
+    private val openAiRepository: OpenAiRepository,
+    private val apiSettingsStore: ApiSettingsStore,
+    private val coroutineScope: CoroutineScope? = null,
+) : ViewModel() {
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState = _uiState.asStateFlow()
 
     private val _effects = Channel<SettingsEffect>(Channel.BUFFERED)
     val effects = _effects.receiveAsFlow()
+
+    init {
+        scope().launch {
+            apiSettingsStore.load()?.let { settings ->
+                _uiState.update {
+                    it.copy(
+                        apiHost = settings.apiHost,
+                        apiKey = settings.apiKey,
+                        selectedModel = settings.selectedModel,
+                        modelsList = listOfNotNull(settings.selectedModel.takeIf(String::isNotBlank)),
+                    )
+                }
+            }
+        }
+    }
 
     fun onAction(action: SettingsAction) {
         when (action) {
@@ -42,7 +66,7 @@ class SettingsViewModel : ViewModel() {
             }
             
             SettingsAction.SaveApiSettingsClicked -> {
-                _effects.trySend(SettingsEffect.ShowMessage(SettingsEffectMessage.SETTINGS_API_SAVED))
+                saveApiSettings()
             }
         }
     }
@@ -63,23 +87,97 @@ class SettingsViewModel : ViewModel() {
     }
 
     private fun fetchModels() {
-        if (_uiState.value.isFetchingModels) return
+        val state = _uiState.value
+        if (state.isFetchingModels) return
+        if (!state.hasValidApiSettings()) {
+            emitMessage(SettingsEffectMessage.SETTINGS_API_INVALID)
+            return
+        }
+
         _uiState.update { it.copy(isFetchingModels = true) }
         emitMessage(SettingsEffectMessage.SETTINGS_API_FETCH_START)
-        viewModelScope.launch {
-            delay(1500)
-            _uiState.update { state ->
-                val newModels = listOf("gpt-4o-mini", "gpt-4.1", "deepseek-chat", "qwen-plus", "claude-3.5-sonnet")
-                val nextSelection = if (state.selectedModel in newModels) state.selectedModel else newModels.first()
-                state.copy(
-                    isFetchingModels = false,
-                    modelsList = newModels,
-                    selectedModel = nextSelection
+
+        scope().launch {
+            when (
+                val result = openAiRepository.getModels(
+                    apiHost = state.apiHost,
+                    apiKey = state.apiKey,
                 )
+            ) {
+                is ApiResult.Success -> handleModelsLoaded(result.value)
+                is ApiResult.HttpError -> {
+                    _uiState.update { it.copy(isFetchingModels = false) }
+                    emitMessage(
+                        if (result.statusCode == 401 || result.statusCode == 403) {
+                            SettingsEffectMessage.SETTINGS_API_AUTH_FAILED
+                        } else {
+                            SettingsEffectMessage.SETTINGS_API_FETCH_FAILED
+                        },
+                    )
+                }
+                is ApiResult.NetworkError,
+                is ApiResult.UnexpectedError,
+                -> {
+                    _uiState.update { it.copy(isFetchingModels = false) }
+                    emitMessage(SettingsEffectMessage.SETTINGS_API_FETCH_FAILED)
+                }
             }
-            emitMessage(SettingsEffectMessage.SETTINGS_API_FETCH_SUCCESS)
         }
     }
+
+    private fun handleModelsLoaded(models: List<String>) {
+        if (models.isEmpty()) {
+            _uiState.update { it.copy(isFetchingModels = false, modelsList = emptyList()) }
+            emitMessage(SettingsEffectMessage.SETTINGS_API_NO_MODELS)
+            return
+        }
+
+        _uiState.update { state ->
+            state.copy(
+                isFetchingModels = false,
+                modelsList = models,
+                selectedModel = state.selectedModel.takeIf(models::contains) ?: models.first(),
+            )
+        }
+        emitMessage(SettingsEffectMessage.SETTINGS_API_FETCH_SUCCESS)
+    }
+
+    private fun saveApiSettings() {
+        val state = _uiState.value
+        if (state.isSaving) return
+        if (!state.hasValidApiSettings() || state.selectedModel.isBlank()) {
+            emitMessage(SettingsEffectMessage.SETTINGS_API_INVALID)
+            return
+        }
+
+        _uiState.update { it.copy(isSaving = true) }
+        scope().launch {
+            try {
+                apiSettingsStore.save(
+                    StoredApiSettings(
+                        apiHost = state.apiHost.trim().trimEnd('/'),
+                        apiKey = state.apiKey.trim(),
+                        selectedModel = state.selectedModel,
+                    ),
+                )
+                _uiState.update { it.copy(isSaving = false) }
+                _effects.send(SettingsEffect.ApiSettingsSaved)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Throwable) {
+                _uiState.update { it.copy(isSaving = false) }
+                emitMessage(SettingsEffectMessage.SETTINGS_API_SAVE_FAILED)
+            }
+        }
+    }
+
+    private fun SettingsUiState.hasValidApiSettings(): Boolean {
+        val normalizedHost = apiHost.trim()
+        return apiKey.isNotBlank() &&
+            normalizedHost.startsWith("https://")
+    }
+
+    private fun scope(): CoroutineScope = coroutineScope ?: viewModelScope
 
     private fun emitMessage(message: SettingsEffectMessage) {
         _effects.trySend(SettingsEffect.ShowMessage(message))

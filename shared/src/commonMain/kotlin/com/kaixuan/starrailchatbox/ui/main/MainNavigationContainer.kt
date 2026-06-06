@@ -64,6 +64,11 @@ import starrailchatbox.shared.generated.resources.settings_privacy_not_ready
 import starrailchatbox.shared.generated.resources.settings_api_saved
 import starrailchatbox.shared.generated.resources.settings_api_fetching
 import starrailchatbox.shared.generated.resources.settings_api_fetch_success
+import starrailchatbox.shared.generated.resources.settings_api_invalid
+import starrailchatbox.shared.generated.resources.settings_api_auth_failed
+import starrailchatbox.shared.generated.resources.settings_api_fetch_failed
+import starrailchatbox.shared.generated.resources.settings_api_no_models
+import starrailchatbox.shared.generated.resources.settings_api_save_failed
 import starrailchatbox.shared.generated.resources.theme_changed
 import starrailchatbox.shared.generated.resources.voice_not_ready
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
@@ -117,6 +122,11 @@ fun MainRoute(
         SettingsEffectMessage.SETTINGS_API_SAVED to stringResource(Res.string.settings_api_saved),
         SettingsEffectMessage.SETTINGS_API_FETCH_START to stringResource(Res.string.settings_api_fetching),
         SettingsEffectMessage.SETTINGS_API_FETCH_SUCCESS to stringResource(Res.string.settings_api_fetch_success),
+        SettingsEffectMessage.SETTINGS_API_INVALID to stringResource(Res.string.settings_api_invalid),
+        SettingsEffectMessage.SETTINGS_API_AUTH_FAILED to stringResource(Res.string.settings_api_auth_failed),
+        SettingsEffectMessage.SETTINGS_API_FETCH_FAILED to stringResource(Res.string.settings_api_fetch_failed),
+        SettingsEffectMessage.SETTINGS_API_NO_MODELS to stringResource(Res.string.settings_api_no_models),
+        SettingsEffectMessage.SETTINGS_API_SAVE_FAILED to stringResource(Res.string.settings_api_save_failed),
     )
     val mainEffectMessages = mapOf(
         MainEffectMessage.THEME_CHANGED to stringResource(Res.string.theme_changed),
@@ -141,6 +151,12 @@ fun MainRoute(
                     snackbarHostState.showSnackbar(
                         settingsEffectMessages.getValue(effect.message),
                     )
+                }
+                SettingsEffect.ApiSettingsSaved -> {
+                    snackbarHostState.showSnackbar(
+                        settingsEffectMessages.getValue(SettingsEffectMessage.SETTINGS_API_SAVED),
+                    )
+                    onMainAction(MainAction.PopBackStack)
                 }
             }
         }

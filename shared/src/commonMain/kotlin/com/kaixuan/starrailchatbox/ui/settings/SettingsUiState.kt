@@ -7,10 +7,11 @@ import androidx.compose.runtime.Immutable
  */
 @Immutable
 data class SettingsUiState(
-    val apiHost: String = "https://api.example.com/v1",
+    val apiHost: String = "https://api.openai.com/v1",
     val apiKey: String = "",
     val showApiKey: Boolean = false,
-    val modelsList: List<String> = listOf("gpt-4o-mini", "gpt-4.1", "deepseek-chat", "qwen-plus"),
-    val selectedModel: String = "gpt-4o-mini",
+    val modelsList: List<String> = emptyList(),
+    val selectedModel: String = "",
     val isFetchingModels: Boolean = false,
+    val isSaving: Boolean = false,
 )
