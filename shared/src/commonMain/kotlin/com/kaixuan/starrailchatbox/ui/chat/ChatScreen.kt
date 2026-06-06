@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -192,6 +193,7 @@ fun ChatScreen(
             .windowInsetsPadding(WindowInsets.safeDrawing),
     ) {
         val expanded = maxWidth >= 840.dp
+        val compact = maxWidth < 480.dp
         StarfieldBackground()
 
         Row(
@@ -218,6 +220,7 @@ fun ChatScreen(
                     ChatBottomArea(
                         state = state,
                         showNavigationBar = !expanded,
+                        compact = compact,
                         onAction = onAction,
                     )
                 },
@@ -225,6 +228,7 @@ fun ChatScreen(
                 ChatContent(
                     state = state,
                     contentPadding = contentPadding,
+                    compact = compact,
                     onAction = onAction,
                 )
             }
@@ -236,6 +240,7 @@ fun ChatScreen(
 private fun ChatContent(
     state: ChatUiState,
     contentPadding: PaddingValues,
+    compact: Boolean,
     onAction: (ChatAction) -> Unit,
 ) {
     val listState = rememberLazyListState()
@@ -260,9 +265,9 @@ private fun ChatContent(
         state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
-            start = StarRailSpacing.md,
+            start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
             top = StarRailSpacing.lg,
-            end = StarRailSpacing.md,
+            end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
             bottom = contentPadding.calculateBottomPadding() + StarRailSpacing.lg,
         ),
         verticalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
@@ -270,12 +275,14 @@ private fun ChatContent(
         item(key = "header") {
             ChatHeader(
                 selectedCharacter = state.selectedCharacter,
+                compact = compact,
                 onAction = onAction,
             )
         }
         item(key = "characters") {
             CharacterSelector(
                 selectedCharacter = state.selectedCharacter,
+                compact = compact,
                 onCharacterSelected = {
                     onAction(ChatAction.CharacterSelected(it))
                 },
@@ -288,7 +295,10 @@ private fun ChatContent(
             items = state.messages,
             key = ChatMessageUiModel::id,
         ) { message ->
-            MessageItem(message = message)
+            MessageItem(
+                message = message,
+                compact = compact,
+            )
         }
     }
 }
@@ -296,24 +306,36 @@ private fun ChatContent(
 @Composable
 private fun ChatHeader(
     selectedCharacter: CharacterId,
+    compact: Boolean,
     onAction: (ChatAction) -> Unit,
 ) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val compact = maxWidth < 600.dp
-        Column(verticalArrangement = Arrangement.spacedBy(StarRailSpacing.lg)) {
+        val stacked = maxWidth < 600.dp
+        Column(
+            verticalArrangement = Arrangement.spacedBy(
+                if (compact) StarRailSpacing.md else StarRailSpacing.lg,
+            ),
+        ) {
             Text(
                 text = stringResource(Res.string.app_title),
                 color = MaterialTheme.colorScheme.onBackground,
-                style = MaterialTheme.typography.headlineLarge,
+                style = if (compact) {
+                    MaterialTheme.typography.headlineSmall
+                } else {
+                    MaterialTheme.typography.headlineLarge
+                },
+                maxLines = 1,
             )
 
-            if (compact) {
+            if (stacked) {
                 CharacterSummary(
                     character = selectedCharacter,
                     modifier = Modifier.fillMaxWidth(),
+                    compact = compact,
                 )
                 HeaderActions(
                     modifier = Modifier.fillMaxWidth(),
+                    compact = compact,
                     onAction = onAction,
                 )
             } else {
@@ -325,8 +347,12 @@ private fun ChatHeader(
                     CharacterSummary(
                         character = selectedCharacter,
                         modifier = Modifier.weight(1f),
+                        compact = false,
                     )
-                    HeaderActions(onAction = onAction)
+                    HeaderActions(
+                        compact = false,
+                        onAction = onAction,
+                    )
                 }
             }
         }
@@ -336,6 +362,7 @@ private fun ChatHeader(
 @Composable
 private fun CharacterSummary(
     character: CharacterId,
+    compact: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val name = stringResource(character.nameResource())
@@ -346,7 +373,7 @@ private fun CharacterSummary(
     ) {
         CharacterAvatar(
             character = character,
-            size = 88.dp,
+            size = if (compact) 72.dp else 88.dp,
             selected = true,
             contentDescription = name,
         )
@@ -361,7 +388,12 @@ private fun CharacterSummary(
                 Text(
                     text = name,
                     color = MaterialTheme.colorScheme.onBackground,
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = if (compact) {
+                        MaterialTheme.typography.titleLarge
+                    } else {
+                        MaterialTheme.typography.headlineSmall
+                    },
+                    maxLines = 1,
                 )
                 StarRailIcon(
                     kind = StarRailIconKind.SPARKLE,
@@ -396,6 +428,7 @@ private fun CharacterSummary(
 
 @Composable
 private fun HeaderActions(
+    compact: Boolean,
     onAction: (ChatAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -406,7 +439,11 @@ private fun HeaderActions(
     )
     Row(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
+        horizontalArrangement = if (compact) {
+            Arrangement.SpaceEvenly
+        } else {
+            Arrangement.spacedBy(StarRailSpacing.md)
+        },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         actions.forEach { (action, labelResource, icon) ->
@@ -419,7 +456,7 @@ private fun HeaderActions(
                     onClick = {
                         onAction(ChatAction.HeaderActionClicked(action))
                     },
-                    modifier = Modifier.size(56.dp),
+                    modifier = Modifier.size(if (compact) 48.dp else 56.dp),
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     contentColor = MaterialTheme.colorScheme.onSurface,
@@ -451,6 +488,7 @@ private fun HeaderActions(
 @Composable
 private fun CharacterSelector(
     selectedCharacter: CharacterId,
+    compact: Boolean,
     onCharacterSelected: (CharacterId) -> Unit,
 ) {
     Surface(
@@ -468,6 +506,7 @@ private fun CharacterSelector(
                 CharacterSelectorItem(
                     character = character,
                     selected = character == selectedCharacter,
+                    compact = compact,
                     onClick = { onCharacterSelected(character) },
                 )
             }
@@ -479,6 +518,7 @@ private fun CharacterSelector(
 private fun CharacterSelectorItem(
     character: CharacterId,
     selected: Boolean,
+    compact: Boolean,
     onClick: () -> Unit,
 ) {
     val name = stringResource(character.nameResource())
@@ -492,7 +532,7 @@ private fun CharacterSelectorItem(
     )
     Column(
         modifier = Modifier
-            .width(132.dp)
+            .width(if (compact) 104.dp else 132.dp)
             .clip(MaterialTheme.shapes.medium)
             .clickable(onClick = onClick)
             .semantics {
@@ -505,7 +545,7 @@ private fun CharacterSelectorItem(
     ) {
         CharacterAvatar(
             character = character,
-            size = 68.dp,
+            size = if (compact) 56.dp else 68.dp,
             selected = selected,
             contentDescription = null,
         )
@@ -620,15 +660,27 @@ private fun DateDivider() {
 }
 
 @Composable
-private fun MessageItem(message: ChatMessageUiModel) {
+private fun MessageItem(
+    message: ChatMessageUiModel,
+    compact: Boolean,
+) {
     when (message) {
-        is ChatMessageUiModel.Received -> ReceivedMessage(message)
-        is ChatMessageUiModel.Sent -> SentMessage(message)
+        is ChatMessageUiModel.Received -> ReceivedMessage(
+            message = message,
+            compact = compact,
+        )
+        is ChatMessageUiModel.Sent -> SentMessage(
+            message = message,
+            compact = compact,
+        )
     }
 }
 
 @Composable
-private fun ReceivedMessage(message: ChatMessageUiModel.Received) {
+private fun ReceivedMessage(
+    message: ChatMessageUiModel.Received,
+    compact: Boolean,
+) {
     val text = message.content.resolve()
     val senderName = stringResource(message.sender.nameResource())
     val semanticDescription = stringResource(
@@ -642,14 +694,14 @@ private fun ReceivedMessage(message: ChatMessageUiModel.Received) {
             .fillMaxWidth()
             .semantics { contentDescription = semanticDescription },
     ) {
-        val bubbleMaxWidth = maxWidth * 0.74f
+        val bubbleMaxWidth = maxWidth * if (compact) 0.86f else 0.74f
         Row(
             horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
             verticalAlignment = Alignment.Top,
         ) {
             CharacterAvatar(
                 character = message.sender,
-                size = 44.dp,
+                size = if (compact) 40.dp else 44.dp,
                 selected = true,
                 contentDescription = null,
             )
@@ -687,7 +739,10 @@ private fun ReceivedMessage(message: ChatMessageUiModel.Received) {
 }
 
 @Composable
-private fun SentMessage(message: ChatMessageUiModel.Sent) {
+private fun SentMessage(
+    message: ChatMessageUiModel.Sent,
+    compact: Boolean,
+) {
     val text = message.content.resolve()
     val semanticDescription = stringResource(
         Res.string.sent_message_description,
@@ -699,7 +754,7 @@ private fun SentMessage(message: ChatMessageUiModel.Sent) {
             .fillMaxWidth()
             .semantics { contentDescription = semanticDescription },
     ) {
-        val bubbleMaxWidth = maxWidth * 0.74f
+        val bubbleMaxWidth = maxWidth * if (compact) 0.86f else 0.74f
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End,
@@ -750,7 +805,7 @@ private fun SentMessage(message: ChatMessageUiModel.Sent) {
             }
             Spacer(Modifier.width(StarRailSpacing.sm))
             Surface(
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier.size(if (compact) 44.dp else 48.dp),
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 border = BorderStroke(
@@ -775,6 +830,7 @@ private fun SentMessage(message: ChatMessageUiModel.Sent) {
 private fun ChatBottomArea(
     state: ChatUiState,
     showNavigationBar: Boolean,
+    compact: Boolean,
     onAction: (ChatAction) -> Unit,
 ) {
     Surface(
@@ -783,6 +839,7 @@ private fun ChatBottomArea(
     ) {
         Column {
             QuickReplies(
+                compact = compact,
                 onReplyClicked = {
                     onAction(ChatAction.QuickReplyClicked(it))
                 },
@@ -790,6 +847,7 @@ private fun ChatBottomArea(
             MessageComposer(
                 value = state.messageDraft,
                 isSending = state.isSending,
+                compact = compact,
                 onValueChange = {
                     onAction(ChatAction.MessageChanged(it))
                 },
@@ -816,7 +874,10 @@ private data class QuickReply(
 )
 
 @Composable
-private fun QuickReplies(onReplyClicked: (String) -> Unit) {
+private fun QuickReplies(
+    compact: Boolean,
+    onReplyClicked: (String) -> Unit,
+) {
     val replies = listOf(
         QuickReply(Res.string.quick_reply_mood, StarRailIconKind.HEART),
         QuickReply(Res.string.quick_reply_today, StarRailIconKind.CHAT),
@@ -828,8 +889,8 @@ private fun QuickReplies(onReplyClicked: (String) -> Unit) {
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
             .padding(
-                horizontal = StarRailSpacing.md,
-                vertical = StarRailSpacing.sm,
+                horizontal = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                vertical = if (compact) StarRailSpacing.xs else StarRailSpacing.sm,
             ),
         horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
     ) {
@@ -847,8 +908,8 @@ private fun QuickReplies(onReplyClicked: (String) -> Unit) {
             ) {
                 Row(
                     modifier = Modifier.padding(
-                        horizontal = StarRailSpacing.md,
-                        vertical = StarRailSpacing.sm,
+                        horizontal = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                        vertical = if (compact) StarRailSpacing.xs else StarRailSpacing.sm,
                     ),
                     horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
                     verticalAlignment = Alignment.CenterVertically,
@@ -879,6 +940,7 @@ private fun QuickReplies(onReplyClicked: (String) -> Unit) {
 private fun MessageComposer(
     value: String,
     isSending: Boolean,
+    compact: Boolean,
     onValueChange: (String) -> Unit,
     onSend: () -> Unit,
     onComposerAction: (ComposerAction) -> Unit,
@@ -887,8 +949,8 @@ private fun MessageComposer(
         modifier = Modifier
             .fillMaxWidth()
             .padding(
-                start = StarRailSpacing.md,
-                end = StarRailSpacing.md,
+                start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
                 bottom = StarRailSpacing.sm,
             ),
         horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
@@ -897,6 +959,7 @@ private fun MessageComposer(
         ComposerIconButton(
             icon = StarRailIconKind.ADD,
             contentDescription = stringResource(Res.string.add_attachment),
+            compact = compact,
             onClick = { onComposerAction(ComposerAction.ATTACH) },
         )
         TextField(
@@ -904,6 +967,7 @@ private fun MessageComposer(
             onValueChange = onValueChange,
             modifier = Modifier
                 .weight(1f)
+                .defaultMinSize(minWidth = 0.dp)
                 .animateContentSize(),
             placeholder = {
                 Text(stringResource(Res.string.message_placeholder))
@@ -935,6 +999,7 @@ private fun MessageComposer(
         ComposerIconButton(
             icon = StarRailIconKind.SEND,
             contentDescription = stringResource(Res.string.send_message),
+            compact = compact,
             enabled = value.isNotBlank() && !isSending,
             primary = true,
             onClick = onSend,
@@ -943,6 +1008,7 @@ private fun MessageComposer(
         ComposerIconButton(
             icon = StarRailIconKind.MICROPHONE,
             contentDescription = stringResource(Res.string.record_voice),
+            compact = compact,
             onClick = { onComposerAction(ComposerAction.VOICE) },
         )
     }
@@ -952,6 +1018,7 @@ private fun MessageComposer(
 private fun ComposerIconButton(
     icon: StarRailIconKind,
     contentDescription: String,
+    compact: Boolean,
     onClick: () -> Unit,
     enabled: Boolean = true,
     primary: Boolean = false,
@@ -970,7 +1037,7 @@ private fun ComposerIconButton(
     Surface(
         onClick = onClick,
         enabled = enabled,
-        modifier = Modifier.size(52.dp),
+        modifier = Modifier.size(if (compact) 48.dp else 52.dp),
         shape = CircleShape,
         color = containerColor,
         contentColor = contentColor,
@@ -1196,7 +1263,7 @@ private fun CharacterId.avatarResource(): DrawableResource = when (this) {
     CharacterId.XI -> Res.drawable.avatar_xi
 }
 
-@Preview
+@Preview(widthDp = 360, heightDp = 800)
 @Composable
 private fun ChatScreenLightPreview() {
     StarRailTheme(darkThemeOverride = false) {
@@ -1208,7 +1275,7 @@ private fun ChatScreenLightPreview() {
     }
 }
 
-@Preview
+@Preview(widthDp = 360, heightDp = 800)
 @Composable
 private fun ChatScreenDarkPreview() {
     StarRailTheme(darkThemeOverride = true) {
