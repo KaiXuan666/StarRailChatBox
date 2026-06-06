@@ -83,37 +83,75 @@ import com.kaixuan.starrailchatbox.ui.navigation.Route
 import com.kaixuan.starrailchatbox.ui.navigation.entryProvider
 import com.kaixuan.starrailchatbox.ui.settings.ApiSettingsScreen
 import com.kaixuan.starrailchatbox.ui.settings.SettingsScreen
+import com.kaixuan.starrailchatbox.ui.settings.SettingsAction
+import com.kaixuan.starrailchatbox.ui.settings.SettingsEffect
+import com.kaixuan.starrailchatbox.ui.settings.SettingsEffectMessage
+import com.kaixuan.starrailchatbox.ui.settings.SettingsUiState
 
 @Composable
 fun MainRoute(
-    state: ChatUiState,
-    effects: Flow<ChatEffect>,
-    onAction: (ChatAction) -> Unit,
+    mainState: MainUiState,
+    chatState: ChatUiState,
+    settingsState: SettingsUiState,
+    mainEffects: Flow<MainEffect>,
+    chatEffects: Flow<ChatEffect>,
+    settingsEffects: Flow<SettingsEffect>,
+    onMainAction: (MainAction) -> Unit,
+    onChatAction: (ChatAction) -> Unit,
+    onSettingsAction: (SettingsAction) -> Unit,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
-    val effectMessages = mapOf(
+    val chatEffectMessages = mapOf(
         EffectMessage.VOICE_NOT_READY to stringResource(Res.string.voice_not_ready),
         EffectMessage.PROFILE_NOT_READY to stringResource(Res.string.profile_not_ready),
         EffectMessage.ATTACH_NOT_READY to stringResource(Res.string.attach_not_ready),
         EffectMessage.EMOJI_NOT_READY to stringResource(Res.string.emoji_not_ready),
         EffectMessage.MICROPHONE_NOT_READY to stringResource(Res.string.microphone_not_ready),
-        EffectMessage.THEME_CHANGED to stringResource(Res.string.theme_changed),
-        EffectMessage.SETTINGS_API_NOT_READY to stringResource(Res.string.settings_api_not_ready),
-        EffectMessage.SETTINGS_UPDATE_CHECK to stringResource(Res.string.settings_update_check),
-        EffectMessage.SETTINGS_NOTICE_NOT_READY to stringResource(Res.string.settings_notice_not_ready),
-        EffectMessage.SETTINGS_ABOUT_INFO to stringResource(Res.string.settings_about_desc_toast),
-        EffectMessage.SETTINGS_PRIVACY_INFO to stringResource(Res.string.settings_privacy_not_ready),
-        EffectMessage.SETTINGS_API_SAVED to stringResource(Res.string.settings_api_saved),
-        EffectMessage.SETTINGS_API_FETCH_START to stringResource(Res.string.settings_api_fetching),
-        EffectMessage.SETTINGS_API_FETCH_SUCCESS to stringResource(Res.string.settings_api_fetch_success),
+    )
+    val settingsEffectMessages = mapOf(
+        SettingsEffectMessage.SETTINGS_API_NOT_READY to stringResource(Res.string.settings_api_not_ready),
+        SettingsEffectMessage.SETTINGS_UPDATE_CHECK to stringResource(Res.string.settings_update_check),
+        SettingsEffectMessage.SETTINGS_NOTICE_NOT_READY to stringResource(Res.string.settings_notice_not_ready),
+        SettingsEffectMessage.SETTINGS_ABOUT_INFO to stringResource(Res.string.settings_about_desc_toast),
+        SettingsEffectMessage.SETTINGS_PRIVACY_INFO to stringResource(Res.string.settings_privacy_not_ready),
+        SettingsEffectMessage.SETTINGS_API_SAVED to stringResource(Res.string.settings_api_saved),
+        SettingsEffectMessage.SETTINGS_API_FETCH_START to stringResource(Res.string.settings_api_fetching),
+        SettingsEffectMessage.SETTINGS_API_FETCH_SUCCESS to stringResource(Res.string.settings_api_fetch_success),
+    )
+    val mainEffectMessages = mapOf(
+        MainEffectMessage.THEME_CHANGED to stringResource(Res.string.theme_changed),
     )
 
-    LaunchedEffect(effects, effectMessages) {
-        effects.collectLatest { effect ->
+    LaunchedEffect(chatEffects, chatEffectMessages) {
+        chatEffects.collectLatest { effect ->
             when (effect) {
                 is ChatEffect.ShowMessage -> {
                     snackbarHostState.showSnackbar(
-                        effectMessages.getValue(effect.message),
+                        chatEffectMessages.getValue(effect.message),
+                    )
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(settingsEffects, settingsEffectMessages) {
+        settingsEffects.collectLatest { effect ->
+            when (effect) {
+                is SettingsEffect.ShowMessage -> {
+                    snackbarHostState.showSnackbar(
+                        settingsEffectMessages.getValue(effect.message),
+                    )
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(mainEffects, mainEffectMessages) {
+        mainEffects.collectLatest { effect ->
+            when (effect) {
+                is MainEffect.ShowMessage -> {
+                    snackbarHostState.showSnackbar(
+                        mainEffectMessages.getValue(effect.message),
                     )
                 }
             }
@@ -121,21 +159,29 @@ fun MainRoute(
     }
 
     MainNavigationContainer(
-        state = state,
+        mainState = mainState,
+        chatState = chatState,
+        settingsState = settingsState,
         snackbarHostState = snackbarHostState,
-        onAction = onAction,
+        onMainAction = onMainAction,
+        onChatAction = onChatAction,
+        onSettingsAction = onSettingsAction,
     )
 }
 
 @Composable
 fun MainNavigationContainer(
-    state: ChatUiState,
+    mainState: MainUiState,
+    chatState: ChatUiState,
+    settingsState: SettingsUiState,
     snackbarHostState: SnackbarHostState,
-    onAction: (ChatAction) -> Unit,
+    onMainAction: (MainAction) -> Unit,
+    onChatAction: (ChatAction) -> Unit,
+    onSettingsAction: (SettingsAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.starRailColors
-    val currentRoute = state.backStack.lastOrNull() ?: Route.ChatSession
+    val currentRoute = mainState.backStack.lastOrNull() ?: Route.ChatSession
 
     BoxWithConstraints(
         modifier = modifier
@@ -158,12 +204,12 @@ fun MainNavigationContainer(
             modifier = Modifier.fillMaxSize(),
             horizontalArrangement = Arrangement.Center,
         ) {
-            val showRail = expanded && state.backStack.size <= 1
+            val showRail = expanded && mainState.backStack.size <= 1
             if (showRail) {
                 MainNavigationRail(
                     currentRoute = currentRoute,
                     onDestinationSelected = {
-                        onAction(ChatAction.NavigationSelected(it))
+                        onMainAction(MainAction.NavigationSelected(it))
                     },
                 )
             }
@@ -177,20 +223,23 @@ fun MainNavigationContainer(
                 snackbarHost = { SnackbarHost(snackbarHostState) },
                 bottomBar = {
                     MainBottomArea(
-                        state = state,
+                        mainState = mainState,
+                        chatState = chatState,
                         showNavigationBar = !showRail,
                         compact = compact,
-                        onAction = onAction,
+                        onMainAction = onMainAction,
+                        onChatAction = onChatAction,
                     )
                 },
             ) { contentPadding ->
                 val entryProvider = entryProvider<Route> {
                     entry<Route.ChatSession> {
                         ChatSessionScreen(
-                            state = state,
+                            state = chatState,
                             contentPadding = contentPadding,
                             compact = compact,
-                            onAction = onAction,
+                            onAction = onChatAction,
+                            onMainAction = onMainAction,
                         )
                     }
                     entry<Route.Characters> {
@@ -207,24 +256,27 @@ fun MainNavigationContainer(
                     }
                     entry<Route.Settings> {
                         SettingsScreen(
-                            state = state,
+                            mainState = mainState,
+                            settingsState = settingsState,
                             contentPadding = contentPadding,
                             compact = compact,
-                            onAction = onAction,
+                            onMainAction = onMainAction,
+                            onSettingsAction = onSettingsAction,
                         )
                     }
                     entry<Route.ApiSettings> {
                         ApiSettingsScreen(
-                            state = state,
+                            state = settingsState,
                             contentPadding = contentPadding,
                             compact = compact,
-                            onAction = onAction,
+                            onMainAction = onMainAction,
+                            onSettingsAction = onSettingsAction,
                         )
                     }
                 }
 
                 NavDisplay(
-                    backstack = state.backStack,
+                    backstack = mainState.backStack,
                     entryProvider = entryProvider
                 )
             }
@@ -234,12 +286,14 @@ fun MainNavigationContainer(
 
 @Composable
 private fun MainBottomArea(
-    state: ChatUiState,
+    mainState: MainUiState,
+    chatState: ChatUiState,
     showNavigationBar: Boolean,
     compact: Boolean,
-    onAction: (ChatAction) -> Unit,
+    onMainAction: (MainAction) -> Unit,
+    onChatAction: (ChatAction) -> Unit,
 ) {
-    val currentRoute = state.backStack.lastOrNull() ?: Route.ChatSession
+    val currentRoute = mainState.backStack.lastOrNull() ?: Route.ChatSession
     val isChat = currentRoute == Route.ChatSession
     if (!isChat && !showNavigationBar) {
         return
@@ -255,17 +309,17 @@ private fun MainBottomArea(
             ) {
                 if (isChat) {
                     ChatSessionBottomBar(
-                        state = state,
+                        state = chatState,
                         compact = compact,
-                        onAction = onAction,
+                        onAction = onChatAction,
                     )
                 }
-                if (showNavigationBar && state.backStack.size <= 1) {
+                if (showNavigationBar && mainState.backStack.size <= 1) {
                     MainNavigationBar(
                         currentRoute = currentRoute,
                         compact = compact,
                         onDestinationSelected = {
-                            onAction(ChatAction.NavigationSelected(it))
+                            onMainAction(MainAction.NavigationSelected(it))
                         },
                     )
                 }
@@ -448,9 +502,15 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDecorativeSpark
 private fun MainContainerLightPreview() {
     StarRailTheme(darkThemeOverride = false) {
         MainRoute(
-            state = ChatUiState(),
-            effects = kotlinx.coroutines.flow.emptyFlow(),
-            onAction = {},
+            mainState = MainUiState(),
+            chatState = ChatUiState(),
+            settingsState = SettingsUiState(),
+            mainEffects = kotlinx.coroutines.flow.emptyFlow(),
+            chatEffects = kotlinx.coroutines.flow.emptyFlow(),
+            settingsEffects = kotlinx.coroutines.flow.emptyFlow(),
+            onMainAction = {},
+            onChatAction = {},
+            onSettingsAction = {},
         )
     }
 }
@@ -460,9 +520,15 @@ private fun MainContainerLightPreview() {
 private fun MainContainerDarkPreview() {
     StarRailTheme(darkThemeOverride = true) {
         MainRoute(
-            state = ChatUiState(darkThemeOverride = true),
-            effects = kotlinx.coroutines.flow.emptyFlow(),
-            onAction = {},
+            mainState = MainUiState(darkThemeOverride = true),
+            chatState = ChatUiState(),
+            settingsState = SettingsUiState(),
+            mainEffects = kotlinx.coroutines.flow.emptyFlow(),
+            chatEffects = kotlinx.coroutines.flow.emptyFlow(),
+            settingsEffects = kotlinx.coroutines.flow.emptyFlow(),
+            onMainAction = {},
+            onChatAction = {},
+            onSettingsAction = {},
         )
     }
 }

@@ -98,16 +98,23 @@ import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.starRailColors
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.ui.tooling.preview.Preview
+import com.kaixuan.starrailchatbox.design.StarRailTheme
+import com.kaixuan.starrailchatbox.ui.main.MainAction
+import com.kaixuan.starrailchatbox.ui.navigation.Route
 
 /**
  * 聊天会话主屏组件 (原 ChatContent 模块)
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ChatSessionScreen(
     state: ChatUiState,
     contentPadding: PaddingValues,
     compact: Boolean,
     onAction: (ChatAction) -> Unit,
+    onMainAction: (MainAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
@@ -146,9 +153,10 @@ fun ChatSessionScreen(
                 selectedCharacter = state.selectedCharacter,
                 compact = compact,
                 onAction = onAction,
+                onMainAction = onMainAction,
             )
         }
-        item(key = "characters") {
+        stickyHeader(key = "characters") {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -184,6 +192,7 @@ private fun ChatHeader(
     selectedCharacter: CharacterId,
     compact: Boolean,
     onAction: (ChatAction) -> Unit,
+    onMainAction: (MainAction) -> Unit,
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(
@@ -216,6 +225,7 @@ private fun ChatHeader(
             HeaderActions(
                 compact = compact,
                 onAction = onAction,
+                onMainAction = onMainAction,
             )
         }
     }
@@ -291,6 +301,7 @@ private fun CharacterSummary(
 private fun HeaderActions(
     compact: Boolean,
     onAction: (ChatAction) -> Unit,
+    onMainAction: (MainAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val actions = listOf(
@@ -315,7 +326,11 @@ private fun HeaderActions(
             ) {
                 Surface(
                     onClick = {
-                        onAction(ChatAction.HeaderActionClicked(action))
+                        if (action == HeaderAction.SETTINGS) {
+                            onMainAction(MainAction.NavigationSelected(Route.Settings))
+                        } else {
+                            onAction(ChatAction.HeaderActionClicked(action))
+                        }
                     },
                     modifier = Modifier.size(if (compact) 48.dp else 56.dp),
                     shape = CircleShape,
@@ -985,4 +1000,32 @@ internal fun CharacterId.avatarResource(): DrawableResource = when (this) {
     CharacterId.TIAN_SHU -> Res.drawable.avatar_tianqu
     CharacterId.LI_GUANG -> Res.drawable.avatar_liguang
     CharacterId.XI -> Res.drawable.avatar_xi
+}
+
+@Preview(widthDp = 360, heightDp = 800)
+@Composable
+private fun ChatSessionScreenLightPreview() {
+    StarRailTheme(darkThemeOverride = false) {
+        ChatSessionScreen(
+            state = ChatUiState(),
+            contentPadding = PaddingValues(0.dp),
+            compact = true,
+            onAction = {},
+            onMainAction = {}
+        )
+    }
+}
+
+@Preview(widthDp = 360, heightDp = 800)
+@Composable
+private fun ChatSessionScreenDarkPreview() {
+    StarRailTheme(darkThemeOverride = true) {
+        ChatSessionScreen(
+            state = ChatUiState(),
+            contentPadding = PaddingValues(0.dp),
+            compact = true,
+            onAction = {},
+            onMainAction = {}
+        )
+    }
 }

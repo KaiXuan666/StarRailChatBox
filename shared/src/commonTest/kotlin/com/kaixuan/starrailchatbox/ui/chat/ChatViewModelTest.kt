@@ -62,16 +62,4 @@ class ChatViewModelTest {
         assertEquals(initialCount, viewModel.uiState.value.messages.size)
     }
 
-    @Test
-    fun settingsCyclesThemeAndEmitsEffect() = runTest {
-        val viewModel = ChatViewModel()
-
-        viewModel.onAction(ChatAction.HeaderActionClicked(HeaderAction.SETTINGS))
-
-        assertEquals(true, viewModel.uiState.value.darkThemeOverride)
-        assertEquals(
-            ChatEffect.ShowMessage(EffectMessage.THEME_CHANGED),
-            viewModel.effects.first(),
-        )
-    }
 }

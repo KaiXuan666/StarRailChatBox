@@ -55,16 +55,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.kaixuan.starrailchatbox.design.StarRailSpacing
-import com.kaixuan.starrailchatbox.design.starRailColors
-import com.kaixuan.starrailchatbox.ui.chat.ChatAction
-import com.kaixuan.starrailchatbox.ui.chat.ChatUiState
-import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
-import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
+import androidx.compose.ui.tooling.preview.Preview
 import org.jetbrains.compose.resources.stringResource
 import starrailchatbox.shared.generated.resources.Res
-import androidx.compose.ui.tooling.preview.Preview
-import com.kaixuan.starrailchatbox.design.StarRailTheme
 import starrailchatbox.shared.generated.resources.settings_api_fetching
 import starrailchatbox.shared.generated.resources.settings_api_host
 import starrailchatbox.shared.generated.resources.settings_api_key
@@ -73,13 +66,23 @@ import starrailchatbox.shared.generated.resources.settings_api_title
 import starrailchatbox.shared.generated.resources.settings_get
 import starrailchatbox.shared.generated.resources.settings_model_list
 import starrailchatbox.shared.generated.resources.settings_save_config
+import com.kaixuan.starrailchatbox.design.StarRailSpacing
+import com.kaixuan.starrailchatbox.design.StarRailTheme
+import com.kaixuan.starrailchatbox.design.starRailColors
+import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
+import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
+import com.kaixuan.starrailchatbox.ui.main.MainAction
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 @Composable
 fun ApiSettingsScreen(
-    state: ChatUiState,
+    state: SettingsUiState,
     contentPadding: PaddingValues,
     compact: Boolean,
-    onAction: (ChatAction) -> Unit,
+    onMainAction: (MainAction) -> Unit,
+    onSettingsAction: (SettingsAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.starRailColors
@@ -99,18 +102,9 @@ fun ApiSettingsScreen(
             val mainColor = colors.constellation.copy(alpha = 0.08f)
             val subColor = colors.constellationMuted.copy(alpha = 0.04f)
             
-            // Top Right Compass
             drawCompassDecor(
-                center = Offset(size.width * 0.9f, size.height * 0.15f),
-                radius = 120.dp.toPx(),
-                mainColor = mainColor,
-                subColor = subColor
-            )
-            
-            // Bottom Left Compass
-            drawCompassDecor(
-                center = Offset(size.width * 0.1f, size.height * 0.95f),
-                radius = 100.dp.toPx(),
+                center = Offset(size.width * 0.5f, size.height * 0.45f),
+                radius = size.width * 0.42f,
                 mainColor = mainColor,
                 subColor = subColor
             )
@@ -120,41 +114,62 @@ fun ApiSettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(StarRailSpacing.md)
+            verticalArrangement = Arrangement.spacedBy(StarRailSpacing.lg)
         ) {
-            // Header Top Bar with Back Chevron Button and Title
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = StarRailSpacing.xs),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm)
+            // --- Custom Header (Back arrow + Title + Tech Divider) ---
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Back button without circular background
-                Box(
-                    modifier = Modifier
-                        .size(if (compact) 36.dp else 40.dp)
-                        .clip(CircleShape)
-                        .clickable { onAction(ChatAction.BackFromApiSettings) },
-                    contentAlignment = Alignment.Center
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    StarRailIcon(
-                        kind = StarRailIconKind.CHEVRON_LEFT,
-                        contentDescription = "返回",
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(if (compact) 24.dp else 36.dp)
+                    // Back navigation button
+                    Surface(
+                        onClick = { onMainAction(MainAction.PopBackStack) },
+                        modifier = Modifier.size(if (compact) 36.dp else 42.dp),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.8f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f))
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            StarRailIcon(
+                                kind = StarRailIconKind.CHEVRON_LEFT,
+                                contentDescription = "Back",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(if (compact) 18.dp else 22.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    Text(
+                        text = stringResource(Res.string.settings_api_title),
+                        color = MaterialTheme.colorScheme.onBackground,
+                        style = if (compact) {
+                            MaterialTheme.typography.titleLarge
+                        } else {
+                            MaterialTheme.typography.headlineSmall
+                        },
+                        fontWeight = FontWeight.Bold
                     )
                 }
-                
-                Text(
-                    text = stringResource(Res.string.settings_api_title),
-                    color = MaterialTheme.colorScheme.onBackground,
-                    style = if (compact) {
-                        MaterialTheme.typography.titleLarge
-                    } else {
-                        MaterialTheme.typography.headlineSmall
-                    },
-                    fontWeight = FontWeight.Bold
+
+                // Decorative scifi line
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(2.dp)
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(
+                                    colors.constellation.copy(alpha = 0.65f),
+                                    colors.constellationMuted.copy(alpha = 0.15f),
+                                    Color.Transparent
+                                )
+                            )
+                        )
                 )
             }
 
@@ -172,9 +187,9 @@ fun ApiSettingsScreen(
                 
                 ApiInputField(
                     value = state.apiHost,
-                    onValueChange = { onAction(ChatAction.ApiHostChanged(it)) },
-                    placeholder = "https://api.example.com/v1",
-                    leadingIcon = StarRailIconKind.GLOBE,
+                    onValueChange = { onSettingsAction(SettingsAction.ApiHostChanged(it)) },
+                    placeholder = "https://api.openai.com/v1",
+                    leadingIcon = StarRailIconKind.COMPASS,
                     compact = compact
                 )
             }
@@ -193,12 +208,12 @@ fun ApiSettingsScreen(
                 
                 ApiInputField(
                     value = state.apiKey,
-                    onValueChange = { onAction(ChatAction.ApiKeyChanged(it)) },
-                    placeholder = "sk-••••••••••••••••••••••••",
+                    onValueChange = { onSettingsAction(SettingsAction.ApiKeyChanged(it)) },
+                    placeholder = "sk-????????????????????????",
                     leadingIcon = StarRailIconKind.KEY,
                     isPasswordField = true,
                     passwordVisible = state.showApiKey,
-                    onPasswordToggle = { onAction(ChatAction.ToggleApiKeyVisibility) },
+                    onPasswordToggle = { onSettingsAction(SettingsAction.ToggleApiKeyVisibility) },
                     compact = compact
                 )
             }
@@ -226,10 +241,9 @@ fun ApiSettingsScreen(
                     val fetchScale by animateFloatAsState(if (isFetchPressed) 0.92f else 1f)
                     
                     Surface(
-                        onClick = { onAction(ChatAction.FetchModelsClicked) },
+                        onClick = { onSettingsAction(SettingsAction.FetchModelsClicked) },
                         interactionSource = fetchInteractionSource,
-                        modifier = Modifier
-                            .scale(fetchScale),
+                        modifier = Modifier.scale(fetchScale),
                         shape = RoundedCornerShape(50),
                         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
@@ -267,7 +281,7 @@ fun ApiSettingsScreen(
                             ModelCardItem(
                                 model = model,
                                 isSelected = state.selectedModel == model,
-                                onClick = { onAction(ChatAction.SelectModel(model)) },
+                                onClick = { onSettingsAction(SettingsAction.SelectModel(model)) },
                                 compact = compact
                             )
                         }
@@ -320,7 +334,10 @@ fun ApiSettingsScreen(
             )
             
             Surface(
-                onClick = { onAction(ChatAction.SaveApiSettingsClicked) },
+                onClick = {
+                    onSettingsAction(SettingsAction.SaveApiSettingsClicked)
+                    onMainAction(MainAction.PopBackStack)
+                },
                 interactionSource = saveInteractionSource,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -429,7 +446,7 @@ private fun ApiInputField(
                     Box(contentAlignment = Alignment.Center) {
                         StarRailIcon(
                             kind = eyeIcon,
-                            contentDescription = "切换密码可见性",
+                            contentDescription = "Show/Hide Key",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                             modifier = Modifier.size(18.dp)
                         )
@@ -489,7 +506,6 @@ private fun ModelCardItem(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
             ) {
-                // Cube Icon
                 Box(
                     modifier = Modifier
                         .size(if (compact) 32.dp else 38.dp)
@@ -520,7 +536,6 @@ private fun ModelCardItem(
                 if (isSelected) {
                     Spacer(modifier = Modifier.width(8.dp))
                     
-                    // Selected Pill Badge
                     Box(
                         modifier = Modifier
                             .background(
@@ -539,7 +554,6 @@ private fun ModelCardItem(
                 }
             }
             
-            // Radio Circle
             Box(
                 modifier = Modifier
                     .size(if (compact) 18.dp else 22.dp)
@@ -559,7 +573,7 @@ private fun ModelCardItem(
                 if (isSelected) {
                     StarRailIcon(
                         kind = StarRailIconKind.CHECK,
-                        contentDescription = "已选",
+                        contentDescription = "Selected",
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(if (compact) 10.dp else 12.dp)
                     )
@@ -569,7 +583,6 @@ private fun ModelCardItem(
     }
 }
 
-// Draw decorative compass pattern helper
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCompassDecor(
     center: Offset,
     radius: Float,
@@ -578,7 +591,6 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCompassDecor(
 ) {
     val thinStroke = Stroke(width = 1.dp.toPx())
     
-    // Outer circle
     drawCircle(
         color = mainColor,
         radius = radius,
@@ -586,7 +598,6 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCompassDecor(
         style = thinStroke
     )
     
-    // Inner dotted circle (modeled by dashed sweep arcs or simpler double circle)
     drawCircle(
         color = subColor,
         radius = radius * 0.8f,
@@ -601,7 +612,6 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCompassDecor(
         style = thinStroke
     )
 
-    // Compass Cross lines
     drawLine(
         color = subColor,
         start = Offset(center.x - radius * 1.1f, center.y),
@@ -615,20 +625,18 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCompassDecor(
         strokeWidth = 1.dp.toPx()
     )
     
-    // Inner star points (8 directions)
     val path = Path().apply {
-        // Main NSEW points
         for (i in 0 until 4) {
-            val angle = i * (Math.PI / 2).toFloat()
-            val outerX = center.x + Math.cos(angle.toDouble()).toFloat() * radius * 0.75f
-            val outerY = center.y + Math.sin(angle.toDouble()).toFloat() * radius * 0.75f
+            val angle = i * (PI / 2).toFloat()
+            val outerX = center.x + cos(angle) * radius * 0.75f
+            val outerY = center.y + sin(angle) * radius * 0.75f
             
-            val rightAngle = angle + (Math.PI / 8).toFloat()
-            val leftAngle = angle - (Math.PI / 8).toFloat()
-            val innerRX = center.x + Math.cos(rightAngle.toDouble()).toFloat() * radius * 0.15f
-            val innerRY = center.y + Math.sin(rightAngle.toDouble()).toFloat() * radius * 0.15f
-            val innerLX = center.x + Math.cos(leftAngle.toDouble()).toFloat() * radius * 0.15f
-            val innerLY = center.y + Math.sin(leftAngle.toDouble()).toFloat() * radius * 0.15f
+            val rightAngle = angle + (PI / 8).toFloat()
+            val leftAngle = angle - (PI / 8).toFloat()
+            val innerRX = center.x + cos(rightAngle) * radius * 0.15f
+            val innerRY = center.y + sin(rightAngle) * radius * 0.15f
+            val innerLX = center.x + cos(leftAngle) * radius * 0.15f
+            val innerLY = center.y + sin(leftAngle) * radius * 0.15f
             
             moveTo(outerX, outerY)
             lineTo(innerRX, innerRY)
@@ -640,18 +648,17 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCompassDecor(
     drawPath(path, mainColor)
     
     val pathDiag = Path().apply {
-        // Diagonal points
         for (i in 0 until 4) {
-            val angle = (i * (Math.PI / 2) + (Math.PI / 4)).toFloat()
-            val outerX = center.x + Math.cos(angle.toDouble()).toFloat() * radius * 0.5f
-            val outerY = center.y + Math.sin(angle.toDouble()).toFloat() * radius * 0.5f
+            val angle = (i * (PI / 2) + (PI / 4)).toFloat()
+            val outerX = center.x + cos(angle) * radius * 0.5f
+            val outerY = center.y + sin(angle) * radius * 0.5f
             
-            val rightAngle = angle + (Math.PI / 8).toFloat()
-            val leftAngle = angle - (Math.PI / 8).toFloat()
-            val innerRX = center.x + Math.cos(rightAngle.toDouble()).toFloat() * radius * 0.12f
-            val innerRY = center.y + Math.sin(rightAngle.toDouble()).toFloat() * radius * 0.12f
-            val innerLX = center.x + Math.cos(leftAngle.toDouble()).toFloat() * radius * 0.12f
-            val innerLY = center.y + Math.sin(leftAngle.toDouble()).toFloat() * radius * 0.12f
+            val rightAngle = angle + (PI / 8).toFloat()
+            val leftAngle = angle - (PI / 8).toFloat()
+            val innerRX = center.x + cos(rightAngle) * radius * 0.12f
+            val innerRY = center.y + sin(rightAngle) * radius * 0.12f
+            val innerLX = center.x + cos(leftAngle) * radius * 0.12f
+            val innerLY = center.y + sin(leftAngle) * radius * 0.12f
             
             moveTo(outerX, outerY)
             lineTo(innerRX, innerRY)
@@ -668,14 +675,15 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCompassDecor(
 private fun ApiSettingsScreenLightPreview() {
     StarRailTheme(darkThemeOverride = false) {
         ApiSettingsScreen(
-            state = ChatUiState(
+            state = SettingsUiState(
                 apiHost = "https://api.example.com/v1",
                 apiKey = "sk-1234567890",
                 selectedModel = "gpt-4o-mini"
             ),
             contentPadding = PaddingValues(0.dp),
             compact = true,
-            onAction = {}
+            onMainAction = {},
+            onSettingsAction = {}
         )
     }
 }
@@ -685,15 +693,15 @@ private fun ApiSettingsScreenLightPreview() {
 private fun ApiSettingsScreenDarkPreview() {
     StarRailTheme(darkThemeOverride = true) {
         ApiSettingsScreen(
-            state = ChatUiState(
-                darkThemeOverride = true,
+            state = SettingsUiState(
                 apiHost = "https://api.example.com/v1",
                 apiKey = "sk-1234567890",
                 selectedModel = "gpt-4o-mini"
             ),
             contentPadding = PaddingValues(0.dp),
             compact = true,
-            onAction = {}
+            onMainAction = {},
+            onSettingsAction = {}
         )
     }
 }
