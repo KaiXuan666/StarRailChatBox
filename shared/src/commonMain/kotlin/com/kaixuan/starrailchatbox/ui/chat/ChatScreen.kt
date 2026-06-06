@@ -27,6 +27,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -93,15 +96,11 @@ import starrailchatbox.shared.generated.resources.avatar_liuying
 import starrailchatbox.shared.generated.resources.avatar_tianqu
 import starrailchatbox.shared.generated.resources.avatar_xi
 import starrailchatbox.shared.generated.resources.character_liguang
-import starrailchatbox.shared.generated.resources.character_liguang_description
 import starrailchatbox.shared.generated.resources.character_liuying
-import starrailchatbox.shared.generated.resources.character_liuying_description
 import starrailchatbox.shared.generated.resources.character_selected_description
 import starrailchatbox.shared.generated.resources.character_selection_description
 import starrailchatbox.shared.generated.resources.character_tianshu
-import starrailchatbox.shared.generated.resources.character_tianshu_description
 import starrailchatbox.shared.generated.resources.character_xi
-import starrailchatbox.shared.generated.resources.character_xi_description
 import starrailchatbox.shared.generated.resources.emoji_not_ready
 import starrailchatbox.shared.generated.resources.message_care
 import starrailchatbox.shared.generated.resources.message_comfort
@@ -189,8 +188,7 @@ fun ChatScreen(
                         MaterialTheme.colorScheme.background,
                     ),
                 ),
-            )
-            .windowInsetsPadding(WindowInsets.safeDrawing),
+            ),
     ) {
         val expanded = maxWidth >= 840.dp
         val compact = maxWidth < 480.dp
@@ -266,7 +264,7 @@ private fun ChatContent(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
             start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-            top = StarRailSpacing.lg,
+            top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + StarRailSpacing.lg,
             end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
             bottom = contentPadding.calculateBottomPadding() + StarRailSpacing.lg,
         ),
@@ -309,52 +307,38 @@ private fun ChatHeader(
     compact: Boolean,
     onAction: (ChatAction) -> Unit,
 ) {
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val stacked = maxWidth < 600.dp
-        Column(
-            verticalArrangement = Arrangement.spacedBy(
-                if (compact) StarRailSpacing.md else StarRailSpacing.lg,
-            ),
-        ) {
-            Text(
-                text = stringResource(Res.string.app_title),
-                color = MaterialTheme.colorScheme.onBackground,
-                style = if (compact) {
-                    MaterialTheme.typography.headlineSmall
-                } else {
-                    MaterialTheme.typography.headlineLarge
-                },
-                maxLines = 1,
-            )
-
-            if (stacked) {
-                CharacterSummary(
-                    character = selectedCharacter,
-                    modifier = Modifier.fillMaxWidth(),
-                    compact = compact,
-                )
-                HeaderActions(
-                    modifier = Modifier.fillMaxWidth(),
-                    compact = compact,
-                    onAction = onAction,
-                )
+    Column(
+        verticalArrangement = Arrangement.spacedBy(
+            if (compact) StarRailSpacing.md else StarRailSpacing.lg,
+        ),
+    ) {
+        Text(
+            text = stringResource(Res.string.app_title),
+            color = MaterialTheme.colorScheme.onBackground,
+            style = if (compact) {
+                MaterialTheme.typography.headlineSmall
             } else {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.xl),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    CharacterSummary(
-                        character = selectedCharacter,
-                        modifier = Modifier.weight(1f),
-                        compact = false,
-                    )
-                    HeaderActions(
-                        compact = false,
-                        onAction = onAction,
-                    )
-                }
-            }
+                MaterialTheme.typography.headlineLarge
+            },
+            maxLines = 1,
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(
+                if (compact) StarRailSpacing.md else StarRailSpacing.xl,
+            ),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CharacterSummary(
+                character = selectedCharacter,
+                modifier = Modifier.weight(1f),
+                compact = compact,
+            )
+            HeaderActions(
+                compact = compact,
+                onAction = onAction,
+            )
         }
     }
 }
@@ -389,7 +373,7 @@ private fun CharacterSummary(
                     text = name,
                     color = MaterialTheme.colorScheme.onBackground,
                     style = if (compact) {
-                        MaterialTheme.typography.titleLarge
+                        MaterialTheme.typography.titleMedium
                     } else {
                         MaterialTheme.typography.headlineSmall
                     },
@@ -399,7 +383,7 @@ private fun CharacterSummary(
                     kind = StarRailIconKind.SPARKLE,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp),
+                    modifier = Modifier.size(if (compact) 18.dp else 24.dp),
                 )
             }
             Row(
@@ -408,20 +392,19 @@ private fun CharacterSummary(
             ) {
                 Box(
                     Modifier
-                        .size(10.dp)
+                        .size(if (compact) 8.dp else 10.dp)
                         .background(MaterialTheme.starRailColors.online, CircleShape),
                 )
                 Text(
                     text = stringResource(Res.string.online),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = if (compact) {
+                        MaterialTheme.typography.bodySmall
+                    } else {
+                        MaterialTheme.typography.bodyMedium
+                    },
                 )
             }
-            Text(
-                text = stringResource(character.descriptionResource()),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium,
-            )
         }
     }
 }
@@ -439,18 +422,18 @@ private fun HeaderActions(
     )
     Row(
         modifier = modifier,
-        horizontalArrangement = if (compact) {
-            Arrangement.SpaceEvenly
-        } else {
-            Arrangement.spacedBy(StarRailSpacing.md)
-        },
+        horizontalArrangement = Arrangement.spacedBy(
+            if (compact) StarRailSpacing.sm else StarRailSpacing.md
+        ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         actions.forEach { (action, labelResource, icon) ->
             val label = stringResource(labelResource)
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
+                verticalArrangement = Arrangement.spacedBy(
+                    if (compact) StarRailSpacing.xxs else StarRailSpacing.xs
+                ),
             ) {
                 Surface(
                     onClick = {
@@ -471,14 +454,18 @@ private fun HeaderActions(
                             kind = icon,
                             contentDescription = label,
                             tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(26.dp),
+                            modifier = Modifier.size(if (compact) 22.dp else 26.dp),
                         )
                     }
                 }
                 Text(
                     text = label,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = if (compact) {
+                        MaterialTheme.typography.labelMedium
+                    } else {
+                        MaterialTheme.typography.labelLarge
+                    },
                 )
             }
         }
@@ -498,17 +485,37 @@ private fun CharacterSelector(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         shadowElevation = 2.dp,
     ) {
-        LazyRow(
-            contentPadding = PaddingValues(StarRailSpacing.sm),
-            horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
-        ) {
-            items(CharacterId.entries) { character ->
-                CharacterSelectorItem(
-                    character = character,
-                    selected = character == selectedCharacter,
-                    compact = compact,
-                    onClick = { onCharacterSelected(character) },
-                )
+        if (compact) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = StarRailSpacing.xxs, vertical = StarRailSpacing.xs),
+                horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.xxs),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CharacterId.entries.forEach { character ->
+                    CharacterSelectorItem(
+                        character = character,
+                        selected = character == selectedCharacter,
+                        compact = true,
+                        onClick = { onCharacterSelected(character) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        } else {
+            LazyRow(
+                contentPadding = PaddingValues(StarRailSpacing.sm),
+                horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
+            ) {
+                items(CharacterId.entries) { character ->
+                    CharacterSelectorItem(
+                        character = character,
+                        selected = character == selectedCharacter,
+                        compact = false,
+                        onClick = { onCharacterSelected(character) },
+                    )
+                }
             }
         }
     }
@@ -520,6 +527,7 @@ private fun CharacterSelectorItem(
     selected: Boolean,
     compact: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val name = stringResource(character.nameResource())
     val selectionDescription = stringResource(
@@ -531,17 +539,19 @@ private fun CharacterSelectorItem(
         name,
     )
     Column(
-        modifier = Modifier
-            .width(if (compact) 104.dp else 132.dp)
+        modifier = modifier
+            .then(if (compact) Modifier else Modifier.width(132.dp))
             .clip(MaterialTheme.shapes.medium)
             .clickable(onClick = onClick)
             .semantics {
                 this.selected = selected
                 contentDescription = selectionDescription
             }
-            .padding(vertical = StarRailSpacing.xs),
+            .padding(vertical = if (compact) StarRailSpacing.xxs else StarRailSpacing.xs),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
+        verticalArrangement = Arrangement.spacedBy(
+            if (compact) StarRailSpacing.xxs else StarRailSpacing.xs
+        ),
     ) {
         CharacterAvatar(
             character = character,
@@ -556,14 +566,18 @@ private fun CharacterSelectorItem(
             } else {
                 MaterialTheme.colorScheme.onSurface
             },
-            style = MaterialTheme.typography.titleMedium,
+            style = if (compact) {
+                MaterialTheme.typography.bodyMedium
+            } else {
+                MaterialTheme.typography.titleMedium
+            },
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
             maxLines = 1,
         )
         Box(
             Modifier
-                .width(72.dp)
-                .height(4.dp)
+                .width(if (compact) 56.dp else 72.dp)
+                .height(if (compact) 3.dp else 4.dp)
                 .clip(CircleShape)
                 .background(
                     if (selected) {
@@ -694,7 +708,7 @@ private fun ReceivedMessage(
             .fillMaxWidth()
             .semantics { contentDescription = semanticDescription },
     ) {
-        val bubbleMaxWidth = maxWidth * if (compact) 0.86f else 0.74f
+        val bubbleMaxWidth = maxWidth * if (compact) 0.76f else 0.74f
         Row(
             horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
             verticalAlignment = Alignment.Top,
@@ -721,8 +735,8 @@ private fun ReceivedMessage(
                     Text(
                         text = text,
                         modifier = Modifier.padding(
-                            horizontal = StarRailSpacing.md,
-                            vertical = StarRailSpacing.sm,
+                            horizontal = if (compact) 14.dp else StarRailSpacing.md,
+                            vertical = if (compact) 10.dp else StarRailSpacing.sm,
                         ),
                         color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.bodyLarge,
@@ -754,7 +768,7 @@ private fun SentMessage(
             .fillMaxWidth()
             .semantics { contentDescription = semanticDescription },
     ) {
-        val bubbleMaxWidth = maxWidth * if (compact) 0.86f else 0.74f
+        val bubbleMaxWidth = maxWidth * if (compact) 0.76f else 0.74f
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End,
@@ -777,8 +791,8 @@ private fun SentMessage(
                     Text(
                         text = text,
                         modifier = Modifier.padding(
-                            horizontal = StarRailSpacing.md,
-                            vertical = StarRailSpacing.sm,
+                            horizontal = if (compact) 14.dp else StarRailSpacing.md,
+                            vertical = if (compact) 10.dp else StarRailSpacing.sm,
                         ),
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                         style = MaterialTheme.typography.bodyLarge,
@@ -805,7 +819,7 @@ private fun SentMessage(
             }
             Spacer(Modifier.width(StarRailSpacing.sm))
             Surface(
-                modifier = Modifier.size(if (compact) 44.dp else 48.dp),
+                modifier = Modifier.size(if (compact) 40.dp else 48.dp),
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 border = BorderStroke(
@@ -818,7 +832,7 @@ private fun SentMessage(
                         kind = StarRailIconKind.SPARKLE,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(26.dp),
+                        modifier = Modifier.size(if (compact) 22.dp else 26.dp),
                     )
                 }
             }
@@ -833,36 +847,41 @@ private fun ChatBottomArea(
     compact: Boolean,
     onAction: (ChatAction) -> Unit,
 ) {
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.97f),
-        shadowElevation = 8.dp,
-    ) {
-        Column {
-            QuickReplies(
-                compact = compact,
-                onReplyClicked = {
-                    onAction(ChatAction.QuickReplyClicked(it))
-                },
-            )
-            MessageComposer(
-                value = state.messageDraft,
-                isSending = state.isSending,
-                compact = compact,
-                onValueChange = {
-                    onAction(ChatAction.MessageChanged(it))
-                },
-                onSend = { onAction(ChatAction.SendClicked) },
-                onComposerAction = {
-                    onAction(ChatAction.ComposerActionClicked(it))
-                },
-            )
-            if (showNavigationBar) {
-                ChatNavigationBar(
-                    selectedDestination = state.selectedDestination,
-                    onDestinationSelected = {
-                        onAction(ChatAction.NavigationSelected(it))
+    Column {
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.97f),
+            shadowElevation = 8.dp,
+        ) {
+            Column(
+                modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
+            ) {
+                QuickReplies(
+                    compact = compact,
+                    onReplyClicked = {
+                        onAction(ChatAction.QuickReplyClicked(it))
                     },
                 )
+                MessageComposer(
+                    value = state.messageDraft,
+                    isSending = state.isSending,
+                    compact = compact,
+                    onValueChange = {
+                        onAction(ChatAction.MessageChanged(it))
+                    },
+                    onSend = { onAction(ChatAction.SendClicked) },
+                    onComposerAction = {
+                        onAction(ChatAction.ComposerActionClicked(it))
+                    },
+                )
+                if (showNavigationBar) {
+                    ChatNavigationBar(
+                        selectedDestination = state.selectedDestination,
+                        compact = compact,
+                        onDestinationSelected = {
+                            onAction(ChatAction.NavigationSelected(it))
+                        },
+                    )
+                }
             }
         }
     }
@@ -892,7 +911,9 @@ private fun QuickReplies(
                 horizontal = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
                 vertical = if (compact) StarRailSpacing.xs else StarRailSpacing.sm,
             ),
-        horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
+        horizontalArrangement = Arrangement.spacedBy(
+            if (compact) StarRailSpacing.xxs else StarRailSpacing.xs
+        ),
     ) {
         replies.forEach { reply ->
             val label = stringResource(reply.label)
@@ -908,10 +929,12 @@ private fun QuickReplies(
             ) {
                 Row(
                     modifier = Modifier.padding(
-                        horizontal = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                        vertical = if (compact) StarRailSpacing.xs else StarRailSpacing.sm,
+                        horizontal = if (compact) 12.dp else StarRailSpacing.md,
+                        vertical = if (compact) 6.dp else StarRailSpacing.sm,
                     ),
-                    horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
+                    horizontalArrangement = Arrangement.spacedBy(
+                        if (compact) StarRailSpacing.xxs else StarRailSpacing.xs
+                    ),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     StarRailIcon(
@@ -924,11 +947,15 @@ private fun QuickReplies(
                         } else {
                             MaterialTheme.colorScheme.primary
                         },
-                        modifier = Modifier.size(22.dp),
+                        modifier = Modifier.size(if (compact) 18.dp else 22.dp),
                     )
                     Text(
                         text = label,
-                        style = MaterialTheme.typography.labelLarge,
+                        style = if (compact) {
+                            MaterialTheme.typography.labelMedium
+                        } else {
+                            MaterialTheme.typography.labelLarge
+                        },
                     )
                 }
             }
@@ -954,7 +981,7 @@ private fun MessageComposer(
                 bottom = StarRailSpacing.sm,
             ),
         horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
-        verticalAlignment = Alignment.Bottom,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         ComposerIconButton(
             icon = StarRailIconKind.ADD,
@@ -967,7 +994,7 @@ private fun MessageComposer(
             onValueChange = onValueChange,
             modifier = Modifier
                 .weight(1f)
-                .defaultMinSize(minWidth = 0.dp)
+                .defaultMinSize(minWidth = 0.dp, minHeight = if (compact) 44.dp else 56.dp)
                 .animateContentSize(),
             placeholder = {
                 Text(stringResource(Res.string.message_placeholder))
@@ -1037,7 +1064,7 @@ private fun ComposerIconButton(
     Surface(
         onClick = onClick,
         enabled = enabled,
-        modifier = Modifier.size(if (compact) 48.dp else 52.dp),
+        modifier = Modifier.size(if (compact) 44.dp else 52.dp),
         shape = CircleShape,
         color = containerColor,
         contentColor = contentColor,
@@ -1051,7 +1078,7 @@ private fun ComposerIconButton(
         Box(contentAlignment = Alignment.Center) {
             if (loading) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(22.dp),
+                    modifier = Modifier.size(if (compact) 20.dp else 22.dp),
                     color = contentColor,
                     strokeWidth = 2.dp,
                 )
@@ -1060,7 +1087,7 @@ private fun ComposerIconButton(
                     kind = icon,
                     contentDescription = contentDescription,
                     tint = contentColor,
-                    modifier = Modifier.size(25.dp),
+                    modifier = Modifier.size(if (compact) 22.dp else 24.dp),
                 )
             }
         }
@@ -1099,9 +1126,11 @@ private val navigationItems = listOf(
 @Composable
 private fun ChatNavigationBar(
     selectedDestination: NavigationDestination,
+    compact: Boolean,
     onDestinationSelected: (NavigationDestination) -> Unit,
 ) {
     NavigationBar(
+        modifier = Modifier.height(if (compact) 64.dp else 80.dp),
         containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
         tonalElevation = 0.dp,
     ) {
@@ -1120,7 +1149,7 @@ private fun ChatNavigationBar(
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
                         },
-                        modifier = Modifier.size(26.dp),
+                        modifier = Modifier.size(if (compact) 22.dp else 26.dp),
                     )
                 },
                 label = { Text(label) },
@@ -1249,12 +1278,7 @@ private fun CharacterId.nameResource(): StringResource = when (this) {
     CharacterId.XI -> Res.string.character_xi
 }
 
-private fun CharacterId.descriptionResource(): StringResource = when (this) {
-    CharacterId.LIU_YING -> Res.string.character_liuying_description
-    CharacterId.TIAN_SHU -> Res.string.character_tianshu_description
-    CharacterId.LI_GUANG -> Res.string.character_liguang_description
-    CharacterId.XI -> Res.string.character_xi_description
-}
+
 
 private fun CharacterId.avatarResource(): DrawableResource = when (this) {
     CharacterId.LIU_YING -> Res.drawable.avatar_liuying

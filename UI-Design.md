@@ -540,7 +540,7 @@ sealed interface ChatMessageUiModel {
 - 优先使用 Material Symbols / Material Icons 中语义相符的图标。
 - 品牌星芒、头像环和星空背景作为项目资源维护。
 - 同一动作必须在全应用使用同一图标。
-- 图标默认尺寸 24dp；紧凑辅助图标可为 18-20dp。
+- 图标默认尺寸 24dp；紧凑辅助图标可为 18-22dp。
 - 图标按钮必须使用 `IconButton` 或具备等价语义和 48dp 触控范围。
 - 不使用 Emoji 代替正式 UI 图标。
 
