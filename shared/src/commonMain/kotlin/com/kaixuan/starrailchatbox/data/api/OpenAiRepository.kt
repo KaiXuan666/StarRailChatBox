@@ -9,6 +9,11 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import com.kaixuan.starrailchatbox.data.model.ModelConfig
 import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.json.Json
+
+private val openAiResponseJson = Json {
+    ignoreUnknownKeys = true
+}
 
 interface OpenAiRepository {
     suspend fun getModels(
@@ -114,10 +119,10 @@ class KtorfitOpenAiRepository(
                             )
                         )
                     ),
-                    toolChoice = ToolChoice(
-                        type = "function",
-                        function = ToolChoiceFunction(name = "respond_with_quick_replies")
-                    )
+                    // Some OpenAI-compatible providers accept tools but ignore the
+                    // object form that selects a named function. There is only one
+                    // tool in this request, so "required" still forces this function.
+                    toolChoice = "required",
                 )
             } else {
                 ChatCompletionRequest(
@@ -205,15 +210,34 @@ class KtorfitOpenAiRepository(
                         tools = listOf(
                             ToolDefinition(
                                 type = "function",
-                                function = FunctionDefinition(name = "test", description = "test")
+                                function = FunctionDefinition(
+                                    name = "test_tool_call",
+                                    description = "Return the answer through this function.",
+                                    parameters = FunctionParameters(
+                                        properties = mapOf(
+                                            "answer" to PropertyDefinition(
+                                                type = "string",
+                                                description = "The answer.",
+                                            ),
+                                        ),
+                                        required = listOf("answer"),
+                                    ),
+                                ),
                             )
                         ),
-                        maxTokens = 5
-                    )
+                        toolChoice = "required",
+                        maxTokens = 32,
+                    ),
                 )
             }
             if (response.status.value == 200) {
-                true
+                val body = response.bodyAsText()
+                val completion = openAiResponseJson.decodeFromString<ChatCompletionResponse>(body)
+                completion.choices.any { choice ->
+                    choice.message.toolCalls.orEmpty().any { toolCall ->
+                        toolCall.function.name == "test_tool_call"
+                    }
+                }
             } else if (response.status.value == 400) {
                 val body = response.bodyAsText()
                 body.contains("parameters", ignoreCase = true) ||

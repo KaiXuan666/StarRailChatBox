@@ -116,7 +116,7 @@ class KtorfitOpenAiRepositoryTest {
         val engine = MockEngine { request ->
             val body = request.body.readText()
             assertTrue(body.contains("\"tools\":["))
-            assertTrue(body.contains("\"tool_choice\":"))
+            assertTrue(body.contains("\"tool_choice\":\"required\""))
 
             respond(
                 content = """
@@ -164,6 +164,73 @@ class KtorfitOpenAiRepositoryTest {
             ?: error("Expected success, got $result")
         assertEquals("你好，我一直都在这里。", success.value.content)
         assertEquals(listOf("🌸 陪我坐一会儿", "🍃 只是想吹吹风", "✨ 听讲个故事"), success.value.suggestions)
+        client.close()
+    }
+
+    @Test
+    fun testToolCallSupportRequiresAnActualToolCall() = runTest {
+        var requestCount = 0
+        val engine = MockEngine { request ->
+            requestCount += 1
+            val body = request.body.readText()
+            assertTrue(body.contains("\"tool_choice\":\"required\""))
+            assertTrue(body.contains("\"name\":\"test_tool_call\""))
+
+            respond(
+                content = if (requestCount == 1) {
+                    """
+                        {
+                          "choices": [{
+                            "message": {
+                              "role": "assistant",
+                              "content": "2",
+                              "tool_calls": null
+                            },
+                            "finish_reason": "stop"
+                          }]
+                        }
+                    """.trimIndent()
+                } else {
+                    """
+                        {
+                          "choices": [{
+                            "message": {
+                              "role": "assistant",
+                              "content": null,
+                              "tool_calls": [{
+                                "id": "call_test",
+                                "type": "function",
+                                "function": {
+                                  "name": "test_tool_call",
+                                  "arguments": "{\"answer\":\"2\"}"
+                                }
+                              }]
+                            },
+                            "finish_reason": "tool_calls"
+                          }]
+                        }
+                    """.trimIndent()
+                },
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+        val client = HttpClient(engine) {
+            expectSuccess = true
+            install(ContentNegotiation) {
+                json(Json { ignoreUnknownKeys = true })
+            }
+        }
+        val repository = KtorfitOpenAiRepository(client)
+
+        assertEquals(
+            false,
+            repository.testToolCallSupport("https://example.com/v1", "test-key", "test-model"),
+        )
+        assertEquals(
+            true,
+            repository.testToolCallSupport("https://example.com/v1", "test-key", "test-model"),
+        )
         client.close()
     }
 
@@ -237,4 +304,3 @@ private suspend fun OutgoingContent.readText(): String {
         else -> ""
     }
 }
-

@@ -44,18 +44,7 @@ data class ChatCompletionRequest(
     val maxTokens: Int? = null,
     val tools: List<ToolDefinition>? = null,
     @SerialName("tool_choice")
-    val toolChoice: ToolChoice? = null,
-)
-
-@Serializable
-data class ToolChoice(
-    val type: String,
-    val function: ToolChoiceFunction,
-)
-
-@Serializable
-data class ToolChoiceFunction(
-    val name: String,
+    val toolChoice: String? = null,
 )
 
 @Serializable
@@ -114,6 +103,8 @@ data class ToolCallTestRequest(
     val model: String,
     val messages: List<ChatMessage>,
     val tools: List<ToolDefinition>,
+    @SerialName("tool_choice")
+    val toolChoice: String,
     @SerialName("max_tokens")
     val maxTokens: Int,
 )
@@ -149,5 +140,4 @@ data class PropertyDefinition(
 data class PropertyItems(
     val type: String,
 )
-
 
