@@ -2,8 +2,9 @@ package com.kaixuan.starrailchatbox.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kaixuan.starrailchatbox.data.ai.AiRepository
+import com.kaixuan.starrailchatbox.data.ai.OpenAiCompatibleProvider
 import com.kaixuan.starrailchatbox.data.api.ApiResult
-import com.kaixuan.starrailchatbox.data.api.OpenAiRepository
 import com.kaixuan.starrailchatbox.data.model.DefaultModelConfig
 import com.kaixuan.starrailchatbox.data.model.ModelConfig
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
@@ -19,7 +20,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class SettingsViewModel(
-    private val openAiRepository: OpenAiRepository,
+    private val aiRepository: AiRepository,
     private val modelConfigRepository: ModelConfigRepository,
     private val coroutineScope: CoroutineScope? = null,
     private val defaultApiSettings: ApiSettingsDefaults = localApiSettingsDefaults(),
@@ -111,9 +112,10 @@ class SettingsViewModel(
 
         scope().launch {
             when (
-                val result = openAiRepository.getModels(
+                val result = aiRepository.getModels(
                     apiHost = state.apiHost,
                     apiKey = state.apiKey,
+                    providerId = OpenAiCompatibleProvider.Id,
                 )
             ) {
                 is ApiResult.Success -> handleModelsLoaded(result.value)
@@ -165,10 +167,11 @@ class SettingsViewModel(
         _uiState.update { it.copy(isSaving = true) }
         scope().launch {
             try {
-                val supportToolCall = openAiRepository.testToolCallSupport(
+                val supportToolCall = aiRepository.testToolCallSupport(
                     apiHost = state.apiHost,
                     apiKey = state.apiKey,
                     model = state.selectedModel,
+                    providerId = OpenAiCompatibleProvider.Id,
                 )
 
                 modelConfigRepository.saveDefault(

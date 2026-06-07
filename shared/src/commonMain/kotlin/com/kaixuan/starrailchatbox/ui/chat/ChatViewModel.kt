@@ -2,9 +2,9 @@ package com.kaixuan.starrailchatbox.ui.chat
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kaixuan.starrailchatbox.data.ai.AiRepository
+import com.kaixuan.starrailchatbox.data.ai.ChatCompletionResult
 import com.kaixuan.starrailchatbox.data.api.ApiResult
-import com.kaixuan.starrailchatbox.data.api.ChatCompletionResult
-import com.kaixuan.starrailchatbox.data.api.OpenAiRepository
 import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.data.character.CharacterRepository
 import com.kaixuan.starrailchatbox.data.chat.ChatMessageStatus
@@ -36,7 +36,7 @@ class ChatViewModel(
     private val characterRepository: CharacterRepository,
     private val chatSessionRepository: ChatSessionRepository,
     private val modelConfigRepository: ModelConfigRepository,
-    private val openAiRepository: OpenAiRepository,
+    private val aiRepository: AiRepository,
     private val currentTimeMillis: () -> Long = {
         Clock.System.now().toEpochMilliseconds()
     },
@@ -339,10 +339,8 @@ class ChatViewModel(
             history = history,
             currentUserMessage = content,
             maxHistoryMessageCount = session.maxContextMessageCount,
-            supportToolCall = config.supportToolCall,
-            characterName = character.name,
         )
-        when (val result = openAiRepository.createChatCompletion(config, requestMessages, character.name)) {
+        when (val result = aiRepository.createChatCompletion(config, requestMessages, character.name)) {
             is ApiResult.Success -> handleSuccess(session, config, result.value)
             is ApiResult.HttpError -> handleFailure(
                 session,
@@ -576,5 +574,4 @@ private fun NewChatMessage.toStored(seq: Long) = StoredChatMessage(
     totalTokens = totalTokens,
     createdAt = createdAt,
 )
-
 

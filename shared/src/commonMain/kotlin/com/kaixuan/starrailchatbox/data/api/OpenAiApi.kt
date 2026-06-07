@@ -7,8 +7,10 @@ import de.jensklingenberg.ktorfit.http.Headers
 import de.jensklingenberg.ktorfit.http.POST
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 
-interface OpenAiApi {
+internal interface OpenAiApi {
     @GET("models")
     suspend fun getModels(
         @Header("Authorization") authorization: String,
@@ -18,78 +20,73 @@ interface OpenAiApi {
     @Headers("Content-Type: application/json")
     suspend fun createChatCompletion(
         @Header("Authorization") authorization: String,
-        @Body request: ChatCompletionRequest,
-    ): ChatCompletionResponse
+        @Body request: OpenAiChatRequest,
+    ): OpenAiChatResponse
 }
 
 @Serializable
-data class OpenAiModelsResponse(
+internal data class OpenAiModelsResponse(
     val data: List<OpenAiModel> = emptyList(),
 )
 
 @Serializable
-data class OpenAiModel(
+internal data class OpenAiModel(
     val id: String,
 )
 
 @Serializable
-data class ChatCompletionRequest(
+internal data class OpenAiChatRequest(
     val model: String,
-    val messages: List<ChatMessage>,
+    val messages: List<OpenAiMessage>,
     val stream: Boolean = false,
     val temperature: Double? = null,
     @SerialName("top_p")
     val topP: Double? = null,
     @SerialName("max_tokens")
     val maxTokens: Int? = null,
-    val tools: List<ToolDefinition>? = null,
+    val tools: List<OpenAiToolDefinition>? = null,
     @SerialName("tool_choice")
-    val toolChoice: String? = null,
+    val toolChoice: JsonElement? = null,
 )
 
 @Serializable
-data class ChatMessage(
+internal data class OpenAiMessage(
     val role: String,
     val content: String? = null,
     @SerialName("tool_calls")
-    val toolCalls: List<ToolCall>? = null,
+    val toolCalls: List<OpenAiToolCall>? = null,
+    @SerialName("tool_call_id")
+    val toolCallId: String? = null,
 )
 
 @Serializable
-data class ToolCall(
+internal data class OpenAiToolCall(
     val id: String,
-    val type: String,
-    val function: FunctionCall,
+    val type: String = "function",
+    val function: OpenAiFunctionCall,
 )
 
 @Serializable
-data class FunctionCall(
+internal data class OpenAiFunctionCall(
     val name: String,
     val arguments: String,
 )
 
 @Serializable
-data class ToolCallArguments(
-    @SerialName("ai_response")
-    val aiResponse: String,
-    val suggestions: List<String>,
+internal data class OpenAiChatResponse(
+    val choices: List<OpenAiChoice> = emptyList(),
+    val usage: OpenAiUsage? = null,
 )
 
 @Serializable
-data class ChatCompletionResponse(
-    val choices: List<ChatChoice> = emptyList(),
-    val usage: ChatUsage? = null,
-)
-
-@Serializable
-data class ChatChoice(
-    val message: ChatMessage,
+internal data class OpenAiChoice(
+    val message: OpenAiMessage,
     @SerialName("finish_reason")
     val finishReason: String? = null,
 )
 
 @Serializable
-data class ChatUsage(
+internal data class OpenAiUsage(
     @SerialName("prompt_tokens")
     val promptTokens: Int = 0,
     @SerialName("completion_tokens")
@@ -99,45 +96,14 @@ data class ChatUsage(
 )
 
 @Serializable
-data class ToolCallTestRequest(
-    val model: String,
-    val messages: List<ChatMessage>,
-    val tools: List<ToolDefinition>,
-    @SerialName("tool_choice")
-    val toolChoice: String,
-    @SerialName("max_tokens")
-    val maxTokens: Int,
+internal data class OpenAiToolDefinition(
+    val type: String = "function",
+    val function: OpenAiFunctionDefinition,
 )
 
 @Serializable
-data class ToolDefinition(
-    val type: String,
-    val function: FunctionDefinition,
-)
-
-@Serializable
-data class FunctionDefinition(
+internal data class OpenAiFunctionDefinition(
     val name: String,
     val description: String,
-    val parameters: FunctionParameters? = null,
+    val parameters: JsonObject,
 )
-
-@Serializable
-data class FunctionParameters(
-    val type: String = "object",
-    val properties: Map<String, PropertyDefinition>,
-    val required: List<String>,
-)
-
-@Serializable
-data class PropertyDefinition(
-    val type: String,
-    val description: String,
-    val items: PropertyItems? = null,
-)
-
-@Serializable
-data class PropertyItems(
-    val type: String,
-)
-

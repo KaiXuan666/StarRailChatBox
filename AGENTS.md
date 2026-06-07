@@ -115,21 +115,35 @@ driver、provider 和日志出口等边界。
 - 角色会话的创建、恢复、切换、欢迎消息和消息持久化。
 - system prompt、角色 prompt、会话 prompt 或请求消息角色/顺序的调整。
 - 历史消息筛选、上下文条数或 token 裁剪、消息排除、摘要和压缩。
-- `ChatContextBuilder`、`ChatViewModel`、`ChatSessionRepository`、聊天 DAO/实体或
-  OpenAI CHAT 请求体的修改。
+- `ChatContextBuilder`、`ChatViewModel`、`ChatSessionRepository`、聊天 DAO/实体、
+  `AiRepository`、Provider、工具注册或 CHAT 请求体的修改。
 - CHAT API 的发送、响应保存、流式输出、取消、失败、重试或重新生成。
 - 附件、图片、OCR、工具调用、工具结果、消息分支或父消息链进入上下文。
-- Android、iOS、Desktop、JavaScript 或 WasmJS 的聊天实现和持久化差异。
+- Android、iOS、Desktop、JavaScript 或 WasmJS 的聊天实现、Provider、工具执行和
+  持久化差异。
 
 实现不得破坏该规范定义的 prompt 优先级、消息顺序、当前输入保留、失败消息排除、
 原子持久化和跨平台一致性。若需求需要改变这些规则，应同步更新规范、实现和回归测试；
 不得只修改某个平台或 UI 层绕过公共编排流程。
 
-### OpenAI 兼容 API 与本地测试配置
+### AI Provider、工具系统与本地测试配置
 
-- AI 服务使用 OpenAI 兼容 API。模型列表调用 `GET /models`，聊天调用
-  `POST /chat/completions`；接口通过 Ktorfit 声明，不在 ViewModel 或 Composable
-  中直接拼装请求。
+- UI 和 ViewModel 只依赖 `AiRepository`。`DefaultAiRepository` 通过
+  `AiProviderRegistry` 按 `ModelConfig.provider` 选择 Provider，并通过
+  `ToolCallCoordinator` 处理工具调用；不得恢复对具体 Provider 或协议 DTO 的直接依赖。
+- 当前 `OpenAiCompatibleProvider` 使用 OpenAI 兼容 API：模型列表调用
+  `GET /models`，聊天调用 `POST /chat/completions`。接口通过 Ktorfit 声明，Provider
+  负责领域模型与 wire DTO 的转换，ViewModel、Composable 和工具不得直接拼装请求。
+- 新增 Provider 时实现 `AiProvider` 并注册到 Koin；Provider 只负责鉴权、协议映射、
+  网络调用和能力探测，不得包含具体工具业务。
+- 新增工具时实现 `AiTool` 并注册到 Koin。工具 schema 使用 `JsonObject` 表达；
+  参数校验、fallback prompt 和结果解析归工具所有，不得写回 `ChatContextBuilder`
+  或 Provider。
+- `ToolExecutionType.TerminalOutput` 直接形成最终助手输出；
+  `ToolExecutionType.Executable` 生成 tool result 并继续请求模型。协调器按模型返回
+  顺序执行，最多 4 轮，并拒绝重复调用签名。
+- 设备状态、敏感读取和外部写入工具必须经过 `ToolApprovalGateway`；平台 API 只能
+  通过各源码集提供的 `PlatformToolExecutor` 接入，公共工具代码不得引用平台类型。
 - API Host、API Key 和所选模型通过 `ModelConfigRepository` 读取和保存。Android、
   iOS 与 Desktop 使用 Room 的 `model_config` 表；JS/WasmJS 当前使用内存实现。
 - 当前设置页维护固定 ID 为 `default` 的默认模型配置记录；后续扩展多模型配置时

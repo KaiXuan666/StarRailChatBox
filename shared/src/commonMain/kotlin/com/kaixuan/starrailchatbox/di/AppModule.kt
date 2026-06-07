@@ -1,7 +1,18 @@
 package com.kaixuan.starrailchatbox.di
 
-import com.kaixuan.starrailchatbox.data.api.KtorfitOpenAiRepository
-import com.kaixuan.starrailchatbox.data.api.OpenAiRepository
+import com.kaixuan.starrailchatbox.data.ai.AiProvider
+import com.kaixuan.starrailchatbox.data.ai.AiProviderRegistry
+import com.kaixuan.starrailchatbox.data.ai.AiRepository
+import com.kaixuan.starrailchatbox.data.ai.DefaultAiRepository
+import com.kaixuan.starrailchatbox.data.ai.OpenAiCompatibleProvider
+import com.kaixuan.starrailchatbox.data.ai.tool.AiTool
+import com.kaixuan.starrailchatbox.data.ai.tool.QuickRepliesTool
+import com.kaixuan.starrailchatbox.data.ai.tool.RiskBasedToolApprovalGateway
+import com.kaixuan.starrailchatbox.data.ai.tool.PlatformToolExecutor
+import com.kaixuan.starrailchatbox.data.ai.tool.ToolApprovalGateway
+import com.kaixuan.starrailchatbox.data.ai.tool.ToolCallCoordinator
+import com.kaixuan.starrailchatbox.data.ai.tool.ToolRegistry
+import com.kaixuan.starrailchatbox.data.ai.tool.createPlatformToolExecutor
 import com.kaixuan.starrailchatbox.data.api.createPlatformHttpClient
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
 import com.kaixuan.starrailchatbox.data.character.CharacterRepository
@@ -19,7 +30,14 @@ fun appModule(
     chatSessionRepository: ChatSessionRepository,
 ) = module {
     single { createPlatformHttpClient() }
-    single<OpenAiRepository> { KtorfitOpenAiRepository(get()) }
+    single<AiProvider> { OpenAiCompatibleProvider(get()) }
+    single { AiProviderRegistry(getAll()) }
+    single<AiTool> { QuickRepliesTool() }
+    single { ToolRegistry(getAll()) }
+    single<ToolApprovalGateway> { RiskBasedToolApprovalGateway }
+    single<PlatformToolExecutor> { createPlatformToolExecutor() }
+    single { ToolCallCoordinator(get(), get()) }
+    single<AiRepository> { DefaultAiRepository(get(), get()) }
     single { modelConfigRepository }
     single { profileStore }
     single { characterRepository }

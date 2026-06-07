@@ -1,9 +1,9 @@
 package com.kaixuan.starrailchatbox.ui.chat
 
+import com.kaixuan.starrailchatbox.data.ai.AiMessage
+import com.kaixuan.starrailchatbox.data.ai.AiRepository
+import com.kaixuan.starrailchatbox.data.ai.ChatCompletionResult
 import com.kaixuan.starrailchatbox.data.api.ApiResult
-import com.kaixuan.starrailchatbox.data.api.ChatCompletionResult
-import com.kaixuan.starrailchatbox.data.api.ChatMessage
-import com.kaixuan.starrailchatbox.data.api.OpenAiRepository
 import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.data.character.CharacterRepository
 import com.kaixuan.starrailchatbox.data.chat.InMemoryChatSessionRepository
@@ -143,7 +143,7 @@ class ChatViewModelTest {
             characterRepository = characterRepository,
             chatSessionRepository = sessions,
             modelConfigRepository = InMemoryModelConfigRepository(config),
-            openAiRepository = api,
+            aiRepository = api,
             currentTimeMillis = { 60_000L },
             idGenerator = { prefix -> "$prefix-${++id}" },
             sessionTitleProvider = { "新对话" },
@@ -201,17 +201,18 @@ private object NoOpeningCharacterRepository : CharacterRepository {
     ): Character = Character(name, name, prompt, "", avatarBytes)
 }
 
-private class FakeOpenAiRepository : OpenAiRepository {
-    val requests = mutableListOf<List<ChatMessage>>()
+private class FakeOpenAiRepository : AiRepository {
+    val requests = mutableListOf<List<AiMessage>>()
 
     override suspend fun getModels(
         apiHost: String,
         apiKey: String,
+        providerId: String,
     ): ApiResult<List<String>> = ApiResult.Success(emptyList())
 
     override suspend fun createChatCompletion(
         config: ModelConfig,
-        messages: List<ChatMessage>,
+        messages: List<AiMessage>,
         characterName: String,
     ): ApiResult<ChatCompletionResult> {
         requests += messages
@@ -230,6 +231,7 @@ private class FakeOpenAiRepository : OpenAiRepository {
         apiHost: String,
         apiKey: String,
         model: String,
+        providerId: String,
     ): Boolean = false
 }
 

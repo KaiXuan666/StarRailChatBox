@@ -1,0 +1,186 @@
+package com.kaixuan.starrailchatbox.data.ai.tool
+
+import com.kaixuan.starrailchatbox.data.ai.AiChatRequest
+import com.kaixuan.starrailchatbox.data.ai.AiCompletion
+import com.kaixuan.starrailchatbox.data.ai.AiMessage
+import com.kaixuan.starrailchatbox.data.ai.AiProvider
+import com.kaixuan.starrailchatbox.data.ai.AiProviderConfig
+import com.kaixuan.starrailchatbox.data.ai.AiToolCall
+import com.kaixuan.starrailchatbox.data.ai.AiUsage
+import com.kaixuan.starrailchatbox.data.ai.ToolChoice
+import com.kaixuan.starrailchatbox.data.api.ApiResult
+import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+
+data class CoordinatedCompletion(
+    val content: String,
+    val suggestions: List<String>,
+    val finishReason: String?,
+    val usage: AiUsage,
+)
+
+/**
+ * 持续编排 Provider 与工具交互，直到得到最终助手输出。
+ *
+ * 工具调用按模型返回顺序处理：可执行结果追加为 tool 消息，终止型结果直接结束；
+ * 重复调用或达到 [maxRounds] 时终止异常循环。
+ */
+class ToolCallCoordinator(
+    private val toolRegistry: ToolRegistry,
+    private val approvalGateway: ToolApprovalGateway,
+    private val maxRounds: Int = 4,
+) {
+    suspend fun complete(
+        provider: AiProvider,
+        providerConfig: AiProviderConfig,
+        request: AiChatRequest,
+        toolNames: List<String>? = null,
+        context: ToolContext,
+        supportsToolCalls: Boolean,
+    ): ApiResult<CoordinatedCompletion> {
+        val tools = toolNames
+            ?.mapNotNull(toolRegistry::find)
+            ?.filter(AiTool::isAvailable)
+            ?: toolRegistry.availableTools()
+        if (!supportsToolCalls) {
+            return completeWithFallback(provider, providerConfig, request, tools, context)
+        }
+
+        var messages = request.messages
+        var usage = AiUsage()
+        val seenCalls = mutableSetOf<String>()
+
+        repeat(maxRounds) {
+            val providerResult = provider.complete(
+                providerConfig,
+                request.copy(
+                    messages = messages,
+                    tools = tools.map { tool -> tool.definition(context) },
+                    toolChoice = if (tools.isEmpty()) ToolChoice.None else ToolChoice.Required,
+                ),
+            )
+            val completion = when (providerResult) {
+                is ApiResult.Success -> providerResult.value
+                is ApiResult.HttpError -> return providerResult
+                is ApiResult.NetworkError -> return providerResult
+                is ApiResult.UnexpectedError -> return providerResult
+            }
+            usage += completion.usage
+            val calls = completion.message.toolCalls
+            if (calls.isEmpty()) {
+                return completion.toResult(usage)
+            }
+
+            val toolMessages = mutableListOf<AiMessage>()
+            for (call in calls) {
+                val signature = "${call.name}:${call.arguments}"
+                if (!seenCalls.add(signature)) {
+                    return ApiResult.UnexpectedError("Repeated tool call detected.")
+                }
+                val tool = toolRegistry.find(call.name)
+                val result = when {
+                    tool == null -> ToolResult.Error("unknown_tool", "The requested tool is not registered.")
+                    !tool.isAvailable() -> ToolResult.Error("tool_unavailable", "The requested tool is unavailable.")
+                    else -> executeTool(tool, call, context)
+                }
+                when (result) {
+                    is ToolResult.Terminal -> {
+                        return ApiResult.Success(
+                            CoordinatedCompletion(
+                                content = result.content,
+                                suggestions = result.suggestions,
+                                finishReason = completion.finishReason,
+                                usage = usage,
+                            ),
+                        )
+                    }
+                    is ToolResult.Continue -> toolMessages += AiMessage(
+                        role = "tool",
+                        content = result.content,
+                        toolCallId = call.id,
+                    )
+                    is ToolResult.Error -> toolMessages += AiMessage(
+                        role = "tool",
+                        content = buildJsonObject {
+                            put("error", result.code)
+                            put("message", result.message)
+                        }.toString(),
+                        toolCallId = call.id,
+                    )
+                }
+            }
+            messages = messages + completion.message + toolMessages
+        }
+        return ApiResult.UnexpectedError("Tool call round limit exceeded.")
+    }
+
+    private suspend fun executeTool(
+        tool: AiTool,
+        call: AiToolCall,
+        context: ToolContext,
+    ): ToolResult {
+        return try {
+            if (tool.risk != ToolRisk.ReadOnly && !approvalGateway.approve(tool, call)) {
+                ToolResult.Error("tool_rejected", "The tool request was not approved.")
+            } else {
+                tool.execute(call, context)
+            }
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Throwable) {
+            ToolResult.Error(
+                code = "tool_execution_failed",
+                message = "The tool could not be executed.",
+            )
+        }
+    }
+
+    private suspend fun completeWithFallback(
+        provider: AiProvider,
+        providerConfig: AiProviderConfig,
+        request: AiChatRequest,
+        tools: List<AiTool>,
+        context: ToolContext,
+    ): ApiResult<CoordinatedCompletion> {
+        val messages = tools.fold(request.messages) { current, tool ->
+            tool.prepareFallbackMessages(current, context)
+        }
+        return when (
+            val result = provider.complete(
+                providerConfig,
+                request.copy(messages = messages, tools = emptyList(), toolChoice = ToolChoice.None),
+            )
+        ) {
+            is ApiResult.Success -> {
+                val completion = result.value
+                val content = completion.message.content.orEmpty()
+                val terminal = tools.firstNotNullOfOrNull { it.parseFallback(content, context) }
+                if (terminal != null) {
+                    ApiResult.Success(
+                        CoordinatedCompletion(
+                            content = terminal.content,
+                            suggestions = terminal.suggestions,
+                            finishReason = completion.finishReason,
+                            usage = completion.usage,
+                        ),
+                    )
+                } else {
+                    completion.toResult(completion.usage)
+                }
+            }
+            is ApiResult.HttpError -> result
+            is ApiResult.NetworkError -> result
+            is ApiResult.UnexpectedError -> result
+        }
+    }
+
+    private fun AiCompletion.toResult(totalUsage: AiUsage) = ApiResult.Success(
+        CoordinatedCompletion(
+            content = message.content.orEmpty(),
+            suggestions = emptyList(),
+            finishReason = finishReason,
+            usage = totalUsage,
+        ),
+    )
+}

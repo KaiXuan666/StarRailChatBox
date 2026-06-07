@@ -1,9 +1,9 @@
 package com.kaixuan.starrailchatbox.ui.settings
 
+import com.kaixuan.starrailchatbox.data.ai.AiMessage
+import com.kaixuan.starrailchatbox.data.ai.AiRepository
+import com.kaixuan.starrailchatbox.data.ai.ChatCompletionResult
 import com.kaixuan.starrailchatbox.data.api.ApiResult
-import com.kaixuan.starrailchatbox.data.api.OpenAiRepository
-import com.kaixuan.starrailchatbox.data.api.ChatCompletionResult
-import com.kaixuan.starrailchatbox.data.api.ChatMessage
 import com.kaixuan.starrailchatbox.data.model.DefaultModelConfig
 import com.kaixuan.starrailchatbox.data.model.ModelConfig
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
@@ -233,12 +233,12 @@ class SettingsViewModelTest {
 
 
     private fun createViewModel(
-        repository: OpenAiRepository = FakeOpenAiRepository(ApiResult.Success(emptyList())),
+        repository: AiRepository = FakeOpenAiRepository(ApiResult.Success(emptyList())),
         modelConfigRepository: ModelConfigRepository = FakeModelConfigRepository(),
         defaults: ApiSettingsDefaults = ApiSettingsDefaults(),
         scope: kotlinx.coroutines.CoroutineScope,
     ) = SettingsViewModel(
-        openAiRepository = repository,
+        aiRepository = repository,
         modelConfigRepository = modelConfigRepository,
         coroutineScope = scope,
         defaultApiSettings = defaults,
@@ -248,7 +248,7 @@ class SettingsViewModelTest {
 private class FakeOpenAiRepository(
     private val result: ApiResult<List<String>>,
     private val toolCallSupportResult: Boolean = false,
-) : OpenAiRepository {
+) : AiRepository {
     var lastHost: String? = null
     var lastKey: String? = null
     var lastModelTested: String? = null
@@ -256,6 +256,7 @@ private class FakeOpenAiRepository(
     override suspend fun getModels(
         apiHost: String,
         apiKey: String,
+        providerId: String,
     ): ApiResult<List<String>> {
         lastHost = apiHost
         lastKey = apiKey
@@ -264,7 +265,7 @@ private class FakeOpenAiRepository(
 
     override suspend fun createChatCompletion(
         config: ModelConfig,
-        messages: List<ChatMessage>,
+        messages: List<AiMessage>,
         characterName: String,
     ): ApiResult<ChatCompletionResult> {
         return ApiResult.UnexpectedError("Not used by settings tests.")
@@ -274,6 +275,7 @@ private class FakeOpenAiRepository(
         apiHost: String,
         apiKey: String,
         model: String,
+        providerId: String,
     ): Boolean {
         lastHost = apiHost
         lastKey = apiKey

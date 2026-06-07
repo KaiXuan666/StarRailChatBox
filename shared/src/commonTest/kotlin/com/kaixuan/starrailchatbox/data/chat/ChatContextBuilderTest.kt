@@ -16,8 +16,6 @@ class ChatContextBuilderTest {
             ),
             currentUserMessage = "current input",
             maxHistoryMessageCount = 2,
-            supportToolCall = true,
-            characterName = "流萤",
         )
 
         assertEquals(
@@ -47,8 +45,6 @@ class ChatContextBuilderTest {
             ),
             currentUserMessage = "current",
             maxHistoryMessageCount = null,
-            supportToolCall = true,
-            characterName = "流萤",
         )
 
         assertEquals(
@@ -58,23 +54,19 @@ class ChatContextBuilderTest {
     }
 
     @Test
-    fun injectsFormatSpecificationWhenToolCallNotSupported() {
+    fun doesNotInjectToolSpecificFormatting() {
         val messages = buildChatContext(
             systemPrompt = "保持温和人设。",
             history = emptyList(),
             currentUserMessage = "你好",
             maxHistoryMessageCount = null,
-            supportToolCall = false,
-            characterName = "瑕蝶",
         )
 
         val systemMsg = messages.first { it.role == "system" }.content.orEmpty()
         val userMsg = messages.first { it.role == "user" }.content.orEmpty()
 
-        assertTrue(systemMsg.contains("【重要输出格式规范】"))
-        assertTrue(systemMsg.contains("瑕蝶"))
-        assertTrue(userMsg.contains("你好"))
-        assertTrue(userMsg.contains("<suggestions>"))
+        assertEquals("保持温和人设。", systemMsg)
+        assertEquals("你好", userMsg)
     }
 }
 
@@ -94,4 +86,3 @@ private fun stored(
     isContextExcluded = excluded,
     createdAt = id.toLong(),
 )
-
