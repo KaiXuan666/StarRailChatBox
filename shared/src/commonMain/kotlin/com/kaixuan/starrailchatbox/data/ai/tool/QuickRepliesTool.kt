@@ -38,7 +38,7 @@ class QuickRepliesTool(
                     }
                     putJsonObject("suggestions") {
                         put("type", "array")
-                        put("description", "4个简短快捷回复，每项以一个符合语境的 Emoji 开头。")
+                        put("description", "4个简短快捷回复，每项以一个符合语境的 Emoji 开头，内容在12字以内。")
                         putJsonObject("items") {
                             put("type", "string")
                         }
@@ -91,7 +91,7 @@ class QuickRepliesTool(
             [Emoji] [快捷回复3]
             [Emoji] [快捷回复4]
             </suggestions>
-            每个选项必须以一个符合语境的 Emoji 开头，内容保持简短。
+            每个选项必须以一个符合语境的 Emoji 开头，12字以内。
         """.trimIndent()
 
         val systemIndex = messages.indexOfFirst { it.role == "system" }

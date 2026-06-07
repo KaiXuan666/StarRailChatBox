@@ -169,7 +169,7 @@ class DefaultAiRepository(
                     messages = messages,
                     temperature = 0.5,
                     topP = 1.0,
-                    maxTokens = 150,
+                    maxTokens = 1024,
                     toolChoice = ToolChoice.None,
                 ),
             )

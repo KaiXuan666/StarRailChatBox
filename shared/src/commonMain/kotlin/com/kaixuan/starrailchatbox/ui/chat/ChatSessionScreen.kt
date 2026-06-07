@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -689,8 +690,7 @@ fun CharacterAvatar(
             .size(size)
             .background(ringBrush, CircleShape)
             .padding(if (selected) 3.dp else 2.dp)
-            .background(MaterialTheme.colorScheme.surface, CircleShape)
-            .padding(3.dp),
+            .background(MaterialTheme.colorScheme.surface, CircleShape),
         contentAlignment = Alignment.Center,
     ) {
         if (painter != null) {
@@ -976,15 +976,20 @@ private fun QuickReplies(
     ) {
         chunkedSuggestions.forEach { rowSuggestions ->
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(if (compact) 32.dp else 40.dp),
                 horizontalArrangement = Arrangement.spacedBy(
                     if (compact) StarRailSpacing.xxs else StarRailSpacing.xs
                 ),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 rowSuggestions.forEach { suggestion ->
                     Surface(
                         onClick = { onReplyClicked(suggestion) },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                         shape = MaterialTheme.shapes.extraLarge,
                         color = MaterialTheme.colorScheme.surfaceContainer,
                         contentColor = MaterialTheme.colorScheme.onSurface,
@@ -994,10 +999,9 @@ private fun QuickReplies(
                         ),
                     ) {
                         Box(
-                            modifier = Modifier.padding(
-                                horizontal = if (compact) StarRailSpacing.xs else StarRailSpacing.sm,
-                                vertical = if (compact) 6.dp else StarRailSpacing.xs,
-                            ),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = if (compact) StarRailSpacing.xs else StarRailSpacing.sm),
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
@@ -1016,7 +1020,7 @@ private fun QuickReplies(
 
                 // 如果行元素少于 2 个，则在右侧填充一个 weight(1f) 的 Spacer，保证第一个元素只占一半宽度
                 if (rowSuggestions.size < 2) {
-                    Spacer(modifier = Modifier.weight(1f))
+                    Spacer(modifier = Modifier.weight(1f).fillMaxHeight())
                 }
             }
         }
