@@ -65,9 +65,8 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.decodeToImageBitmap
 import org.jetbrains.compose.resources.stringResource
 import starrailchatbox.shared.generated.resources.Res
-import starrailchatbox.shared.generated.resources.action_profile
-import starrailchatbox.shared.generated.resources.action_settings
-import starrailchatbox.shared.generated.resources.action_voice
+import starrailchatbox.shared.generated.resources.action_character_settings
+import starrailchatbox.shared.generated.resources.action_conversation_management
 import starrailchatbox.shared.generated.resources.add_attachment
 import starrailchatbox.shared.generated.resources.app_title
 import starrailchatbox.shared.generated.resources.character_selected_description
@@ -223,7 +222,7 @@ fun ChatSessionScreen(
                     wasNearBottom &&
                     pageMessages.isNotEmpty()
                 ) {
-                    pageListState.animateScrollToItem(messagesStartIndex + pageMessages.lastIndex)
+                    pageListState.scrollToItem(messagesStartIndex + pageMessages.lastIndex)
                 }
                 previousPageMessageCount = pageMessages.size
             }
@@ -276,7 +275,7 @@ fun ChatSessionScreen(
                                                 val targetPageState = state.characterStates[characterId]
                                                 val targetMessages = targetPageState?.messages.orEmpty()
                                                 if (targetMessages.isNotEmpty()) {
-                                                    targetListState.animateScrollToItem(messagesStartIndex + targetMessages.lastIndex)
+                                                    targetListState.scrollToItem(messagesStartIndex + targetMessages.lastIndex)
                                                 }
                                             }
                                         }
@@ -304,7 +303,7 @@ fun ChatSessionScreen(
                     Surface(
                         onClick = {
                             coroutineScope.launch {
-                                pageListState.animateScrollToItem(0)
+                                pageListState.scrollToItem(0)
                             }
                         },
                         modifier = Modifier
@@ -456,9 +455,16 @@ private fun HeaderActions(
     modifier: Modifier = Modifier,
 ) {
     val actions = listOf(
-        Triple(HeaderAction.VOICE, Res.string.action_voice, StarRailIconKind.VOICE),
-        Triple(HeaderAction.PROFILE, Res.string.action_profile, StarRailIconKind.PROFILE),
-        Triple(HeaderAction.SETTINGS, Res.string.action_settings, StarRailIconKind.SETTINGS),
+        Triple(
+            HeaderAction.CONVERSATION_MANAGEMENT,
+            Res.string.action_conversation_management,
+            StarRailIconKind.CONVERSATION,
+        ),
+        Triple(
+            HeaderAction.CHARACTER_SETTINGS,
+            Res.string.action_character_settings,
+            StarRailIconKind.SETTINGS,
+        ),
     )
     Row(
         modifier = modifier,
@@ -477,10 +483,16 @@ private fun HeaderActions(
             ) {
                 Surface(
                     onClick = {
-                        if (action == HeaderAction.SETTINGS) {
-                            onMainAction(MainAction.NavigationSelected(Route.Settings))
-                        } else {
-                            onAction(ChatAction.HeaderActionClicked(action))
+                        when (action) {
+                            HeaderAction.CONVERSATION_MANAGEMENT -> {
+                                onMainAction(MainAction.NavigateTo(Route.ConversationManagement))
+                            }
+                            HeaderAction.CHARACTER_SETTINGS -> {
+                                onMainAction(MainAction.NavigationSelected(Route.Characters))
+                            }
+                            HeaderAction.VOICE -> {
+                                onAction(ChatAction.HeaderActionClicked(action))
+                            }
                         }
                     },
                     modifier = Modifier.size(if (compact) 48.dp else 56.dp),

@@ -23,6 +23,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ChatViewModelTest {
@@ -129,6 +130,40 @@ class ChatViewModelTest {
         assertEquals(
             ChatEffect.ShowMessage(EffectMessage.MODEL_CONFIG_REQUIRED),
             fixture.viewModel.effects.first(),
+        )
+    }
+
+    @Test
+    fun conversationManagementCreatesSwitchesAndDeletesSessions() = runTest {
+        val fixture = createFixture()
+        advanceUntilIdle()
+
+        fixture.send("第一段对话")
+        advanceUntilIdle()
+        val firstSessionId = requireNotNull(fixture.viewModel.uiState.value.activeSessionId)
+
+        fixture.viewModel.onAction(ChatAction.NewSessionClicked)
+        assertNull(fixture.viewModel.uiState.value.activeSessionId)
+        fixture.send("第二段对话")
+        advanceUntilIdle()
+        val secondSessionId = requireNotNull(fixture.viewModel.uiState.value.activeSessionId)
+        assertEquals(2, fixture.viewModel.uiState.value.sessions.size)
+
+        fixture.viewModel.onAction(ChatAction.SessionSelected(firstSessionId))
+        advanceUntilIdle()
+        assertEquals(firstSessionId, fixture.viewModel.uiState.value.activeSessionId)
+        assertEquals(
+            listOf("今天要聊点什么呢？", "第一段对话", "你好呀"),
+            fixture.viewModel.uiState.value.messages.map {
+                (it.content as MessageContent.Custom).text
+            },
+        )
+
+        fixture.viewModel.onAction(ChatAction.SessionDeleteClicked(secondSessionId))
+        advanceUntilIdle()
+        assertEquals(
+            listOf(firstSessionId),
+            fixture.viewModel.uiState.value.sessions.map(ConversationSummaryUiModel::id),
         )
     }
 

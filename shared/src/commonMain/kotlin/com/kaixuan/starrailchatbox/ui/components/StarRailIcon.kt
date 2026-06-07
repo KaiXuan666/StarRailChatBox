@@ -45,6 +45,7 @@ enum class StarRailIconKind {
     EYE_HIDDEN,
     CHEVRON_LEFT,
     ARROW_UP,
+    DELETE,
 }
 
 @Composable
@@ -474,6 +475,20 @@ fun StarRailIcon(
                 drawLine(tint, point(0.5f, 0.22f), point(0.5f, 0.78f), strokeWidth)
                 drawLine(tint, point(0.5f, 0.22f), point(0.26f, 0.46f), strokeWidth)
                 drawLine(tint, point(0.5f, 0.22f), point(0.74f, 0.46f), strokeWidth)
+            }
+
+            StarRailIconKind.DELETE -> {
+                drawRoundRect(
+                    color = tint,
+                    topLeft = point(0.27f, 0.3f),
+                    size = Size(size.width * 0.46f, size.height * 0.56f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(side * 0.05f),
+                    style = stroke,
+                )
+                drawLine(tint, point(0.2f, 0.3f), point(0.8f, 0.3f), strokeWidth)
+                drawLine(tint, point(0.38f, 0.18f), point(0.62f, 0.18f), strokeWidth)
+                drawLine(tint, point(0.41f, 0.43f), point(0.41f, 0.72f), strokeWidth)
+                drawLine(tint, point(0.59f, 0.43f), point(0.59f, 0.72f), strokeWidth)
             }
         }
     }

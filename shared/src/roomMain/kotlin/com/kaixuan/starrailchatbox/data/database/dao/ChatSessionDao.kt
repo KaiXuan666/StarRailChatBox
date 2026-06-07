@@ -21,6 +21,13 @@ interface ChatSessionDao {
     @Query(
         "SELECT * FROM chat_session " +
             "WHERE agent_id = :agentId AND archived = 0 AND deleted_at IS NULL " +
+            "ORDER BY pinned DESC, last_message_at DESC",
+    )
+    fun observeByAgent(agentId: String): Flow<List<ChatSessionEntity>>
+
+    @Query(
+        "SELECT * FROM chat_session " +
+            "WHERE agent_id = :agentId AND archived = 0 AND deleted_at IS NULL " +
             "ORDER BY last_message_at DESC LIMIT 1",
     )
     suspend fun findLatestByAgent(agentId: String): ChatSessionEntity?

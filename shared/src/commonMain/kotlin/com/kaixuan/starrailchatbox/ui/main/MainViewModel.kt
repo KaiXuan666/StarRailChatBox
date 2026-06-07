@@ -23,6 +23,16 @@ class MainViewModel : ViewModel() {
                 }
             }
 
+            is MainAction.NavigateTo -> {
+                _uiState.update { state ->
+                    if (state.backStack.lastOrNull() == action.route) {
+                        state
+                    } else {
+                        state.copy(backStack = state.backStack + action.route)
+                    }
+                }
+            }
+
             MainAction.PopBackStack -> {
                 _uiState.update { state ->
                     if (state.backStack.size > 1) {

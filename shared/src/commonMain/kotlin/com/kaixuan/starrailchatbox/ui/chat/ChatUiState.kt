@@ -31,11 +31,21 @@ sealed interface ChatMessageUiModel {
 @Immutable
 data class CharacterChatState(
     val activeSessionId: String? = null,
+    val sessions: List<ConversationSummaryUiModel> = emptyList(),
     val messages: List<ChatMessageUiModel> = emptyList(),
     val messageDraft: String = "",
     val isLoadingSession: Boolean = false,
     val isSending: Boolean = false,
     val suggestions: List<String> = emptyList(),
+)
+
+@Immutable
+data class ConversationSummaryUiModel(
+    val id: String,
+    val title: String,
+    val preview: String,
+    val updatedAt: String,
+    val messageCount: Int,
 )
 
 @Immutable
@@ -51,6 +61,9 @@ data class ChatUiState(
 
     val activeSessionId: String?
         get() = characterStates[selectedCharacter?.id]?.activeSessionId
+
+    val sessions: List<ConversationSummaryUiModel>
+        get() = characterStates[selectedCharacter?.id]?.sessions.orEmpty()
 
     val messages: List<ChatMessageUiModel>
         get() = characterStates[selectedCharacter?.id]?.messages.orEmpty()

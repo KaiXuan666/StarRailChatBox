@@ -2,6 +2,7 @@ package com.kaixuan.starrailchatbox.data.chat
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlin.random.Random
@@ -16,6 +17,12 @@ data class ChatSession(
     val customSystemPrompt: String?,
     val maxContextMessageCount: Int?,
     val lastMessageAt: Long,
+)
+
+data class ChatSessionSummary(
+    val session: ChatSession,
+    val lastMessagePreview: String,
+    val messageCount: Int,
 )
 
 data class StoredChatMessage(
@@ -78,6 +85,10 @@ data class NewChatMessage(
 interface ChatSessionRepository {
     suspend fun findLatestSession(agentId: String): ChatSession?
 
+    suspend fun findSession(sessionId: String): ChatSession?
+
+    fun observeSessions(agentId: String): Flow<List<ChatSessionSummary>>
+
     fun observeMessages(sessionId: String): Flow<List<StoredChatMessage>>
 
     suspend fun findContextMessages(
@@ -91,6 +102,8 @@ interface ChatSessionRepository {
     )
 
     suspend fun appendMessage(message: NewChatMessage)
+
+    suspend fun deleteSession(sessionId: String, deletedAt: Long)
 }
 
 class InMemoryChatSessionRepository : ChatSessionRepository {
@@ -101,6 +114,36 @@ class InMemoryChatSessionRepository : ChatSessionRepository {
         return sessions.value
             .filter { it.agentId == agentId }
             .maxByOrNull(ChatSession::lastMessageAt)
+    }
+
+    override suspend fun findSession(sessionId: String): ChatSession? {
+        return sessions.value.firstOrNull { it.id == sessionId }
+    }
+
+    override fun observeSessions(agentId: String): Flow<List<ChatSessionSummary>> {
+        return combine(sessions, messages) { storedSessions, storedMessages ->
+            storedSessions
+                .filter { it.agentId == agentId }
+                .sortedByDescending(ChatSession::lastMessageAt)
+                .map { session ->
+                    val sessionMessages = storedMessages
+                        .filter { it.sessionId == session.id }
+                        .sortedBy(StoredChatMessage::seq)
+                    ChatSessionSummary(
+                        session = session,
+                        lastMessagePreview = sessionMessages
+                            .lastOrNull {
+                                it.status == ChatMessageStatus.COMPLETED &&
+                                    it.content.isNotBlank()
+                            }
+                            ?.content
+                            .orEmpty(),
+                        messageCount = sessionMessages.count {
+                            it.status == ChatMessageStatus.COMPLETED
+                        },
+                    )
+                }
+        }
     }
 
     override fun observeMessages(sessionId: String): Flow<List<StoredChatMessage>> {
@@ -154,6 +197,11 @@ class InMemoryChatSessionRepository : ChatSessionRepository {
                 }
             }
         }
+    }
+
+    override suspend fun deleteSession(sessionId: String, deletedAt: Long) {
+        sessions.update { stored -> stored.filterNot { it.id == sessionId } }
+        messages.update { stored -> stored.filterNot { it.sessionId == sessionId } }
     }
 }
 

@@ -6,8 +6,13 @@ import com.kaixuan.starrailchatbox.data.database.StarRailDatabase
 import com.kaixuan.starrailchatbox.data.database.entity.ChatMessageEntity
 import com.kaixuan.starrailchatbox.data.database.entity.ChatSessionEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class RoomChatSessionRepository(
     private val database: StarRailDatabase,
 ) : ChatSessionRepository {
@@ -16,6 +21,38 @@ class RoomChatSessionRepository(
 
     override suspend fun findLatestSession(agentId: String): ChatSession? {
         return sessionDao.findLatestByAgent(agentId)?.toDomain()
+    }
+
+    override suspend fun findSession(sessionId: String): ChatSession? {
+        return sessionDao.findById(sessionId)?.toDomain()
+    }
+
+    override fun observeSessions(agentId: String): Flow<List<ChatSessionSummary>> {
+        return sessionDao.observeByAgent(agentId).flatMapLatest { sessions ->
+            if (sessions.isEmpty()) {
+                flowOf(emptyList())
+            } else {
+                combine(
+                    sessions.map { session ->
+                        messageDao.observeBySession(session.id).map { messages ->
+                            ChatSessionSummary(
+                                session = session.toDomain(),
+                                lastMessagePreview = messages
+                                    .lastOrNull {
+                                        it.status == ChatMessageStatus.COMPLETED.storageValue &&
+                                            it.content.isNotBlank()
+                                    }
+                                    ?.content
+                                    .orEmpty(),
+                                messageCount = messages.count {
+                                    it.status == ChatMessageStatus.COMPLETED.storageValue
+                                },
+                            )
+                        }
+                    },
+                ) { summaries -> summaries.toList() }
+            }
+        }
     }
 
     override fun observeMessages(sessionId: String): Flow<List<StoredChatMessage>> {
@@ -64,6 +101,12 @@ class RoomChatSessionRepository(
                     ) == 1,
                 ) { "Chat session ${message.sessionId} does not exist." }
             }
+        }
+    }
+
+    override suspend fun deleteSession(sessionId: String, deletedAt: Long) {
+        check(sessionDao.softDelete(sessionId, deletedAt) == 1) {
+            "Chat session $sessionId does not exist."
         }
     }
 }

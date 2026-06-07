@@ -2,6 +2,7 @@ package com.kaixuan.starrailchatbox.data.character
 
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import starrailchatbox.shared.generated.resources.Res
+import kotlin.time.Clock
 
 data class Character(
     val id: String,
@@ -9,6 +10,7 @@ data class Character(
     val prompt: String,
     val openingMessage: String,
     val avatarBytes: ByteArray,
+    val createdAt: Long = 0L,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -17,7 +19,8 @@ data class Character(
             name == other.name &&
             prompt == other.prompt &&
             openingMessage == other.openingMessage &&
-            avatarBytes.contentEquals(other.avatarBytes)
+            avatarBytes.contentEquals(other.avatarBytes) &&
+            createdAt == other.createdAt
     }
 
     override fun hashCode(): Int {
@@ -26,6 +29,7 @@ data class Character(
         result = 31 * result + prompt.hashCode()
         result = 31 * result + openingMessage.hashCode()
         result = 31 * result + avatarBytes.contentHashCode()
+        result = 31 * result + createdAt.hashCode()
         return result
     }
 }
@@ -36,6 +40,7 @@ data class CharacterFiles(
     val promptBytes: ByteArray,
     val openingMessage: String,
     val avatarBytes: ByteArray,
+    val createdAt: Long = Clock.System.now().toEpochMilliseconds(),
 )
 
 interface CharacterStorage {
@@ -93,6 +98,7 @@ private fun CharacterFiles.toCharacter() = Character(
     prompt = promptBytes.decodeToString(),
     openingMessage = openingMessage,
     avatarBytes = avatarBytes,
+    createdAt = createdAt,
 )
 
 @OptIn(ExperimentalResourceApi::class)

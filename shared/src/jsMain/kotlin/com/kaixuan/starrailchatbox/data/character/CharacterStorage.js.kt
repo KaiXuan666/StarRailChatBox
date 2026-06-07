@@ -27,12 +27,16 @@ private class BrowserCharacterStorage(
             val prompt = localStorage.getItem("$prefix$name.md") ?: return@mapNotNull null
             val avatar = localStorage.getItem("$prefix$name.webp") ?: return@mapNotNull null
             val openingMessage = localStorage.getItem("$prefix$name.opening").orEmpty()
+            val createdAt = localStorage.getItem("$prefix$name.createdAt")
+                ?.toLongOrNull()
+                ?: 0L
             CharacterFiles(
                 id = name,
                 name = name,
                 promptBytes = Base64.decode(prompt),
                 openingMessage = openingMessage,
                 avatarBytes = Base64.decode(avatar),
+                createdAt = createdAt,
             )
         }.sortedBy(CharacterFiles::name)
     }
@@ -41,6 +45,7 @@ private class BrowserCharacterStorage(
         localStorage.setItem("$prefix${character.name}.md", Base64.encode(character.promptBytes))
         localStorage.setItem("$prefix${character.name}.opening", character.openingMessage)
         localStorage.setItem("$prefix${character.name}.webp", Base64.encode(character.avatarBytes))
+        localStorage.setItem("$prefix${character.name}.createdAt", character.createdAt.toString())
         val names = (loadNames() + character.name).distinct().sorted()
         localStorage.setItem(namesKey, names.joinToString("\n"))
     }

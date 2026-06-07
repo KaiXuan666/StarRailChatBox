@@ -72,5 +72,6 @@ class RoomCharacterStorage(
         promptBytes = systemPrompt.encodeToByteArray(),
         openingMessage = openingMessage,
         avatarBytes = avatarStorage.read(avatarUri),
+        createdAt = createdAt,
     )
 }

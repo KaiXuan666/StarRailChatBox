@@ -12,7 +12,10 @@ import androidx.compose.runtime.mutableStateListOf
 sealed interface Route {
     // “对话” Tab 主屏幕
     data object ChatSession : Route
-    
+
+    // 当前角色的对话管理二级界面
+    data object ConversationManagement : Route
+
     // “角色” Tab 占位屏幕
     data object Characters : Route
     

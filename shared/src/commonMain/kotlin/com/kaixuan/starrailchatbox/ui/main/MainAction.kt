@@ -5,6 +5,9 @@ import com.kaixuan.starrailchatbox.ui.navigation.Route
 sealed interface MainAction {
     // 导航到指定路由 (通常在点击底部或侧边 Tab 时重置路由栈为单元素)
     data class NavigationSelected(val route: Route) : MainAction
+
+    // 将二级页面压入当前回退栈
+    data class NavigateTo(val route: Route) : MainAction
     
     // 返回上一级页面
     data object PopBackStack : MainAction

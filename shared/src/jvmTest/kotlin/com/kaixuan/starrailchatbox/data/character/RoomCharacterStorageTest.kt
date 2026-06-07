@@ -43,6 +43,10 @@ class RoomCharacterStorageTest {
                 listOf("流萤", "三月七"),
                 database.agentRoleDao().findAll().map { role -> role.name },
             )
+            assertEquals(
+                1_000L,
+                storage.loadCharacters().first { it.id == initial.id }.createdAt,
+            )
 
             storage.initializeDefaults(listOf(characterFiles("builtin:流萤", "流萤", "changed")))
 

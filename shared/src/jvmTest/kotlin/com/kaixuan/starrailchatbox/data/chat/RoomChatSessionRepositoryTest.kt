@@ -58,6 +58,14 @@ class RoomChatSessionRepositoryTest {
                 listOf("welcome", "hello", "hi"),
                 repository.findContextMessages("session-1", null).map { it.content },
             )
+            val summary = repository.observeSessions("agent").first().single()
+            assertEquals("session-1", summary.session.id)
+            assertEquals("hi", summary.lastMessagePreview)
+            assertEquals(3, summary.messageCount)
+
+            repository.deleteSession("session-1", 3_000L)
+            assertEquals(emptyList(), repository.observeSessions("agent").first())
+            assertEquals(null, repository.findLatestSession("agent"))
         } finally {
             database.close()
             Files.deleteIfExists(databasePath)

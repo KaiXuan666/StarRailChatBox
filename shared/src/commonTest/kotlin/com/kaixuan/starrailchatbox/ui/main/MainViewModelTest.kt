@@ -31,6 +31,20 @@ class MainViewModelTest {
     }
 
     @Test
+    fun navigateToPushesSecondaryRoute() {
+        val viewModel = MainViewModel()
+
+        viewModel.onAction(MainAction.NavigateTo(Route.ConversationManagement))
+
+        assertEquals(
+            listOf(Route.ChatSession, Route.ConversationManagement),
+            viewModel.uiState.value.backStack,
+        )
+        viewModel.onAction(MainAction.PopBackStack)
+        assertEquals(listOf(Route.ChatSession), viewModel.uiState.value.backStack)
+    }
+
+    @Test
     fun popBackStackDoesNothingWhenOnlyOneElement() {
         val viewModel = MainViewModel()
 

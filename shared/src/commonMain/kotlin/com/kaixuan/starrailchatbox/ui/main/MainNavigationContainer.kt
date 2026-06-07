@@ -82,6 +82,7 @@ import com.kaixuan.starrailchatbox.ui.chat.ChatEffect
 import com.kaixuan.starrailchatbox.ui.chat.ChatSessionBottomBar
 import com.kaixuan.starrailchatbox.ui.chat.ChatSessionScreen
 import com.kaixuan.starrailchatbox.ui.chat.ChatUiState
+import com.kaixuan.starrailchatbox.ui.chat.ConversationManagementScreen
 import com.kaixuan.starrailchatbox.ui.chat.EffectMessage
 import com.kaixuan.starrailchatbox.ui.components.NavigationPlaceholderScreen
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
@@ -288,6 +289,15 @@ fun MainNavigationContainer(
                             onMainAction = onMainAction,
                         )
                     }
+                    entry<Route.ConversationManagement> {
+                        ConversationManagementScreen(
+                            state = chatState,
+                            contentPadding = contentPadding,
+                            compact = compact,
+                            onAction = onChatAction,
+                            onMainAction = onMainAction,
+                        )
+                    }
                     entry<Route.Characters> {
                         NavigationPlaceholderScreen(
                             title = stringResource(Res.string.nav_characters),
@@ -342,6 +352,9 @@ private fun MainBottomArea(
     onMainAction: (MainAction) -> Unit,
     onChatAction: (ChatAction) -> Unit,
 ) {
+    if (mainState.backStack.size > 1) {
+        return
+    }
     val currentRoute = mainState.backStack.lastOrNull() ?: Route.ChatSession
     val isChat = currentRoute == Route.ChatSession
     if (!isChat && !showNavigationBar) {
