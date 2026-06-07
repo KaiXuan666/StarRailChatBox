@@ -4,9 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.api.OpenAiRepository
+import com.kaixuan.starrailchatbox.data.model.DefaultModelConfig
+import com.kaixuan.starrailchatbox.data.model.ModelConfig
+import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
 import com.kaixuan.starrailchatbox.data.settings.ApiSettingsDefaults
-import com.kaixuan.starrailchatbox.data.settings.ApiSettingsStore
-import com.kaixuan.starrailchatbox.data.settings.StoredApiSettings
 import com.kaixuan.starrailchatbox.data.settings.localApiSettingsDefaults
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -19,7 +20,7 @@ import kotlinx.coroutines.launch
 
 class SettingsViewModel(
     private val openAiRepository: OpenAiRepository,
-    private val apiSettingsStore: ApiSettingsStore,
+    private val modelConfigRepository: ModelConfigRepository,
     private val coroutineScope: CoroutineScope? = null,
     private val defaultApiSettings: ApiSettingsDefaults = localApiSettingsDefaults(),
 ) : ViewModel() {
@@ -31,11 +32,11 @@ class SettingsViewModel(
 
     init {
         scope().launch {
-            val settings = apiSettingsStore.load()
+            val settings = modelConfigRepository.getDefault()
             _uiState.update { state ->
-                val selectedModel = settings?.selectedModel.orEmpty()
+                val selectedModel = settings?.modelName.orEmpty()
                 state.copy(
-                    apiHost = settings?.apiHost
+                    apiHost = settings?.baseUrl
                         ?.takeIf(String::isNotBlank)
                         ?: defaultApiSettings.apiHost.takeIf(String::isNotBlank)
                         ?: state.apiHost,
@@ -164,11 +165,22 @@ class SettingsViewModel(
         _uiState.update { it.copy(isSaving = true) }
         scope().launch {
             try {
-                apiSettingsStore.save(
-                    StoredApiSettings(
-                        apiHost = state.apiHost.trim().trimEnd('/'),
+                modelConfigRepository.saveDefault(
+                    ModelConfig(
+                        id = DefaultModelConfig.Id,
+                        provider = DefaultModelConfig.Provider,
+                        name = DefaultModelConfig.Name,
+                        baseUrl = state.apiHost.trim().trimEnd('/'),
                         apiKey = state.apiKey.trim(),
-                        selectedModel = state.selectedModel,
+                        modelName = state.selectedModel,
+                        contextWindow = DefaultModelConfig.ContextWindow,
+                        maxOutputTokens = DefaultModelConfig.MaxOutputTokens,
+                        supportVision = false,
+                        supportToolCall = false,
+                        supportReasoning = false,
+                        temperature = DefaultModelConfig.Temperature,
+                        topP = DefaultModelConfig.TopP,
+                        enabled = true,
                     ),
                 )
                 _uiState.update { it.copy(isSaving = false) }

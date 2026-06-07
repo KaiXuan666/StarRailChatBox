@@ -89,10 +89,11 @@ driver、provider 和日志出口等边界。
 - AI 服务使用 OpenAI 兼容 API。模型列表调用 `GET /models`，聊天调用
   `POST /chat/completions`；接口通过 Ktorfit 声明，不在 ViewModel 或 Composable
   中直接拼装请求。
-- API Host、API Key 和所选模型通过 `ApiSettingsStore` 读取和保存。Android、iOS
-  与 Desktop 使用 DataStore Preferences；JS/WasmJS 当前使用内存实现。
-- API Key 持久化必须使用 `cryptography-kotlin` 的 AES-GCM 加密，DataStore 中只
-  保存带版本标识的密文，不得增加明文兼容字段或明文回退存储。
+- API Host、API Key 和所选模型通过 `ModelConfigRepository` 读取和保存。Android、
+  iOS 与 Desktop 使用 Room 的 `model_config` 表；JS/WasmJS 当前使用内存实现。
+- API Key 持久化必须使用 `cryptography-kotlin` 的 AES-GCM 加密，`model_config`
+  中只保存带版本标识的密文；DataStore 仅保存加密密钥，不得增加明文兼容字段或
+  明文回退存储。
 - 本地开发可在被 Git 忽略的根目录 `local.properties` 中配置：
 
   ```properties

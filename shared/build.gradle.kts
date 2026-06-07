@@ -163,6 +163,7 @@ kotlin {
         val roomMain by creating {
             dependsOn(commonMain.get())
             dependencies {
+                implementation(libs.datastore.preferences)
                 implementation(libs.room.runtime)
                 implementation(libs.sqlite.bundled)
             }
@@ -182,16 +183,13 @@ kotlin {
         }
         jvmMain.dependencies {
             implementation(libs.ktor.client.cio)
-            implementation(libs.datastore.preferences)
         }
         jvmMain.get().dependsOn(roomMain)
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
-            implementation(libs.datastore.preferences)
         }
         iosMain.get().dependsOn(roomMain)
         androidMain.dependencies {
-            implementation(libs.datastore.preferences)
         }
         androidMain.get().dependsOn(roomMain)
     }

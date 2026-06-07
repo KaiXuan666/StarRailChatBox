@@ -2,9 +2,10 @@ package com.kaixuan.starrailchatbox.ui.settings
 
 import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.api.OpenAiRepository
+import com.kaixuan.starrailchatbox.data.model.DefaultModelConfig
+import com.kaixuan.starrailchatbox.data.model.ModelConfig
+import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
 import com.kaixuan.starrailchatbox.data.settings.ApiSettingsDefaults
-import com.kaixuan.starrailchatbox.data.settings.ApiSettingsStore
-import com.kaixuan.starrailchatbox.data.settings.StoredApiSettings
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
@@ -37,14 +38,14 @@ class SettingsViewModelTest {
 
     @Test
     fun storedSettingsAreLoaded() = runTest {
-        val store = FakeApiSettingsStore(
-            StoredApiSettings(
-                apiHost = "https://example.com/v1",
+        val repository = FakeModelConfigRepository(
+            modelConfig(
+                baseUrl = "https://example.com/v1",
                 apiKey = "stored-key",
-                selectedModel = "model-b",
+                modelName = "model-b",
             ),
         )
-        val viewModel = createViewModel(store = store, scope = this)
+        val viewModel = createViewModel(modelConfigRepository = repository, scope = this)
         runCurrent()
 
         assertEquals("https://example.com/v1", viewModel.uiState.value.apiHost)
@@ -70,15 +71,15 @@ class SettingsViewModelTest {
 
     @Test
     fun localDefaultsFillBlankStoredFields() = runTest {
-        val store = FakeApiSettingsStore(
-            StoredApiSettings(
-                apiHost = "",
+        val repository = FakeModelConfigRepository(
+            modelConfig(
+                baseUrl = "",
                 apiKey = "",
-                selectedModel = "model-a",
+                modelName = "model-a",
             ),
         )
         val viewModel = createViewModel(
-            store = store,
+            modelConfigRepository = repository,
             defaults = ApiSettingsDefaults(
                 apiHost = "https://local.example.com/v1",
                 apiKey = "local-key",
@@ -145,8 +146,8 @@ class SettingsViewModelTest {
 
     @Test
     fun saveApiSettingsPersistsValuesAndEmitsSavedEffect() = runTest {
-        val store = FakeApiSettingsStore()
-        val viewModel = createViewModel(store = store, scope = this)
+        val repository = FakeModelConfigRepository()
+        val viewModel = createViewModel(modelConfigRepository = repository, scope = this)
         viewModel.onAction(SettingsAction.ApiKeyChanged(" sk-test "))
         viewModel.onAction(SettingsAction.SelectModel("model-a"))
         val effect = async { viewModel.effects.first { it is SettingsEffect.ApiSettingsSaved } }
@@ -155,12 +156,12 @@ class SettingsViewModelTest {
         advanceUntilIdle()
 
         assertEquals(
-            StoredApiSettings(
-                apiHost = "https://api.openai.com/v1",
+            modelConfig(
+                baseUrl = "https://api.openai.com/v1",
                 apiKey = "sk-test",
-                selectedModel = "model-a",
+                modelName = "model-a",
             ),
-            store.saved,
+            repository.saved,
         )
         assertEquals(SettingsEffect.ApiSettingsSaved, effect.await())
         assertFalse(viewModel.uiState.value.isSaving)
@@ -180,12 +181,12 @@ class SettingsViewModelTest {
 
     private fun createViewModel(
         repository: OpenAiRepository = FakeOpenAiRepository(ApiResult.Success(emptyList())),
-        store: ApiSettingsStore = FakeApiSettingsStore(),
+        modelConfigRepository: ModelConfigRepository = FakeModelConfigRepository(),
         defaults: ApiSettingsDefaults = ApiSettingsDefaults(),
         scope: kotlinx.coroutines.CoroutineScope,
     ) = SettingsViewModel(
         openAiRepository = repository,
-        apiSettingsStore = store,
+        modelConfigRepository = modelConfigRepository,
         coroutineScope = scope,
         defaultApiSettings = defaults,
     )
@@ -207,14 +208,35 @@ private class FakeOpenAiRepository(
     }
 }
 
-private class FakeApiSettingsStore(
-    private val initial: StoredApiSettings? = null,
-) : ApiSettingsStore {
-    var saved: StoredApiSettings? = null
+private class FakeModelConfigRepository(
+    private val initial: ModelConfig? = null,
+) : ModelConfigRepository {
+    var saved: ModelConfig? = null
 
-    override suspend fun load(): StoredApiSettings? = initial
+    override suspend fun getDefault(): ModelConfig? = initial
 
-    override suspend fun save(settings: StoredApiSettings) {
-        saved = settings
+    override suspend fun saveDefault(config: ModelConfig) {
+        saved = config
     }
 }
+
+private fun modelConfig(
+    baseUrl: String,
+    apiKey: String,
+    modelName: String,
+) = ModelConfig(
+    id = DefaultModelConfig.Id,
+    provider = DefaultModelConfig.Provider,
+    name = DefaultModelConfig.Name,
+    baseUrl = baseUrl,
+    apiKey = apiKey,
+    modelName = modelName,
+    contextWindow = DefaultModelConfig.ContextWindow,
+    maxOutputTokens = DefaultModelConfig.MaxOutputTokens,
+    supportVision = false,
+    supportToolCall = false,
+    supportReasoning = false,
+    temperature = DefaultModelConfig.Temperature,
+    topP = DefaultModelConfig.TopP,
+    enabled = true,
+)

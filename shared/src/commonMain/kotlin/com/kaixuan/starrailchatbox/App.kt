@@ -9,8 +9,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kaixuan.starrailchatbox.data.character.CharacterRepository
 import com.kaixuan.starrailchatbox.data.character.DefaultCharacterRepository
 import com.kaixuan.starrailchatbox.data.character.createCharacterStorage
-import com.kaixuan.starrailchatbox.data.settings.ApiSettingsStore
-import com.kaixuan.starrailchatbox.data.settings.createApiSettingsStore
+import com.kaixuan.starrailchatbox.data.model.InMemoryModelConfigRepository
+import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
 import com.kaixuan.starrailchatbox.data.settings.ProfileStore
 import com.kaixuan.starrailchatbox.data.settings.createProfileStore
 import com.kaixuan.starrailchatbox.design.StarRailTheme
@@ -28,15 +28,15 @@ import org.koin.dsl.koinApplication
 
 @Composable
 fun App(
-    apiSettingsStore: ApiSettingsStore = remember { createApiSettingsStore() },
+    modelConfigRepository: ModelConfigRepository = remember { InMemoryModelConfigRepository() },
     profileStore: ProfileStore = remember { createProfileStore() },
     characterRepository: CharacterRepository = remember {
         DefaultCharacterRepository(createCharacterStorage())
     },
 ) {
-    val koinApplication = remember(apiSettingsStore, profileStore) {
+    val koinApplication = remember(modelConfigRepository, profileStore) {
         koinApplication {
-            modules(appModule(apiSettingsStore, profileStore))
+            modules(appModule(modelConfigRepository, profileStore))
         }
     }
     DisposableEffect(koinApplication) {
