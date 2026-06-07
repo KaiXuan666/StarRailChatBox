@@ -108,6 +108,11 @@ shared/src/commonMain/kotlin/com/kaixuan/starrailchatbox/
 
 - 页面负责组合、状态提升和事件转发。
 - 小组件保持无状态，使用 `value`、`selected`、`enabled` 和回调参数。
+- 相同语义、结构和视觉样式应优先复用已有公共组件；不得在不同页面复制返回按钮、
+  主操作按钮等通用实现。确需差异时，应通过公共组件参数或主题令牌表达。
+- 带返回按钮的二级页面必须复用统一页面骨架（当前为 `StarRailPageLayout`），由公共
+  布局统一处理顶部安全区、水平边距、标题栏尺寸与位置、滚动容器和底部 inset。
+  页面不得自行复制标题栏，或单独计算 `statusBars` 顶部间距。
 - 可见文本必须使用 Compose Multiplatform Resources。
 - 图片和图标必须提供语义名称；纯装饰资源使用 `contentDescription = null`。
 - Preview 应覆盖浅色、深色、长文本和紧凑宽度。
@@ -540,6 +545,8 @@ sealed interface ChatMessageUiModel {
 
 - 根容器必须处理系统栏、刘海、圆角和手势区域。
 - Compose UI 使用 `WindowInsets.safeDrawing`、`safeDrawingPadding()` 或等价方式。
+- 同级二级页面的标题栏必须由同一公共页面布局处理系统区域和外边距，确保返回按钮、
+  标题字号、水平位置与顶部位置一致。
 - 底部输入区和导航不得被 iOS Home Indicator 或 Android 手势条遮挡。
 - Web 和 Desktop 应支持鼠标悬停、滚轮、键盘 Tab 与窗口缩放。
 - iOS 保持 Compose 共享界面，不在 SwiftUI 重复实现同一聊天页。
@@ -627,17 +634,20 @@ Modifier.semantics {
 后续 AI Agent 修改 UI 时必须遵循以下流程：
 
 1. 先读取本文件和相关现有组件。
-2. 优先复用已有主题令牌和组件，不重复创建相同实现。
-3. 新颜色先判断是否能映射到 M3 `ColorScheme`。
-4. 只有产品专属语义才允许加入 `StarRailExtendedColors`。
-5. 业务 Composable 中不得出现 `Color(0x...)`。
-6. 不以绝对坐标复刻设计图，必须使用 Compose 布局约束。
-7. 不将整张设计图作为背景图片冒充 UI。
-8. 所有文字进入资源文件，不直接散落在 Composable 中。
-9. 新组件及新页面必须提供浅色和深色 Preview，且统一尺寸规范为 `@Preview(widthDp = 360, heightDp = 800)`（所有后续编写的界面都应加上该规格的预览）。
-10. 新页面必须验证 Compact、Medium、Expanded 三种宽度。
-11. 新交互必须包含 enabled、disabled、pressed、focused 状态。
-12. 修改完成后至少构建 Android 或 Desktop，并尽可能验证 Web。
+2. 优先复用已有主题令牌和组件，不重复创建相同实现；新增页面样式前必须先检查
+   `ui/components` 和相邻页面，已有同语义组件时直接复用。
+3. 带返回导航的二级页面必须优先使用 `StarRailPageLayout`；不得在业务页面中重复
+   实现返回标题栏或自行设置标题栏顶部安全区与外边距。
+4. 新颜色先判断是否能映射到 M3 `ColorScheme`。
+5. 只有产品专属语义才允许加入 `StarRailExtendedColors`。
+6. 业务 Composable 中不得出现 `Color(0x...)`。
+7. 不以绝对坐标复刻设计图，必须使用 Compose 布局约束。
+8. 不将整张设计图作为背景图片冒充 UI。
+9. 所有文字进入资源文件，不直接散落在 Composable 中。
+10. 新组件及新页面必须提供浅色和深色 Preview，且统一尺寸规范为 `@Preview(widthDp = 360, heightDp = 800)`（所有后续编写的界面都应加上该规格的预览）。
+11. 新页面必须验证 Compact、Medium、Expanded 三种宽度。
+12. 新交互必须包含 enabled、disabled、pressed、focused 状态。
+13. 修改完成后至少构建 Android 或 Desktop，并尽可能验证 Web。
 
 推荐 Preview：
 
@@ -679,4 +689,3 @@ private fun ChatSessionScreenDarkPreview() {
 - [ ] 组件状态与 Material Design 3 行为一致。
 - [ ] 所有新编写的页面和组件都编写了浅色与深色的 `@Preview` 预览。
 - [ ] Android/Desktop 至少一个目标构建通过。
-

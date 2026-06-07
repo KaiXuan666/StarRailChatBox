@@ -12,19 +12,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -33,8 +28,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -48,8 +41,11 @@ import starrailchatbox.shared.generated.resources.profile_nickname_title
 import starrailchatbox.shared.generated.resources.profile_save_btn
 import starrailchatbox.shared.generated.resources.profile_restore_default
 import starrailchatbox.shared.generated.resources.settings_saving
+import starrailchatbox.shared.generated.resources.navigation_back
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.starRailColors
+import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
+import com.kaixuan.starrailchatbox.ui.components.StarRailPrimaryButton
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import com.kaixuan.starrailchatbox.ui.main.MainAction
@@ -72,54 +68,14 @@ fun ProfileScreen(
         }
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(
-                start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + StarRailSpacing.lg,
-                end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                bottom = contentPadding.calculateBottomPadding() + StarRailSpacing.lg
-            ),
-        verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xl)
+    StarRailPageLayout(
+        title = stringResource(Res.string.settings_profile_title),
+        contentPadding = contentPadding,
+        compact = compact,
+        backContentDescription = stringResource(Res.string.navigation_back),
+        onBackClick = { onMainAction(MainAction.PopBackStack) },
+        modifier = modifier,
     ) {
-        // 1. Back Navigation Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                onClick = { onMainAction(MainAction.PopBackStack) },
-                modifier = Modifier.size(40.dp),
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.55f),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    StarRailIcon(
-                        kind = StarRailIconKind.CHEVRON_LEFT,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-
-            Text(
-                text = stringResource(Res.string.settings_profile_title),
-                color = MaterialTheme.colorScheme.onBackground,
-                style = if (compact) {
-                    MaterialTheme.typography.headlineSmall
-                } else {
-                    MaterialTheme.typography.headlineMedium
-                },
-                fontWeight = FontWeight.Bold,
-                maxLines = 1
-            )
-        }
-
         // 2. Avatar Display & Action Card
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -272,34 +228,14 @@ fun ProfileScreen(
             }
         }
 
-        // 4. Save Button
-        val saveGrad = Brush.horizontalGradient(
-            listOf(
-                MaterialTheme.colorScheme.primary,
-                MaterialTheme.colorScheme.secondary.copy(alpha = 0.9f)
-            )
-        )
-        Surface(
+        StarRailPrimaryButton(
+            text = if (state.isSaving) {
+                stringResource(Res.string.settings_saving)
+            } else {
+                stringResource(Res.string.profile_save_btn)
+            },
             onClick = { onAction(ProfileAction.SaveClicked) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            shape = RoundedCornerShape(50),
-            color = Color.Transparent
-        ) {
-            Box(
-                modifier = Modifier
-                    .background(saveGrad)
-                    .fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = if (state.isSaving) stringResource(Res.string.settings_saving) else stringResource(Res.string.profile_save_btn),
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
+            enabled = !state.isSaving,
+        )
     }
 }

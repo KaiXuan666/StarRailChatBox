@@ -17,20 +17,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -68,9 +63,12 @@ import starrailchatbox.shared.generated.resources.settings_get
 import starrailchatbox.shared.generated.resources.settings_model_list
 import starrailchatbox.shared.generated.resources.settings_save_config
 import starrailchatbox.shared.generated.resources.settings_saving
+import starrailchatbox.shared.generated.resources.navigation_back
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
+import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
+import com.kaixuan.starrailchatbox.ui.components.StarRailPrimaryButton
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import com.kaixuan.starrailchatbox.ui.components.BackHandler
@@ -95,14 +93,7 @@ fun ApiSettingsScreen(
     }
 
     Box(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(
-                start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + StarRailSpacing.xs,
-                end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                bottom = contentPadding.calculateBottomPadding() + StarRailSpacing.lg
-            )
+        modifier = modifier.fillMaxSize(),
     ) {
         // High fidelity decorative Compass background
         Canvas(modifier = Modifier.fillMaxSize()) {
@@ -117,68 +108,14 @@ fun ApiSettingsScreen(
             )
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(StarRailSpacing.lg)
+        StarRailPageLayout(
+            title = stringResource(Res.string.settings_api_title),
+            contentPadding = contentPadding,
+            compact = compact,
+            backContentDescription = stringResource(Res.string.navigation_back),
+            onBackClick = { onMainAction(MainAction.PopBackStack) },
+            contentSpacing = StarRailSpacing.lg,
         ) {
-            // --- Custom Header (Back arrow + Title + Tech Divider) ---
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Back navigation button
-                    Surface(
-                        onClick = { onMainAction(MainAction.PopBackStack) },
-                        modifier = Modifier.size(48.dp),
-                        shape = CircleShape,
-                        color = Color.Transparent,
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            StarRailIcon(
-                                kind = StarRailIconKind.CHEVRON_LEFT,
-                                contentDescription = "Back",
-                                tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.size(if (compact) 28.dp else 32.dp),
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(4.dp))
-
-                    Text(
-                        text = stringResource(Res.string.settings_api_title),
-                        color = MaterialTheme.colorScheme.onBackground,
-                        style = if (compact) {
-                            MaterialTheme.typography.titleLarge
-                        } else {
-                            MaterialTheme.typography.headlineSmall
-                        },
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                // Decorative scifi line
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(2.dp)
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(
-                                    colors.constellation.copy(alpha = 0.65f),
-                                    colors.constellationMuted.copy(alpha = 0.15f),
-                                    Color.Transparent
-                                )
-                            )
-                        )
-                )
-            }
-
             // --- API Host Section ---
             Column(
                 verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs)
@@ -336,67 +273,17 @@ fun ApiSettingsScreen(
             
             Spacer(modifier = Modifier.height(10.dp))
             
-            // --- Save Configuration Button ---
-            val saveInteractionSource = remember { MutableInteractionSource() }
-            val isSavePressed by saveInteractionSource.collectIsPressedAsState()
-            val saveScale by animateFloatAsState(if (isSavePressed) 0.95f else 1f)
-            
-            val saveGradient = Brush.horizontalGradient(
-                listOf(
-                    Color(0xFF5D7AFF), // StarRail primary signature blue
-                    Color(0xFF385EFF)
-                )
-            )
-            
-            Surface(
-                onClick = {
-                    onSettingsAction(SettingsAction.SaveApiSettingsClicked)
-                },
+            StarRailPrimaryButton(
+                text = stringResource(
+                    if (state.isSaving) {
+                        Res.string.settings_saving
+                    } else {
+                        Res.string.settings_save_config
+                    },
+                ),
+                onClick = { onSettingsAction(SettingsAction.SaveApiSettingsClicked) },
                 enabled = !state.isSaving,
-                interactionSource = saveInteractionSource,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(if (compact) 46.dp else 52.dp)
-                    .scale(saveScale),
-                shape = RoundedCornerShape(50),
-                color = Color.Transparent
-            ) {
-                Box(
-                    modifier = Modifier
-                        .background(saveGradient)
-                        .fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
-                    ) {
-                        if (state.isSaving) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                color = Color.White,
-                                strokeWidth = 2.dp,
-                            )
-                        }
-                        Text(
-                            text = stringResource(
-                                if (state.isSaving) {
-                                    Res.string.settings_saving
-                                } else {
-                                    Res.string.settings_save_config
-                                },
-                            ),
-                            color = Color.White,
-                            style = if (compact) {
-                                MaterialTheme.typography.titleMedium
-                            } else {
-                                MaterialTheme.typography.titleLarge
-                            },
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
+            )
         }
     }
 }

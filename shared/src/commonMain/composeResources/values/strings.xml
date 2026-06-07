@@ -97,6 +97,7 @@
     <string name="settings_api_auth_failed">API 密钥无效或无权访问模型列表</string>
     <string name="settings_api_fetch_failed">模型列表获取失败，请检查网络和 API 主机</string>
     <string name="settings_api_no_models">接口未返回可用模型</string>
+    <string name="navigation_back">返回</string>
     <string name="settings_api_save_failed">API 配置保存失败</string>
     <string name="settings_api_empty_models">填写 API 主机和密钥后获取模型列表</string>
     <string name="settings_saving">保存中...</string>
