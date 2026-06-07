@@ -401,6 +401,27 @@ val StarRailShapes = Shapes(
 - 深色模式主要依靠表面亮度和描边，避免大面积黑色阴影。
 - 发光仅用于主要操作、选中头像或星芒，不用于所有容器。
 
+### 8.1 统一 Dialog
+
+所有业务弹窗必须复用公共 `StarRailDialog`，不得直接使用默认 `AlertDialog`，也不得在
+业务页面复制 `Dialog + Surface + 按钮` 的弹窗骨架。`ThemeStyleDialog` 是统一视觉的
+基准实现，其容器、标题与操作区已收敛到 `StarRailDialog`。
+
+统一弹窗结构：
+
+- 使用 Compose `Dialog` 提供模态语义、遮罩、外部点击关闭和系统返回关闭行为。
+- 容器使用 `surfaceContainerLow`、1dp `outlineVariant` 边框和 24dp 圆角。
+- 内容区统一使用 24dp 内边距，各区块使用 20dp 垂直间距。
+- 标题使用 `titleLarge` 加粗，左侧显示暖色星芒装饰。
+- 标题下方使用由 `constellation` 渐变至透明的 1dp 分隔线。
+- 操作区右对齐；取消与确认按钮均为 96 x 38dp 胶囊按钮，并提供按压缩放反馈。
+- 普通确认按钮使用 `primary` 到 `secondary` 的品牌渐变及 `onPrimary` 文字。
+- 删除等破坏性确认按钮设置 `destructive = true`，使用 `error` 容器语义与 `onError`
+  文字；不得只用普通主色表达破坏性操作。
+- 弹窗正文使用 `onSurface` 或 `onSurfaceVariant`，可换行且不得设置会裁切内容的固定高度。
+- 弹窗打开时，系统返回键只关闭弹窗，不得同时触发页面返回或业务确认。
+- 所有弹窗可见文案必须资源化，并提供浅色、深色 Preview。
+
 ---
 
 ## 9. 页面结构
@@ -656,6 +677,8 @@ Modifier.semantics {
 11. 新页面必须验证 Compact、Medium、Expanded 三种宽度。
 12. 新交互必须包含 enabled、disabled、pressed、focused 状态。
 13. 修改完成后至少构建 Android 或 Desktop，并尽可能验证 Web。
+14. 新增或修改业务弹窗必须复用 `StarRailDialog`；不得直接使用默认 `AlertDialog`
+    或自行复制弹窗容器和按钮布局。
 
 推荐 Preview：
 
@@ -696,4 +719,5 @@ private fun ChatSessionScreenDarkPreview() {
 - [ ] 深色模式主要依靠语义表面分层，而非纯黑背景和过度阴影。
 - [ ] 组件状态与 Material Design 3 行为一致。
 - [ ] 所有新编写的页面和组件都编写了浅色与深色的 `@Preview` 预览。
+- [ ] 所有业务弹窗复用 `StarRailDialog`，系统返回、取消和破坏性操作语义正确。
 - [ ] Android/Desktop 至少一个目标构建通过。

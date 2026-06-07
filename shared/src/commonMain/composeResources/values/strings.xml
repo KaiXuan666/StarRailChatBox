@@ -31,6 +31,9 @@
     <string name="conversation_management_no_preview">暂时没有消息内容</string>
     <string name="conversation_management_message_count">%1$d 条消息</string>
     <string name="conversation_management_delete">删除对话：%1$s</string>
+    <string name="conversation_management_delete_confirm_title">删除对话？</string>
+    <string name="conversation_management_delete_confirm_message">确定删除“%1$s”吗？此操作无法撤销。</string>
+    <string name="conversation_management_delete_confirm_action">删除</string>
     <string name="conversation_management_open">打开对话：%1$s</string>
     <string name="chat_model_config_required">请先在 API 设置中配置可用模型</string>
     <string name="chat_request_failed">消息发送失败，请检查网络和 API 配置</string>

@@ -78,6 +78,7 @@ import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
+import com.kaixuan.starrailchatbox.ui.components.StarRailDialog
 import com.kaixuan.starrailchatbox.ui.main.MainAction
 import com.kaixuan.starrailchatbox.ui.main.MainSettingsItem
 import com.kaixuan.starrailchatbox.ui.main.MainUiState
@@ -316,230 +317,102 @@ private fun ThemeStyleDialog(
         Triple(true, Res.string.theme_dark, "Dark")
     )
 
-    val colors = MaterialTheme.starRailColors
-
-    Dialog(
-        onDismissRequest = { onMainAction(MainAction.ThemeDialogDismiss) }
+    StarRailDialog(
+        title = stringResource(Res.string.settings_theme_title),
+        dismissText = stringResource(Res.string.cancel),
+        confirmText = stringResource(Res.string.confirm),
+        onDismissRequest = { onMainAction(MainAction.ThemeDialogDismiss) },
+        onConfirm = { onMainAction(MainAction.ThemeDialogConfirm(selectedTheme)) },
+        modifier = modifier,
     ) {
-        Surface(
-            modifier = modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp),
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        Column(
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
-            ) {
-                // Header (Title with golden sparkle + tech divider)
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+            options.forEach { (value, labelRes, _) ->
+                val isSelected = selectedTheme == value
+                val itemBgBrush = if (isSelected) {
+                    Brush.horizontalGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                            MaterialTheme.colorScheme.secondary.copy(alpha = 0.05f)
+                        )
+                    )
+                } else {
+                    Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent))
+                }
+                val itemBorderColor = if (isSelected) {
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+                } else {
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                }
+
+                Surface(
+                    onClick = { selectedTheme = value },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer.copy(
+                        alpha = if (isSelected) 0.5f else 0.2f,
+                    ),
+                    border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, itemBorderColor),
                 ) {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Canvas(modifier = Modifier.size(16.dp)) {
-                            drawDecorativeSparkle(
-                                center = Offset(size.width / 2, size.height / 2),
-                                radius = size.width / 2,
-                                color = colors.warmSparkle
-                            )
-                        }
-                        Text(
-                            text = stringResource(Res.string.settings_theme_title),
-                            color = MaterialTheme.colorScheme.onSurface,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(1.dp)
-                            .background(
-                                Brush.horizontalGradient(
-                                    listOf(
-                                        colors.constellation.copy(alpha = 0.45f),
-                                        colors.constellationMuted.copy(alpha = 0.1f),
-                                        Color.Transparent
-                                    )
-                                )
-                            )
-                    )
-                }
-
-                // Options List
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    options.forEach { (value, labelRes, _) ->
-                        val isSelected = selectedTheme == value
-
-                        val itemBgBrush = if (isSelected) {
-                            Brush.horizontalGradient(
-                                listOf(
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
-                                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.05f)
-                                )
-                            )
-                        } else {
-                            Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent))
-                        }
-
-                        val itemBorderColor = if (isSelected) {
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
-                        } else {
-                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
-                        }
-
-                        Surface(
-                            onClick = { selectedTheme = value },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = if (isSelected) 0.5f else 0.2f),
-                            border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, itemBorderColor)
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(itemBgBrush)
-                                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                                            else Color.Transparent
-                                        )
-                                        .border(
-                                            2.dp,
-                                            if (isSelected) MaterialTheme.colorScheme.primary
-                                            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                            CircleShape
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (isSelected) {
-                                        Canvas(modifier = Modifier.size(10.dp)) {
-                                            drawDecorativeSparkle(
-                                                center = Offset(size.width / 2, size.height / 2),
-                                                radius = size.width / 2,
-                                                color = colors.warmSparkle
-                                            )
-                                        }
-                                    }
-                                }
-
-                                Text(
-                                    text = stringResource(labelRes),
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.onSurface,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Action Buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    val cancelInteractionSource = remember { MutableInteractionSource() }
-                    val isCancelPressed by cancelInteractionSource.collectIsPressedAsState()
-                    val cancelScale by animateFloatAsState(if (isCancelPressed) 0.94f else 1f)
-
-                    Surface(
-                        onClick = { onMainAction(MainAction.ThemeDialogDismiss) },
-                        interactionSource = cancelInteractionSource,
-                        modifier = Modifier
-                            .width(96.dp)
-                            .height(38.dp)
-                            .scale(cancelScale),
-                        shape = RoundedCornerShape(50),
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f))
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = stringResource(Res.string.cancel),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    val confirmInteractionSource = remember { MutableInteractionSource() }
-                    val isConfirmPressed by confirmInteractionSource.collectIsPressedAsState()
-                    val confirmScale by animateFloatAsState(if (isConfirmPressed) 0.94f else 1f)
-
-                    val confirmGrad = Brush.horizontalGradient(
-                        listOf(
-                            MaterialTheme.colorScheme.primary,
-                            MaterialTheme.colorScheme.secondary.copy(alpha = 0.9f)
-                        )
-                    )
-
-                    Surface(
-                        onClick = { onMainAction(MainAction.ThemeDialogConfirm(selectedTheme)) },
-                        interactionSource = confirmInteractionSource,
-                        modifier = Modifier
-                            .width(96.dp)
-                            .height(38.dp)
-                            .scale(confirmScale),
-                        shape = RoundedCornerShape(50),
-                        color = Color.Transparent
+                            .background(itemBgBrush)
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Box(
                             modifier = Modifier
-                                .background(confirmGrad)
-                                .fillMaxSize(),
-                            contentAlignment = Alignment.Center
+                                .size(20.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (isSelected) {
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                    } else {
+                                        Color.Transparent
+                                    },
+                                )
+                                .border(
+                                    2.dp,
+                                    if (isSelected) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                    },
+                                    CircleShape,
+                                ),
+                            contentAlignment = Alignment.Center,
                         ) {
-                            Text(
-                                text = stringResource(Res.string.confirm),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
-                            )
+                            if (isSelected) {
+                                StarRailIcon(
+                                    kind = StarRailIconKind.SPARKLE,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.starRailColors.warmSparkle,
+                                    modifier = Modifier.size(10.dp),
+                                )
+                            }
                         }
+                        Text(
+                            text = stringResource(labelRes),
+                            color = if (isSelected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = if (isSelected) {
+                                FontWeight.SemiBold
+                            } else {
+                                FontWeight.Normal
+                            },
+                        )
                     }
                 }
             }
         }
     }
-}
-
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDecorativeSparkle(
-    center: Offset,
-    radius: Float,
-    color: Color,
-) {
-    val path = Path().apply {
-        moveTo(center.x, center.y - radius)
-        lineTo(center.x + radius * 0.2f, center.y - radius * 0.2f)
-        lineTo(center.x + radius, center.y)
-        lineTo(center.x + radius * 0.2f, center.y + radius * 0.2f)
-        lineTo(center.x, center.y + radius)
-        lineTo(center.x - radius * 0.2f, center.y + radius * 0.2f)
-        lineTo(center.x - radius, center.y)
-        lineTo(center.x - radius * 0.2f, center.y - radius * 0.2f)
-        close()
-    }
-    drawPath(path, color)
 }
 
 @Preview(widthDp = 360, heightDp = 800)

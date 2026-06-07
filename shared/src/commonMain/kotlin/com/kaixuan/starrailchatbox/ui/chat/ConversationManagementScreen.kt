@@ -21,6 +21,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,10 +38,14 @@ import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.decodeToImageBitmap
 import org.jetbrains.compose.resources.stringResource
 import starrailchatbox.shared.generated.resources.Res
+import starrailchatbox.shared.generated.resources.cancel
 import starrailchatbox.shared.generated.resources.conversation_management_count
 import starrailchatbox.shared.generated.resources.conversation_management_companion_days
 import starrailchatbox.shared.generated.resources.conversation_management_current
 import starrailchatbox.shared.generated.resources.conversation_management_delete
+import starrailchatbox.shared.generated.resources.conversation_management_delete_confirm_action
+import starrailchatbox.shared.generated.resources.conversation_management_delete_confirm_message
+import starrailchatbox.shared.generated.resources.conversation_management_delete_confirm_title
 import starrailchatbox.shared.generated.resources.conversation_management_description
 import starrailchatbox.shared.generated.resources.conversation_management_empty
 import starrailchatbox.shared.generated.resources.conversation_management_empty_desc
@@ -52,6 +60,7 @@ import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.ui.components.BackHandler
+import com.kaixuan.starrailchatbox.ui.components.StarRailDialog
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
@@ -69,8 +78,9 @@ fun ConversationManagementScreen(
 ) {
     val character = state.selectedCharacter
     val sessions = state.sessions
+    var pendingDelete by remember { mutableStateOf<ConversationSummaryUiModel?>(null) }
 
-    BackHandler {
+    BackHandler(enabled = pendingDelete == null) {
         onMainAction(MainAction.PopBackStack)
     }
 
@@ -152,10 +162,35 @@ fun ConversationManagementScreen(
                         onMainAction(MainAction.PopBackStack)
                     },
                     onDelete = {
-                        onAction(ChatAction.SessionDeleteClicked(session.id))
+                        pendingDelete = session
                     },
                 )
             }
+        }
+    }
+
+    pendingDelete?.let { session ->
+        StarRailDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = stringResource(Res.string.conversation_management_delete_confirm_title),
+            dismissText = stringResource(Res.string.cancel),
+            confirmText = stringResource(
+                Res.string.conversation_management_delete_confirm_action,
+            ),
+            destructive = true,
+            onConfirm = {
+                pendingDelete = null
+                onAction(ChatAction.SessionDeleteClicked(session.id))
+            },
+        ) {
+            Text(
+                text = stringResource(
+                    Res.string.conversation_management_delete_confirm_message,
+                    session.title,
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyLarge,
+            )
         }
     }
 }

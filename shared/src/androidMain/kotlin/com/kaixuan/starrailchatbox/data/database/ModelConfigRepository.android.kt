@@ -19,7 +19,7 @@ fun createPersistentRepositories(
         name = databaseName,
     )
         .setDriver(BundledSQLiteDriver())
-        .setJournalMode(RoomDatabase.JournalMode.TRUNCATE) // 强制使用 TRUNCATE 模式，避免 WAL 锁死
+//        .setJournalMode(RoomDatabase.JournalMode.TRUNCATE) // 强制使用 TRUNCATE 模式，避免 WAL 锁死
         .fallbackToDestructiveMigration(true)
         .build()
     val keyStorePath = context.filesDir.resolve("api_key.key.preferences_pb").absolutePath
