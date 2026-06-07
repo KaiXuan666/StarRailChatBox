@@ -29,17 +29,37 @@ sealed interface ChatMessageUiModel {
 }
 
 @Immutable
-data class ChatUiState(
-    val characters: List<Character> = emptyList(),
-    val selectedCharacterId: String? = null,
+data class CharacterChatState(
     val activeSessionId: String? = null,
     val messages: List<ChatMessageUiModel> = emptyList(),
     val messageDraft: String = "",
-    val isSending: Boolean = false,
-    val isLoadingCharacters: Boolean = true,
     val isLoadingSession: Boolean = false,
+    val isSending: Boolean = false,
+)
+
+@Immutable
+data class ChatUiState(
+    val characters: List<Character> = emptyList(),
+    val selectedCharacterId: String? = null,
+    val characterStates: Map<String, CharacterChatState> = emptyMap(),
+    val isLoadingCharacters: Boolean = true,
 ) {
     val selectedCharacter: Character?
         get() = characters.firstOrNull { it.id == selectedCharacterId }
             ?: characters.firstOrNull()
+
+    val activeSessionId: String?
+        get() = characterStates[selectedCharacter?.id]?.activeSessionId
+
+    val messages: List<ChatMessageUiModel>
+        get() = characterStates[selectedCharacter?.id]?.messages.orEmpty()
+
+    val messageDraft: String
+        get() = characterStates[selectedCharacter?.id]?.messageDraft.orEmpty()
+
+    val isSending: Boolean
+        get() = characterStates[selectedCharacter?.id]?.isSending ?: false
+
+    val isLoadingSession: Boolean
+        get() = characterStates[selectedCharacter?.id]?.isLoadingSession ?: false
 }

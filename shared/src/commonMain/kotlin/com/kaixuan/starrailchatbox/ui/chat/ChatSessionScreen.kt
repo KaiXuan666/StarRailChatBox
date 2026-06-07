@@ -95,6 +95,8 @@ import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.ui.tooling.preview.Preview
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.ui.main.MainAction
@@ -113,134 +115,169 @@ fun ChatSessionScreen(
     onMainAction: (MainAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val listState = rememberLazyListState()
-    val coroutineScope = rememberCoroutineScope()
-    val messagesStartIndex = 3
-    var previousMessageCount by remember { mutableStateOf(state.messages.size) }
-    var shouldScrollToBottomOnLoad by remember { mutableStateOf(false) }
-    val scrollPositions = remember { mutableMapOf<String, Pair<Int, Int>>() }
+    val characters = state.characters
     val selectedCharacter = state.selectedCharacter
-    val charactersById = remember(state.characters) {
-        state.characters.associateBy(Character::id)
+    val coroutineScope = rememberCoroutineScope()
+
+    if (state.isLoadingCharacters) {
+        Box(
+            modifier = modifier.fillMaxSize().padding(StarRailSpacing.xl),
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularProgressIndicator()
+        }
+        return
     }
+
+    if (characters.isEmpty()) {
+        Box(
+            modifier = modifier.fillMaxSize().padding(StarRailSpacing.xl),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = stringResource(Res.string.no_characters),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        }
+        return
+    }
+
+    val initialPage = remember(characters, selectedCharacter) {
+        val index = characters.indexOfFirst { it.id == selectedCharacter?.id }
+        if (index != -1) index else 0
+    }
+
+    val pagerState = rememberPagerState(
+        initialPage = initialPage,
+    ) { characters.size }
 
     LaunchedEffect(selectedCharacter?.id) {
-        previousMessageCount = state.messages.size
-        val nextId = selectedCharacter?.id
-        if (nextId != null) {
-            val savedPos = scrollPositions[nextId]
-            if (savedPos != null) {
-                listState.scrollToItem(savedPos.first, savedPos.second)
-            } else {
-                if (state.messages.isNotEmpty()) {
-                    listState.scrollToItem(messagesStartIndex + state.messages.lastIndex)
-                } else {
-                    shouldScrollToBottomOnLoad = true
-                }
-            }
+        val targetPage = characters.indexOfFirst { it.id == selectedCharacter?.id }
+        if (targetPage != -1 && pagerState.currentPage != targetPage) {
+            pagerState.animateScrollToPage(targetPage)
         }
     }
 
-    LaunchedEffect(state.messages, state.isLoadingSession) {
-        if (shouldScrollToBottomOnLoad && !state.isLoadingSession && state.messages.isNotEmpty()) {
-            shouldScrollToBottomOnLoad = false
-            listState.animateScrollToItem(messagesStartIndex + state.messages.lastIndex)
+    LaunchedEffect(pagerState.currentPage) {
+        val targetCharacter = characters.getOrNull(pagerState.currentPage)
+        if (targetCharacter != null && targetCharacter.id != selectedCharacter?.id) {
+            onAction(ChatAction.CharacterSelected(targetCharacter.id))
         }
     }
 
-    LaunchedEffect(state.messages.size) {
-        val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
-        val wasNearBottom = lastVisibleIndex != null &&
-            lastVisibleIndex >= listState.layoutInfo.totalItemsCount - 3
-        if (
-            state.messages.size > previousMessageCount &&
-            wasNearBottom &&
-            state.messages.isNotEmpty()
-        ) {
-            listState.animateScrollToItem(messagesStartIndex + state.messages.lastIndex)
-        }
-        previousMessageCount = state.messages.size
-    }
-
-    LazyColumn(
-        state = listState,
+    HorizontalPager(
+        state = pagerState,
         modifier = modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.statusBars),
-        contentPadding = PaddingValues(
-            start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-            top = StarRailSpacing.lg,
-            end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-            bottom = contentPadding.calculateBottomPadding() + StarRailSpacing.lg,
-        ),
-        verticalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
-    ) {
-        item(key = "header") {
-            if (selectedCharacter != null) {
-                ChatHeader(
-                    selectedCharacter = selectedCharacter,
-                    compact = compact,
-                    onAction = onAction,
-                    onMainAction = onMainAction,
-                )
-            } else {
-                Box(
-                    modifier = Modifier.fillMaxWidth().padding(StarRailSpacing.xl),
-                    contentAlignment = Alignment.Center,
+        beyondViewportPageCount = 3,
+    ) { page ->
+        val pageCharacter = characters[page]
+        val pageState = state.characterStates[pageCharacter.id] ?: CharacterChatState()
+        val charactersById = remember(characters) {
+            characters.associateBy(Character::id)
+        }
+
+        if (pageState.isLoadingSession) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
                 ) {
-                    if (state.isLoadingCharacters) {
-                        CircularProgressIndicator()
-                    } else {
-                        Text(
-                            text = stringResource(Res.string.no_characters),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodyLarge,
+                CircularProgressIndicator()
+            }
+        } else {
+            val pageListState = rememberLazyListState()
+            val pageMessages = pageState.messages
+            val messagesStartIndex = 3
+
+            var previousPageMessageCount by remember { mutableStateOf(pageMessages.size) }
+            var shouldPageScrollToBottomOnLoad by remember { mutableStateOf(false) }
+
+            LaunchedEffect(pageCharacter.id) {
+                previousPageMessageCount = pageMessages.size
+                if (pageMessages.isNotEmpty()) {
+                    pageListState.scrollToItem(messagesStartIndex + pageMessages.lastIndex)
+                } else {
+                    shouldPageScrollToBottomOnLoad = true
+                }
+            }
+
+            LaunchedEffect(pageMessages, pageState.isLoadingSession) {
+                if (shouldPageScrollToBottomOnLoad && !pageState.isLoadingSession && pageMessages.isNotEmpty()) {
+                    shouldPageScrollToBottomOnLoad = false
+                    pageListState.scrollToItem(messagesStartIndex + pageMessages.lastIndex)
+                }
+            }
+
+            LaunchedEffect(pageMessages.size) {
+                val lastVisibleIndex = pageListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
+                val wasNearBottom = lastVisibleIndex != null &&
+                    lastVisibleIndex >= pageListState.layoutInfo.totalItemsCount - 3
+                if (
+                    pageMessages.size > previousPageMessageCount &&
+                    wasNearBottom &&
+                    pageMessages.isNotEmpty()
+                ) {
+                    pageListState.animateScrollToItem(messagesStartIndex + pageMessages.lastIndex)
+                }
+                previousPageMessageCount = pageMessages.size
+            }
+
+            LazyColumn(
+                state = pageListState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                    end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                    bottom = contentPadding.calculateBottomPadding() + StarRailSpacing.lg,
+                ),
+                verticalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
+            ) {
+                item(key = "header") {
+                    ChatHeader(
+                        selectedCharacter = pageCharacter,
+                        compact = compact,
+                        onAction = onAction,
+                        onMainAction = onMainAction,
+                    )
+                }
+                stickyHeader(key = "characters") {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.Transparent)
+                            .padding(top = StarRailSpacing.xxs),
+                    ) {
+                        CharacterSelector(
+                            characters = characters,
+                            selectedCharacterId = selectedCharacter?.id,
+                            compact = compact,
+                            onCharacterSelected = { characterId ->
+                                val index = characters.indexOfFirst { it.id == characterId }
+                                if (index != -1 && pagerState.currentPage != index) {
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(index)
+                                    }
+                                }
+                            },
                         )
                     }
                 }
+                item(key = "date") {
+                    DateDivider()
+                }
+                items(
+                    items = pageMessages,
+                    key = ChatMessageUiModel::id,
+                ) { message ->
+                    MessageItem(
+                        message = message,
+                        charactersById = charactersById,
+                        compact = compact,
+                    )
+                }
             }
-        }
-        stickyHeader(key = "characters") {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.Transparent)
-                    .padding(top = StarRailSpacing.xxs),
-            ) {
-                CharacterSelector(
-                    characters = state.characters,
-                    selectedCharacterId = selectedCharacter?.id,
-                    compact = compact,
-                    onCharacterSelected = { characterId ->
-                        if (characterId == selectedCharacter?.id) {
-                            if (state.messages.isNotEmpty()) {
-                                coroutineScope.launch {
-                                    listState.animateScrollToItem(messagesStartIndex + state.messages.lastIndex)
-                                }
-                            }
-                        } else {
-                            selectedCharacter?.id?.let { curId ->
-                                scrollPositions[curId] = listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
-                            }
-                            shouldScrollToBottomOnLoad = false
-                            onAction(ChatAction.CharacterSelected(characterId))
-                        }
-                    },
-                )
-            }
-        }
-        item(key = "date") {
-            DateDivider()
-        }
-        items(
-            items = state.messages,
-            key = ChatMessageUiModel::id,
-        ) { message ->
-            MessageItem(
-                message = message,
-                charactersById = charactersById,
-                compact = compact,
-            )
         }
     }
 }
@@ -1079,44 +1116,49 @@ private val chatPreviewState = ChatUiState(
         previewCharacter("builtin:瑕蝶", "瑕蝶"),
     ),
     selectedCharacterId = "builtin:流萤",
-    activeSessionId = "preview-session",
-    messages = listOf(
-        ChatMessageUiModel.Received(
-            id = "preview-opening",
-            timestamp = "10:21",
-            content = MessageContent.Custom("今天要聊点什么呢？"),
-            senderId = "builtin:流萤",
-        ),
-        ChatMessageUiModel.Sent(
-            id = "preview-user-1",
-            timestamp = "10:22",
-            content = MessageContent.Custom("今天有点累，想和你聊聊天。"),
-            isRead = true,
-        ),
-        ChatMessageUiModel.Received(
-            id = "preview-assistant-1",
-            timestamp = "10:23",
-            content = MessageContent.Custom(
-                "好呀，我会认真听着。发生了什么让你觉得累呢？",
+    characterStates = mapOf(
+        "builtin:流萤" to CharacterChatState(
+            activeSessionId = "preview-session",
+            messages = listOf(
+                ChatMessageUiModel.Received(
+                    id = "preview-opening",
+                    timestamp = "10:21",
+                    content = MessageContent.Custom("今天要聊点什么呢？"),
+                    senderId = "builtin:流萤",
+                ),
+                ChatMessageUiModel.Sent(
+                    id = "preview-user-1",
+                    timestamp = "10:22",
+                    content = MessageContent.Custom("今天有点累，想和你聊聊天。"),
+                    isRead = true,
+                ),
+                ChatMessageUiModel.Received(
+                    id = "preview-assistant-1",
+                    timestamp = "10:23",
+                    content = MessageContent.Custom(
+                        "好呀，我会认真听着。发生了什么让你觉得累呢？",
+                    ),
+                    senderId = "builtin:流萤",
+                ),
+                ChatMessageUiModel.Sent(
+                    id = "preview-user-2",
+                    timestamp = "10:24",
+                    content = MessageContent.Custom("忙了一整天，不过现在感觉好多了。"),
+                    isRead = true,
+                ),
+                ChatMessageUiModel.Received(
+                    id = "preview-assistant-2",
+                    timestamp = "10:25",
+                    content = MessageContent.Custom(
+                        "那就先放松一下吧。你已经很努力了，剩下的时间留给自己。",
+                    ),
+                    senderId = "builtin:流萤",
+                ),
             ),
-            senderId = "builtin:流萤",
-        ),
-        ChatMessageUiModel.Sent(
-            id = "preview-user-2",
-            timestamp = "10:24",
-            content = MessageContent.Custom("忙了一整天，不过现在感觉好多了。"),
-            isRead = true,
-        ),
-        ChatMessageUiModel.Received(
-            id = "preview-assistant-2",
-            timestamp = "10:25",
-            content = MessageContent.Custom(
-                "那就先放松一下吧。你已经很努力了，剩下的时间留给自己。",
-            ),
-            senderId = "builtin:流萤",
-        ),
+            messageDraft = "想听你讲一个星空下的故事",
+            isLoadingSession = false,
+        )
     ),
-    messageDraft = "想听你讲一个星空下的故事",
     isLoadingCharacters = false,
 )
 
