@@ -72,3 +72,25 @@ data class ChatUsage(
     @SerialName("total_tokens")
     val totalTokens: Int = 0,
 )
+
+@Serializable
+data class ToolCallTestRequest(
+    val model: String,
+    val messages: List<ChatMessage>,
+    val tools: List<ToolDefinition>,
+    @SerialName("max_tokens")
+    val maxTokens: Int,
+)
+
+@Serializable
+data class ToolDefinition(
+    val type: String,
+    val function: FunctionDefinition,
+)
+
+@Serializable
+data class FunctionDefinition(
+    val name: String,
+    val description: String,
+)
+

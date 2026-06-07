@@ -410,15 +410,18 @@ val StarRailShapes = Shapes(
 ```text
 Scaffold
 ├── 背景与星空装饰
-├── 可滚动内容
-│   ├── ChatHeader
-│   ├── CharacterSelector
-│   ├── DateDivider
-│   └── MessageList
+├── HorizontalPager (横向滑动 Page 容器，无切换动画，不启用 beyondViewportPageCount 预载)
+│   └── Page (每个角色)
+│       └── 可滚动内容 (LazyColumn，独立保存滚动状态)
+│           ├── ChatHeader
+│           ├── CharacterSelector (吸顶 stickyHeader)
+│           ├── DateDivider
+│           └── MessageList
 ├── QuickReplyRow
 ├── MessageComposer
 └── NavigationBar
 ```
+
 
 ### 9.1 顶部区域
 
@@ -456,6 +459,10 @@ Scaffold
 - 连续同一发送者的消息可以合并头像和时间，但数据语义不能丢失。
 - 新消息到达时只在用户接近列表底部时自动滚动。
 - 用户正在阅读历史消息时，不得强制抢夺滚动位置。
+- 点击角色选择器中的头像（无论切换角色与否）时，对应消息列表必须自动平滑滚动到最底部。
+- 当聊天列表离开最顶部时，需在页面左下角（底栏上方，适配 bottom 避开输入区并应用 Insets 间距）浮现一键回顶按钮。点击后平滑回滚到最顶部（露出 ChatHeader）。
+  - 视觉与触控规范：回顶按钮使用 `StarRailIconKind.ARROW_UP` 图标（崩铁风格手绘矢量线条），背景采用 M3 的 `surfaceContainerHigh` 并设置透明度（`alpha = 0.88f`），圆角使用 `Shapes.medium`。其最小触控目标大小应保持 48 x 48dp。
+
 
 消息类型建议：
 
@@ -590,10 +597,11 @@ sealed interface ChatMessageUiModel {
 推荐动效：
 
 - 主题切换：颜色渐变 200-300ms。
-- 角色切换：选中指示与内容淡入 180-240ms。
+- 角色切换：Tab 选中瞬间直接跳转，无滑动或淡入动画，以实现即时高响应的秒切切换体验。此外，底层 `HorizontalPager` 不得配置任何预加载机制（如启用 `beyondViewportPageCount`），必须采用默认懒加载，以完全规避多页面同步测量与滚动带来的卡顿（Jank）。
 - 新消息：轻微淡入和位移 160-220ms。
 - 发送按钮：短促缩放或高光反馈，不超过 180ms。
 - 输入中状态：低频率、低对比度动画。
+
 
 禁止：
 

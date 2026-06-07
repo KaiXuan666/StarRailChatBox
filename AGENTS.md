@@ -203,6 +203,8 @@ UI --Action--> ViewModel --StateFlow<UiState>--> UI
 - 持久展示状态、输入值、加载状态、选择状态和可恢复错误属于 `UiState`。
 - 集合优先暴露只读类型；不要把可变集合或 `MutableStateFlow` 暴露给 UI。
 - 状态默认值应使初始渲染有效、可预测。
+- 针对包含多角色的对话主界面等场景，`UiState` 必须支持多角色独立状态管理（如通过 `characterStates: Map<String, CharacterChatState>` 隔离各个角色的消息列表、输入草稿和发送状态），避免状态互锁，支持在等待 AI 回复的过程中立刻切换角色。对外暴露的当前角色属性可通过 Getter 代理动态路由至当前选中的角色状态，以保持对外签名的向下兼容性。
+
 
 ### Action
 
@@ -235,6 +237,8 @@ UI --Action--> ViewModel --StateFlow<UiState>--> UI
 - 不在 Composable 中执行业务请求、持久化或不可重复的副作用；使用
   `LaunchedEffect` 仅处理与 Compose 生命周期相关的 Effect 收集或 UI 行为。
 - `remember` 只保存纯 UI 的短暂状态；业务状态必须提升到 `UiState`。
+- 在 `HorizontalPager` 中加载包含重度 `LazyColumn` 和复杂图文排版的子页面时，**禁止**开启预载参数（如 `beyondViewportPageCount` 大于 0），必须保持默认的按需懒加载。这可规避因从其他 Bottom Tab 路由切回该界面时一帧内同步渲染组合多个重度页面导致的主线程卡顿（Jank）。
+
 
 ## Kotlin Multiplatform 依赖规则
 

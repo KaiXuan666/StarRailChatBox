@@ -224,6 +224,12 @@ private class FakeOpenAiRepository : OpenAiRepository {
             ),
         )
     }
+
+    override suspend fun testToolCallSupport(
+        apiHost: String,
+        apiKey: String,
+        model: String,
+    ): Boolean = false
 }
 
 private fun testConfig() = ModelConfig(

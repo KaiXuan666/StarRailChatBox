@@ -181,6 +181,57 @@ class SettingsViewModelTest {
         assertFalse(viewModel.uiState.value.showApiKey)
     }
 
+    @Test
+    fun saveApiSettingsWithToolCallSupportedPersistsTrue() = runTest {
+        val modelConfigRepository = FakeModelConfigRepository()
+        val openAiRepository = FakeOpenAiRepository(
+            result = ApiResult.Success(emptyList()),
+            toolCallSupportResult = true
+        )
+        val viewModel = createViewModel(
+            repository = openAiRepository,
+            modelConfigRepository = modelConfigRepository,
+            scope = this
+        )
+        viewModel.onAction(SettingsAction.ApiKeyChanged("sk-test"))
+        viewModel.onAction(SettingsAction.SelectModel("model-a"))
+
+        viewModel.onAction(SettingsAction.SaveApiSettingsClicked)
+        advanceUntilIdle()
+
+        val saved = requireNotNull(modelConfigRepository.saved)
+        assertTrue(saved.supportToolCall)
+        assertEquals("https://api.openai.com/v1", openAiRepository.lastHost)
+        assertEquals("sk-test", openAiRepository.lastKey)
+        assertEquals("model-a", openAiRepository.lastModelTested)
+    }
+
+    @Test
+    fun saveApiSettingsWithToolCallNotSupportedPersistsFalse() = runTest {
+        val modelConfigRepository = FakeModelConfigRepository()
+        val openAiRepository = FakeOpenAiRepository(
+            result = ApiResult.Success(emptyList()),
+            toolCallSupportResult = false
+        )
+        val viewModel = createViewModel(
+            repository = openAiRepository,
+            modelConfigRepository = modelConfigRepository,
+            scope = this
+        )
+        viewModel.onAction(SettingsAction.ApiKeyChanged("sk-test"))
+        viewModel.onAction(SettingsAction.SelectModel("model-a"))
+
+        viewModel.onAction(SettingsAction.SaveApiSettingsClicked)
+        advanceUntilIdle()
+
+        val saved = requireNotNull(modelConfigRepository.saved)
+        assertFalse(saved.supportToolCall)
+        assertEquals("https://api.openai.com/v1", openAiRepository.lastHost)
+        assertEquals("sk-test", openAiRepository.lastKey)
+        assertEquals("model-a", openAiRepository.lastModelTested)
+    }
+
+
     private fun createViewModel(
         repository: OpenAiRepository = FakeOpenAiRepository(ApiResult.Success(emptyList())),
         modelConfigRepository: ModelConfigRepository = FakeModelConfigRepository(),
@@ -196,9 +247,11 @@ class SettingsViewModelTest {
 
 private class FakeOpenAiRepository(
     private val result: ApiResult<List<String>>,
+    private val toolCallSupportResult: Boolean = false,
 ) : OpenAiRepository {
     var lastHost: String? = null
     var lastKey: String? = null
+    var lastModelTested: String? = null
 
     override suspend fun getModels(
         apiHost: String,
@@ -214,6 +267,17 @@ private class FakeOpenAiRepository(
         messages: List<ChatMessage>,
     ): ApiResult<ChatCompletionResult> {
         return ApiResult.UnexpectedError("Not used by settings tests.")
+    }
+
+    override suspend fun testToolCallSupport(
+        apiHost: String,
+        apiKey: String,
+        model: String,
+    ): Boolean {
+        lastHost = apiHost
+        lastKey = apiKey
+        lastModelTested = model
+        return toolCallSupportResult
     }
 }
 

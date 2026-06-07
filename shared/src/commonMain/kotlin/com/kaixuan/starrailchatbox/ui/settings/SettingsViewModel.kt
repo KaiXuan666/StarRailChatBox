@@ -165,6 +165,12 @@ class SettingsViewModel(
         _uiState.update { it.copy(isSaving = true) }
         scope().launch {
             try {
+                val supportToolCall = openAiRepository.testToolCallSupport(
+                    apiHost = state.apiHost,
+                    apiKey = state.apiKey,
+                    model = state.selectedModel,
+                )
+
                 modelConfigRepository.saveDefault(
                     ModelConfig(
                         id = DefaultModelConfig.Id,
@@ -176,7 +182,7 @@ class SettingsViewModel(
                         contextWindow = DefaultModelConfig.ContextWindow,
                         maxOutputTokens = DefaultModelConfig.MaxOutputTokens,
                         supportVision = false,
-                        supportToolCall = false,
+                        supportToolCall = supportToolCall,
                         supportReasoning = false,
                         temperature = DefaultModelConfig.Temperature,
                         topP = DefaultModelConfig.TopP,
