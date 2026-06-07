@@ -3,6 +3,7 @@ package com.kaixuan.starrailchatbox.data.api
 import de.jensklingenberg.ktorfit.ktorfit
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.ResponseException
+import com.kaixuan.starrailchatbox.data.model.ModelConfig
 import kotlinx.coroutines.CancellationException
 
 interface OpenAiRepository {
@@ -10,7 +11,20 @@ interface OpenAiRepository {
         apiHost: String,
         apiKey: String,
     ): ApiResult<List<String>>
+
+    suspend fun createChatCompletion(
+        config: ModelConfig,
+        messages: List<ChatMessage>,
+    ): ApiResult<ChatCompletionResult>
 }
+
+data class ChatCompletionResult(
+    val content: String,
+    val finishReason: String?,
+    val promptTokens: Int,
+    val completionTokens: Int,
+    val totalTokens: Int,
+)
 
 class KtorfitOpenAiRepository(
     private val httpClient: HttpClient,
@@ -34,6 +48,49 @@ class KtorfitOpenAiRepository(
                 .sorted()
 
             ApiResult.Success(models)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (error: ResponseException) {
+            ApiResult.HttpError(
+                statusCode = error.response.status.value,
+                message = error.message,
+            )
+        } catch (error: Throwable) {
+            ApiResult.NetworkError(error.message)
+        }
+    }
+
+    override suspend fun createChatCompletion(
+        config: ModelConfig,
+        messages: List<ChatMessage>,
+    ): ApiResult<ChatCompletionResult> {
+        return try {
+            val api = ktorfit {
+                baseUrl(config.baseUrl.normalizedBaseUrl())
+                httpClient(httpClient)
+            }.createOpenAiApi()
+            val response = api.createChatCompletion(
+                authorization = "Bearer ${config.apiKey.trim()}",
+                request = ChatCompletionRequest(
+                    model = config.modelName,
+                    messages = messages,
+                    temperature = config.temperature,
+                    topP = config.topP,
+                    maxTokens = config.maxOutputTokens,
+                ),
+            )
+            val choice = response.choices.firstOrNull()
+                ?: return ApiResult.UnexpectedError("Chat completion returned no choices.")
+            val usage = response.usage
+            ApiResult.Success(
+                ChatCompletionResult(
+                    content = choice.message.content,
+                    finishReason = choice.finishReason,
+                    promptTokens = usage?.promptTokens ?: 0,
+                    completionTokens = usage?.completionTokens ?: 0,
+                    totalTokens = usage?.totalTokens ?: 0,
+                ),
+            )
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (error: ResponseException) {

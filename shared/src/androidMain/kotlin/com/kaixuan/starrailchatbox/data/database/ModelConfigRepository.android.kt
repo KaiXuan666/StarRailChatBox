@@ -6,6 +6,7 @@ import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.kaixuan.starrailchatbox.data.character.DefaultCharacterRepository
 import com.kaixuan.starrailchatbox.data.character.FileCharacterAvatarStorage
 import com.kaixuan.starrailchatbox.data.character.RoomCharacterStorage
+import com.kaixuan.starrailchatbox.data.chat.RoomChatSessionRepository
 import com.kaixuan.starrailchatbox.data.model.RoomModelConfigRepository
 
 fun createPersistentRepositories(
@@ -32,5 +33,6 @@ fun createPersistentRepositories(
                 ),
             ),
         ),
+        chatSessionRepository = RoomChatSessionRepository(database),
     )
 }

@@ -4,11 +4,7 @@ import androidx.compose.runtime.Immutable
 import com.kaixuan.starrailchatbox.data.character.Character
 
 enum class ChatCopy {
-    WELCOME,
-    USER_TIRED,
-    COMFORT,
-    USER_THANKS,
-    CARE,
+    EMPTY_GREETING,
 }
 
 sealed interface MessageContent {
@@ -41,45 +37,14 @@ sealed interface ChatMessageUiModel {
 data class ChatUiState(
     val characters: List<Character> = emptyList(),
     val selectedCharacterId: String? = null,
-    val messages: List<ChatMessageUiModel> = initialMessages,
+    val activeSessionId: String? = null,
+    val messages: List<ChatMessageUiModel> = emptyList(),
     val messageDraft: String = "",
     val isSending: Boolean = false,
     val isLoadingCharacters: Boolean = true,
+    val isLoadingSession: Boolean = false,
 ) {
     val selectedCharacter: Character?
         get() = characters.firstOrNull { it.id == selectedCharacterId }
             ?: characters.firstOrNull()
 }
-
-private val initialMessages = listOf(
-    ChatMessageUiModel.Received(
-        id = "message-1",
-        timestamp = "10:21",
-        content = MessageContent.Resource(ChatCopy.WELCOME),
-        senderId = "流萤",
-    ),
-    ChatMessageUiModel.Sent(
-        id = "message-2",
-        timestamp = "10:22",
-        content = MessageContent.Resource(ChatCopy.USER_TIRED),
-        isRead = true,
-    ),
-    ChatMessageUiModel.Received(
-        id = "message-3",
-        timestamp = "10:23",
-        content = MessageContent.Resource(ChatCopy.COMFORT),
-        senderId = "流萤",
-    ),
-    ChatMessageUiModel.Sent(
-        id = "message-4",
-        timestamp = "10:24",
-        content = MessageContent.Resource(ChatCopy.USER_THANKS),
-        isRead = true,
-    ),
-    ChatMessageUiModel.Received(
-        id = "message-5",
-        timestamp = "10:25",
-        content = MessageContent.Resource(ChatCopy.CARE),
-        senderId = "流萤",
-    ),
-)

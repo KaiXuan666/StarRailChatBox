@@ -11,6 +11,8 @@ import com.kaixuan.starrailchatbox.data.character.DefaultCharacterRepository
 import com.kaixuan.starrailchatbox.data.character.InMemoryCharacterStorage
 import com.kaixuan.starrailchatbox.data.model.InMemoryModelConfigRepository
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
+import com.kaixuan.starrailchatbox.data.chat.ChatSessionRepository
+import com.kaixuan.starrailchatbox.data.chat.InMemoryChatSessionRepository
 import com.kaixuan.starrailchatbox.data.settings.ProfileStore
 import com.kaixuan.starrailchatbox.data.settings.createProfileStore
 import com.kaixuan.starrailchatbox.design.StarRailTheme
@@ -33,10 +35,25 @@ fun App(
     characterRepository: CharacterRepository = remember {
         DefaultCharacterRepository(InMemoryCharacterStorage())
     },
+    chatSessionRepository: ChatSessionRepository = remember {
+        InMemoryChatSessionRepository()
+    },
 ) {
-    val koinApplication = remember(modelConfigRepository, profileStore) {
+    val koinApplication = remember(
+        modelConfigRepository,
+        profileStore,
+        characterRepository,
+        chatSessionRepository,
+    ) {
         koinApplication {
-            modules(appModule(modelConfigRepository, profileStore))
+            modules(
+                appModule(
+                    modelConfigRepository,
+                    profileStore,
+                    characterRepository,
+                    chatSessionRepository,
+                ),
+            )
         }
     }
     DisposableEffect(koinApplication) {
@@ -48,7 +65,7 @@ fun App(
     val mainViewModel = viewModel { MainViewModel() }
     val mainState by mainViewModel.uiState.collectAsStateWithLifecycle()
 
-    val chatViewModel = viewModel { ChatViewModel(characterRepository) }
+    val chatViewModel = viewModel { koinApplication.koin.get<ChatViewModel>() }
     val chatState by chatViewModel.uiState.collectAsStateWithLifecycle()
 
     val settingsViewModel = viewModel { koinApplication.koin.get<SettingsViewModel>() }

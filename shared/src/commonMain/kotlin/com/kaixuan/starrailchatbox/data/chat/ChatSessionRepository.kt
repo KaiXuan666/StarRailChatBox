@@ -1,0 +1,185 @@
+package com.kaixuan.starrailchatbox.data.chat
+
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
+import kotlin.random.Random
+import kotlin.time.Clock
+
+data class ChatSession(
+    val id: String,
+    val title: String,
+    val agentId: String,
+    val modelConfigId: String?,
+    val systemPromptSnapshot: String,
+    val customSystemPrompt: String?,
+    val maxContextMessageCount: Int?,
+    val lastMessageAt: Long,
+)
+
+data class StoredChatMessage(
+    val id: String,
+    val sessionId: String,
+    val seq: Long,
+    val role: ChatRole,
+    val content: String,
+    val status: ChatMessageStatus,
+    val errorCode: String? = null,
+    val errorMessage: String? = null,
+    val modelConfigId: String? = null,
+    val modelNameSnapshot: String? = null,
+    val promptTokens: Int = 0,
+    val completionTokens: Int = 0,
+    val totalTokens: Int = 0,
+    val estimatedTokens: Int = 0,
+    val isContextExcluded: Boolean = false,
+    val createdAt: Long,
+)
+
+enum class ChatRole(val apiValue: String) {
+    USER("user"),
+    ASSISTANT("assistant"),
+}
+
+enum class ChatMessageStatus(val storageValue: String) {
+    COMPLETED("completed"),
+    FAILED("failed"),
+}
+
+data class NewChatSession(
+    val id: String,
+    val title: String,
+    val agentId: String,
+    val modelConfigId: String?,
+    val systemPromptSnapshot: String,
+    val maxContextMessageCount: Int?,
+    val createdAt: Long,
+)
+
+data class NewChatMessage(
+    val id: String,
+    val sessionId: String,
+    val role: ChatRole,
+    val content: String,
+    val status: ChatMessageStatus,
+    val modelConfigId: String?,
+    val modelNameSnapshot: String?,
+    val promptTokens: Int = 0,
+    val completionTokens: Int = 0,
+    val totalTokens: Int = 0,
+    val errorCode: String? = null,
+    val errorMessage: String? = null,
+    val createdAt: Long,
+)
+
+interface ChatSessionRepository {
+    suspend fun findLatestSession(agentId: String): ChatSession?
+
+    fun observeMessages(sessionId: String): Flow<List<StoredChatMessage>>
+
+    suspend fun findContextMessages(
+        sessionId: String,
+        maxHistoryMessageCount: Int?,
+    ): List<StoredChatMessage>
+
+    suspend fun createSessionWithMessage(
+        session: NewChatSession,
+        message: NewChatMessage,
+    )
+
+    suspend fun appendMessage(message: NewChatMessage)
+}
+
+class InMemoryChatSessionRepository : ChatSessionRepository {
+    private val sessions = MutableStateFlow<List<ChatSession>>(emptyList())
+    private val messages = MutableStateFlow<List<StoredChatMessage>>(emptyList())
+
+    override suspend fun findLatestSession(agentId: String): ChatSession? {
+        return sessions.value
+            .filter { it.agentId == agentId }
+            .maxByOrNull(ChatSession::lastMessageAt)
+    }
+
+    override fun observeMessages(sessionId: String): Flow<List<StoredChatMessage>> {
+        return messages.map { stored ->
+            stored.filter { it.sessionId == sessionId }.sortedBy(StoredChatMessage::seq)
+        }
+    }
+
+    override suspend fun findContextMessages(
+        sessionId: String,
+        maxHistoryMessageCount: Int?,
+    ): List<StoredChatMessage> {
+        val context = messages.value.filter {
+            it.sessionId == sessionId &&
+                it.status == ChatMessageStatus.COMPLETED &&
+                !it.isContextExcluded
+        }.sortedBy(StoredChatMessage::seq)
+        return maxHistoryMessageCount
+            ?.takeIf { it >= 0 }
+            ?.let(context::takeLast)
+            ?: context
+    }
+
+    override suspend fun createSessionWithMessage(
+        session: NewChatSession,
+        message: NewChatMessage,
+    ) {
+        sessions.update {
+            it + session.toStored(lastMessageAt = message.createdAt)
+        }
+        appendMessage(message)
+    }
+
+    override suspend fun appendMessage(message: NewChatMessage) {
+        val seq = messages.value
+            .filter { it.sessionId == message.sessionId }
+            .maxOfOrNull(StoredChatMessage::seq)
+            ?.plus(1)
+            ?: 1
+        messages.update { it + message.toStored(seq) }
+        sessions.update { stored ->
+            stored.map {
+                if (it.id == message.sessionId) {
+                    it.copy(lastMessageAt = message.createdAt)
+                } else {
+                    it
+                }
+            }
+        }
+    }
+}
+
+fun newChatId(
+    prefix: String,
+    now: Long = Clock.System.now().toEpochMilliseconds(),
+): String = "$prefix-$now-${Random.nextLong().toULong()}"
+
+private fun NewChatSession.toStored(lastMessageAt: Long) = ChatSession(
+    id = id,
+    title = title,
+    agentId = agentId,
+    modelConfigId = modelConfigId,
+    systemPromptSnapshot = systemPromptSnapshot,
+    customSystemPrompt = null,
+    maxContextMessageCount = maxContextMessageCount,
+    lastMessageAt = lastMessageAt,
+)
+
+private fun NewChatMessage.toStored(seq: Long) = StoredChatMessage(
+    id = id,
+    sessionId = sessionId,
+    seq = seq,
+    role = role,
+    content = content,
+    status = status,
+    errorCode = errorCode,
+    errorMessage = errorMessage,
+    modelConfigId = modelConfigId,
+    modelNameSnapshot = modelNameSnapshot,
+    promptTokens = promptTokens,
+    completionTokens = completionTokens,
+    totalTokens = totalTokens,
+    createdAt = createdAt,
+)

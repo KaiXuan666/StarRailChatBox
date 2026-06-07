@@ -2,6 +2,8 @@ package com.kaixuan.starrailchatbox.ui.settings
 
 import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.api.OpenAiRepository
+import com.kaixuan.starrailchatbox.data.api.ChatCompletionResult
+import com.kaixuan.starrailchatbox.data.api.ChatMessage
 import com.kaixuan.starrailchatbox.data.model.DefaultModelConfig
 import com.kaixuan.starrailchatbox.data.model.ModelConfig
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
@@ -205,6 +207,13 @@ private class FakeOpenAiRepository(
         lastHost = apiHost
         lastKey = apiKey
         return result
+    }
+
+    override suspend fun createChatCompletion(
+        config: ModelConfig,
+        messages: List<ChatMessage>,
+    ): ApiResult<ChatCompletionResult> {
+        return ApiResult.UnexpectedError("Not used by settings tests.")
     }
 }
 

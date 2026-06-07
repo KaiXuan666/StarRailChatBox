@@ -18,6 +18,11 @@
     <string name="message_comfort">没关系的，有些情绪需要被看见，\n才能慢慢放下哦。</string>
     <string name="message_user_thanks">谢谢你，总是能让我安心下来。</string>
     <string name="message_care">你已经很努力了，别忘了照顾自己呀。\n要不要我陪你一起整理一下心情？</string>
+    <string name="chat_empty_greeting">今天要聊点什么呢？</string>
+    <string name="chat_new_session_title">新对话</string>
+    <string name="chat_model_config_required">请先在 API 设置中配置可用模型</string>
+    <string name="chat_request_failed">消息发送失败，请检查网络和 API 配置</string>
+    <string name="chat_empty_response">模型没有返回有效内容</string>
     <string name="quick_reply_mood">陪我整理心情</string>
     <string name="quick_reply_today">聊聊今天</string>
     <string name="quick_reply_story">继续剧情</string>

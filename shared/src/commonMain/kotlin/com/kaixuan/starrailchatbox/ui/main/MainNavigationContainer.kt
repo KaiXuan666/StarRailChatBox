@@ -71,6 +71,9 @@ import starrailchatbox.shared.generated.resources.settings_api_no_models
 import starrailchatbox.shared.generated.resources.settings_api_save_failed
 import starrailchatbox.shared.generated.resources.theme_changed
 import starrailchatbox.shared.generated.resources.voice_not_ready
+import starrailchatbox.shared.generated.resources.chat_model_config_required
+import starrailchatbox.shared.generated.resources.chat_request_failed
+import starrailchatbox.shared.generated.resources.chat_empty_response
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
@@ -112,6 +115,9 @@ fun MainRoute(
         EffectMessage.ATTACH_NOT_READY to stringResource(Res.string.attach_not_ready),
         EffectMessage.EMOJI_NOT_READY to stringResource(Res.string.emoji_not_ready),
         EffectMessage.MICROPHONE_NOT_READY to stringResource(Res.string.microphone_not_ready),
+        EffectMessage.MODEL_CONFIG_REQUIRED to stringResource(Res.string.chat_model_config_required),
+        EffectMessage.CHAT_REQUEST_FAILED to stringResource(Res.string.chat_request_failed),
+        EffectMessage.CHAT_EMPTY_RESPONSE to stringResource(Res.string.chat_empty_response),
     )
     val settingsEffectMessages = mapOf(
         SettingsEffectMessage.SETTINGS_API_NOT_READY to stringResource(Res.string.settings_api_not_ready),

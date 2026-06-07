@@ -2,16 +2,47 @@ package com.kaixuan.starrailchatbox.ui.chat
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kaixuan.starrailchatbox.data.api.ApiResult
+import com.kaixuan.starrailchatbox.data.api.ChatCompletionResult
+import com.kaixuan.starrailchatbox.data.api.OpenAiRepository
+import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.data.character.CharacterRepository
+import com.kaixuan.starrailchatbox.data.chat.ChatMessageStatus
+import com.kaixuan.starrailchatbox.data.chat.ChatRole
+import com.kaixuan.starrailchatbox.data.chat.ChatSession
+import com.kaixuan.starrailchatbox.data.chat.ChatSessionRepository
+import com.kaixuan.starrailchatbox.data.chat.NewChatMessage
+import com.kaixuan.starrailchatbox.data.chat.NewChatSession
+import com.kaixuan.starrailchatbox.data.chat.StoredChatMessage
+import com.kaixuan.starrailchatbox.data.chat.buildChatContext
+import com.kaixuan.starrailchatbox.data.chat.newChatId
+import com.kaixuan.starrailchatbox.data.model.ModelConfig
+import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
+import org.jetbrains.compose.resources.getString
+import starrailchatbox.shared.generated.resources.Res
+import starrailchatbox.shared.generated.resources.chat_new_session_title
 
 class ChatViewModel(
     private val characterRepository: CharacterRepository,
+    private val chatSessionRepository: ChatSessionRepository,
+    private val modelConfigRepository: ModelConfigRepository,
+    private val openAiRepository: OpenAiRepository,
+    private val currentTimeMillis: () -> Long = {
+        Clock.System.now().toEpochMilliseconds()
+    },
+    private val idGenerator: (String) -> String = { prefix -> newChatId(prefix) },
+    private val sessionTitleProvider: suspend () -> String = {
+        getString(Res.string.chat_new_session_title)
+    },
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState = _uiState.asStateFlow()
@@ -19,77 +50,308 @@ class ChatViewModel(
     private val _effects = Channel<ChatEffect>(Channel.BUFFERED)
     val effects = _effects.receiveAsFlow()
 
-    private var sentMessageCount = 0
+    private var activeSession: ChatSession? = null
+    private var sessionJob: Job? = null
 
     init {
         viewModelScope.launch {
             val characters = runCatching { characterRepository.loadCharacters() }
                 .getOrDefault(emptyList())
-            _uiState.update { state ->
-                state.copy(
+            val selectedId = characters.firstOrNull { it.name == "流萤" }?.id
+                ?: characters.firstOrNull()?.id
+            _uiState.update {
+                it.copy(
                     characters = characters,
-                    selectedCharacterId = state.selectedCharacterId
-                        ?.takeIf { selectedId -> characters.any { it.id == selectedId } }
-                        ?: characters.firstOrNull { it.id == "流萤" }?.id
-                        ?: characters.firstOrNull()?.id,
+                    selectedCharacterId = selectedId,
                     isLoadingCharacters = false,
                 )
             }
+            selectedId?.let(::loadLatestSession)
         }
     }
 
     fun onAction(action: ChatAction) {
         when (action) {
-            is ChatAction.CharacterSelected -> {
-                _uiState.update { state ->
-                    if (state.characters.any { it.id == action.characterId }) {
-                        state.copy(selectedCharacterId = action.characterId)
-                    } else {
-                        state
-                    }
-                }
-            }
-
+            is ChatAction.CharacterSelected -> selectCharacter(action.characterId)
             is ChatAction.MessageChanged -> {
                 _uiState.update { it.copy(messageDraft = action.message) }
             }
-
             ChatAction.SendClicked -> sendMessage()
-
             is ChatAction.QuickReplyClicked -> {
                 _uiState.update { it.copy(messageDraft = action.message) }
             }
-
             is ChatAction.HeaderActionClicked -> handleHeaderAction(action.action)
             is ChatAction.ComposerActionClicked -> handleComposerAction(action.action)
         }
     }
 
-    private fun sendMessage() {
-        val message = uiState.value.messageDraft.trim()
-        if (message.isEmpty() || uiState.value.isSending) return
+    private fun selectCharacter(characterId: String) {
+        val state = uiState.value
+        if (state.isSending || state.selectedCharacterId == characterId) return
+        if (state.characters.none { it.id == characterId }) return
+        _uiState.update {
+            it.copy(
+                selectedCharacterId = characterId,
+                activeSessionId = null,
+                messages = emptyList(),
+            )
+        }
+        loadLatestSession(characterId)
+    }
 
-        sentMessageCount += 1
-        _uiState.update { state ->
-            state.copy(
-                messages = state.messages + ChatMessageUiModel.Sent(
-                    id = "sent-$sentMessageCount",
-                    timestamp = "10:${25 + sentMessageCount}",
-                    content = MessageContent.Custom(message),
-                    isRead = true,
+    private fun loadLatestSession(characterId: String) {
+        sessionJob?.cancel()
+        sessionJob = viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingSession = true) }
+            val session = runCatching {
+                chatSessionRepository.findLatestSession(characterId)
+            }.getOrNull()
+            if (uiState.value.selectedCharacterId != characterId) return@launch
+            activeSession = session
+            if (session == null) {
+                _uiState.update {
+                    it.copy(
+                        activeSessionId = null,
+                        messages = listOf(emptyGreeting(characterId)),
+                        isLoadingSession = false,
+                    )
+                }
+                return@launch
+            }
+            _uiState.update {
+                it.copy(
+                    activeSessionId = session.id,
+                    messages = emptyList(),
+                    isLoadingSession = false,
+                )
+            }
+            chatSessionRepository.observeMessages(session.id).collect { messages ->
+                if (uiState.value.selectedCharacterId == characterId) {
+                    _uiState.update {
+                        it.copy(messages = messages.toUiModels(characterId))
+                    }
+                }
+            }
+        }
+    }
+
+    private fun sendMessage() {
+        val state = uiState.value
+        val content = state.messageDraft.trim()
+        val character = state.selectedCharacter
+        if (
+            content.isEmpty() ||
+            state.isSending ||
+            state.isLoadingSession ||
+            character == null
+        ) {
+            return
+        }
+        _uiState.update { it.copy(messageDraft = "", isSending = true) }
+        viewModelScope.launch {
+            try {
+                sendMessage(character, content)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Throwable) {
+                emitMessage(EffectMessage.CHAT_REQUEST_FAILED)
+            } finally {
+                _uiState.update { it.copy(isSending = false) }
+            }
+        }
+    }
+
+    private suspend fun sendMessage(
+        character: Character,
+        content: String,
+    ) {
+        val config = modelConfigRepository.getDefault()
+            ?.takeIf(ModelConfig::isUsable)
+        val previousSession = activeSession
+        val history = previousSession?.let {
+            chatSessionRepository.findContextMessages(
+                sessionId = it.id,
+                maxHistoryMessageCount = null,
+            )
+        }.orEmpty()
+        val now = currentTimeMillis()
+        val session = previousSession ?: NewChatSession(
+            id = idGenerator("session"),
+            title = sessionTitleProvider(),
+            agentId = character.id,
+            modelConfigId = config?.id,
+            systemPromptSnapshot = character.prompt,
+            maxContextMessageCount = null,
+            createdAt = now,
+        ).let { newSession ->
+            val userMessage = newUserMessage(
+                sessionId = newSession.id,
+                content = content,
+                config = config,
+                now = now,
+            )
+            chatSessionRepository.createSessionWithMessage(newSession, userMessage)
+            newSession.toDomain(lastMessageAt = now).also {
+                activeSession = it
+                observeCreatedSession(it, character.id)
+            }
+        }
+        if (previousSession != null) {
+            chatSessionRepository.appendMessage(
+                newUserMessage(
+                    sessionId = session.id,
+                    content = content,
+                    config = config,
+                    now = now,
                 ),
-                messageDraft = "",
+            )
+        }
+
+        if (config == null) {
+            appendFailedAssistant(
+                session = session,
+                config = null,
+                errorCode = "model_config_required",
+                errorMessage = "A usable model configuration is required.",
+            )
+            emitMessage(EffectMessage.MODEL_CONFIG_REQUIRED)
+            return
+        }
+
+        val prompt = session.customSystemPrompt
+            ?.takeIf(String::isNotBlank)
+            ?: session.systemPromptSnapshot
+        val requestMessages = buildChatContext(
+            systemPrompt = prompt,
+            history = history,
+            currentUserMessage = content,
+            maxHistoryMessageCount = session.maxContextMessageCount,
+        )
+        when (val result = openAiRepository.createChatCompletion(config, requestMessages)) {
+            is ApiResult.Success -> handleSuccess(session, config, result.value)
+            is ApiResult.HttpError -> handleFailure(
+                session,
+                config,
+                "http_${result.statusCode}",
+                result.message,
+            )
+            is ApiResult.NetworkError -> handleFailure(
+                session,
+                config,
+                "network_error",
+                result.message,
+            )
+            is ApiResult.UnexpectedError -> handleFailure(
+                session,
+                config,
+                "unexpected_error",
+                result.message,
             )
         }
     }
+
+    private fun observeCreatedSession(session: ChatSession, characterId: String) {
+        sessionJob?.cancel()
+        sessionJob = viewModelScope.launch {
+            _uiState.update {
+                it.copy(activeSessionId = session.id, isLoadingSession = false)
+            }
+            chatSessionRepository.observeMessages(session.id).collect { messages ->
+                if (uiState.value.selectedCharacterId == characterId) {
+                    _uiState.update {
+                        it.copy(messages = messages.toUiModels(characterId))
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun handleSuccess(
+        session: ChatSession,
+        config: ModelConfig,
+        result: ChatCompletionResult,
+    ) {
+        val response = result.content.trim()
+        if (response.isEmpty()) {
+            appendFailedAssistant(
+                session,
+                config,
+                errorCode = "empty_response",
+                errorMessage = "Chat completion returned empty content.",
+            )
+            emitMessage(EffectMessage.CHAT_EMPTY_RESPONSE)
+            return
+        }
+        chatSessionRepository.appendMessage(
+            NewChatMessage(
+                id = idGenerator("message"),
+                sessionId = session.id,
+                role = ChatRole.ASSISTANT,
+                content = response,
+                status = ChatMessageStatus.COMPLETED,
+                modelConfigId = config.id,
+                modelNameSnapshot = config.modelName,
+                promptTokens = result.promptTokens,
+                completionTokens = result.completionTokens,
+                totalTokens = result.totalTokens,
+                createdAt = currentTimeMillis(),
+            ),
+        )
+    }
+
+    private suspend fun handleFailure(
+        session: ChatSession,
+        config: ModelConfig,
+        errorCode: String,
+        errorMessage: String?,
+    ) {
+        appendFailedAssistant(session, config, errorCode, errorMessage)
+        emitMessage(EffectMessage.CHAT_REQUEST_FAILED)
+    }
+
+    private suspend fun appendFailedAssistant(
+        session: ChatSession,
+        config: ModelConfig?,
+        errorCode: String,
+        errorMessage: String?,
+    ) {
+        chatSessionRepository.appendMessage(
+            NewChatMessage(
+                id = idGenerator("message"),
+                sessionId = session.id,
+                role = ChatRole.ASSISTANT,
+                content = "",
+                status = ChatMessageStatus.FAILED,
+                errorCode = errorCode,
+                errorMessage = errorMessage,
+                modelConfigId = config?.id,
+                modelNameSnapshot = config?.modelName,
+                createdAt = currentTimeMillis(),
+            ),
+        )
+    }
+
+    private fun newUserMessage(
+        sessionId: String,
+        content: String,
+        config: ModelConfig?,
+        now: Long,
+    ) = NewChatMessage(
+        id = idGenerator("message"),
+        sessionId = sessionId,
+        role = ChatRole.USER,
+        content = content,
+        status = ChatMessageStatus.COMPLETED,
+        modelConfigId = config?.id,
+        modelNameSnapshot = config?.modelName,
+        createdAt = now,
+    )
 
     private fun handleHeaderAction(action: HeaderAction) {
         when (action) {
             HeaderAction.VOICE -> emitMessage(EffectMessage.VOICE_NOT_READY)
             HeaderAction.PROFILE -> emitMessage(EffectMessage.PROFILE_NOT_READY)
-            HeaderAction.SETTINGS -> {
-                // 点击设置按钮时，由 UI 收集并转派给 MainAction.NavigationSelected(Route.Settings)
-            }
+            HeaderAction.SETTINGS -> Unit
         }
     }
 
@@ -106,4 +368,58 @@ class ChatViewModel(
     private fun emitMessage(message: EffectMessage) {
         _effects.trySend(ChatEffect.ShowMessage(message))
     }
+}
+
+private fun ModelConfig.isUsable(): Boolean {
+    return enabled &&
+        baseUrl.isNotBlank() &&
+        apiKey.isNotBlank() &&
+        modelName.isNotBlank()
+}
+
+private fun NewChatSession.toDomain(lastMessageAt: Long) = ChatSession(
+    id = id,
+    title = title,
+    agentId = agentId,
+    modelConfigId = modelConfigId,
+    systemPromptSnapshot = systemPromptSnapshot,
+    customSystemPrompt = null,
+    maxContextMessageCount = maxContextMessageCount,
+    lastMessageAt = lastMessageAt,
+)
+
+private fun emptyGreeting(characterId: String) = ChatMessageUiModel.Received(
+    id = "empty-greeting:$characterId",
+    timestamp = "",
+    content = MessageContent.Resource(ChatCopy.EMPTY_GREETING),
+    senderId = characterId,
+)
+
+private fun List<StoredChatMessage>.toUiModels(
+    characterId: String,
+): List<ChatMessageUiModel> {
+    return filter { it.status == ChatMessageStatus.COMPLETED }.map { message ->
+        when (message.role) {
+            ChatRole.USER -> ChatMessageUiModel.Sent(
+                id = message.id,
+                timestamp = message.createdAt.toTimeLabel(),
+                content = MessageContent.Custom(message.content),
+                isRead = true,
+            )
+            ChatRole.ASSISTANT -> ChatMessageUiModel.Received(
+                id = message.id,
+                timestamp = message.createdAt.toTimeLabel(),
+                content = MessageContent.Custom(message.content),
+                senderId = characterId,
+            )
+        }
+    }
+}
+
+private fun Long.toTimeLabel(): String {
+    val minutesInDay = ((this / 60_000L) % (24 * 60)).toInt()
+    val hours = minutesInDay / 60
+    val minutes = minutesInDay % 60
+    return hours.toString().padStart(2, '0') + ":" +
+        minutes.toString().padStart(2, '0')
 }

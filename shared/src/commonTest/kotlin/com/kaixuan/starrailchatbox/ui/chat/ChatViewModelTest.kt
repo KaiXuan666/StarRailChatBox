@@ -1,13 +1,21 @@
 package com.kaixuan.starrailchatbox.ui.chat
 
+import com.kaixuan.starrailchatbox.data.api.ApiResult
+import com.kaixuan.starrailchatbox.data.api.ChatCompletionResult
+import com.kaixuan.starrailchatbox.data.api.ChatMessage
+import com.kaixuan.starrailchatbox.data.api.OpenAiRepository
 import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.data.character.CharacterRepository
+import com.kaixuan.starrailchatbox.data.chat.InMemoryChatSessionRepository
+import com.kaixuan.starrailchatbox.data.model.InMemoryModelConfigRepository
+import com.kaixuan.starrailchatbox.data.model.ModelConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.setMain
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -15,7 +23,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
-import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ChatViewModelTest {
@@ -32,70 +39,118 @@ class ChatViewModelTest {
     }
 
     @Test
-    fun initialStateIsReadyToRender() = runTest {
-        val state = createViewModel().also { runCurrent() }.uiState.value
+    fun noSessionShowsNonPersistentGreeting() = runTest {
+        val fixture = createFixture()
+        advanceUntilIdle()
 
-        assertEquals("流萤", state.selectedCharacter?.name)
-        assertEquals(2, state.characters.size)
-        assertEquals(5, state.messages.size)
-        assertEquals("", state.messageDraft)
-        assertFalse(state.isSending)
-        assertFalse(state.isLoadingCharacters)
+        val state = fixture.viewModel.uiState.value
+        val greeting = assertIs<ChatMessageUiModel.Received>(state.messages.single())
+        assertEquals(MessageContent.Resource(ChatCopy.EMPTY_GREETING), greeting.content)
+        assertEquals(null, state.activeSessionId)
+        assertFalse(state.isLoadingSession)
     }
 
     @Test
-    fun characterSelectionUpdatesState() = runTest {
-        val viewModel = createViewModel()
-        runCurrent()
+    fun firstSendCreatesSessionAndStoresBothMessages() = runTest {
+        val fixture = createFixture()
+        advanceUntilIdle()
 
-        viewModel.onAction(ChatAction.CharacterSelected("黄泉"))
+        fixture.viewModel.onAction(ChatAction.MessageChanged("  你好  "))
+        fixture.viewModel.onAction(ChatAction.SendClicked)
+        advanceUntilIdle()
 
-        assertEquals("黄泉", viewModel.uiState.value.selectedCharacter?.name)
+        val session = requireNotNull(
+            fixture.sessions.findLatestSession("builtin:流萤"),
+        )
+        assertEquals("新对话", session.title)
+        assertEquals("role prompt", session.systemPromptSnapshot)
+        assertEquals(
+            listOf("system" to "role prompt", "user" to "你好"),
+            fixture.api.requests.single().map { it.role to it.content },
+        )
+        assertEquals(
+            listOf("你好", "你好呀"),
+            fixture.sessions.observeMessages(session.id).first().map { it.content },
+        )
+        assertEquals("", fixture.viewModel.uiState.value.messageDraft)
+        assertFalse(fixture.viewModel.uiState.value.isSending)
     }
 
     @Test
-    fun quickReplyPopulatesComposer() {
-        val viewModel = createViewModel()
+    fun subsequentSendReusesSessionAndIncludesPreviousConversation() = runTest {
+        val fixture = createFixture()
+        advanceUntilIdle()
 
-        viewModel.onAction(ChatAction.QuickReplyClicked("聊聊今天"))
+        fixture.send("第一句")
+        advanceUntilIdle()
+        fixture.send("第二句")
+        advanceUntilIdle()
 
-        assertEquals("聊聊今天", viewModel.uiState.value.messageDraft)
+        assertEquals(
+            listOf(
+                "system" to "role prompt",
+                "user" to "第一句",
+                "assistant" to "你好呀",
+                "user" to "第二句",
+            ),
+            fixture.api.requests.last().map { it.role to it.content },
+        )
     }
 
     @Test
-    fun sendAddsMessageAndClearsComposer() {
-        val viewModel = createViewModel()
-        viewModel.onAction(ChatAction.MessageChanged("  今天好多了  "))
+    fun missingModelConfigKeepsUserMessageAndEmitsEffect() = runTest {
+        val fixture = createFixture(config = null)
+        advanceUntilIdle()
+        fixture.send("不要丢掉")
+        advanceUntilIdle()
 
+        val session = requireNotNull(
+            fixture.sessions.findLatestSession("builtin:流萤"),
+        )
+        val stored = fixture.sessions.observeMessages(session.id).first()
+        assertEquals(2, stored.size)
+        assertEquals("不要丢掉", stored.first().content)
+        assertEquals("model_config_required", stored.last().errorCode)
+        assertEquals(
+            ChatEffect.ShowMessage(EffectMessage.MODEL_CONFIG_REQUIRED),
+            fixture.viewModel.effects.first(),
+        )
+    }
+
+    private fun createFixture(
+        config: ModelConfig? = testConfig(),
+    ): Fixture {
+        val sessions = InMemoryChatSessionRepository()
+        val api = FakeOpenAiRepository()
+        var id = 0
+        val viewModel = ChatViewModel(
+            characterRepository = FakeCharacterRepository,
+            chatSessionRepository = sessions,
+            modelConfigRepository = InMemoryModelConfigRepository(config),
+            openAiRepository = api,
+            currentTimeMillis = { 60_000L },
+            idGenerator = { prefix -> "$prefix-${++id}" },
+            sessionTitleProvider = { "新对话" },
+        )
+        return Fixture(viewModel, sessions, api)
+    }
+}
+
+private data class Fixture(
+    val viewModel: ChatViewModel,
+    val sessions: InMemoryChatSessionRepository,
+    val api: FakeOpenAiRepository,
+) {
+    fun send(content: String) {
+        viewModel.onAction(ChatAction.MessageChanged(content))
         viewModel.onAction(ChatAction.SendClicked)
-
-        val state = viewModel.uiState.value
-        val sentMessage = assertIs<ChatMessageUiModel.Sent>(state.messages.last())
-        assertEquals(MessageContent.Custom("今天好多了"), sentMessage.content)
-        assertEquals("", state.messageDraft)
-        assertTrue(sentMessage.isRead)
     }
-
-    @Test
-    fun emptyMessageIsIgnored() {
-        val viewModel = createViewModel()
-        val initialCount = viewModel.uiState.value.messages.size
-        viewModel.onAction(ChatAction.MessageChanged("   "))
-
-        viewModel.onAction(ChatAction.SendClicked)
-
-        assertEquals(initialCount, viewModel.uiState.value.messages.size)
-    }
-
-    private fun createViewModel() = ChatViewModel(
-        characterRepository = FakeCharacterRepository,
-    )
 }
 
 private object FakeCharacterRepository : CharacterRepository {
     override suspend fun loadCharacters(): List<Character> = listOf(
-        Character("流萤", "流萤", "prompt", byteArrayOf()),
-        Character("黄泉", "黄泉", "prompt", byteArrayOf()),
+        Character("builtin:流萤", "流萤", "role prompt", byteArrayOf()),
+        Character("builtin:黄泉", "黄泉", "another prompt", byteArrayOf()),
     )
 
     override suspend fun addCharacter(
@@ -104,3 +159,45 @@ private object FakeCharacterRepository : CharacterRepository {
         avatarBytes: ByteArray,
     ): Character = Character(name, name, prompt, avatarBytes)
 }
+
+private class FakeOpenAiRepository : OpenAiRepository {
+    val requests = mutableListOf<List<ChatMessage>>()
+
+    override suspend fun getModels(
+        apiHost: String,
+        apiKey: String,
+    ): ApiResult<List<String>> = ApiResult.Success(emptyList())
+
+    override suspend fun createChatCompletion(
+        config: ModelConfig,
+        messages: List<ChatMessage>,
+    ): ApiResult<ChatCompletionResult> {
+        requests += messages
+        return ApiResult.Success(
+            ChatCompletionResult(
+                content = "你好呀",
+                finishReason = "stop",
+                promptTokens = 10,
+                completionTokens = 2,
+                totalTokens = 12,
+            ),
+        )
+    }
+}
+
+private fun testConfig() = ModelConfig(
+    id = "default",
+    provider = "custom",
+    name = "Test",
+    baseUrl = "https://example.com/v1",
+    apiKey = "test-key",
+    modelName = "test-model",
+    contextWindow = 128_000,
+    maxOutputTokens = 4_096,
+    supportVision = false,
+    supportToolCall = false,
+    supportReasoning = false,
+    temperature = 0.7,
+    topP = 1.0,
+    enabled = true,
+)

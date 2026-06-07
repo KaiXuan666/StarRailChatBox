@@ -22,6 +22,7 @@ class MainActivity : ComponentActivity() {
                     filesDir.resolve("profile_settings.preferences_pb").absolutePath,
                 ),
                 characterRepository = repositories.characterRepository,
+                chatSessionRepository = repositories.chatSessionRepository,
             )
         }
     }

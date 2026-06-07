@@ -21,6 +21,7 @@ fun main() = application {
         App(
             modelConfigRepository = repositories.modelConfigRepository,
             characterRepository = repositories.characterRepository,
+            chatSessionRepository = repositories.chatSessionRepository,
         )
     }
 }

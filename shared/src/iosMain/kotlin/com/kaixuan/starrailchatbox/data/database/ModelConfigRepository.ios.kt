@@ -7,6 +7,7 @@ import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.kaixuan.starrailchatbox.data.character.DefaultCharacterRepository
 import com.kaixuan.starrailchatbox.data.character.FileCharacterAvatarStorage
 import com.kaixuan.starrailchatbox.data.character.RoomCharacterStorage
+import com.kaixuan.starrailchatbox.data.chat.RoomChatSessionRepository
 import com.kaixuan.starrailchatbox.data.model.RoomModelConfigRepository
 import platform.Foundation.NSDocumentDirectory
 import platform.Foundation.NSFileManager
@@ -41,5 +42,6 @@ fun createPersistentRepositories(): PersistentRepositories {
                 ),
             ),
         ),
+        chatSessionRepository = RoomChatSessionRepository(database),
     )
 }

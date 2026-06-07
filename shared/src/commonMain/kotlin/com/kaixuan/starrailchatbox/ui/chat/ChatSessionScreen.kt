@@ -85,6 +85,7 @@ import starrailchatbox.shared.generated.resources.read_status
 import starrailchatbox.shared.generated.resources.received_message_description
 import starrailchatbox.shared.generated.resources.record_voice
 import starrailchatbox.shared.generated.resources.send_message
+import starrailchatbox.shared.generated.resources.chat_empty_greeting
 import starrailchatbox.shared.generated.resources.sent_message_description
 import starrailchatbox.shared.generated.resources.today
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
@@ -1004,11 +1005,7 @@ private fun MessageContent.resolve(): String = when (this) {
 }
 
 private fun ChatCopy.resource(): StringResource = when (this) {
-    ChatCopy.WELCOME -> Res.string.message_welcome
-    ChatCopy.USER_TIRED -> Res.string.message_user_tired
-    ChatCopy.COMFORT -> Res.string.message_comfort
-    ChatCopy.USER_THANKS -> Res.string.message_user_thanks
-    ChatCopy.CARE -> Res.string.message_care
+    ChatCopy.EMPTY_GREETING -> Res.string.chat_empty_greeting
 }
 
 @Preview(widthDp = 360, heightDp = 800)
