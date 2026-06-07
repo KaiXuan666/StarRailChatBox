@@ -502,7 +502,8 @@ sealed interface ChatMessageUiModel {
 ### 9.4 快捷回复
 
 - 视觉上使用 M3 `AssistChip` 或等价语义的自定义胶囊组件。
-- 支持横向滚动，不得压缩文字到不可读。
+- 改为两行展示，每行最多展示两个（如果有的话），使用网格平分宽度。
+- 限制物理高度不滚动：在 compact 模式下固定高度为 `32.dp`，正常模式下为 `40.dp`，子按钮和占位填充元素均设为 `fillMaxHeight` 并使其内部文字垂直居中。
 - 图标只辅助识别，文字始终保留。
 - 点击后应有 pressed、loading 或已提交反馈。
 
@@ -549,7 +550,7 @@ sealed interface ChatMessageUiModel {
 - 底部 `NavigationBar`。
 - 顶部资料区允许换行。
 - 消息气泡最大宽度约 78%。
-- 快捷回复横向滚动。
+- 快捷回复为两行两列网格自适应展示，限高不滚动。
 
 ### Medium：600-839dp
 
@@ -597,6 +598,7 @@ sealed interface ChatMessageUiModel {
 - 设置裁切策略为 `ContentScale.Crop`。
 - 为加载中、失败和无头像状态提供占位。
 - 选中头像可使用品牌渐变环，但环外仍需满足布局尺寸约束。
+- 头像图片需紧贴内圆裁切，头像与渐变外环之间避免使用内边距（如避免露出底色白圈）。
 
 ---
 
