@@ -44,6 +44,7 @@ enum class StarRailIconKind {
     EYE_VISIBLE,
     EYE_HIDDEN,
     CHEVRON_LEFT,
+    ARROW_UP,
 }
 
 @Composable
@@ -467,6 +468,12 @@ fun StarRailIcon(
                     lineTo(size.width * 0.58f, size.height * 0.68f)
                 }
                 drawPath(path, tint, style = stroke)
+            }
+
+            StarRailIconKind.ARROW_UP -> {
+                drawLine(tint, point(0.5f, 0.22f), point(0.5f, 0.78f), strokeWidth)
+                drawLine(tint, point(0.5f, 0.22f), point(0.26f, 0.46f), strokeWidth)
+                drawLine(tint, point(0.5f, 0.22f), point(0.74f, 0.46f), strokeWidth)
             }
         }
     }

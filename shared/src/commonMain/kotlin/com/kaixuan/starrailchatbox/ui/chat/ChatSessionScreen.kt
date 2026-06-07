@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -41,6 +42,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -152,10 +154,18 @@ fun ChatSessionScreen(
         initialPage = initialPage,
     ) { characters.size }
 
+    // 缓存每个角色的 LazyListState
+    val pageListStates = remember { mutableMapOf<String, LazyListState>() }
+    val currentStates = remember(characters) {
+        characters.associate { it.id to (pageListStates[it.id] ?: LazyListState()) }
+    }
+
+    val messagesStartIndex = 3
+
     LaunchedEffect(selectedCharacter?.id) {
         val targetPage = characters.indexOfFirst { it.id == selectedCharacter?.id }
         if (targetPage != -1 && pagerState.currentPage != targetPage) {
-            pagerState.animateScrollToPage(targetPage)
+            pagerState.scrollToPage(targetPage)
         }
     }
 
@@ -187,9 +197,8 @@ fun ChatSessionScreen(
                 CircularProgressIndicator()
             }
         } else {
-            val pageListState = rememberLazyListState()
+            val pageListState = currentStates.getValue(pageCharacter.id)
             val pageMessages = pageState.messages
-            val messagesStartIndex = 3
 
             var previousPageMessageCount by remember { mutableStateOf(pageMessages.size) }
             var shouldPageScrollToBottomOnLoad by remember { mutableStateOf(false) }
@@ -224,58 +233,110 @@ fun ChatSessionScreen(
                 previousPageMessageCount = pageMessages.size
             }
 
-            LazyColumn(
-                state = pageListState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                    end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                    bottom = contentPadding.calculateBottomPadding() + StarRailSpacing.lg,
-                ),
-                verticalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
-            ) {
-                item(key = "header") {
-                    ChatHeader(
-                        selectedCharacter = pageCharacter,
-                        compact = compact,
-                        onAction = onAction,
-                        onMainAction = onMainAction,
-                    )
+            val showScrollToTop by remember {
+                derivedStateOf {
+                    pageListState.firstVisibleItemIndex > 0 || pageListState.firstVisibleItemScrollOffset > 0
                 }
-                stickyHeader(key = "characters") {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color.Transparent)
-                            .padding(top = StarRailSpacing.xxs),
-                    ) {
-                        CharacterSelector(
-                            characters = characters,
-                            selectedCharacterId = selectedCharacter?.id,
+            }
+
+            Box(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    state = pageListState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                        end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                        bottom = contentPadding.calculateBottomPadding() + StarRailSpacing.lg,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
+                ) {
+                    item(key = "header") {
+                        ChatHeader(
+                            selectedCharacter = pageCharacter,
                             compact = compact,
-                            onCharacterSelected = { characterId ->
-                                val index = characters.indexOfFirst { it.id == characterId }
-                                if (index != -1 && pagerState.currentPage != index) {
-                                    coroutineScope.launch {
-                                        pagerState.animateScrollToPage(index)
+                            onAction = onAction,
+                            onMainAction = onMainAction,
+                        )
+                    }
+                    stickyHeader(key = "characters") {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.Transparent)
+                                .padding(top = StarRailSpacing.xxs),
+                        ) {
+                            CharacterSelector(
+                                characters = characters,
+                                selectedCharacterId = selectedCharacter?.id,
+                                compact = compact,
+                                onCharacterSelected = { characterId ->
+                                    val index = characters.indexOfFirst { it.id == characterId }
+                                    if (index != -1) {
+                                        coroutineScope.launch {
+                                            if (pagerState.currentPage != index) {
+                                                pagerState.scrollToPage(index)
+                                            }
+                                            val targetListState = currentStates[characterId]
+                                            if (targetListState != null) {
+                                                val targetPageState = state.characterStates[characterId]
+                                                val targetMessages = targetPageState?.messages.orEmpty()
+                                                if (targetMessages.isNotEmpty()) {
+                                                    targetListState.animateScrollToItem(messagesStartIndex + targetMessages.lastIndex)
+                                                }
+                                            }
+                                        }
                                     }
-                                }
-                            },
+                                },
+                            )
+                        }
+                    }
+                    item(key = "date") {
+                        DateDivider()
+                    }
+                    items(
+                        items = pageMessages,
+                        key = ChatMessageUiModel::id,
+                    ) { message ->
+                        MessageItem(
+                            message = message,
+                            charactersById = charactersById,
+                            compact = compact,
                         )
                     }
                 }
-                item(key = "date") {
-                    DateDivider()
-                }
-                items(
-                    items = pageMessages,
-                    key = ChatMessageUiModel::id,
-                ) { message ->
-                    MessageItem(
-                        message = message,
-                        charactersById = charactersById,
-                        compact = compact,
-                    )
+
+                if (showScrollToTop) {
+                    Surface(
+                        onClick = {
+                            coroutineScope.launch {
+                                pageListState.animateScrollToItem(0)
+                            }
+                        },
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(
+                                start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                                bottom = contentPadding.calculateBottomPadding() + StarRailSpacing.md,
+                            )
+                            .size(if (compact) 38.dp else 48.dp),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.88f),
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                        ),
+                        shadowElevation = 4.dp,
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            StarRailIcon(
+                                kind = StarRailIconKind.ARROW_UP,
+                                contentDescription = "滚动到最顶部",
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(if (compact) 20.dp else 24.dp),
+                            )
+                        }
+                    }
                 }
             }
         }
