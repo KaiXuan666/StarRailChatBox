@@ -15,11 +15,15 @@ import com.kaixuan.starrailchatbox.data.settings.ProfileStore
 import com.kaixuan.starrailchatbox.data.settings.createProfileStore
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.di.appModule
-import com.kaixuan.starrailchatbox.ui.main.MainRoute
-import com.kaixuan.starrailchatbox.ui.main.MainViewModel
 import com.kaixuan.starrailchatbox.ui.chat.ChatViewModel
-import com.kaixuan.starrailchatbox.ui.settings.SettingsViewModel
+import com.kaixuan.starrailchatbox.ui.main.ChatRouteBinding
+import com.kaixuan.starrailchatbox.ui.main.MainRoute
+import com.kaixuan.starrailchatbox.ui.main.MainRouteBinding
+import com.kaixuan.starrailchatbox.ui.main.MainViewModel
+import com.kaixuan.starrailchatbox.ui.main.ProfileRouteBinding
+import com.kaixuan.starrailchatbox.ui.main.SettingsRouteBinding
 import com.kaixuan.starrailchatbox.ui.profile.ProfileViewModel
+import com.kaixuan.starrailchatbox.ui.settings.SettingsViewModel
 import org.koin.dsl.koinApplication
 
 @Composable
@@ -55,18 +59,26 @@ fun App(
 
     StarRailTheme(darkThemeOverride = mainState.darkThemeOverride) {
         MainRoute(
-            mainState = mainState,
-            chatState = chatState,
-            settingsState = settingsState,
-            profileState = profileState,
-            mainEffects = mainViewModel.effects,
-            chatEffects = chatViewModel.effects,
-            settingsEffects = settingsViewModel.effects,
-            profileEffects = profileViewModel.effects,
-            onMainAction = mainViewModel::onAction,
-            onChatAction = chatViewModel::onAction,
-            onSettingsAction = settingsViewModel::onAction,
-            onProfileAction = profileViewModel::onAction,
+            main = MainRouteBinding(
+                state = mainState,
+                effects = mainViewModel.effects,
+                onAction = mainViewModel::onAction,
+            ),
+            chat = ChatRouteBinding(
+                state = chatState,
+                effects = chatViewModel.effects,
+                onAction = chatViewModel::onAction,
+            ),
+            settings = SettingsRouteBinding(
+                state = settingsState,
+                effects = settingsViewModel.effects,
+                onAction = settingsViewModel::onAction,
+            ),
+            profile = ProfileRouteBinding(
+                state = profileState,
+                effects = profileViewModel.effects,
+                onAction = profileViewModel::onAction,
+            ),
         )
     }
 }

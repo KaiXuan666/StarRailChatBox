@@ -42,9 +42,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.emptyFlow
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import starrailchatbox.shared.generated.resources.Res
@@ -101,18 +100,10 @@ import com.kaixuan.starrailchatbox.ui.profile.ProfileScreen
 
 @Composable
 fun MainRoute(
-    mainState: MainUiState,
-    chatState: ChatUiState,
-    settingsState: SettingsUiState,
-    profileState: ProfileUiState,
-    mainEffects: Flow<MainEffect>,
-    chatEffects: Flow<ChatEffect>,
-    settingsEffects: Flow<SettingsEffect>,
-    profileEffects: Flow<ProfileEffect>,
-    onMainAction: (MainAction) -> Unit,
-    onChatAction: (ChatAction) -> Unit,
-    onSettingsAction: (SettingsAction) -> Unit,
-    onProfileAction: (ProfileAction) -> Unit,
+    main: MainRouteBinding,
+    chat: ChatRouteBinding,
+    settings: SettingsRouteBinding,
+    profile: ProfileRouteBinding,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val chatEffectMessages = mapOf(
@@ -141,8 +132,8 @@ fun MainRoute(
         MainEffectMessage.THEME_CHANGED to stringResource(Res.string.theme_changed),
     )
 
-    LaunchedEffect(chatEffects, chatEffectMessages) {
-        chatEffects.collectLatest { effect ->
+    LaunchedEffect(chat.effects, chatEffectMessages) {
+        chat.effects.collectLatest { effect ->
             when (effect) {
                 is ChatEffect.ShowMessage -> {
                     snackbarHostState.showSnackbar(
@@ -153,8 +144,8 @@ fun MainRoute(
         }
     }
 
-    LaunchedEffect(settingsEffects, settingsEffectMessages) {
-        settingsEffects.collectLatest { effect ->
+    LaunchedEffect(settings.effects, settingsEffectMessages) {
+        settings.effects.collectLatest { effect ->
             when (effect) {
                 is SettingsEffect.ShowMessage -> {
                     snackbarHostState.showSnackbar(
@@ -165,7 +156,7 @@ fun MainRoute(
                     snackbarHostState.showSnackbar(
                         settingsEffectMessages.getValue(SettingsEffectMessage.SETTINGS_API_SAVED),
                     )
-                    onMainAction(MainAction.PopBackStack)
+                    main.onAction(MainAction.PopBackStack)
                 }
             }
         }
@@ -176,8 +167,8 @@ fun MainRoute(
         ProfileEffectMessage.NICKNAME_EMPTY to stringResource(Res.string.profile_nickname_empty),
     )
 
-    LaunchedEffect(profileEffects) {
-        profileEffects.collectLatest { effect ->
+    LaunchedEffect(profile.effects) {
+        profile.effects.collectLatest { effect ->
             when (effect) {
                 is ProfileEffect.ShowMessage -> {
                     snackbarHostState.showSnackbar(
@@ -185,14 +176,14 @@ fun MainRoute(
                     )
                 }
                 ProfileEffect.ProfileSaved -> {
-                    onMainAction(MainAction.PopBackStack)
+                    main.onAction(MainAction.PopBackStack)
                 }
             }
         }
     }
 
-    LaunchedEffect(mainEffects, mainEffectMessages) {
-        mainEffects.collectLatest { effect ->
+    LaunchedEffect(main.effects, mainEffectMessages) {
+        main.effects.collectLatest { effect ->
             when (effect) {
                 is MainEffect.ShowMessage -> {
                     snackbarHostState.showSnackbar(
@@ -204,15 +195,15 @@ fun MainRoute(
     }
 
     MainNavigationContainer(
-        mainState = mainState,
-        chatState = chatState,
-        settingsState = settingsState,
-        profileState = profileState,
+        mainState = main.state,
+        chatState = chat.state,
+        settingsState = settings.state,
+        profileState = profile.state,
         snackbarHostState = snackbarHostState,
-        onMainAction = onMainAction,
-        onChatAction = onChatAction,
-        onSettingsAction = onSettingsAction,
-        onProfileAction = onProfileAction,
+        onMainAction = main.onAction,
+        onChatAction = chat.onAction,
+        onSettingsAction = settings.onAction,
+        onProfileAction = profile.onAction,
     )
 }
 
@@ -549,18 +540,26 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDecorativeSpark
 private fun MainContainerLightPreview() {
     StarRailTheme(darkThemeOverride = false) {
         MainRoute(
-            mainState = MainUiState(),
-            chatState = ChatUiState(),
-            settingsState = SettingsUiState(),
-            profileState = ProfileUiState(),
-            mainEffects = kotlinx.coroutines.flow.emptyFlow(),
-            chatEffects = kotlinx.coroutines.flow.emptyFlow(),
-            settingsEffects = kotlinx.coroutines.flow.emptyFlow(),
-            profileEffects = kotlinx.coroutines.flow.emptyFlow(),
-            onMainAction = {},
-            onChatAction = {},
-            onSettingsAction = {},
-            onProfileAction = {},
+            main = MainRouteBinding(
+                state = MainUiState(),
+                effects = emptyFlow(),
+                onAction = {},
+            ),
+            chat = ChatRouteBinding(
+                state = ChatUiState(),
+                effects = emptyFlow(),
+                onAction = {},
+            ),
+            settings = SettingsRouteBinding(
+                state = SettingsUiState(),
+                effects = emptyFlow(),
+                onAction = {},
+            ),
+            profile = ProfileRouteBinding(
+                state = ProfileUiState(),
+                effects = emptyFlow(),
+                onAction = {},
+            ),
         )
     }
 }
@@ -570,18 +569,26 @@ private fun MainContainerLightPreview() {
 private fun MainContainerDarkPreview() {
     StarRailTheme(darkThemeOverride = true) {
         MainRoute(
-            mainState = MainUiState(darkThemeOverride = true),
-            chatState = ChatUiState(),
-            settingsState = SettingsUiState(),
-            profileState = ProfileUiState(),
-            mainEffects = kotlinx.coroutines.flow.emptyFlow(),
-            chatEffects = kotlinx.coroutines.flow.emptyFlow(),
-            settingsEffects = kotlinx.coroutines.flow.emptyFlow(),
-            profileEffects = kotlinx.coroutines.flow.emptyFlow(),
-            onMainAction = {},
-            onChatAction = {},
-            onSettingsAction = {},
-            onProfileAction = {},
+            main = MainRouteBinding(
+                state = MainUiState(darkThemeOverride = true),
+                effects = emptyFlow(),
+                onAction = {},
+            ),
+            chat = ChatRouteBinding(
+                state = ChatUiState(),
+                effects = emptyFlow(),
+                onAction = {},
+            ),
+            settings = SettingsRouteBinding(
+                state = SettingsUiState(),
+                effects = emptyFlow(),
+                onAction = {},
+            ),
+            profile = ProfileRouteBinding(
+                state = ProfileUiState(),
+                effects = emptyFlow(),
+                onAction = {},
+            ),
         )
     }
 }
