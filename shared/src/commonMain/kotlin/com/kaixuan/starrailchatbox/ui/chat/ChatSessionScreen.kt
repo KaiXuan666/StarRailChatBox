@@ -43,6 +43,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -112,11 +114,20 @@ fun ChatSessionScreen(
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
     val messagesStartIndex = 3
     var previousMessageCount by remember { mutableStateOf(state.messages.size) }
+    var shouldScrollToBottomOnLoad by remember { mutableStateOf(false) }
     val selectedCharacter = state.selectedCharacter
     val charactersById = remember(state.characters) {
         state.characters.associateBy(Character::id)
+    }
+
+    LaunchedEffect(state.messages, state.isLoadingSession) {
+        if (shouldScrollToBottomOnLoad && !state.isLoadingSession && state.messages.isNotEmpty()) {
+            shouldScrollToBottomOnLoad = false
+            listState.animateScrollToItem(messagesStartIndex + state.messages.lastIndex)
+        }
     }
 
     LaunchedEffect(state.messages.size) {
@@ -182,8 +193,17 @@ fun ChatSessionScreen(
                     characters = state.characters,
                     selectedCharacterId = selectedCharacter?.id,
                     compact = compact,
-                    onCharacterSelected = {
-                        onAction(ChatAction.CharacterSelected(it))
+                    onCharacterSelected = { characterId ->
+                        if (characterId == selectedCharacter?.id) {
+                            if (state.messages.isNotEmpty()) {
+                                coroutineScope.launch {
+                                    listState.animateScrollToItem(messagesStartIndex + state.messages.lastIndex)
+                                }
+                            }
+                        } else {
+                            shouldScrollToBottomOnLoad = true
+                            onAction(ChatAction.CharacterSelected(characterId))
+                        }
                     },
                 )
             }
@@ -1007,7 +1027,7 @@ private fun MessageContent.resolve(): String = when (this) {
 private fun ChatSessionScreenLightPreview() {
     StarRailTheme(darkThemeOverride = false) {
         ChatSessionScreen(
-            state = ChatUiState(),
+            state = chatPreviewState,
             contentPadding = PaddingValues(0.dp),
             compact = true,
             onAction = {},
@@ -1021,7 +1041,7 @@ private fun ChatSessionScreenLightPreview() {
 private fun ChatSessionScreenDarkPreview() {
     StarRailTheme(darkThemeOverride = true) {
         ChatSessionScreen(
-            state = ChatUiState(),
+            state = chatPreviewState,
             contentPadding = PaddingValues(0.dp),
             compact = true,
             onAction = {},
@@ -1029,3 +1049,63 @@ private fun ChatSessionScreenDarkPreview() {
         )
     }
 }
+
+private val chatPreviewState = ChatUiState(
+    characters = listOf(
+        previewCharacter("builtin:流萤", "流萤"),
+        previewCharacter("builtin:三月七", "三月七"),
+        previewCharacter("builtin:黄泉", "黄泉"),
+        previewCharacter("builtin:瑕蝶", "瑕蝶"),
+    ),
+    selectedCharacterId = "builtin:流萤",
+    activeSessionId = "preview-session",
+    messages = listOf(
+        ChatMessageUiModel.Received(
+            id = "preview-opening",
+            timestamp = "10:21",
+            content = MessageContent.Custom("今天要聊点什么呢？"),
+            senderId = "builtin:流萤",
+        ),
+        ChatMessageUiModel.Sent(
+            id = "preview-user-1",
+            timestamp = "10:22",
+            content = MessageContent.Custom("今天有点累，想和你聊聊天。"),
+            isRead = true,
+        ),
+        ChatMessageUiModel.Received(
+            id = "preview-assistant-1",
+            timestamp = "10:23",
+            content = MessageContent.Custom(
+                "好呀，我会认真听着。发生了什么让你觉得累呢？",
+            ),
+            senderId = "builtin:流萤",
+        ),
+        ChatMessageUiModel.Sent(
+            id = "preview-user-2",
+            timestamp = "10:24",
+            content = MessageContent.Custom("忙了一整天，不过现在感觉好多了。"),
+            isRead = true,
+        ),
+        ChatMessageUiModel.Received(
+            id = "preview-assistant-2",
+            timestamp = "10:25",
+            content = MessageContent.Custom(
+                "那就先放松一下吧。你已经很努力了，剩下的时间留给自己。",
+            ),
+            senderId = "builtin:流萤",
+        ),
+    ),
+    messageDraft = "想听你讲一个星空下的故事",
+    isLoadingCharacters = false,
+)
+
+private fun previewCharacter(
+    id: String,
+    name: String,
+) = Character(
+    id = id,
+    name = name,
+    prompt = "Preview prompt for $name",
+    openingMessage = "今天要聊点什么呢？",
+    avatarBytes = byteArrayOf(),
+)

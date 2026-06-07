@@ -48,6 +48,7 @@ import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
 import com.kaixuan.starrailchatbox.ui.components.StarRailPrimaryButton
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
+import com.kaixuan.starrailchatbox.ui.components.BackHandler
 import com.kaixuan.starrailchatbox.ui.main.MainAction
 import com.kaixuan.starrailchatbox.platform.rememberImagePicker
 import kotlin.io.encoding.Base64
@@ -66,6 +67,10 @@ fun ProfileScreen(
         if (bytes != null) {
             onAction(ProfileAction.AvatarChanged(bytes))
         }
+    }
+
+    BackHandler {
+        onMainAction(MainAction.PopBackStack)
     }
 
     StarRailPageLayout(
