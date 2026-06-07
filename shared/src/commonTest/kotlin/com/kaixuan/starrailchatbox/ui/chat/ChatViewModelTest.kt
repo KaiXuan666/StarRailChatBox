@@ -20,6 +20,7 @@ import kotlinx.coroutines.test.setMain
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
@@ -196,6 +197,34 @@ class ChatViewModelTest {
         )
     }
 
+    @Test
+    fun characterEditSavesAndRefreshesSelectedCharacter() = runTest {
+        val characterRepository = EditableCharacterRepository()
+        val fixture = createFixture(characterRepository = characterRepository)
+        advanceUntilIdle()
+
+        fixture.viewModel.onAction(ChatAction.CharacterEditOpened)
+        fixture.viewModel.onAction(ChatAction.CharacterNameChanged("  新三月七  "))
+        fixture.viewModel.onAction(ChatAction.CharacterPromptChanged("updated prompt"))
+        fixture.viewModel.onAction(ChatAction.CharacterOpeningMessageChanged("updated opening"))
+        fixture.viewModel.onAction(ChatAction.CharacterAvatarChanged(byteArrayOf(9, 8, 7)))
+        fixture.viewModel.onAction(ChatAction.CharacterTemperatureChanged(1.2))
+        fixture.viewModel.onAction(ChatAction.CharacterTopPChanged(0.6))
+        fixture.viewModel.onAction(ChatAction.CharacterSaveClicked)
+        advanceUntilIdle()
+
+        val state = fixture.viewModel.uiState.value
+        val selected = requireNotNull(state.selectedCharacter)
+        assertEquals("builtin:流萤", selected.id)
+        assertEquals("新三月七", selected.name)
+        assertEquals("updated prompt", selected.prompt)
+        assertEquals("updated opening", selected.openingMessage)
+        assertContentEquals(byteArrayOf(9, 8, 7), selected.avatarBytes)
+        assertEquals(1.2, selected.temperature)
+        assertEquals(0.6, selected.topP)
+        assertEquals(ChatEffect.CharacterSaved, fixture.viewModel.effects.first())
+    }
+
     private fun createFixture(
         config: ModelConfig? = testConfig(),
         characterRepository: CharacterRepository = FakeCharacterRepository,
@@ -251,6 +280,8 @@ private object FakeCharacterRepository : CharacterRepository {
         prompt: String,
         avatarBytes: ByteArray,
     ): Character = Character(name, name, prompt, "", avatarBytes)
+
+    override suspend fun updateCharacter(character: Character): Character = character
 }
 
 private object NoOpeningCharacterRepository : CharacterRepository {
@@ -263,6 +294,33 @@ private object NoOpeningCharacterRepository : CharacterRepository {
         prompt: String,
         avatarBytes: ByteArray,
     ): Character = Character(name, name, prompt, "", avatarBytes)
+
+    override suspend fun updateCharacter(character: Character): Character = character
+}
+
+private class EditableCharacterRepository : CharacterRepository {
+    private var characters = listOf(
+        Character(
+            "builtin:流萤",
+            "流萤",
+            "role prompt",
+            "今天要聊点什么呢？",
+            byteArrayOf(),
+        ),
+    )
+
+    override suspend fun loadCharacters(): List<Character> = characters
+
+    override suspend fun addCharacter(
+        name: String,
+        prompt: String,
+        avatarBytes: ByteArray,
+    ): Character = Character(name, name, prompt, "", avatarBytes)
+
+    override suspend fun updateCharacter(character: Character): Character {
+        characters = characters.map { if (it.id == character.id) character else it }
+        return character
+    }
 }
 
 private class FakeOpenAiRepository : AiRepository {

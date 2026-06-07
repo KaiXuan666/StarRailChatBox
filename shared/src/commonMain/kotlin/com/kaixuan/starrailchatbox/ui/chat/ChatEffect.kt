@@ -2,6 +2,7 @@ package com.kaixuan.starrailchatbox.ui.chat
 
 sealed interface ChatEffect {
     data class ShowMessage(val message: EffectMessage) : ChatEffect
+    data object CharacterSaved : ChatEffect
 }
 
 enum class EffectMessage {
@@ -13,4 +14,6 @@ enum class EffectMessage {
     MODEL_CONFIG_REQUIRED,
     CHAT_REQUEST_FAILED,
     CHAT_EMPTY_RESPONSE,
+    CHARACTER_NAME_EMPTY,
+    CHARACTER_SAVE_FAILED,
 }

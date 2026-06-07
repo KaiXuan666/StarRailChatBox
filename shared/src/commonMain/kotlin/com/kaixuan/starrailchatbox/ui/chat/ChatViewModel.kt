@@ -139,7 +139,92 @@ class ChatViewModel(
             is ChatAction.SessionSelected -> selectSession(action.sessionId)
             is ChatAction.SessionDeleteClicked -> deleteSession(action.sessionId)
             is ChatAction.HeaderActionClicked -> handleHeaderAction(action.action)
+            ChatAction.CharacterEditOpened -> openCharacterEdit()
+            is ChatAction.CharacterNameChanged -> updateCharacterEdit { it.copy(name = action.name) }
+            is ChatAction.CharacterPromptChanged -> updateCharacterEdit { it.copy(prompt = action.prompt) }
+            is ChatAction.CharacterOpeningMessageChanged -> updateCharacterEdit {
+                it.copy(openingMessage = action.openingMessage)
+            }
+            is ChatAction.CharacterAvatarChanged -> updateCharacterEdit {
+                it.copy(avatarBytes = action.avatarBytes)
+            }
+            is ChatAction.CharacterTemperatureChanged -> updateCharacterEdit {
+                it.copy(temperature = action.temperature.coerceIn(0.0, 2.0))
+            }
+            is ChatAction.CharacterTopPChanged -> updateCharacterEdit {
+                it.copy(topP = action.topP.coerceIn(0.0, 1.0))
+            }
+            ChatAction.CharacterSaveClicked -> saveCharacterEdit()
             is ChatAction.ComposerActionClicked -> handleComposerAction(action.action)
+        }
+    }
+
+    private fun openCharacterEdit() {
+        val character = uiState.value.selectedCharacter ?: return
+        _uiState.update {
+            it.copy(characterEdit = character.toEditUiState())
+        }
+    }
+
+    private fun updateCharacterEdit(transform: (CharacterEditUiState) -> CharacterEditUiState) {
+        _uiState.update { state ->
+            state.copy(characterEdit = transform(state.characterEdit))
+        }
+    }
+
+    private fun saveCharacterEdit() {
+        val editState = uiState.value.characterEdit
+        val characterId = editState.characterId ?: return
+        val original = uiState.value.characters.firstOrNull { it.id == characterId } ?: return
+        if (editState.name.isBlank()) {
+            emitMessage(EffectMessage.CHARACTER_NAME_EMPTY)
+            return
+        }
+        updateCharacterEdit { it.copy(isSaving = true) }
+        viewModelScope.launch {
+            runCatching {
+                characterRepository.updateCharacter(
+                    original.copy(
+                        name = editState.name.trim(),
+                        prompt = editState.prompt,
+                        openingMessage = editState.openingMessage,
+                        avatarBytes = editState.avatarBytes,
+                        temperature = editState.temperature.coerceIn(0.0, 2.0),
+                        topP = editState.topP.coerceIn(0.0, 1.0),
+                    ),
+                )
+            }.onSuccess { saved ->
+                val characters = runCatching { characterRepository.loadCharacters() }
+                    .getOrElse { current ->
+                        uiState.value.characters.map { if (it.id == saved.id) saved else it }
+                    }
+                _uiState.update { state ->
+                    val currentCharacterState = state.characterStates[saved.id]
+                    val updatedCharacterStates = if (currentCharacterState?.activeSessionId == null) {
+                        state.characterStates + (
+                            saved.id to (currentCharacterState ?: CharacterChatState()).copy(
+                                messages = emptyGreeting(
+                                    character = saved,
+                                    now = currentTimeMillis(),
+                                    timeFormatter = timeFormatter,
+                                ),
+                            )
+                        )
+                    } else {
+                        state.characterStates
+                    }
+                    state.copy(
+                        characters = characters,
+                        selectedCharacterId = saved.id,
+                        characterStates = updatedCharacterStates,
+                        characterEdit = saved.toEditUiState(),
+                    )
+                }
+                _effects.send(ChatEffect.CharacterSaved)
+            }.onFailure {
+                updateCharacterEdit { it.copy(isSaving = false) }
+                emitMessage(EffectMessage.CHARACTER_SAVE_FAILED)
+            }
         }
     }
 
@@ -673,7 +758,7 @@ class ChatViewModel(
         when (action) {
             HeaderAction.VOICE -> emitMessage(EffectMessage.VOICE_NOT_READY)
             HeaderAction.CONVERSATION_MANAGEMENT,
-            HeaderAction.CHARACTER_SETTINGS,
+            HeaderAction.CHARACTER_EDIT,
             -> Unit
         }
     }
@@ -768,4 +853,15 @@ private fun NewChatMessage.toStored(seq: Long) = StoredChatMessage(
     completionTokens = completionTokens,
     totalTokens = totalTokens,
     createdAt = createdAt,
+)
+
+private fun Character.toEditUiState() = CharacterEditUiState(
+    characterId = id,
+    name = name,
+    prompt = prompt,
+    openingMessage = openingMessage,
+    avatarBytes = avatarBytes,
+    temperature = temperature,
+    topP = topP,
+    isSaving = false,
 )

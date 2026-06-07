@@ -49,10 +49,48 @@ data class ConversationSummaryUiModel(
 )
 
 @Immutable
+data class CharacterEditUiState(
+    val characterId: String? = null,
+    val name: String = "",
+    val prompt: String = "",
+    val openingMessage: String = "",
+    val avatarBytes: ByteArray = byteArrayOf(),
+    val temperature: Double = 0.85,
+    val topP: Double = 0.9,
+    val isSaving: Boolean = false,
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is CharacterEditUiState) return false
+        return characterId == other.characterId &&
+            name == other.name &&
+            prompt == other.prompt &&
+            openingMessage == other.openingMessage &&
+            avatarBytes.contentEquals(other.avatarBytes) &&
+            temperature == other.temperature &&
+            topP == other.topP &&
+            isSaving == other.isSaving
+    }
+
+    override fun hashCode(): Int {
+        var result = characterId?.hashCode() ?: 0
+        result = 31 * result + name.hashCode()
+        result = 31 * result + prompt.hashCode()
+        result = 31 * result + openingMessage.hashCode()
+        result = 31 * result + avatarBytes.contentHashCode()
+        result = 31 * result + temperature.hashCode()
+        result = 31 * result + topP.hashCode()
+        result = 31 * result + isSaving.hashCode()
+        return result
+    }
+}
+
+@Immutable
 data class ChatUiState(
     val characters: List<Character> = emptyList(),
     val selectedCharacterId: String? = null,
     val characterStates: Map<String, CharacterChatState> = emptyMap(),
+    val characterEdit: CharacterEditUiState = CharacterEditUiState(),
     val isLoadingCharacters: Boolean = true,
 ) {
     val selectedCharacter: Character?

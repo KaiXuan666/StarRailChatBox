@@ -17,7 +17,7 @@ actual fun rememberImagePicker(onImagePicked: (ByteArray?) -> Unit): () -> Unit 
                 reader.onload = {
                     val arrayBuffer = reader.result as org.khronos.webgl.ArrayBuffer
                     val array = org.khronos.webgl.Int8Array(arrayBuffer)
-                    val bytes = ByteArray(array.length) { i -> array[i] }
+                    val bytes = ByteArray(array.length) { i -> array.asDynamic()[i] as Byte }
                     onImagePicked(bytes)
                 }
                 reader.readAsArrayBuffer(file)

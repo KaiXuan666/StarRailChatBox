@@ -12,6 +12,7 @@
     <string name="action_voice">语音</string>
     <string name="action_conversation_management">对话管理</string>
     <string name="action_character_settings">角色设置</string>
+    <string name="action_character_edit">角色编辑</string>
     <string name="today">今天</string>
     <string name="message_welcome">嘿，回来啦，星空下的旅人。\n今天的你，辛苦了。</string>
     <string name="message_user_tired">有点累，今天遇到一些不开心的事。</string>
@@ -62,7 +63,23 @@
     <string name="attach_not_ready">附件功能正在准备中</string>
     <string name="emoji_not_ready">表情功能正在准备中</string>
     <string name="microphone_not_ready">录音功能正在准备中</string>
+    <string name="character_saved">角色已保存</string>
+    <string name="character_name_empty">角色名称不能为空</string>
+    <string name="character_save_failed">角色保存失败</string>
     <string name="theme_changed">已切换主题显示模式</string>
+
+    <!-- 角色编辑界面 -->
+    <string name="character_edit_title">角色编辑</string>
+    <string name="character_edit_avatar">头像</string>
+    <string name="character_edit_change_avatar">更换头像</string>
+    <string name="character_edit_name">角色名称</string>
+    <string name="character_edit_system_prompt">系统提示词</string>
+    <string name="character_edit_opening_message">开场白</string>
+    <string name="character_edit_temperature">Temperature</string>
+    <string name="character_edit_temperature_hint">控制回复的随机性。较低值（如 0.2）更稳定保守，较高值（如 0.85）更具创意。角色聊天建议设置为 0.7 - 1.0。</string>
+    <string name="character_edit_top_p">Top P</string>
+    <string name="character_edit_top_p_hint">控制词汇采样的可能性范围。通常建议保持默认（1.0）或设置为 0.85 - 0.95，一般不与 Temperature 同步大幅微调。</string>
+    <string name="character_edit_save">保存</string>
     
     <!-- 个人信息界面 -->
     <string name="settings_profile_title">个人信息</string>

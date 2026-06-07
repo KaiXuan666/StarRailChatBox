@@ -16,6 +16,9 @@ sealed interface Route {
     // 当前角色的对话管理二级界面
     data object ConversationManagement : Route
 
+    // 当前角色的角色编辑二级界面
+    data object CharacterEdit : Route
+
     // “角色” Tab 占位屏幕
     data object Characters : Route
     

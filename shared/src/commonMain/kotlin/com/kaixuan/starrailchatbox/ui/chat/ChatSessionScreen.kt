@@ -67,7 +67,7 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.decodeToImageBitmap
 import org.jetbrains.compose.resources.stringResource
 import starrailchatbox.shared.generated.resources.Res
-import starrailchatbox.shared.generated.resources.action_character_settings
+import starrailchatbox.shared.generated.resources.action_character_edit
 import starrailchatbox.shared.generated.resources.action_conversation_management
 import starrailchatbox.shared.generated.resources.add_attachment
 import starrailchatbox.shared.generated.resources.app_title
@@ -463,8 +463,8 @@ private fun HeaderActions(
             StarRailIconKind.CONVERSATION,
         ),
         Triple(
-            HeaderAction.CHARACTER_SETTINGS,
-            Res.string.action_character_settings,
+            HeaderAction.CHARACTER_EDIT,
+            Res.string.action_character_edit,
             StarRailIconKind.SETTINGS,
         ),
     )
@@ -489,8 +489,9 @@ private fun HeaderActions(
                             HeaderAction.CONVERSATION_MANAGEMENT -> {
                                 onMainAction(MainAction.NavigateTo(Route.ConversationManagement))
                             }
-                            HeaderAction.CHARACTER_SETTINGS -> {
-                                onMainAction(MainAction.NavigationSelected(Route.Characters))
+                            HeaderAction.CHARACTER_EDIT -> {
+                                onAction(ChatAction.CharacterEditOpened)
+                                onMainAction(MainAction.NavigateTo(Route.CharacterEdit))
                             }
                             HeaderAction.VOICE -> {
                                 onAction(ChatAction.HeaderActionClicked(action))
@@ -1284,4 +1285,3 @@ private fun ChatSessionBottomBarDarkPreview() {
         }
     }
 }
-

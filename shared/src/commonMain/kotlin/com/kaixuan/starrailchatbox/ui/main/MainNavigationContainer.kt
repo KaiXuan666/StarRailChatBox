@@ -74,6 +74,9 @@ import starrailchatbox.shared.generated.resources.voice_not_ready
 import starrailchatbox.shared.generated.resources.chat_model_config_required
 import starrailchatbox.shared.generated.resources.chat_request_failed
 import starrailchatbox.shared.generated.resources.chat_empty_response
+import starrailchatbox.shared.generated.resources.character_saved
+import starrailchatbox.shared.generated.resources.character_name_empty
+import starrailchatbox.shared.generated.resources.character_save_failed
 import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
@@ -82,6 +85,7 @@ import com.kaixuan.starrailchatbox.ui.chat.ChatAction
 import com.kaixuan.starrailchatbox.ui.chat.ChatEffect
 import com.kaixuan.starrailchatbox.ui.chat.ChatSessionBottomBar
 import com.kaixuan.starrailchatbox.ui.chat.ChatSessionScreen
+import com.kaixuan.starrailchatbox.ui.chat.CharacterEditScreen
 import com.kaixuan.starrailchatbox.ui.chat.ChatUiState
 import com.kaixuan.starrailchatbox.ui.chat.CharacterChatState
 import com.kaixuan.starrailchatbox.ui.chat.ChatMessageUiModel
@@ -123,7 +127,10 @@ fun MainRoute(
         EffectMessage.MODEL_CONFIG_REQUIRED to stringResource(Res.string.chat_model_config_required),
         EffectMessage.CHAT_REQUEST_FAILED to stringResource(Res.string.chat_request_failed),
         EffectMessage.CHAT_EMPTY_RESPONSE to stringResource(Res.string.chat_empty_response),
+        EffectMessage.CHARACTER_NAME_EMPTY to stringResource(Res.string.character_name_empty),
+        EffectMessage.CHARACTER_SAVE_FAILED to stringResource(Res.string.character_save_failed),
     )
+    val characterSavedMessage = stringResource(Res.string.character_saved)
     val settingsEffectMessages = mapOf(
         SettingsEffectMessage.SETTINGS_API_NOT_READY to stringResource(Res.string.settings_api_not_ready),
         SettingsEffectMessage.SETTINGS_UPDATE_CHECK to stringResource(Res.string.settings_update_check),
@@ -143,13 +150,17 @@ fun MainRoute(
         MainEffectMessage.THEME_CHANGED to stringResource(Res.string.theme_changed),
     )
 
-    LaunchedEffect(chat.effects, chatEffectMessages) {
+    LaunchedEffect(chat.effects, chatEffectMessages, characterSavedMessage) {
         chat.effects.collectLatest { effect ->
             when (effect) {
                 is ChatEffect.ShowMessage -> {
                     snackbarHostState.showSnackbar(
                         chatEffectMessages.getValue(effect.message),
                     )
+                }
+                ChatEffect.CharacterSaved -> {
+                    snackbarHostState.showSnackbar(characterSavedMessage)
+                    main.onAction(MainAction.PopBackStack)
                 }
             }
         }
@@ -300,6 +311,15 @@ fun MainNavigationContainer(
                             compact = compact,
                             onAction = onChatAction,
                             onMainAction = onMainAction,
+                        )
+                    }
+                    entry<Route.CharacterEdit> {
+                        CharacterEditScreen(
+                            state = chatState,
+                            contentPadding = contentPadding,
+                            compact = compact,
+                            onMainAction = onMainAction,
+                            onAction = onChatAction,
                         )
                     }
                     entry<Route.Characters> {
@@ -645,4 +665,3 @@ private val previewChatState = ChatUiState(
     ),
     isLoadingCharacters = false,
 )
-

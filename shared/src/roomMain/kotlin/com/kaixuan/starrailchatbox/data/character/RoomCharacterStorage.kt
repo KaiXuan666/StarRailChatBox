@@ -60,6 +60,8 @@ class RoomCharacterStorage(
         description = "",
         systemPrompt = promptBytes.decodeToString(),
         openingMessage = openingMessage,
+        temperature = temperature,
+        topP = topP,
         sortOrder = sortOrder,
         isBuiltin = isBuiltin,
         createdAt = createdAt,
@@ -72,6 +74,8 @@ class RoomCharacterStorage(
         promptBytes = systemPrompt.encodeToByteArray(),
         openingMessage = openingMessage,
         avatarBytes = avatarStorage.read(avatarUri),
+        temperature = temperature,
+        topP = topP,
         createdAt = createdAt,
     )
 }

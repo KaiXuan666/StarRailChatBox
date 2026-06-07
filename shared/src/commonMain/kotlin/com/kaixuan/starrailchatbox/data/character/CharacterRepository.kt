@@ -10,6 +10,8 @@ data class Character(
     val prompt: String,
     val openingMessage: String,
     val avatarBytes: ByteArray,
+    val temperature: Double = 0.85,
+    val topP: Double = 0.9,
     val createdAt: Long = 0L,
 ) {
     override fun equals(other: Any?): Boolean {
@@ -20,6 +22,8 @@ data class Character(
             prompt == other.prompt &&
             openingMessage == other.openingMessage &&
             avatarBytes.contentEquals(other.avatarBytes) &&
+            temperature == other.temperature &&
+            topP == other.topP &&
             createdAt == other.createdAt
     }
 
@@ -29,6 +33,8 @@ data class Character(
         result = 31 * result + prompt.hashCode()
         result = 31 * result + openingMessage.hashCode()
         result = 31 * result + avatarBytes.contentHashCode()
+        result = 31 * result + temperature.hashCode()
+        result = 31 * result + topP.hashCode()
         result = 31 * result + createdAt.hashCode()
         return result
     }
@@ -40,6 +46,8 @@ data class CharacterFiles(
     val promptBytes: ByteArray,
     val openingMessage: String,
     val avatarBytes: ByteArray,
+    val temperature: Double = 0.85,
+    val topP: Double = 0.9,
     val createdAt: Long = Clock.System.now().toEpochMilliseconds(),
 )
 
@@ -59,6 +67,8 @@ interface CharacterRepository {
         prompt: String,
         avatarBytes: ByteArray,
     ): Character
+
+    suspend fun updateCharacter(character: Character): Character
 }
 
 class DefaultCharacterRepository(
@@ -90,6 +100,26 @@ class DefaultCharacterRepository(
         storage.saveCharacter(files)
         return files.toCharacter()
     }
+
+    override suspend fun updateCharacter(character: Character): Character {
+        val normalizedName = character.name.trim()
+        require(normalizedName.isNotEmpty()) { "Character name cannot be blank." }
+        require('/' !in normalizedName && '\\' !in normalizedName && '\n' !in normalizedName) {
+            "Character name cannot contain path separators or line breaks."
+        }
+        val files = CharacterFiles(
+            id = character.id,
+            name = normalizedName,
+            promptBytes = character.prompt.encodeToByteArray(),
+            openingMessage = character.openingMessage,
+            avatarBytes = character.avatarBytes,
+            temperature = character.temperature.coerceIn(0.0, 2.0),
+            topP = character.topP.coerceIn(0.0, 1.0),
+            createdAt = character.createdAt,
+        )
+        storage.saveCharacter(files)
+        return files.toCharacter()
+    }
 }
 
 private fun CharacterFiles.toCharacter() = Character(
@@ -98,6 +128,8 @@ private fun CharacterFiles.toCharacter() = Character(
     prompt = promptBytes.decodeToString(),
     openingMessage = openingMessage,
     avatarBytes = avatarBytes,
+    temperature = temperature,
+    topP = topP,
     createdAt = createdAt,
 )
 
