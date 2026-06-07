@@ -74,8 +74,9 @@ class QuickRepliesToolTest {
             context,
         )
 
-        assertTrue(messages.first().content.orEmpty().contains("重要输出格式规范"))
-        assertTrue(messages.last().content.orEmpty().contains("<suggestions>"))
+        assertTrue(messages.first().content.orEmpty().contains("<quick_replies_output_contract>"))
+        assertTrue(messages.first().content.orEmpty().contains("\"suggestions\""))
+        assertTrue(messages.last().content.orEmpty().contains("<quick_replies>"))
 
         val parsed = requireNotNull(
             tool.parseFallback(
@@ -92,6 +93,82 @@ class QuickRepliesToolTest {
             ),
         )
         assertEquals("你好，我在。", parsed.content)
+        assertEquals(4, parsed.suggestions.size)
+    }
+
+    @Test
+    fun parsesPreferredJsonMetadataBlock() {
+        val parsed = requireNotNull(
+            tool.parseFallback(
+                """
+                    好呀，我们现在就出发。
+                    <quick_replies>{"suggestions":["🌸 走吧","🍃 带上点心","✨ 你来带路","🌙 晚点再去"]}</quick_replies>
+                """.trimIndent(),
+                context,
+            ),
+        )
+
+        assertEquals("好呀，我们现在就出发。", parsed.content)
+        assertEquals(listOf("🌸 走吧", "🍃 带上点心", "✨ 你来带路", "🌙 晚点再去"), parsed.suggestions)
+    }
+
+    @Test
+    fun parsesToolStyleJsonWrappedInMarkdownFence() {
+        val parsed = requireNotNull(
+            tool.parseFallback(
+                """
+                    ```json
+                    {
+                      "ai_response": "我会在这里陪你。",
+                      "suggestions": ["🌸 聊聊今天", "🍃 一起散步", "✨ 讲个故事", "🌙 看看星星"]
+                    }
+                    ```
+                """.trimIndent(),
+                context,
+            ),
+        )
+
+        assertEquals("我会在这里陪你。", parsed.content)
+        assertEquals(4, parsed.suggestions.size)
+    }
+
+    @Test
+    fun parsesLegacyTagsCaseInsensitivelyAndNormalizesLists() {
+        val parsed = requireNotNull(
+            tool.parseFallback(
+                """
+                    我听着呢。
+                    <SUGGESTIONS>
+                    1. 🌸 继续说
+                    2) 🍃 换个话题
+                    - ✨ 猜猜看
+                    * 🌙 安静坐会儿
+                    </SUGGESTIONS>
+                """.trimIndent(),
+                context,
+            ),
+        )
+
+        assertEquals("我听着呢。", parsed.content)
+        assertEquals(
+            listOf("🌸 继续说", "🍃 换个话题", "✨ 猜猜看", "🌙 安静坐会儿"),
+            parsed.suggestions,
+        )
+    }
+
+    @Test
+    fun recoversSuggestionsFromUnclosedMetadataBlock() {
+        val parsed = requireNotNull(
+            tool.parseFallback(
+                """
+                    没关系，我们慢慢来。
+                    <quick_replies>{"suggestions":["🌸 再试一次","🍃 休息一下","✨ 换个办法","🌙 陪我聊聊"]}
+                """.trimIndent(),
+                context,
+            ),
+        )
+
+        assertEquals("没关系，我们慢慢来。", parsed.content)
         assertEquals(4, parsed.suggestions.size)
     }
 }

@@ -84,7 +84,7 @@ class DefaultAiRepositoryTest {
         assertEquals(4, value.suggestions.size)
         assertTrue(
             provider.requests.single().messages.first().content.orEmpty()
-                .contains("重要输出格式规范"),
+                .contains("<quick_replies_output_contract>"),
         )
     }
 
