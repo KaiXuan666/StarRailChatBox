@@ -47,6 +47,10 @@ internal data class OpenAiChatRequest(
     val tools: List<OpenAiToolDefinition>? = null,
     @SerialName("tool_choice")
     val toolChoice: JsonElement? = null,
+    @SerialName("parallel_tool_calls")
+    val parallelToolCalls: Boolean? = null,
+    @SerialName("response_format")
+    val responseFormat: OpenAiResponseFormat? = null,
 )
 
 @Serializable
@@ -97,7 +101,7 @@ internal data class OpenAiUsage(
 
 @Serializable
 internal data class OpenAiToolDefinition(
-    val type: String = "function",
+    val type: String,
     val function: OpenAiFunctionDefinition,
 )
 
@@ -106,4 +110,20 @@ internal data class OpenAiFunctionDefinition(
     val name: String,
     val description: String,
     val parameters: JsonObject,
+    val strict: Boolean,
+)
+
+@Serializable
+internal data class OpenAiResponseFormat(
+    val type: String,
+    @SerialName("json_schema")
+    val jsonSchema: OpenAiJsonSchema,
+)
+
+@Serializable
+internal data class OpenAiJsonSchema(
+    val name: String,
+    val description: String? = null,
+    val schema: JsonObject,
+    val strict: Boolean,
 )

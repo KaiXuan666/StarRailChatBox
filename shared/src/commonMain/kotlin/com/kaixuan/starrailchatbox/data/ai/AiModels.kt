@@ -1,6 +1,7 @@
 package com.kaixuan.starrailchatbox.data.ai
 
 import com.kaixuan.starrailchatbox.data.model.ModelConfig
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 /**
@@ -16,6 +17,7 @@ data class AiChatRequest(
     val maxTokens: Int? = null,
     val tools: List<AiToolDefinition> = emptyList(),
     val toolChoice: ToolChoice = ToolChoice.None,
+    val responseFormat: AiResponseFormat? = null,
 )
 
 data class AiMessage(
@@ -29,6 +31,7 @@ data class AiCompletion(
     val message: AiMessage,
     val finishReason: String? = null,
     val usage: AiUsage = AiUsage(),
+    val structuredOutput: JsonElement? = null,
 )
 
 data class AiUsage(
@@ -53,6 +56,14 @@ data class AiToolDefinition(
     val name: String,
     val description: String,
     val parameters: JsonObject,
+    val strict: Boolean = true,
+)
+
+data class AiResponseFormat(
+    val name: String,
+    val description: String? = null,
+    val schema: JsonObject,
+    val strict: Boolean = true,
 )
 
 /** Provider 无关的工具选择策略，由各 Provider 映射为自身协议格式。 */

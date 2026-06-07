@@ -16,6 +16,8 @@ import io.ktor.utils.io.readRemaining
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -32,6 +34,8 @@ class OpenAiCompatibleProviderTest {
             assertTrue(body.contains("\"tool_choice\":\"required\""))
             assertTrue(body.contains("\"name\":\"lookup\""))
             assertTrue(body.contains("\"additionalProperties\":false"))
+            assertTrue(body.contains("\"strict\":true"))
+            assertTrue(body.contains("\"parallel_tool_calls\":false"))
 
             respond(
                 content = """
@@ -84,6 +88,94 @@ class OpenAiCompatibleProviderTest {
         val success = assertIs<ApiResult.Success<AiCompletion>>(result)
         assertEquals("lookup", success.value.message.toolCalls.single().name)
         assertEquals(13, success.value.usage.totalTokens)
+        client.close()
+    }
+
+    @Test
+    fun mapsAndParsesStructuredOutput() = runTest {
+        val engine = MockEngine { request ->
+            val body = request.body.readText()
+            assertTrue(body.contains("\"response_format\":{\"type\":\"json_schema\""))
+            assertTrue(body.contains("\"name\":\"quick_replies\""))
+            assertTrue(body.contains("\"strict\":true"))
+            assertTrue(body.contains("\"additionalProperties\":false"))
+            respond(
+                content = """
+                    {
+                      "choices": [{
+                        "message": {
+                          "role": "assistant",
+                          "content": "{\"ai_response\":\"你好，我在。\",\"suggestions\":[\"坐一会儿\"]}"
+                        },
+                        "finish_reason": "stop"
+                      }]
+                    }
+                """.trimIndent(),
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+        val client = testClient(engine)
+
+        val result = OpenAiCompatibleProvider(client).complete(
+            providerConfig(),
+            AiChatRequest(
+                model = "test-model",
+                messages = listOf(AiMessage("user", "hello")),
+                responseFormat = AiResponseFormat(
+                    name = "quick_replies",
+                    schema = buildJsonObject {
+                        put("type", "object")
+                        put("additionalProperties", false)
+                    },
+                ),
+            ),
+        )
+
+        val completion = assertIs<ApiResult.Success<AiCompletion>>(result).value
+        assertEquals(
+            "你好，我在。",
+            completion.structuredOutput
+                ?.jsonObject
+                ?.get("ai_response")
+                ?.jsonPrimitive
+                ?.content,
+        )
+        client.close()
+    }
+
+    @Test
+    fun rejectsInvalidStructuredOutputJson() = runTest {
+        val engine = MockEngine {
+            respond(
+                content = """
+                    {
+                      "choices": [{
+                        "message": {"role": "assistant", "content": "not-json"},
+                        "finish_reason": "stop"
+                      }]
+                    }
+                """.trimIndent(),
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+        val client = testClient(engine)
+
+        val result = OpenAiCompatibleProvider(client).complete(
+            providerConfig(),
+            AiChatRequest(
+                model = "test-model",
+                messages = listOf(AiMessage("user", "hello")),
+                responseFormat = AiResponseFormat(
+                    name = "result",
+                    schema = buildJsonObject {
+                        put("type", "object")
+                        put("additionalProperties", false)
+                    },
+                ),
+            ),
+        )
+
+        assertIs<ApiResult.UnexpectedError>(result)
         client.close()
     }
 

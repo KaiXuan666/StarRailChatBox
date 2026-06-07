@@ -3,6 +3,9 @@ package com.kaixuan.starrailchatbox.data.ai.tool
 import com.kaixuan.starrailchatbox.data.ai.AiMessage
 import com.kaixuan.starrailchatbox.data.ai.AiToolCall
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -31,6 +34,24 @@ class QuickRepliesToolTest {
         val terminal = assertIs<ToolResult.Terminal>(result)
         assertEquals("你好，我在。", terminal.content)
         assertEquals(4, terminal.suggestions.size)
+    }
+
+    @Test
+    fun definitionSupportsStrictStructuredToolCalls() {
+        val definition = tool.definition(context)
+
+        assertTrue(definition.strict)
+        assertEquals(
+            false,
+            definition.parameters["additionalProperties"]?.jsonPrimitive?.content?.toBoolean(),
+        )
+        assertEquals(
+            setOf("ai_response", "suggestions"),
+            definition.parameters["required"]
+                ?.jsonArray
+                ?.map { it.jsonPrimitive.content }
+                ?.toSet(),
+        )
     }
 
     @Test

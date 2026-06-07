@@ -6,7 +6,9 @@ import com.kaixuan.starrailchatbox.data.api.OpenAiChatRequest
 import com.kaixuan.starrailchatbox.data.api.OpenAiChatResponse
 import com.kaixuan.starrailchatbox.data.api.OpenAiFunctionCall
 import com.kaixuan.starrailchatbox.data.api.OpenAiFunctionDefinition
+import com.kaixuan.starrailchatbox.data.api.OpenAiJsonSchema
 import com.kaixuan.starrailchatbox.data.api.OpenAiMessage
+import com.kaixuan.starrailchatbox.data.api.OpenAiResponseFormat
 import com.kaixuan.starrailchatbox.data.api.OpenAiToolCall
 import com.kaixuan.starrailchatbox.data.api.OpenAiToolDefinition
 import com.kaixuan.starrailchatbox.data.api.createOpenAiApi
@@ -14,6 +16,9 @@ import de.jensklingenberg.ktorfit.ktorfit
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.ResponseException
 import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -26,6 +31,7 @@ import kotlinx.serialization.json.put
  */
 class OpenAiCompatibleProvider(
     private val httpClient: HttpClient,
+    private val json: Json = Json { ignoreUnknownKeys = true },
 ) : AiProvider {
     override val id: String = Id
 
@@ -51,7 +57,7 @@ class OpenAiCompatibleProvider(
                 )
             }
         ) {
-            is ApiResult.Success -> result.value.toCompletion()
+            is ApiResult.Success -> result.value.toCompletion(request.responseFormat, json)
             is ApiResult.HttpError -> result
             is ApiResult.NetworkError -> result
             is ApiResult.UnexpectedError -> result
@@ -84,6 +90,7 @@ class OpenAiCompatibleProvider(
                         put("required", kotlinx.serialization.json.buildJsonArray {
                             add(JsonPrimitive("answer"))
                         })
+                        put("additionalProperties", false)
                     },
                 ),
             ),
@@ -145,10 +152,12 @@ private fun AiChatRequest.toOpenAiRequest() = OpenAiChatRequest(
     maxTokens = maxTokens,
     tools = tools.takeIf(List<*>::isNotEmpty)?.map { tool ->
         OpenAiToolDefinition(
+            type = "function",
             function = OpenAiFunctionDefinition(
                 name = tool.name,
                 description = tool.description,
                 parameters = tool.parameters,
+                strict = tool.strict,
             ),
         )
     },
@@ -161,11 +170,39 @@ private fun AiChatRequest.toOpenAiRequest() = OpenAiChatRequest(
             put("function", buildJsonObject { put("name", choice.name) })
         }
     },
+    parallelToolCalls = false.takeIf { tools.any(AiToolDefinition::strict) },
+    responseFormat = responseFormat?.let { format ->
+        OpenAiResponseFormat(
+            type = "json_schema",
+            jsonSchema = OpenAiJsonSchema(
+                name = format.name,
+                description = format.description,
+                schema = format.schema,
+                strict = format.strict,
+            ),
+        )
+    },
 )
 
-private fun OpenAiChatResponse.toCompletion(): ApiResult<AiCompletion> {
+private fun OpenAiChatResponse.toCompletion(
+    responseFormat: AiResponseFormat?,
+    json: Json,
+): ApiResult<AiCompletion> {
     val choice = choices.firstOrNull()
         ?: return ApiResult.UnexpectedError("Chat completion returned no choices.")
+    val structuredOutput = if (responseFormat != null) {
+        val content = choice.message.content
+            ?: return ApiResult.UnexpectedError("Structured completion returned no content.")
+        val parsed = try {
+            json.parseToJsonElement(content)
+        } catch (_: SerializationException) {
+            return ApiResult.UnexpectedError("Structured completion returned invalid JSON.")
+        }
+        parsed as? JsonObject
+            ?: return ApiResult.UnexpectedError("Structured completion returned a non-object JSON value.")
+    } else {
+        null
+    }
     return ApiResult.Success(
         AiCompletion(
             message = AiMessage(
@@ -186,6 +223,7 @@ private fun OpenAiChatResponse.toCompletion(): ApiResult<AiCompletion> {
                 completionTokens = usage?.completionTokens ?: 0,
                 totalTokens = usage?.totalTokens ?: 0,
             ),
+            structuredOutput = structuredOutput,
         ),
     )
 }
