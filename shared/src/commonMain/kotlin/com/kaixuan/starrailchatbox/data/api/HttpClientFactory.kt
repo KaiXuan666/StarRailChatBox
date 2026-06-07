@@ -34,7 +34,17 @@ internal fun HttpClientConfig<*>.configureOpenAiClient() {
     install(Logging) {
         logger = object : Logger {
             override fun log(message: String) {
-                Napier.d(message, tag = "OpenAiHttp")
+                val maxLogLength = 1000
+                if (message.length <= maxLogLength) {
+                    Napier.d(message, tag = "OpenAiHttp")
+                } else {
+                    var start = 0
+                    while (start < message.length) {
+                        val end = if (start + maxLogLength < message.length) start + maxLogLength else message.length
+                        Napier.d(message.substring(start, end), tag = "OpenAiHttp")
+                        start = end
+                    }
+                }
             }
         }
         level = LogLevel.BODY

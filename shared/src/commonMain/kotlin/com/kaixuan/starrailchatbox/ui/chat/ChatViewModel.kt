@@ -21,6 +21,7 @@ import com.kaixuan.starrailchatbox.data.chat.newChatId
 import com.kaixuan.starrailchatbox.data.model.ModelConfig
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
 import com.kaixuan.starrailchatbox.platform.formatLocalTime
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -475,6 +476,11 @@ class ChatViewModel(
             currentUserMessage = content,
             maxHistoryMessageCount = session.maxContextMessageCount,
         )
+
+        Napier.d("maxContextMessageCount: ${session.maxContextMessageCount}, summary: ${context.summary} content: $content, history size: ${context.messages.size}", tag = "sendMessage")
+        context.messages.forEach {
+            Napier.d(tag = "sendMessage") { "messages item=${it}" }
+        }
         when (val result = aiRepository.createChatCompletion(config, requestMessages, character.name)) {
             is ApiResult.Success -> {
                 if (handleSuccess(session, config, result.value)) {
