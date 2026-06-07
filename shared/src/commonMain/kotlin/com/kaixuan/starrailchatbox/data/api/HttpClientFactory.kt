@@ -13,6 +13,7 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
 expect fun createPlatformHttpClient(): HttpClient
+expect fun saveNetworkLog(message: String)
 
 internal fun HttpClientConfig<*>.configureOpenAiClient() {
     expectSuccess = true
@@ -45,6 +46,7 @@ internal fun HttpClientConfig<*>.configureOpenAiClient() {
                         start = end
                     }
                 }
+                saveNetworkLog(message)
             }
         }
         level = LogLevel.BODY

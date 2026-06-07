@@ -11,10 +11,15 @@ import com.kaixuan.starrailchatbox.data.character.RoomCharacterStorage
 import com.kaixuan.starrailchatbox.data.chat.RoomChatSessionRepository
 import com.kaixuan.starrailchatbox.data.model.RoomModelConfigRepository
 
+object AndroidContextHolder {
+    var context: android.content.Context? = null
+}
+
 fun createPersistentRepositories(
     context: Context,
     databaseName: String = "starrail_chat_box.db",
 ): PersistentRepositories {
+    AndroidContextHolder.context = context.applicationContext
     val database = Room.databaseBuilder<StarRailDatabase>(
         context = context.applicationContext,
         name = databaseName,

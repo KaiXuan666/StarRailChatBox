@@ -25,7 +25,9 @@ fun buildChatContext(
             add(
                 AiMessage(
                     role = "system",
-                    content = """<chat_history_summary>$it</chat_history_summary>""".trimIndent(),
+                    content = """<chat_history_summary>
+                        $it
+                        </chat_history_summary>""".trimIndent(),
                 ),
             )
         }

@@ -6,3 +6,7 @@ import io.ktor.client.engine.darwin.Darwin
 actual fun createPlatformHttpClient(): HttpClient = HttpClient(Darwin) {
     configureOpenAiClient()
 }
+
+actual fun saveNetworkLog(message: String) {
+    // No-op for iOS
+}
