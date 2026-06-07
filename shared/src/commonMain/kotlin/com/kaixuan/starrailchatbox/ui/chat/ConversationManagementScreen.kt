@@ -51,6 +51,7 @@ import starrailchatbox.shared.generated.resources.navigation_back
 import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
+import com.kaixuan.starrailchatbox.ui.components.BackHandler
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
@@ -68,6 +69,11 @@ fun ConversationManagementScreen(
 ) {
     val character = state.selectedCharacter
     val sessions = state.sessions
+
+    BackHandler {
+        onMainAction(MainAction.PopBackStack)
+    }
+
     StarRailPageLayout(
         title = stringResource(Res.string.conversation_management_title),
         contentPadding = contentPadding,
@@ -230,11 +236,11 @@ private fun CharacterConversationCard(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                 )
-                Text(
-                    text = stringResource(Res.string.conversation_management_count, sessionCount),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+//                Text(
+//                    text = stringResource(Res.string.conversation_management_count, sessionCount),
+//                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+//                    style = MaterialTheme.typography.bodyMedium,
+//                )
             }
         }
     }
