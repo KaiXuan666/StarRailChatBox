@@ -127,6 +127,8 @@ kotlin {
            isIncludeAndroidResources = true
        }
     }
+
+    applyDefaultHierarchyTemplate()
     
     sourceSets {
         androidMain.dependencies {
@@ -158,6 +160,13 @@ kotlin {
             kotlin.srcDir(layout.buildDirectory.dir("generated/ksp/metadata/commonMain/kotlin"))
             kotlin.srcDir(generatedLocalApiSettingsDirectory)
         }
+        val roomMain by creating {
+            dependsOn(commonMain.get())
+            dependencies {
+                implementation(libs.room.runtime)
+                implementation(libs.sqlite.bundled)
+            }
+        }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
@@ -174,23 +183,27 @@ kotlin {
         jvmMain.dependencies {
             implementation(libs.ktor.client.cio)
             implementation(libs.datastore.preferences)
-            implementation(libs.room.runtime)
         }
+        jvmMain.get().dependsOn(roomMain)
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
             implementation(libs.datastore.preferences)
-            implementation(libs.room.runtime)
         }
+        iosMain.get().dependsOn(roomMain)
         androidMain.dependencies {
             implementation(libs.datastore.preferences)
-            implementation(libs.room.runtime)
         }
+        androidMain.get().dependsOn(roomMain)
     }
 }
 
 dependencies {
     androidRuntimeClasspath(libs.compose.uiTooling)
     add("kspCommonMainMetadata", libs.ktorfit.ksp)
+    add("kspAndroid", libs.room.compiler)
+    add("kspJvm", libs.room.compiler)
+    add("kspIosArm64", libs.room.compiler)
+    add("kspIosSimulatorArm64", libs.room.compiler)
 }
 
 tasks.matching {
@@ -204,4 +217,7 @@ tasks.matching {
     it.name.startsWith("ksp")
 }.configureEach {
     dependsOn(generateLocalApiSettings)
+    if (name != "kspCommonMainKotlinMetadata") {
+        dependsOn("kspCommonMainKotlinMetadata")
+    }
 }
