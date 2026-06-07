@@ -13,6 +13,7 @@ import com.kaixuan.starrailchatbox.data.chat.ChatSession
 import com.kaixuan.starrailchatbox.data.chat.ChatSessionRepository
 import com.kaixuan.starrailchatbox.data.chat.ChatContextSnapshot
 import com.kaixuan.starrailchatbox.data.chat.ChatSummaryCoordinator
+import com.kaixuan.starrailchatbox.data.chat.ChatTitleCoordinator
 import com.kaixuan.starrailchatbox.data.chat.NewChatMessage
 import com.kaixuan.starrailchatbox.data.chat.NewChatSession
 import com.kaixuan.starrailchatbox.data.chat.StoredChatMessage
@@ -41,6 +42,10 @@ class ChatViewModel(
     private val modelConfigRepository: ModelConfigRepository,
     private val aiRepository: AiRepository,
     private val chatSummaryCoordinator: ChatSummaryCoordinator = ChatSummaryCoordinator(
+        chatSessionRepository = chatSessionRepository,
+        aiRepository = aiRepository,
+    ),
+    private val chatTitleCoordinator: ChatTitleCoordinator = ChatTitleCoordinator(
         chatSessionRepository = chatSessionRepository,
         aiRepository = aiRepository,
     ),
@@ -491,6 +496,19 @@ class ChatViewModel(
                             throw cancellation
                         } catch (_: Throwable) {
                             // Summary generation is best-effort and must not fail the chat request.
+                        }
+                    }
+                    viewModelScope.launch {
+                        try {
+                            chatTitleCoordinator.renameSessionIfNeeded(
+                                session = session,
+                                config = config,
+                                defaultTitle = sessionTitleProvider(),
+                            )
+                        } catch (cancellation: CancellationException) {
+                            throw cancellation
+                        } catch (_: Throwable) {
+                            // Title generation is best-effort and must not fail the chat request.
                         }
                     }
                 }

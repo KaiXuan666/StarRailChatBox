@@ -74,6 +74,7 @@ import starrailchatbox.shared.generated.resources.voice_not_ready
 import starrailchatbox.shared.generated.resources.chat_model_config_required
 import starrailchatbox.shared.generated.resources.chat_request_failed
 import starrailchatbox.shared.generated.resources.chat_empty_response
+import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
@@ -82,6 +83,9 @@ import com.kaixuan.starrailchatbox.ui.chat.ChatEffect
 import com.kaixuan.starrailchatbox.ui.chat.ChatSessionBottomBar
 import com.kaixuan.starrailchatbox.ui.chat.ChatSessionScreen
 import com.kaixuan.starrailchatbox.ui.chat.ChatUiState
+import com.kaixuan.starrailchatbox.ui.chat.CharacterChatState
+import com.kaixuan.starrailchatbox.ui.chat.ChatMessageUiModel
+import com.kaixuan.starrailchatbox.ui.chat.MessageContent
 import com.kaixuan.starrailchatbox.ui.chat.ConversationManagementScreen
 import com.kaixuan.starrailchatbox.ui.chat.EffectMessage
 import com.kaixuan.starrailchatbox.ui.components.NavigationPlaceholderScreen
@@ -565,7 +569,7 @@ private fun MainContainerLightPreview() {
                 onAction = {},
             ),
             chat = ChatRouteBinding(
-                state = ChatUiState(),
+                state = previewChatState,
                 effects = emptyFlow(),
                 onAction = {},
             ),
@@ -594,7 +598,7 @@ private fun MainContainerDarkPreview() {
                 onAction = {},
             ),
             chat = ChatRouteBinding(
-                state = ChatUiState(),
+                state = previewChatState,
                 effects = emptyFlow(),
                 onAction = {},
             ),
@@ -611,3 +615,34 @@ private fun MainContainerDarkPreview() {
         )
     }
 }
+
+private val previewCharacter = Character(
+    id = "builtin:流萤",
+    name = "流萤",
+    prompt = "Preview prompt",
+    openingMessage = "今天要聊点什么呢？",
+    avatarBytes = byteArrayOf(),
+)
+
+private val previewChatState = ChatUiState(
+    characters = listOf(previewCharacter),
+    selectedCharacterId = "builtin:流萤",
+    characterStates = mapOf(
+        "builtin:流萤" to CharacterChatState(
+            activeSessionId = "preview-session",
+            messages = listOf(
+                ChatMessageUiModel.Received(
+                    id = "preview-opening",
+                    timestamp = "10:21",
+                    content = MessageContent.Custom("今天要聊点什么呢？"),
+                    senderId = "builtin:流萤",
+                )
+            ),
+            messageDraft = "",
+            isLoadingSession = false,
+            suggestions = listOf("讲讲星核猎手", "你喜欢橡木蛋糕卷吗", "关于这片星空...", "想听听你的过去"),
+        )
+    ),
+    isLoadingCharacters = false,
+)
+

@@ -28,6 +28,11 @@ interface AiRepository {
         messages: List<AiMessage>,
     ): ApiResult<ChatCompletionResult>
 
+    suspend fun createSessionTitle(
+        config: ModelConfig,
+        messages: List<AiMessage>,
+    ): ApiResult<ChatCompletionResult>
+
     suspend fun testToolCallSupport(
         apiHost: String,
         apiKey: String,
@@ -128,6 +133,43 @@ class DefaultAiRepository(
                     temperature = 0.2,
                     topP = 1.0,
                     maxTokens = minOf(config.maxOutputTokens, SUMMARY_MAX_OUTPUT_TOKENS),
+                    toolChoice = ToolChoice.None,
+                ),
+            )
+        ) {
+            is ApiResult.Success -> {
+                val completion = result.value
+                ApiResult.Success(
+                    ChatCompletionResult(
+                        content = completion.message.content.orEmpty(),
+                        finishReason = completion.finishReason,
+                        promptTokens = completion.usage.promptTokens,
+                        completionTokens = completion.usage.completionTokens,
+                        totalTokens = completion.usage.totalTokens,
+                    ),
+                )
+            }
+            is ApiResult.HttpError -> result
+            is ApiResult.NetworkError -> result
+            is ApiResult.UnexpectedError -> result
+        }
+    }
+
+    override suspend fun createSessionTitle(
+        config: ModelConfig,
+        messages: List<AiMessage>,
+    ): ApiResult<ChatCompletionResult> {
+        val provider = providerRegistry.find(config.provider)
+            ?: return ApiResult.UnexpectedError("Unknown AI provider: ${config.provider}")
+        return when (
+            val result = provider.complete(
+                config = config.toProviderConfig(),
+                request = AiChatRequest(
+                    model = config.modelName,
+                    messages = messages,
+                    temperature = 0.5,
+                    topP = 1.0,
+                    maxTokens = 150,
                     toolChoice = ToolChoice.None,
                 ),
             )

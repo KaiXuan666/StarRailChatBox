@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlin.time.Clock
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class RoomChatSessionRepository(
@@ -139,6 +140,11 @@ class RoomChatSessionRepository(
         check(sessionDao.softDelete(sessionId, deletedAt) == 1) {
             "Chat session $sessionId does not exist."
         }
+    }
+
+    override suspend fun updateSessionTitle(sessionId: String, title: String) {
+        val now = Clock.System.now().toEpochMilliseconds()
+        sessionDao.updateTitle(sessionId, title, now)
     }
 }
 

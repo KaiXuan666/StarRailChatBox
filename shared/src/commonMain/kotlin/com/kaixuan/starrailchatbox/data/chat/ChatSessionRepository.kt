@@ -149,6 +149,8 @@ interface ChatSessionRepository {
     suspend fun saveSummary(summary: NewChatSummary): Boolean
 
     suspend fun deleteSession(sessionId: String, deletedAt: Long)
+
+    suspend fun updateSessionTitle(sessionId: String, title: String)
 }
 
 class InMemoryChatSessionRepository : ChatSessionRepository {
@@ -269,6 +271,18 @@ class InMemoryChatSessionRepository : ChatSessionRepository {
         sessions.update { stored -> stored.filterNot { it.id == sessionId } }
         messages.update { stored -> stored.filterNot { it.sessionId == sessionId } }
         summaries.update { stored -> stored.filterNot { it.sessionId == sessionId } }
+    }
+
+    override suspend fun updateSessionTitle(sessionId: String, title: String) {
+        sessions.update { stored ->
+            stored.map {
+                if (it.id == sessionId) {
+                    it.copy(title = title)
+                } else {
+                    it
+                }
+            }
+        }
     }
 }
 

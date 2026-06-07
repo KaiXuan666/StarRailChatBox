@@ -61,4 +61,7 @@ interface ChatSessionDao {
 
     @Query("UPDATE chat_session SET deleted_at = :deletedAt, updated_at = :deletedAt WHERE id = :id")
     suspend fun softDelete(id: String, deletedAt: Long): Int
+
+    @Query("UPDATE chat_session SET title = :title, updated_at = :updatedAt WHERE id = :id")
+    suspend fun updateTitle(id: String, title: String, updatedAt: Long): Int
 }

@@ -60,6 +60,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.decodeToImageBitmap
@@ -541,14 +542,24 @@ private fun CharacterSelector(
         color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.92f),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        Row(
-            modifier = Modifier
+        val rowModifier = if (compact) {
+            Modifier
+                .fillMaxWidth()
+                .padding(
+                    horizontal = StarRailSpacing.xxs,
+                    vertical = StarRailSpacing.xs,
+                )
+        } else {
+            Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState())
                 .padding(
-                    horizontal = if (compact) StarRailSpacing.xxs else StarRailSpacing.sm,
-                    vertical = if (compact) StarRailSpacing.xs else StarRailSpacing.sm,
-                ),
+                    horizontal = StarRailSpacing.sm,
+                    vertical = StarRailSpacing.sm,
+                )
+        }
+        Row(
+            modifier = rowModifier,
             horizontalArrangement = Arrangement.spacedBy(
                 if (compact) StarRailSpacing.xxs else StarRailSpacing.sm,
             ),
@@ -560,7 +571,11 @@ private fun CharacterSelector(
                     selected = character.id == selectedCharacterId,
                     compact = compact,
                     onClick = { onCharacterSelected(character.id) },
-                    modifier = Modifier.width(if (compact) 82.dp else 104.dp),
+                    modifier = if (compact) {
+                        Modifier.weight(1f)
+                    } else {
+                        Modifier.width(104.dp)
+                    },
                 )
             }
         }
@@ -945,44 +960,63 @@ private fun QuickReplies(
 ) {
     if (suggestions.isEmpty()) return
 
-    Row(
+    // 限制最多展示 4 个 suggestions，并将其分为最多 2 行（每行最多 2 个）
+    val chunkedSuggestions = suggestions.take(4).chunked(2)
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
             .padding(
                 horizontal = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
                 vertical = if (compact) StarRailSpacing.xxs else StarRailSpacing.xs,
             ),
-        horizontalArrangement = Arrangement.spacedBy(
+        verticalArrangement = Arrangement.spacedBy(
             if (compact) StarRailSpacing.xxs else StarRailSpacing.xs
         ),
     ) {
-        suggestions.forEach { suggestion ->
-            Surface(
-                onClick = { onReplyClicked(suggestion) },
-                shape = MaterialTheme.shapes.extraLarge,
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                border = BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.outlineVariant,
+        chunkedSuggestions.forEach { rowSuggestions ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(
+                    if (compact) StarRailSpacing.xxs else StarRailSpacing.xs
                 ),
             ) {
-                Row(
-                    modifier = Modifier.padding(
-                        horizontal = if (compact) 12.dp else StarRailSpacing.md,
-                        vertical = if (compact) 4.dp else StarRailSpacing.xs,
-                    ),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = suggestion,
-                        style = if (compact) {
-                            MaterialTheme.typography.labelMedium
-                        } else {
-                            MaterialTheme.typography.labelLarge
-                        },
-                    )
+                rowSuggestions.forEach { suggestion ->
+                    Surface(
+                        onClick = { onReplyClicked(suggestion) },
+                        modifier = Modifier.weight(1f),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        color = MaterialTheme.colorScheme.surfaceContainer,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.outlineVariant,
+                        ),
+                    ) {
+                        Box(
+                            modifier = Modifier.padding(
+                                horizontal = if (compact) StarRailSpacing.xs else StarRailSpacing.sm,
+                                vertical = if (compact) 6.dp else StarRailSpacing.xs,
+                            ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = suggestion,
+                                style = if (compact) {
+                                    MaterialTheme.typography.labelMedium
+                                } else {
+                                    MaterialTheme.typography.labelLarge
+                                },
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+
+                // 如果行元素少于 2 个，则在右侧填充一个 weight(1f) 的 Spacer，保证第一个元素只占一半宽度
+                if (rowSuggestions.size < 2) {
+                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }
@@ -1202,7 +1236,8 @@ private val chatPreviewState = ChatUiState(
             ),
             messageDraft = "想听你讲一个星空下的故事",
             isLoadingSession = false,
-        )
+            suggestions = listOf("讲讲星核猎手", "你喜欢橡木蛋糕卷吗", "关于这片星空...", "想听听你的过去"),
+            )
     ),
     isLoadingCharacters = false,
 )
@@ -1217,3 +1252,32 @@ private fun previewCharacter(
     openingMessage = "今天要聊点什么呢？",
     avatarBytes = byteArrayOf(),
 )
+
+@Preview
+@Composable
+private fun ChatSessionBottomBarLightPreview() {
+    StarRailTheme(darkThemeOverride = false) {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            ChatSessionBottomBar(
+                state = chatPreviewState,
+                compact = true,
+                onAction = {}
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+private fun ChatSessionBottomBarDarkPreview() {
+    StarRailTheme(darkThemeOverride = true) {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            ChatSessionBottomBar(
+                state = chatPreviewState,
+                compact = true,
+                onAction = {}
+            )
+        }
+    }
+}
+

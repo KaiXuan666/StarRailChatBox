@@ -113,6 +113,35 @@ class ChatViewModelTest {
     }
 
     @Test
+    fun secondRoundConversationTriggersSessionAutomaticRenaming() = runTest {
+        val fixture = createFixture()
+        advanceUntilIdle()
+
+        // 第一轮对话完成
+        fixture.send("第一句")
+        advanceUntilIdle()
+
+        val sessionAfterFirst = requireNotNull(fixture.sessions.findLatestSession("builtin:流萤"))
+        assertEquals("新对话", sessionAfterFirst.title)
+        assertEquals(0, fixture.api.titleRequests.size)
+
+        // 第二轮对话完成
+        fixture.send("第二句")
+        advanceUntilIdle()
+
+        val sessionAfterSecond = requireNotNull(fixture.sessions.findLatestSession("builtin:流萤"))
+        // 应该自动被重命名为清洗过后的标题
+        assertEquals("总结的标题", sessionAfterSecond.title)
+        assertEquals(1, fixture.api.titleRequests.size)
+
+        // 第三轮对话，不应再次触发
+        fixture.send("第三句")
+        advanceUntilIdle()
+
+        assertEquals(1, fixture.api.titleRequests.size)
+    }
+
+    @Test
     fun missingModelConfigKeepsUserMessageAndEmitsEffect() = runTest {
         val fixture = createFixture(config = null)
         advanceUntilIdle()
@@ -274,6 +303,24 @@ private class FakeOpenAiRepository : AiRepository {
             totalTokens = 12,
         ),
     )
+
+    val titleRequests = mutableListOf<List<AiMessage>>()
+
+    override suspend fun createSessionTitle(
+        config: ModelConfig,
+        messages: List<AiMessage>,
+    ): ApiResult<ChatCompletionResult> {
+        titleRequests += messages
+        return ApiResult.Success(
+            ChatCompletionResult(
+                content = "「总结的标题」",
+                finishReason = "stop",
+                promptTokens = 10,
+                completionTokens = 2,
+                totalTokens = 12,
+            ),
+        )
+    }
 
     override suspend fun testToolCallSupport(
         apiHost: String,

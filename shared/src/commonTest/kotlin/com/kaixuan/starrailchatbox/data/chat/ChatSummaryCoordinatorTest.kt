@@ -94,6 +94,11 @@ private class SummaryAiRepository : AiRepository {
         )
     }
 
+    override suspend fun createSessionTitle(
+        config: ModelConfig,
+        messages: List<AiMessage>,
+    ): ApiResult<ChatCompletionResult> = ApiResult.UnexpectedError("Not used.")
+
     override suspend fun testToolCallSupport(
         apiHost: String,
         apiKey: String,
