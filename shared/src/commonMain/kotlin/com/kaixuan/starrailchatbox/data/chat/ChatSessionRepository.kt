@@ -83,9 +83,9 @@ interface ChatSessionRepository {
         maxHistoryMessageCount: Int?,
     ): List<StoredChatMessage>
 
-    suspend fun createSessionWithMessage(
+    suspend fun createSessionWithMessages(
         session: NewChatSession,
-        message: NewChatMessage,
+        messages: List<NewChatMessage>,
     )
 
     suspend fun appendMessage(message: NewChatMessage)
@@ -122,14 +122,18 @@ class InMemoryChatSessionRepository : ChatSessionRepository {
             ?: context
     }
 
-    override suspend fun createSessionWithMessage(
+    override suspend fun createSessionWithMessages(
         session: NewChatSession,
-        message: NewChatMessage,
+        messages: List<NewChatMessage>,
     ) {
+        require(messages.isNotEmpty())
         sessions.update {
-            it + session.toStored(lastMessageAt = message.createdAt)
+            it + session.toStored(lastMessageAt = messages.last().createdAt)
         }
-        appendMessage(message)
+        val storedMessages = messages.mapIndexed { index, message ->
+            message.toStored(seq = index + 1L)
+        }
+        this.messages.update { it + storedMessages }
     }
 
     override suspend fun appendMessage(message: NewChatMessage) {

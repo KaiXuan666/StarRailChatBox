@@ -7,6 +7,7 @@ data class Character(
     val id: String,
     val name: String,
     val prompt: String,
+    val openingMessage: String,
     val avatarBytes: ByteArray,
 ) {
     override fun equals(other: Any?): Boolean {
@@ -15,6 +16,7 @@ data class Character(
         return id == other.id &&
             name == other.name &&
             prompt == other.prompt &&
+            openingMessage == other.openingMessage &&
             avatarBytes.contentEquals(other.avatarBytes)
     }
 
@@ -22,6 +24,7 @@ data class Character(
         var result = id.hashCode()
         result = 31 * result + name.hashCode()
         result = 31 * result + prompt.hashCode()
+        result = 31 * result + openingMessage.hashCode()
         result = 31 * result + avatarBytes.contentHashCode()
         return result
     }
@@ -31,6 +34,7 @@ data class CharacterFiles(
     val id: String,
     val name: String,
     val promptBytes: ByteArray,
+    val openingMessage: String,
     val avatarBytes: ByteArray,
 )
 
@@ -75,6 +79,7 @@ class DefaultCharacterRepository(
             id = normalizedName,
             name = normalizedName,
             promptBytes = prompt.encodeToByteArray(),
+            openingMessage = "",
             avatarBytes = avatarBytes,
         )
         storage.saveCharacter(files)
@@ -86,16 +91,21 @@ private fun CharacterFiles.toCharacter() = Character(
     id = id,
     name = name,
     prompt = promptBytes.decodeToString(),
+    openingMessage = openingMessage,
     avatarBytes = avatarBytes,
 )
 
 @OptIn(ExperimentalResourceApi::class)
 private suspend fun loadDefaultCharacterAssets(): List<CharacterFiles> {
+    val openingMessage = Res.readBytes("files/characters/opening_message.txt")
+        .decodeToString()
+        .trim()
     return DefaultCharacterNames.map { name ->
         CharacterFiles(
             id = "builtin:$name",
             name = name,
             promptBytes = Res.readBytes("files/characters/$name.md"),
+            openingMessage = openingMessage,
             avatarBytes = Res.readBytes("files/characters/$name.webp"),
         )
     }

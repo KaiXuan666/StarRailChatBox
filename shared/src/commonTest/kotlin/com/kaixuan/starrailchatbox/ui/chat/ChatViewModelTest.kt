@@ -45,9 +45,18 @@ class ChatViewModelTest {
 
         val state = fixture.viewModel.uiState.value
         val greeting = assertIs<ChatMessageUiModel.Received>(state.messages.single())
-        assertEquals(MessageContent.Resource(ChatCopy.EMPTY_GREETING), greeting.content)
+        assertEquals(MessageContent.Custom("今天要聊点什么呢？"), greeting.content)
+        assertEquals("local-60000", greeting.timestamp)
         assertEquals(null, state.activeSessionId)
         assertFalse(state.isLoadingSession)
+    }
+
+    @Test
+    fun blankOpeningMessageShowsNoInitialMessage() = runTest {
+        val fixture = createFixture(characterRepository = NoOpeningCharacterRepository)
+        advanceUntilIdle()
+
+        assertEquals(emptyList(), fixture.viewModel.uiState.value.messages)
     }
 
     @Test
@@ -65,11 +74,15 @@ class ChatViewModelTest {
         assertEquals("新对话", session.title)
         assertEquals("role prompt", session.systemPromptSnapshot)
         assertEquals(
-            listOf("system" to "role prompt", "user" to "你好"),
+            listOf(
+                "system" to "role prompt",
+                "assistant" to "今天要聊点什么呢？",
+                "user" to "你好",
+            ),
             fixture.api.requests.single().map { it.role to it.content },
         )
         assertEquals(
-            listOf("你好", "你好呀"),
+            listOf("今天要聊点什么呢？", "你好", "你好呀"),
             fixture.sessions.observeMessages(session.id).first().map { it.content },
         )
         assertEquals("", fixture.viewModel.uiState.value.messageDraft)
@@ -89,6 +102,7 @@ class ChatViewModelTest {
         assertEquals(
             listOf(
                 "system" to "role prompt",
+                "assistant" to "今天要聊点什么呢？",
                 "user" to "第一句",
                 "assistant" to "你好呀",
                 "user" to "第二句",
@@ -108,8 +122,9 @@ class ChatViewModelTest {
             fixture.sessions.findLatestSession("builtin:流萤"),
         )
         val stored = fixture.sessions.observeMessages(session.id).first()
-        assertEquals(2, stored.size)
-        assertEquals("不要丢掉", stored.first().content)
+        assertEquals(3, stored.size)
+        assertEquals("今天要聊点什么呢？", stored.first().content)
+        assertEquals("不要丢掉", stored[1].content)
         assertEquals("model_config_required", stored.last().errorCode)
         assertEquals(
             ChatEffect.ShowMessage(EffectMessage.MODEL_CONFIG_REQUIRED),
@@ -119,18 +134,20 @@ class ChatViewModelTest {
 
     private fun createFixture(
         config: ModelConfig? = testConfig(),
+        characterRepository: CharacterRepository = FakeCharacterRepository,
     ): Fixture {
         val sessions = InMemoryChatSessionRepository()
         val api = FakeOpenAiRepository()
         var id = 0
         val viewModel = ChatViewModel(
-            characterRepository = FakeCharacterRepository,
+            characterRepository = characterRepository,
             chatSessionRepository = sessions,
             modelConfigRepository = InMemoryModelConfigRepository(config),
             openAiRepository = api,
             currentTimeMillis = { 60_000L },
             idGenerator = { prefix -> "$prefix-${++id}" },
             sessionTitleProvider = { "新对话" },
+            timeFormatter = { "local-$it" },
         )
         return Fixture(viewModel, sessions, api)
     }
@@ -149,15 +166,39 @@ private data class Fixture(
 
 private object FakeCharacterRepository : CharacterRepository {
     override suspend fun loadCharacters(): List<Character> = listOf(
-        Character("builtin:流萤", "流萤", "role prompt", byteArrayOf()),
-        Character("builtin:黄泉", "黄泉", "another prompt", byteArrayOf()),
+        Character(
+            "builtin:流萤",
+            "流萤",
+            "role prompt",
+            "今天要聊点什么呢？",
+            byteArrayOf(),
+        ),
+        Character(
+            "builtin:黄泉",
+            "黄泉",
+            "another prompt",
+            "今天要聊点什么呢？",
+            byteArrayOf(),
+        ),
     )
 
     override suspend fun addCharacter(
         name: String,
         prompt: String,
         avatarBytes: ByteArray,
-    ): Character = Character(name, name, prompt, avatarBytes)
+    ): Character = Character(name, name, prompt, "", avatarBytes)
+}
+
+private object NoOpeningCharacterRepository : CharacterRepository {
+    override suspend fun loadCharacters(): List<Character> = listOf(
+        Character("builtin:流萤", "流萤", "role prompt", "", byteArrayOf()),
+    )
+
+    override suspend fun addCharacter(
+        name: String,
+        prompt: String,
+        avatarBytes: ByteArray,
+    ): Character = Character(name, name, prompt, "", avatarBytes)
 }
 
 private class FakeOpenAiRepository : OpenAiRepository {

@@ -36,6 +36,7 @@ class RoomCharacterStorageTest {
             val stored = requireNotNull(database.agentRoleDao().findById(initial.id))
             assertTrue(stored.isBuiltin)
             assertEquals("first", stored.systemPrompt)
+            assertEquals("今天要聊点什么呢？", stored.openingMessage)
             assertTrue(stored.avatarUri.startsWith(avatarDirectory.toString()))
             assertContentEquals(initial.avatarBytes, Files.readAllBytes(java.nio.file.Path.of(stored.avatarUri)))
             assertEquals(
@@ -63,5 +64,6 @@ private fun characterFiles(
     id = id,
     name = name,
     promptBytes = prompt.encodeToByteArray(),
+    openingMessage = "今天要聊点什么呢？",
     avatarBytes = byteArrayOf(1, 2, 3),
 )

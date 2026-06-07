@@ -15,6 +15,7 @@ class CharacterRepositoryTest {
         assertEquals(setOf("三月七", "流萤", "瑕蝶", "黄泉"), characters.map(Character::name).toSet())
         characters.forEach { character ->
             assertTrue(character.prompt.isNotBlank())
+            assertEquals("今天要聊点什么呢？", character.openingMessage)
             assertTrue(character.avatarBytes.isNotEmpty())
         }
     }
@@ -53,5 +54,6 @@ private fun characterFiles(name: String) = CharacterFiles(
     id = name,
     name = name,
     promptBytes = "$name prompt".encodeToByteArray(),
+    openingMessage = "欢迎 $name",
     avatarBytes = byteArrayOf(1),
 )

@@ -59,7 +59,7 @@ class RoomCharacterStorage(
         avatarUri = avatarUri,
         description = "",
         systemPrompt = promptBytes.decodeToString(),
-        openingMessage = "",
+        openingMessage = openingMessage,
         sortOrder = sortOrder,
         isBuiltin = isBuiltin,
         createdAt = createdAt,
@@ -70,6 +70,7 @@ class RoomCharacterStorage(
         id = id,
         name = name,
         promptBytes = systemPrompt.encodeToByteArray(),
+        openingMessage = openingMessage,
         avatarBytes = avatarStorage.read(avatarUri),
     )
 }

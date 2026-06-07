@@ -25,9 +25,18 @@ class RoomChatSessionRepositoryTest {
 
         try {
             database.agentRoleDao().upsert(testRole())
-            repository.createSessionWithMessage(
+            repository.createSessionWithMessages(
                 session = newSession("session-1", 1_000L),
-                message = newMessage("user-1", "session-1", ChatRole.USER, "hello", 1_000L),
+                messages = listOf(
+                    newMessage(
+                        "opening-1",
+                        "session-1",
+                        ChatRole.ASSISTANT,
+                        "welcome",
+                        1_000L,
+                    ),
+                    newMessage("user-1", "session-1", ChatRole.USER, "hello", 1_000L),
+                ),
             )
             repository.appendMessage(
                 newMessage(
@@ -40,12 +49,12 @@ class RoomChatSessionRepositoryTest {
             )
 
             assertEquals(
-                listOf("hello", "hi"),
+                listOf("welcome", "hello", "hi"),
                 repository.observeMessages("session-1").first().map { it.content },
             )
             assertEquals("session-1", repository.findLatestSession("agent")?.id)
             assertEquals(
-                listOf("hello", "hi"),
+                listOf("welcome", "hello", "hi"),
                 repository.findContextMessages("session-1", null).map { it.content },
             )
         } finally {

@@ -18,6 +18,7 @@ import com.kaixuan.starrailchatbox.data.chat.buildChatContext
 import com.kaixuan.starrailchatbox.data.chat.newChatId
 import com.kaixuan.starrailchatbox.data.model.ModelConfig
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
+import com.kaixuan.starrailchatbox.platform.formatLocalTime
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -43,6 +44,7 @@ class ChatViewModel(
     private val sessionTitleProvider: suspend () -> String = {
         getString(Res.string.chat_new_session_title)
     },
+    private val timeFormatter: (Long) -> String = ::formatLocalTime,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState = _uiState.asStateFlow()
@@ -112,7 +114,11 @@ class ChatViewModel(
                 _uiState.update {
                     it.copy(
                         activeSessionId = null,
-                        messages = listOf(emptyGreeting(characterId)),
+                        messages = emptyGreeting(
+                            character = uiState.value.selectedCharacter,
+                            now = currentTimeMillis(),
+                            timeFormatter = timeFormatter,
+                        ),
                         isLoadingSession = false,
                     )
                 }
@@ -128,7 +134,7 @@ class ChatViewModel(
             chatSessionRepository.observeMessages(session.id).collect { messages ->
                 if (uiState.value.selectedCharacterId == characterId) {
                     _uiState.update {
-                        it.copy(messages = messages.toUiModels(characterId))
+                        it.copy(messages = messages.toUiModels(characterId, timeFormatter))
                     }
                 }
             }
@@ -168,7 +174,7 @@ class ChatViewModel(
         val config = modelConfigRepository.getDefault()
             ?.takeIf(ModelConfig::isUsable)
         val previousSession = activeSession
-        val history = previousSession?.let {
+        var history = previousSession?.let {
             chatSessionRepository.findContextMessages(
                 sessionId = it.id,
                 maxHistoryMessageCount = null,
@@ -190,7 +196,25 @@ class ChatViewModel(
                 config = config,
                 now = now,
             )
-            chatSessionRepository.createSessionWithMessage(newSession, userMessage)
+            val openingMessage = character.openingMessage
+                .takeIf(String::isNotBlank)
+                ?.let {
+                    NewChatMessage(
+                        id = idGenerator("message"),
+                        sessionId = newSession.id,
+                        role = ChatRole.ASSISTANT,
+                        content = it,
+                        status = ChatMessageStatus.COMPLETED,
+                        modelConfigId = config?.id,
+                        modelNameSnapshot = config?.modelName,
+                        createdAt = now,
+                    )
+                }
+            val initialMessages = listOfNotNull(openingMessage, userMessage)
+            chatSessionRepository.createSessionWithMessages(newSession, initialMessages)
+            history = openingMessage?.let {
+                listOf(it.toStored(seq = 1))
+            }.orEmpty()
             newSession.toDomain(lastMessageAt = now).also {
                 activeSession = it
                 observeCreatedSession(it, character.id)
@@ -259,7 +283,7 @@ class ChatViewModel(
             chatSessionRepository.observeMessages(session.id).collect { messages ->
                 if (uiState.value.selectedCharacterId == characterId) {
                     _uiState.update {
-                        it.copy(messages = messages.toUiModels(characterId))
+                        it.copy(messages = messages.toUiModels(characterId, timeFormatter))
                     }
                 }
             }
@@ -388,27 +412,38 @@ private fun NewChatSession.toDomain(lastMessageAt: Long) = ChatSession(
     lastMessageAt = lastMessageAt,
 )
 
-private fun emptyGreeting(characterId: String) = ChatMessageUiModel.Received(
-    id = "empty-greeting:$characterId",
-    timestamp = "",
-    content = MessageContent.Resource(ChatCopy.EMPTY_GREETING),
-    senderId = characterId,
-)
+private fun emptyGreeting(
+    character: Character?,
+    now: Long,
+    timeFormatter: (Long) -> String,
+): List<ChatMessageUiModel> {
+    val openingMessage = character?.openingMessage?.takeIf(String::isNotBlank)
+        ?: return emptyList()
+    return listOf(
+        ChatMessageUiModel.Received(
+            id = "empty-greeting:${character.id}",
+            timestamp = timeFormatter(now),
+            content = MessageContent.Custom(openingMessage),
+            senderId = character.id,
+        ),
+    )
+}
 
 private fun List<StoredChatMessage>.toUiModels(
     characterId: String,
+    timeFormatter: (Long) -> String,
 ): List<ChatMessageUiModel> {
     return filter { it.status == ChatMessageStatus.COMPLETED }.map { message ->
         when (message.role) {
             ChatRole.USER -> ChatMessageUiModel.Sent(
                 id = message.id,
-                timestamp = message.createdAt.toTimeLabel(),
+                timestamp = timeFormatter(message.createdAt),
                 content = MessageContent.Custom(message.content),
                 isRead = true,
             )
             ChatRole.ASSISTANT -> ChatMessageUiModel.Received(
                 id = message.id,
-                timestamp = message.createdAt.toTimeLabel(),
+                timestamp = timeFormatter(message.createdAt),
                 content = MessageContent.Custom(message.content),
                 senderId = characterId,
             )
@@ -416,10 +451,19 @@ private fun List<StoredChatMessage>.toUiModels(
     }
 }
 
-private fun Long.toTimeLabel(): String {
-    val minutesInDay = ((this / 60_000L) % (24 * 60)).toInt()
-    val hours = minutesInDay / 60
-    val minutes = minutesInDay % 60
-    return hours.toString().padStart(2, '0') + ":" +
-        minutes.toString().padStart(2, '0')
-}
+private fun NewChatMessage.toStored(seq: Long) = StoredChatMessage(
+    id = id,
+    sessionId = sessionId,
+    seq = seq,
+    role = role,
+    content = content,
+    status = status,
+    errorCode = errorCode,
+    errorMessage = errorMessage,
+    modelConfigId = modelConfigId,
+    modelNameSnapshot = modelNameSnapshot,
+    promptTokens = promptTokens,
+    completionTokens = completionTokens,
+    totalTokens = totalTokens,
+    createdAt = createdAt,
+)

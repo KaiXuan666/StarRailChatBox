@@ -104,6 +104,27 @@ driver、provider 和日志出口等边界。
 - JS/WasmJS 不使用 Room，当前角色使用浏览器存储、模型配置使用内存实现；公共
   UI 和业务代码不得直接依赖 Room 实体、DAO 或平台文件路径。
 
+### AI 上下文编排规范
+
+任何涉及以下内容的任务，开始分析或修改前必须完整阅读：
+
+- [`AI Context Orchestration Specification.md`](AI%20Context%20Orchestration%20Specification.md)
+
+触发场景包括但不限于：
+
+- 角色会话的创建、恢复、切换、欢迎消息和消息持久化。
+- system prompt、角色 prompt、会话 prompt 或请求消息角色/顺序的调整。
+- 历史消息筛选、上下文条数或 token 裁剪、消息排除、摘要和压缩。
+- `ChatContextBuilder`、`ChatViewModel`、`ChatSessionRepository`、聊天 DAO/实体或
+  OpenAI CHAT 请求体的修改。
+- CHAT API 的发送、响应保存、流式输出、取消、失败、重试或重新生成。
+- 附件、图片、OCR、工具调用、工具结果、消息分支或父消息链进入上下文。
+- Android、iOS、Desktop、JavaScript 或 WasmJS 的聊天实现和持久化差异。
+
+实现不得破坏该规范定义的 prompt 优先级、消息顺序、当前输入保留、失败消息排除、
+原子持久化和跨平台一致性。若需求需要改变这些规则，应同步更新规范、实现和回归测试；
+不得只修改某个平台或 UI 层绕过公共编排流程。
+
 ### OpenAI 兼容 API 与本地测试配置
 
 - AI 服务使用 OpenAI 兼容 API。模型列表调用 `GET /models`，聊天调用

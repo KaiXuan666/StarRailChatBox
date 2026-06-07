@@ -36,14 +36,17 @@ class RoomChatSessionRepository(
             .map(ChatMessageEntity::toDomain)
     }
 
-    override suspend fun createSessionWithMessage(
+    override suspend fun createSessionWithMessages(
         session: NewChatSession,
-        message: NewChatMessage,
+        messages: List<NewChatMessage>,
     ) {
+        require(messages.isNotEmpty())
         database.useWriterConnection { connection ->
             connection.immediateTransaction {
-                sessionDao.upsert(session.toEntity(message))
-                messageDao.upsert(message.toEntity(seq = 1))
+                sessionDao.upsert(session.toEntity(messages.last()))
+                messages.forEachIndexed { index, message ->
+                    messageDao.upsert(message.toEntity(seq = index + 1L))
+                }
             }
         }
     }

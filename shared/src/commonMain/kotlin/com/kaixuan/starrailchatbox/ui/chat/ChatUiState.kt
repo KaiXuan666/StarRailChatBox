@@ -3,12 +3,7 @@ package com.kaixuan.starrailchatbox.ui.chat
 import androidx.compose.runtime.Immutable
 import com.kaixuan.starrailchatbox.data.character.Character
 
-enum class ChatCopy {
-    EMPTY_GREETING,
-}
-
 sealed interface MessageContent {
-    data class Resource(val copy: ChatCopy) : MessageContent
     data class Custom(val text: String) : MessageContent
 }
 
