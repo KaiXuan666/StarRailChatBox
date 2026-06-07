@@ -45,6 +45,17 @@ interface ChatSessionDao {
         messageAt: Long,
     ): Int
 
+    @Query(
+        "UPDATE chat_session SET active_summary_id = :summaryId, compaction_seq = :toSeq, " +
+            "updated_at = :updatedAt WHERE id = :sessionId AND compaction_seq < :toSeq",
+    )
+    suspend fun activateSummary(
+        sessionId: String,
+        summaryId: String,
+        toSeq: Long,
+        updatedAt: Long,
+    ): Int
+
     @Query("UPDATE chat_session SET archived = :archived, updated_at = :updatedAt WHERE id = :id")
     suspend fun setArchived(id: String, archived: Boolean, updatedAt: Long): Int
 

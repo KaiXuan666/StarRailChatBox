@@ -4,6 +4,7 @@ import com.kaixuan.starrailchatbox.data.ai.AiMessage
 
 fun buildChatContext(
     systemPrompt: String,
+    summary: ChatSummary?,
     history: List<StoredChatMessage>,
     currentUserMessage: String,
     maxHistoryMessageCount: Int?,
@@ -19,6 +20,18 @@ fun buildChatContext(
     return buildList {
         systemPrompt.trim().takeIf(String::isNotEmpty)?.let {
             add(AiMessage(role = "system", content = it))
+        }
+        summary?.content?.trim()?.takeIf(String::isNotEmpty)?.let {
+            add(
+                AiMessage(
+                    role = "system",
+                    content = """
+                        <chat_history_summary>
+                        $it
+                        </chat_history_summary>
+                    """.trimIndent(),
+                ),
+            )
         }
         limitedHistory.forEach {
             add(AiMessage(role = it.role.apiValue, content = it.content))

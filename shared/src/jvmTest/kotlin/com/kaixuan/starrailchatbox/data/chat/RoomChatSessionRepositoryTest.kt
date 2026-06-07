@@ -56,12 +56,35 @@ class RoomChatSessionRepositoryTest {
             assertEquals("session-1", repository.findLatestSession("agent")?.id)
             assertEquals(
                 listOf("welcome", "hello", "hi"),
-                repository.findContextMessages("session-1", null).map { it.content },
+                repository.findContext("session-1", null).messages.map { it.content },
             )
             val summary = repository.observeSessions("agent").first().single()
             assertEquals("session-1", summary.session.id)
             assertEquals("hi", summary.lastMessagePreview)
             assertEquals(3, summary.messageCount)
+
+            assertEquals(
+                true,
+                repository.saveSummary(
+                    NewChatSummary(
+                        id = "summary-1",
+                        sessionId = "session-1",
+                        fromSeq = 1,
+                        toSeq = 2,
+                        content = "welcome and hello",
+                        sourceMessageCount = 2,
+                        modelConfigId = null,
+                        modelNameSnapshot = "model",
+                        promptTokens = 10,
+                        completionTokens = 3,
+                        totalTokens = 13,
+                        createdAt = 2_500L,
+                    ),
+                ),
+            )
+            val compactedContext = repository.findContext("session-1", null)
+            assertEquals("welcome and hello", compactedContext.summary?.content)
+            assertEquals(listOf("hi"), compactedContext.messages.map { it.content })
 
             repository.deleteSession("session-1", 3_000L)
             assertEquals(emptyList(), repository.observeSessions("agent").first())

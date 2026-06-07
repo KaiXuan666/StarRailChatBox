@@ -46,6 +46,10 @@ data class ChatSessionEntity(
     val enableSummary: Boolean,
     @ColumnInfo(name = "summary_threshold_tokens")
     val summaryThresholdTokens: Int,
+    @ColumnInfo(name = "summary_threshold_message_count", defaultValue = "20")
+    val summaryThresholdMessageCount: Int,
+    @ColumnInfo(name = "summary_retained_message_count", defaultValue = "8")
+    val summaryRetainedMessageCount: Int,
     @ColumnInfo(name = "active_summary_id")
     val activeSummaryId: String? = null,
     @ColumnInfo(name = "compaction_seq")

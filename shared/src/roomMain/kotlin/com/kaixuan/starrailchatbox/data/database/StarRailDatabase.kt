@@ -7,10 +7,12 @@ import androidx.room.RoomDatabaseConstructor
 import com.kaixuan.starrailchatbox.data.database.dao.AgentRoleDao
 import com.kaixuan.starrailchatbox.data.database.dao.ChatMessageDao
 import com.kaixuan.starrailchatbox.data.database.dao.ChatSessionDao
+import com.kaixuan.starrailchatbox.data.database.dao.ChatSummaryDao
 import com.kaixuan.starrailchatbox.data.database.dao.ModelConfigDao
 import com.kaixuan.starrailchatbox.data.database.entity.AgentRoleEntity
 import com.kaixuan.starrailchatbox.data.database.entity.ChatMessageEntity
 import com.kaixuan.starrailchatbox.data.database.entity.ChatSessionEntity
+import com.kaixuan.starrailchatbox.data.database.entity.ChatSummaryEntity
 import com.kaixuan.starrailchatbox.data.database.entity.ModelConfigEntity
 
 @Database(
@@ -18,9 +20,10 @@ import com.kaixuan.starrailchatbox.data.database.entity.ModelConfigEntity
         AgentRoleEntity::class,
         ChatSessionEntity::class,
         ChatMessageEntity::class,
+        ChatSummaryEntity::class,
         ModelConfigEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 @ConstructedBy(StarRailDatabaseConstructor::class)
@@ -30,6 +33,8 @@ abstract class StarRailDatabase : RoomDatabase() {
     abstract fun chatSessionDao(): ChatSessionDao
 
     abstract fun chatMessageDao(): ChatMessageDao
+
+    abstract fun chatSummaryDao(): ChatSummaryDao
 
     abstract fun modelConfigDao(): ModelConfigDao
 }

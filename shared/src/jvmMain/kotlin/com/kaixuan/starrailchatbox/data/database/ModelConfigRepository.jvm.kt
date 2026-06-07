@@ -22,7 +22,7 @@ fun createPersistentRepositories(
         factory = StarRailDatabaseConstructor::initialize,
     )
         .setDriver(BundledSQLiteDriver())
-        .fallbackToDestructiveMigration(true)
+        .addMigrations(MIGRATION_1_2)
         .build()
     return PersistentRepositories(
         modelConfigRepository = RoomModelConfigRepository(

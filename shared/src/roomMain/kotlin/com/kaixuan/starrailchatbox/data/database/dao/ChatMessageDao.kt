@@ -20,9 +20,14 @@ interface ChatMessageDao {
     @Query(
         "SELECT * FROM chat_message " +
             "WHERE session_id = :sessionId AND is_context_excluded = 0 " +
-            "AND deleted_at IS NULL ORDER BY seq DESC LIMIT :limit",
+            "AND status = 'completed' AND deleted_at IS NULL AND seq > :afterSeq " +
+            "ORDER BY seq DESC LIMIT :limit",
     )
-    suspend fun findRecentContext(sessionId: String, limit: Int): List<ChatMessageEntity>
+    suspend fun findRecentContext(
+        sessionId: String,
+        afterSeq: Long,
+        limit: Int,
+    ): List<ChatMessageEntity>
 
     @Query("SELECT COALESCE(MAX(seq), 0) + 1 FROM chat_message WHERE session_id = :sessionId")
     suspend fun nextSeq(sessionId: String): Long

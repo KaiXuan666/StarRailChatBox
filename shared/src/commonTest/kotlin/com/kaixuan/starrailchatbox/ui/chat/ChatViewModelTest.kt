@@ -262,6 +262,19 @@ private class FakeOpenAiRepository : AiRepository {
         )
     }
 
+    override suspend fun createConversationSummary(
+        config: ModelConfig,
+        messages: List<AiMessage>,
+    ): ApiResult<ChatCompletionResult> = ApiResult.Success(
+        ChatCompletionResult(
+            content = "summary",
+            finishReason = "stop",
+            promptTokens = 10,
+            completionTokens = 2,
+            totalTokens = 12,
+        ),
+    )
+
     override suspend fun testToolCallSupport(
         apiHost: String,
         apiKey: String,

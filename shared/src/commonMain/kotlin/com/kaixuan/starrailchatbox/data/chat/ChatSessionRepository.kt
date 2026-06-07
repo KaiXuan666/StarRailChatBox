@@ -16,6 +16,9 @@ data class ChatSession(
     val systemPromptSnapshot: String,
     val customSystemPrompt: String?,
     val maxContextMessageCount: Int?,
+    val enableSummary: Boolean,
+    val summaryThresholdMessageCount: Int,
+    val summaryRetainedMessageCount: Int,
     val lastMessageAt: Long,
 )
 
@@ -45,6 +48,26 @@ data class StoredChatMessage(
     val suggestions: List<String> = emptyList(),
 )
 
+data class ChatSummary(
+    val id: String,
+    val sessionId: String,
+    val fromSeq: Long,
+    val toSeq: Long,
+    val content: String,
+    val sourceMessageCount: Int,
+    val modelConfigId: String?,
+    val modelNameSnapshot: String?,
+    val promptTokens: Int,
+    val completionTokens: Int,
+    val totalTokens: Int,
+    val createdAt: Long,
+)
+
+data class ChatContextSnapshot(
+    val summary: ChatSummary?,
+    val messages: List<StoredChatMessage>,
+)
+
 enum class ChatRole(val apiValue: String) {
     USER("user"),
     ASSISTANT("assistant"),
@@ -62,6 +85,9 @@ data class NewChatSession(
     val modelConfigId: String?,
     val systemPromptSnapshot: String,
     val maxContextMessageCount: Int?,
+    val enableSummary: Boolean = true,
+    val summaryThresholdMessageCount: Int = DEFAULT_SUMMARY_THRESHOLD_MESSAGE_COUNT,
+    val summaryRetainedMessageCount: Int = DEFAULT_SUMMARY_RETAINED_MESSAGE_COUNT,
     val createdAt: Long,
 )
 
@@ -82,6 +108,21 @@ data class NewChatMessage(
     val suggestions: List<String> = emptyList(),
 )
 
+data class NewChatSummary(
+    val id: String,
+    val sessionId: String,
+    val fromSeq: Long,
+    val toSeq: Long,
+    val content: String,
+    val sourceMessageCount: Int,
+    val modelConfigId: String?,
+    val modelNameSnapshot: String?,
+    val promptTokens: Int,
+    val completionTokens: Int,
+    val totalTokens: Int,
+    val createdAt: Long,
+)
+
 interface ChatSessionRepository {
     suspend fun findLatestSession(agentId: String): ChatSession?
 
@@ -91,10 +132,12 @@ interface ChatSessionRepository {
 
     fun observeMessages(sessionId: String): Flow<List<StoredChatMessage>>
 
-    suspend fun findContextMessages(
+    suspend fun findContext(
         sessionId: String,
         maxHistoryMessageCount: Int?,
-    ): List<StoredChatMessage>
+    ): ChatContextSnapshot
+
+    suspend fun findSummarySource(sessionId: String): ChatContextSnapshot
 
     suspend fun createSessionWithMessages(
         session: NewChatSession,
@@ -103,12 +146,15 @@ interface ChatSessionRepository {
 
     suspend fun appendMessage(message: NewChatMessage)
 
+    suspend fun saveSummary(summary: NewChatSummary): Boolean
+
     suspend fun deleteSession(sessionId: String, deletedAt: Long)
 }
 
 class InMemoryChatSessionRepository : ChatSessionRepository {
     private val sessions = MutableStateFlow<List<ChatSession>>(emptyList())
     private val messages = MutableStateFlow<List<StoredChatMessage>>(emptyList())
+    private val summaries = MutableStateFlow<List<ChatSummary>>(emptyList())
 
     override suspend fun findLatestSession(agentId: String): ChatSession? {
         return sessions.value
@@ -152,19 +198,28 @@ class InMemoryChatSessionRepository : ChatSessionRepository {
         }
     }
 
-    override suspend fun findContextMessages(
+    override suspend fun findContext(
         sessionId: String,
         maxHistoryMessageCount: Int?,
-    ): List<StoredChatMessage> {
+    ): ChatContextSnapshot {
+        val summary = summaries.value
+            .filter { it.sessionId == sessionId }
+            .maxByOrNull(ChatSummary::toSeq)
         val context = messages.value.filter {
             it.sessionId == sessionId &&
                 it.status == ChatMessageStatus.COMPLETED &&
-                !it.isContextExcluded
+                !it.isContextExcluded &&
+                it.seq > (summary?.toSeq ?: 0)
         }.sortedBy(StoredChatMessage::seq)
-        return maxHistoryMessageCount
+        val limited = maxHistoryMessageCount
             ?.takeIf { it >= 0 }
             ?.let(context::takeLast)
             ?: context
+        return ChatContextSnapshot(summary = summary, messages = limited)
+    }
+
+    override suspend fun findSummarySource(sessionId: String): ChatContextSnapshot {
+        return findContext(sessionId, maxHistoryMessageCount = null)
     }
 
     override suspend fun createSessionWithMessages(
@@ -199,11 +254,26 @@ class InMemoryChatSessionRepository : ChatSessionRepository {
         }
     }
 
+    override suspend fun saveSummary(summary: NewChatSummary): Boolean {
+        val active = summaries.value
+            .filter { it.sessionId == summary.sessionId }
+            .maxByOrNull(ChatSummary::toSeq)
+        if (active != null && active.toSeq >= summary.toSeq) {
+            return false
+        }
+        summaries.update { it + summary.toStored() }
+        return true
+    }
+
     override suspend fun deleteSession(sessionId: String, deletedAt: Long) {
         sessions.update { stored -> stored.filterNot { it.id == sessionId } }
         messages.update { stored -> stored.filterNot { it.sessionId == sessionId } }
+        summaries.update { stored -> stored.filterNot { it.sessionId == sessionId } }
     }
 }
+
+const val DEFAULT_SUMMARY_THRESHOLD_MESSAGE_COUNT = 30
+const val DEFAULT_SUMMARY_RETAINED_MESSAGE_COUNT = 10
 
 fun newChatId(
     prefix: String,
@@ -218,6 +288,9 @@ private fun NewChatSession.toStored(lastMessageAt: Long) = ChatSession(
     systemPromptSnapshot = systemPromptSnapshot,
     customSystemPrompt = null,
     maxContextMessageCount = maxContextMessageCount,
+    enableSummary = enableSummary,
+    summaryThresholdMessageCount = summaryThresholdMessageCount,
+    summaryRetainedMessageCount = summaryRetainedMessageCount,
     lastMessageAt = lastMessageAt,
 )
 
@@ -237,4 +310,19 @@ private fun NewChatMessage.toStored(seq: Long) = StoredChatMessage(
     totalTokens = totalTokens,
     createdAt = createdAt,
     suggestions = suggestions,
+)
+
+private fun NewChatSummary.toStored() = ChatSummary(
+    id = id,
+    sessionId = sessionId,
+    fromSeq = fromSeq,
+    toSeq = toSeq,
+    content = content,
+    sourceMessageCount = sourceMessageCount,
+    modelConfigId = modelConfigId,
+    modelNameSnapshot = modelNameSnapshot,
+    promptTokens = promptTokens,
+    completionTokens = completionTokens,
+    totalTokens = totalTokens,
+    createdAt = createdAt,
 )

@@ -2,7 +2,6 @@ package com.kaixuan.starrailchatbox.data.database
 
 import android.content.Context
 import androidx.room.Room
-import androidx.room.RoomDatabase
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.kaixuan.starrailchatbox.data.character.DefaultCharacterRepository
 import com.kaixuan.starrailchatbox.data.character.FileCharacterAvatarStorage
@@ -20,7 +19,7 @@ fun createPersistentRepositories(
     )
         .setDriver(BundledSQLiteDriver())
 //        .setJournalMode(RoomDatabase.JournalMode.TRUNCATE) // 强制使用 TRUNCATE 模式，避免 WAL 锁死
-        .fallbackToDestructiveMigration(true)
+        .addMigrations(MIGRATION_1_2)
         .build()
     val keyStorePath = context.filesDir.resolve("api_key.key.preferences_pb").absolutePath
     return PersistentRepositories(

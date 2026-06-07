@@ -6,9 +6,43 @@ import kotlin.test.assertTrue
 
 class ChatContextBuilderTest {
     @Test
+    fun injectsSummaryAfterSystemPromptWithoutCountingItAsHistory() {
+        val messages = buildChatContext(
+            systemPrompt = "role prompt",
+            summary = ChatSummary(
+                id = "summary",
+                sessionId = "session",
+                fromSeq = 1,
+                toSeq = 4,
+                content = "Earlier facts",
+                sourceMessageCount = 4,
+                modelConfigId = null,
+                modelNameSnapshot = null,
+                promptTokens = 0,
+                completionTokens = 0,
+                totalTokens = 0,
+                createdAt = 1,
+            ),
+            history = listOf(stored("5", ChatRole.ASSISTANT, "recent")),
+            currentUserMessage = "current",
+            maxHistoryMessageCount = 0,
+        )
+
+        assertEquals(
+            listOf(
+                "system" to "role prompt",
+                "system" to "<chat_history_summary>\nEarlier facts\n</chat_history_summary>",
+                "user" to "current",
+            ),
+            messages.map { it.role to it.content },
+        )
+    }
+
+    @Test
     fun keepsSystemPromptAndCurrentInputWhileLimitingHistory() {
         val messages = buildChatContext(
             systemPrompt = "system prompt",
+            summary = null,
             history = listOf(
                 stored("1", ChatRole.USER, "old user"),
                 stored("2", ChatRole.ASSISTANT, "old assistant"),
@@ -33,6 +67,7 @@ class ChatContextBuilderTest {
     fun filtersFailedAndContextExcludedMessages() {
         val messages = buildChatContext(
             systemPrompt = "",
+            summary = null,
             history = listOf(
                 stored("1", ChatRole.USER, "kept"),
                 stored(
@@ -57,6 +92,7 @@ class ChatContextBuilderTest {
     fun doesNotInjectToolSpecificFormatting() {
         val messages = buildChatContext(
             systemPrompt = "保持温和人设。",
+            summary = null,
             history = emptyList(),
             currentUserMessage = "你好",
             maxHistoryMessageCount = null,

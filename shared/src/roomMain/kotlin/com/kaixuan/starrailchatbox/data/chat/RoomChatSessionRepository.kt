@@ -5,6 +5,7 @@ import androidx.room.useWriterConnection
 import com.kaixuan.starrailchatbox.data.database.StarRailDatabase
 import com.kaixuan.starrailchatbox.data.database.entity.ChatMessageEntity
 import com.kaixuan.starrailchatbox.data.database.entity.ChatSessionEntity
+import com.kaixuan.starrailchatbox.data.database.entity.ChatSummaryEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
@@ -18,6 +19,7 @@ class RoomChatSessionRepository(
 ) : ChatSessionRepository {
     private val sessionDao = database.chatSessionDao()
     private val messageDao = database.chatMessageDao()
+    private val summaryDao = database.chatSummaryDao()
 
     override suspend fun findLatestSession(agentId: String): ChatSession? {
         return sessionDao.findLatestByAgent(agentId)?.toDomain()
@@ -61,16 +63,26 @@ class RoomChatSessionRepository(
         }
     }
 
-    override suspend fun findContextMessages(
+    override suspend fun findContext(
         sessionId: String,
         maxHistoryMessageCount: Int?,
-    ): List<StoredChatMessage> {
+    ): ChatContextSnapshot {
+        val summary = summaryDao.findActive(sessionId)?.toDomain()
         val limit = maxHistoryMessageCount
             ?.takeIf { it >= 0 }
             ?: Int.MAX_VALUE
-        return messageDao.findRecentContext(sessionId, limit)
+        val messages = messageDao.findRecentContext(
+            sessionId = sessionId,
+            afterSeq = summary?.toSeq ?: 0,
+            limit = limit,
+        )
             .asReversed()
             .map(ChatMessageEntity::toDomain)
+        return ChatContextSnapshot(summary = summary, messages = messages)
+    }
+
+    override suspend fun findSummarySource(sessionId: String): ChatContextSnapshot {
+        return findContext(sessionId, maxHistoryMessageCount = null)
     }
 
     override suspend fun createSessionWithMessages(
@@ -104,6 +116,25 @@ class RoomChatSessionRepository(
         }
     }
 
+    override suspend fun saveSummary(summary: NewChatSummary): Boolean {
+        val entity = summary.toEntity()
+        return database.useWriterConnection { connection ->
+            connection.immediateTransaction {
+                summaryDao.upsert(entity)
+                val activated = sessionDao.activateSummary(
+                    sessionId = summary.sessionId,
+                    summaryId = summary.id,
+                    toSeq = summary.toSeq,
+                    updatedAt = summary.createdAt,
+                ) == 1
+                if (!activated) {
+                    summaryDao.delete(entity)
+                }
+                activated
+            }
+        }
+    }
+
     override suspend fun deleteSession(sessionId: String, deletedAt: Long) {
         check(sessionDao.softDelete(sessionId, deletedAt) == 1) {
             "Chat session $sessionId does not exist."
@@ -119,8 +150,10 @@ private fun NewChatSession.toEntity(message: NewChatMessage) = ChatSessionEntity
     systemPromptSnapshot = systemPromptSnapshot,
     customSystemPrompt = null,
     maxContextMessageCount = maxContextMessageCount ?: Int.MAX_VALUE,
-    enableSummary = false,
+    enableSummary = enableSummary,
     summaryThresholdTokens = 0,
+    summaryThresholdMessageCount = summaryThresholdMessageCount,
+    summaryRetainedMessageCount = summaryRetainedMessageCount,
     activeSummaryId = null,
     compactionSeq = 0,
     lastMessageId = message.id,
@@ -160,6 +193,9 @@ private fun ChatSessionEntity.toDomain() = ChatSession(
     systemPromptSnapshot = systemPromptSnapshot,
     customSystemPrompt = customSystemPrompt,
     maxContextMessageCount = maxContextMessageCount.takeUnless { it == Int.MAX_VALUE },
+    enableSummary = enableSummary,
+    summaryThresholdMessageCount = summaryThresholdMessageCount,
+    summaryRetainedMessageCount = summaryRetainedMessageCount,
     lastMessageAt = lastMessageAt,
 )
 
@@ -193,4 +229,34 @@ private fun ChatMessageEntity.toDomain() = StoredChatMessage(
             emptyList()
         }
     }.orEmpty(),
+)
+
+private fun NewChatSummary.toEntity() = ChatSummaryEntity(
+    id = id,
+    sessionId = sessionId,
+    fromSeq = fromSeq,
+    toSeq = toSeq,
+    content = content,
+    sourceMessageCount = sourceMessageCount,
+    modelConfigId = modelConfigId,
+    modelNameSnapshot = modelNameSnapshot,
+    promptTokens = promptTokens,
+    completionTokens = completionTokens,
+    totalTokens = totalTokens,
+    createdAt = createdAt,
+)
+
+private fun ChatSummaryEntity.toDomain() = ChatSummary(
+    id = id,
+    sessionId = sessionId,
+    fromSeq = fromSeq,
+    toSeq = toSeq,
+    content = content,
+    sourceMessageCount = sourceMessageCount,
+    modelConfigId = modelConfigId,
+    modelNameSnapshot = modelNameSnapshot,
+    promptTokens = promptTokens,
+    completionTokens = completionTokens,
+    totalTokens = totalTokens,
+    createdAt = createdAt,
 )

@@ -11,6 +11,8 @@ import com.kaixuan.starrailchatbox.data.chat.ChatMessageStatus
 import com.kaixuan.starrailchatbox.data.chat.ChatRole
 import com.kaixuan.starrailchatbox.data.chat.ChatSession
 import com.kaixuan.starrailchatbox.data.chat.ChatSessionRepository
+import com.kaixuan.starrailchatbox.data.chat.ChatContextSnapshot
+import com.kaixuan.starrailchatbox.data.chat.ChatSummaryCoordinator
 import com.kaixuan.starrailchatbox.data.chat.NewChatMessage
 import com.kaixuan.starrailchatbox.data.chat.NewChatSession
 import com.kaixuan.starrailchatbox.data.chat.StoredChatMessage
@@ -37,6 +39,10 @@ class ChatViewModel(
     private val chatSessionRepository: ChatSessionRepository,
     private val modelConfigRepository: ModelConfigRepository,
     private val aiRepository: AiRepository,
+    private val chatSummaryCoordinator: ChatSummaryCoordinator = ChatSummaryCoordinator(
+        chatSessionRepository = chatSessionRepository,
+        aiRepository = aiRepository,
+    ),
     private val currentTimeMillis: () -> Long = {
         Clock.System.now().toEpochMilliseconds()
     },
@@ -388,12 +394,12 @@ class ChatViewModel(
         val config = modelConfigRepository.getDefault()
             ?.takeIf(ModelConfig::isUsable)
         val previousSession = activeSession
-        var history = previousSession?.let {
-            chatSessionRepository.findContextMessages(
+        var context = previousSession?.let {
+            chatSessionRepository.findContext(
                 sessionId = it.id,
                 maxHistoryMessageCount = null,
             )
-        }.orEmpty()
+        } ?: ChatContextSnapshot(summary = null, messages = emptyList())
         val now = currentTimeMillis()
         val session = previousSession ?: NewChatSession(
             id = idGenerator("session"),
@@ -426,9 +432,12 @@ class ChatViewModel(
                 }
             val initialMessages = listOfNotNull(openingMessage, userMessage)
             chatSessionRepository.createSessionWithMessages(newSession, initialMessages)
-            history = openingMessage?.let {
-                listOf(it.toStored(seq = 1))
-            }.orEmpty()
+            context = ChatContextSnapshot(
+                summary = null,
+                messages = openingMessage?.let {
+                    listOf(it.toStored(seq = 1))
+                }.orEmpty(),
+            )
             newSession.toDomain(lastMessageAt = now).also {
                 activeSession = it
                 observeCreatedSession(it, character.id)
@@ -461,12 +470,25 @@ class ChatViewModel(
             ?: session.systemPromptSnapshot
         val requestMessages = buildChatContext(
             systemPrompt = prompt,
-            history = history,
+            summary = context.summary,
+            history = context.messages,
             currentUserMessage = content,
             maxHistoryMessageCount = session.maxContextMessageCount,
         )
         when (val result = aiRepository.createChatCompletion(config, requestMessages, character.name)) {
-            is ApiResult.Success -> handleSuccess(session, config, result.value)
+            is ApiResult.Success -> {
+                if (handleSuccess(session, config, result.value)) {
+                    viewModelScope.launch {
+                        try {
+                            chatSummaryCoordinator.summarizeIfNeeded(session, config)
+                        } catch (cancellation: CancellationException) {
+                            throw cancellation
+                        } catch (_: Throwable) {
+                            // Summary generation is best-effort and must not fail the chat request.
+                        }
+                    }
+                }
+            }
             is ApiResult.HttpError -> handleFailure(
                 session,
                 config,
@@ -544,7 +566,7 @@ class ChatViewModel(
         session: ChatSession,
         config: ModelConfig,
         result: ChatCompletionResult,
-    ) {
+    ): Boolean {
         val response = result.content.trim()
         if (response.isEmpty()) {
             appendFailedAssistant(
@@ -554,7 +576,7 @@ class ChatViewModel(
                 errorMessage = "Chat completion returned empty content.",
             )
             emitMessage(EffectMessage.CHAT_EMPTY_RESPONSE)
-            return
+            return false
         }
         chatSessionRepository.appendMessage(
             NewChatMessage(
@@ -572,6 +594,7 @@ class ChatViewModel(
                 suggestions = result.suggestions,
             ),
         )
+        return true
     }
 
     private suspend fun handleFailure(
@@ -661,6 +684,9 @@ private fun NewChatSession.toDomain(lastMessageAt: Long) = ChatSession(
     systemPromptSnapshot = systemPromptSnapshot,
     customSystemPrompt = null,
     maxContextMessageCount = maxContextMessageCount,
+    enableSummary = enableSummary,
+    summaryThresholdMessageCount = summaryThresholdMessageCount,
+    summaryRetainedMessageCount = summaryRetainedMessageCount,
     lastMessageAt = lastMessageAt,
 )
 

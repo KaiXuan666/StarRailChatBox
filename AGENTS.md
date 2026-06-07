@@ -90,9 +90,11 @@ driver、provider 和日志出口等边界。
 - 数据库统一使用 `StarRailDatabase`。Android、iOS 和 Desktop 启动时只创建一个
   Room 实例，并从该实例提供模型配置、角色、会话和消息相关 DAO 或 Repository；
   不要为不同 Repository 重复打开同一路径的数据库。
-- 当前数据库表为 `agent_role`、`chat_session`、`chat_message` 和
-  `model_config`。实体和 DAO 位于 `shared/src/roomMain`，不得移动到
+- 当前数据库表为 `agent_role`、`chat_session`、`chat_message`、`chat_summary`
+  和 `model_config`。实体和 DAO 位于 `shared/src/roomMain`，不得移动到
   JS/WasmJS 可见的源码集。
+- `chat_summary` 保存滚动摘要及其覆盖的消息序号范围；原始消息继续保留。默认在
+  未压缩有效消息达到 20 条时后台总结，并保留最近 8 条原文。
 - `agent_role` 的头像内容不保存为数据库 BLOB。Android、iOS 和 Desktop 应先将
   头像复制到应用私有目录 `character_avatars`，数据库仅在 `avatar_uri` 中保存
   对应路径；读取领域模型时再通过平台文件实现加载头像字节。

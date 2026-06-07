@@ -271,6 +271,13 @@ private class FakeOpenAiRepository(
         return ApiResult.UnexpectedError("Not used by settings tests.")
     }
 
+    override suspend fun createConversationSummary(
+        config: ModelConfig,
+        messages: List<AiMessage>,
+    ): ApiResult<ChatCompletionResult> {
+        return ApiResult.UnexpectedError("Not used by settings tests.")
+    }
+
     override suspend fun testToolCallSupport(
         apiHost: String,
         apiKey: String,
