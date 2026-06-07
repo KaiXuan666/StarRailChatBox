@@ -181,7 +181,6 @@ fun ChatSessionScreen(
         modifier = modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.statusBars),
-        beyondViewportPageCount = 3,
     ) { page ->
         val pageCharacter = characters[page]
         val pageState = state.characterStates[pageCharacter.id] ?: CharacterChatState()
