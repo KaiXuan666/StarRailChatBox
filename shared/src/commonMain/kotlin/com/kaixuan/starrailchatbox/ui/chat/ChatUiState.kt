@@ -35,6 +35,7 @@ data class CharacterChatState(
     val messageDraft: String = "",
     val isLoadingSession: Boolean = false,
     val isSending: Boolean = false,
+    val suggestions: List<String> = emptyList(),
 )
 
 @Immutable
@@ -62,4 +63,7 @@ data class ChatUiState(
 
     val isLoadingSession: Boolean
         get() = characterStates[selectedCharacter?.id]?.isLoadingSession ?: false
+
+    val suggestions: List<String>
+        get() = characterStates[selectedCharacter?.id]?.suggestions.orEmpty()
 }

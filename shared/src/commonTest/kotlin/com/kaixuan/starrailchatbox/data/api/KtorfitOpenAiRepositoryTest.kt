@@ -16,6 +16,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import com.kaixuan.starrailchatbox.data.model.ModelConfig
+import io.ktor.utils.io.readRemaining
+import io.ktor.utils.io.core.readText
 
 class KtorfitOpenAiRepositoryTest {
 
@@ -64,11 +66,7 @@ class KtorfitOpenAiRepositoryTest {
         val engine = MockEngine { request ->
             assertEquals("/v1/chat/completions", request.url.encodedPath)
             assertEquals("Bearer test-key", request.headers[HttpHeaders.Authorization])
-            val body = when (val content = request.body) {
-                is TextContent -> content.text
-                is OutgoingContent.ByteArrayContent -> content.bytes().decodeToString()
-                else -> error("Unexpected request body: ${content::class}")
-            }
+            val body = request.body.readText()
             assertTrue(body.contains("\"model\":\"test-model\""))
             assertTrue(body.contains("\"temperature\":0.7"))
             assertTrue(body.contains("\"top_p\":0.9"))
@@ -103,12 +101,108 @@ class KtorfitOpenAiRepositoryTest {
         val result = KtorfitOpenAiRepository(client).createChatCompletion(
             config = apiTestConfig(),
             messages = listOf(ChatMessage("system", "prompt")),
+            characterName = "流萤",
         )
 
         val success = result as? ApiResult.Success
             ?: error("Expected success, got $result")
         assertEquals("response", success.value.content)
         assertEquals(13, success.value.totalTokens)
+        client.close()
+    }
+
+    @Test
+    fun createChatCompletionWithToolCallParsesSuggestions() = runTest {
+        val engine = MockEngine { request ->
+            val body = request.body.readText()
+            assertTrue(body.contains("\"tools\":["))
+            assertTrue(body.contains("\"tool_choice\":"))
+
+            respond(
+                content = """
+                    {
+                      "choices": [{
+                        "message": {
+                          "role": "assistant",
+                          "content": null,
+                          "tool_calls": [{
+                            "id": "call_1",
+                            "type": "function",
+                            "function": {
+                              "name": "respond_with_quick_replies",
+                              "arguments": "{\n  \"ai_response\": \"你好，我一直都在这里。\",\n  \"suggestions\": [\n    \"🌸 陪我坐一会儿\",\n    \"🍃 只是想吹吹风\",\n    \"✨ 听讲个故事\"\n  ]\n}"
+                            }
+                          }]
+                        },
+                        "finish_reason": "tool_calls"
+                      }],
+                      "usage": {
+                        "prompt_tokens": 10,
+                        "completion_tokens": 3,
+                        "total_tokens": 13
+                      }
+                    }
+                """.trimIndent(),
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+        val client = HttpClient(engine) {
+            expectSuccess = true
+            install(ContentNegotiation) {
+                json(Json { ignoreUnknownKeys = true })
+            }
+        }
+
+        val result = KtorfitOpenAiRepository(client).createChatCompletion(
+            config = apiTestConfig().copy(supportToolCall = true),
+            messages = listOf(ChatMessage("system", "prompt")),
+            characterName = "流萤",
+        )
+
+        val success = result as? ApiResult.Success
+            ?: error("Expected success, got $result")
+        assertEquals("你好，我一直都在这里。", success.value.content)
+        assertEquals(listOf("🌸 陪我坐一会儿", "🍃 只是想吹吹风", "✨ 听讲个故事"), success.value.suggestions)
+        client.close()
+    }
+
+    @Test
+    fun createChatCompletionWithoutToolCallParsesSuggestionsFromTags() = runTest {
+        val engine = MockEngine { _ ->
+            respond(
+                content = """
+                    {
+                      "choices": [{
+                        "message": {
+                          "role": "assistant",
+                          "content": "你好，我一直都在这里。\n<suggestions>\n🌸 陪我坐一会儿\n🍃 只是想吹吹风\n✨ 听讲个故事\n</suggestions>"
+                        },
+                        "finish_reason": "stop"
+                      }]
+                    }
+                """.trimIndent(),
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+        val client = HttpClient(engine) {
+            expectSuccess = true
+            install(ContentNegotiation) {
+                json(Json { ignoreUnknownKeys = true })
+            }
+        }
+
+        val result = KtorfitOpenAiRepository(client).createChatCompletion(
+            config = apiTestConfig().copy(supportToolCall = false),
+            messages = listOf(ChatMessage("system", "prompt")),
+            characterName = "流萤",
+        )
+
+        val success = result as? ApiResult.Success
+            ?: error("Expected success, got $result")
+        assertEquals("你好，我一直都在这里。", success.value.content)
+        assertEquals(listOf("🌸 陪我坐一会儿", "🍃 只是想吹吹风", "✨ 听讲个故事"), success.value.suggestions)
         client.close()
     }
 }
@@ -129,3 +223,18 @@ private fun apiTestConfig() = ModelConfig(
     topP = 0.9,
     enabled = true,
 )
+
+private suspend fun OutgoingContent.readText(): String {
+    return when (this) {
+        is TextContent -> text
+        is OutgoingContent.ByteArrayContent -> bytes().decodeToString()
+        is OutgoingContent.WriteChannelContent -> {
+            val channel = io.ktor.utils.io.ByteChannel(true)
+            writeTo(channel)
+            channel.close()
+            channel.readRemaining().readText()
+        }
+        else -> ""
+    }
+}
+

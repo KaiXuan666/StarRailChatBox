@@ -19,6 +19,7 @@ interface OpenAiRepository {
     suspend fun createChatCompletion(
         config: ModelConfig,
         messages: List<ChatMessage>,
+        characterName: String,
     ): ApiResult<ChatCompletionResult>
 
     suspend fun testToolCallSupport(
@@ -34,6 +35,7 @@ data class ChatCompletionResult(
     val promptTokens: Int,
     val completionTokens: Int,
     val totalTokens: Int,
+    val suggestions: List<String> = emptyList(),
 )
 
 class KtorfitOpenAiRepository(
@@ -73,33 +75,106 @@ class KtorfitOpenAiRepository(
     override suspend fun createChatCompletion(
         config: ModelConfig,
         messages: List<ChatMessage>,
+        characterName: String,
     ): ApiResult<ChatCompletionResult> {
         return try {
             val api = ktorfit {
                 baseUrl(config.baseUrl.normalizedBaseUrl())
                 httpClient(httpClient)
             }.createOpenAiApi()
-            val response = api.createChatCompletion(
-                authorization = "Bearer ${config.apiKey.trim()}",
-                request = ChatCompletionRequest(
+
+            val request = if (config.supportToolCall) {
+                ChatCompletionRequest(
                     model = config.modelName,
                     messages = messages,
                     temperature = config.temperature,
                     topP = config.topP,
-//                    maxTokens = config.maxOutputTokens,
-                    maxTokens = 1024,
-                ),
+                    maxTokens = config.maxOutputTokens,
+                    tools = listOf(
+                        ToolDefinition(
+                            type = "function",
+                            function = FunctionDefinition(
+                                name = "respond_with_quick_replies",
+                                description = "生成${characterName}的角色扮演回复，并强制生成4个可供用户点击的快捷回复按钮选项。",
+                                parameters = FunctionParameters(
+                                    type = "object",
+                                    properties = mapOf(
+                                        "ai_response" to PropertyDefinition(
+                                            type = "string",
+                                            description = "${characterName}的角色扮演文本回复内容。请维持${characterName}人设。"
+                                        ),
+                                        "suggestions" to PropertyDefinition(
+                                            type = "array",
+                                            description = "提供给用户的4个快捷回复选项。规范：1. 每个选项字数在 10 字以内；2. 每个选项的开头必须包含一个且仅包含一个符合当前语境和${characterName}人设的表情符号(Emoji)，并用一个空格与文字隔开（例如：'🌸 陪我坐一会儿'、'🍃 只是想吹吹风'）。",
+                                            items = PropertyItems(type = "string")
+                                        )
+                                    ),
+                                    required = listOf("ai_response", "suggestions")
+                                )
+                            )
+                        )
+                    ),
+                    toolChoice = ToolChoice(
+                        type = "function",
+                        function = ToolChoiceFunction(name = "respond_with_quick_replies")
+                    )
+                )
+            } else {
+                ChatCompletionRequest(
+                    model = config.modelName,
+                    messages = messages,
+                    temperature = config.temperature,
+                    topP = config.topP,
+                    maxTokens = config.maxOutputTokens,
+                )
+            }
+
+            val response = api.createChatCompletion(
+                authorization = "Bearer ${config.apiKey.trim()}",
+                request = request,
             )
             val choice = response.choices.firstOrNull()
                 ?: return ApiResult.UnexpectedError("Chat completion returned no choices.")
             val usage = response.usage
+
+            var finalContent = choice.message.content.orEmpty()
+            var suggestions: List<String> = emptyList()
+
+            if (config.supportToolCall) {
+                val toolCall = choice.message.toolCalls?.firstOrNull { it.function.name == "respond_with_quick_replies" }
+                if (toolCall != null) {
+                    try {
+                        val args = kotlinx.serialization.json.Json.decodeFromString<ToolCallArguments>(toolCall.function.arguments)
+                        finalContent = args.aiResponse
+                        suggestions = args.suggestions
+                    } catch (e: Exception) {
+                        // 解析异常
+                    }
+                }
+            } else {
+                val suggestionsRegex = Regex("<suggestions>([\\s\\S]*?)</suggestions>")
+                val match = suggestionsRegex.find(finalContent)
+                if (match != null) {
+                    val rawSuggestionsSection = match.groupValues[1]
+                    suggestions = rawSuggestionsSection.lines()
+                        .map { it.trim() }
+                        .filter { it.isNotEmpty() }
+                        .map { line ->
+                            line.removePrefix("-").removePrefix("*").trim()
+                        }
+                        .filter { it.isNotEmpty() }
+                    finalContent = finalContent.replace(suggestionsRegex, "").trim()
+                }
+            }
+
             ApiResult.Success(
                 ChatCompletionResult(
-                    content = choice.message.content,
+                    content = finalContent,
                     finishReason = choice.finishReason,
                     promptTokens = usage?.promptTokens ?: 0,
                     completionTokens = usage?.completionTokens ?: 0,
                     totalTokens = usage?.totalTokens ?: 0,
+                    suggestions = suggestions,
                 ),
             )
         } catch (cancellation: CancellationException) {

@@ -20,6 +20,7 @@ class RoomChatSessionRepositoryTest {
             factory = StarRailDatabaseConstructor::initialize,
         )
             .setDriver(BundledSQLiteDriver())
+            .fallbackToDestructiveMigration(true)
             .build()
         val repository = RoomChatSessionRepository(database)
 

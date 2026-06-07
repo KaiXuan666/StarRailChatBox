@@ -35,6 +35,7 @@ data class StoredChatMessage(
     val estimatedTokens: Int = 0,
     val isContextExcluded: Boolean = false,
     val createdAt: Long,
+    val suggestions: List<String> = emptyList(),
 )
 
 enum class ChatRole(val apiValue: String) {
@@ -71,6 +72,7 @@ data class NewChatMessage(
     val errorCode: String? = null,
     val errorMessage: String? = null,
     val createdAt: Long,
+    val suggestions: List<String> = emptyList(),
 )
 
 interface ChatSessionRepository {
@@ -186,4 +188,5 @@ private fun NewChatMessage.toStored(seq: Long) = StoredChatMessage(
     completionTokens = completionTokens,
     totalTokens = totalTokens,
     createdAt = createdAt,
+    suggestions = suggestions,
 )

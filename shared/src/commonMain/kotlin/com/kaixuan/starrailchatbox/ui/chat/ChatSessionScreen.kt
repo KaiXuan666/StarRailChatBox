@@ -81,10 +81,6 @@ import starrailchatbox.shared.generated.resources.message_welcome
 import starrailchatbox.shared.generated.resources.no_characters
 import starrailchatbox.shared.generated.resources.online
 import starrailchatbox.shared.generated.resources.open_emoji
-import starrailchatbox.shared.generated.resources.quick_reply_mood
-import starrailchatbox.shared.generated.resources.quick_reply_night
-import starrailchatbox.shared.generated.resources.quick_reply_story
-import starrailchatbox.shared.generated.resources.quick_reply_today
 import starrailchatbox.shared.generated.resources.read_status
 import starrailchatbox.shared.generated.resources.received_message_description
 import starrailchatbox.shared.generated.resources.record_voice
@@ -908,6 +904,7 @@ fun ChatSessionBottomBar(
 ) {
     Column(modifier = modifier) {
         QuickReplies(
+            suggestions = state.suggestions,
             compact = compact,
             onReplyClicked = {
                 onAction(ChatAction.QuickReplyClicked(it))
@@ -928,22 +925,14 @@ fun ChatSessionBottomBar(
     }
 }
 
-private data class QuickReply(
-    val label: StringResource,
-    val icon: StarRailIconKind,
-)
-
 @Composable
 private fun QuickReplies(
+    suggestions: List<String>,
     compact: Boolean,
     onReplyClicked: (String) -> Unit,
 ) {
-    val replies = listOf(
-        QuickReply(Res.string.quick_reply_mood, StarRailIconKind.HEART),
-        QuickReply(Res.string.quick_reply_today, StarRailIconKind.CHAT),
-        QuickReply(Res.string.quick_reply_story, StarRailIconKind.SPARKLE),
-        QuickReply(Res.string.quick_reply_night, StarRailIconKind.MOON),
-    )
+    if (suggestions.isEmpty()) return
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -956,10 +945,9 @@ private fun QuickReplies(
             if (compact) StarRailSpacing.xxs else StarRailSpacing.xs
         ),
     ) {
-        replies.forEach { reply ->
-            val label = stringResource(reply.label)
+        suggestions.forEach { suggestion ->
             Surface(
-                onClick = { onReplyClicked(label) },
+                onClick = { onReplyClicked(suggestion) },
                 shape = MaterialTheme.shapes.extraLarge,
                 color = MaterialTheme.colorScheme.surfaceContainer,
                 contentColor = MaterialTheme.colorScheme.onSurface,
@@ -973,25 +961,10 @@ private fun QuickReplies(
                         horizontal = if (compact) 12.dp else StarRailSpacing.md,
                         vertical = if (compact) 4.dp else StarRailSpacing.xs,
                     ),
-                    horizontalArrangement = Arrangement.spacedBy(
-                        if (compact) StarRailSpacing.xxs else StarRailSpacing.xs
-                    ),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    StarRailIcon(
-                        kind = reply.icon,
-                        contentDescription = null,
-                        tint = if (reply.icon == StarRailIconKind.HEART ||
-                            reply.icon == StarRailIconKind.MOON
-                        ) {
-                            MaterialTheme.colorScheme.secondary
-                        } else {
-                            MaterialTheme.colorScheme.primary
-                        },
-                        modifier = Modifier.size(if (compact) 18.dp else 22.dp),
-                    )
                     Text(
-                        text = label,
+                        text = suggestion,
                         style = if (compact) {
                             MaterialTheme.typography.labelMedium
                         } else {

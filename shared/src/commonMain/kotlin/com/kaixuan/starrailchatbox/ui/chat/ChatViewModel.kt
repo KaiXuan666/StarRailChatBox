@@ -87,7 +87,38 @@ class ChatViewModel(
             is ChatAction.CharacterSelected -> selectCharacter(action.characterId)
             is ChatAction.MessageChanged -> updateMessageDraft(action.message)
             ChatAction.SendClicked -> sendMessage()
-            is ChatAction.QuickReplyClicked -> updateMessageDraft(action.message)
+            is ChatAction.QuickReplyClicked -> {
+                val state = uiState.value
+                val character = state.selectedCharacter
+                if (character != null && !state.isSending && !state.isLoadingSession) {
+                    _uiState.update { s ->
+                        val curState = s.characterStates[character.id] ?: CharacterChatState()
+                        s.copy(
+                            characterStates = s.characterStates + (character.id to curState.copy(
+                                isSending = true
+                            ))
+                        )
+                    }
+                    viewModelScope.launch {
+                        try {
+                            sendMessage(character, action.message)
+                        } catch (cancellation: CancellationException) {
+                            throw cancellation
+                        } catch (_: Throwable) {
+                            emitMessage(EffectMessage.CHAT_REQUEST_FAILED)
+                        } finally {
+                            _uiState.update { s ->
+                                val curState = s.characterStates[character.id] ?: CharacterChatState()
+                                s.copy(
+                                    characterStates = s.characterStates + (character.id to curState.copy(
+                                        isSending = false
+                                    ))
+                                )
+                            }
+                        }
+                    }
+                }
+            }
             is ChatAction.HeaderActionClicked -> handleHeaderAction(action.action)
             is ChatAction.ComposerActionClicked -> handleComposerAction(action.action)
         }
@@ -163,11 +194,18 @@ class ChatViewModel(
             }
             chatSessionRepository.observeMessages(session.id).collect { messages ->
                 val uiModels = messages.toUiModels(characterId, timeFormatter)
+                val lastMsg = messages.lastOrNull()
+                val suggestions = if (lastMsg != null && lastMsg.role == ChatRole.ASSISTANT && lastMsg.status == ChatMessageStatus.COMPLETED) {
+                    lastMsg.suggestions
+                } else {
+                    emptyList()
+                }
                 _uiState.update { state ->
                     val currentState = state.characterStates[characterId] ?: CharacterChatState()
                     state.copy(
                         characterStates = state.characterStates + (characterId to currentState.copy(
                             messages = uiModels,
+                            suggestions = suggestions,
                             isLoadingSession = false,
                         ))
                     )
@@ -301,8 +339,10 @@ class ChatViewModel(
             history = history,
             currentUserMessage = content,
             maxHistoryMessageCount = session.maxContextMessageCount,
+            supportToolCall = config.supportToolCall,
+            characterName = character.name,
         )
-        when (val result = openAiRepository.createChatCompletion(config, requestMessages)) {
+        when (val result = openAiRepository.createChatCompletion(config, requestMessages, character.name)) {
             is ApiResult.Success -> handleSuccess(session, config, result.value)
             is ApiResult.HttpError -> handleFailure(
                 session,
@@ -339,11 +379,18 @@ class ChatViewModel(
             }
             chatSessionRepository.observeMessages(session.id).collect { messages ->
                 val uiModels = messages.toUiModels(characterId, timeFormatter)
+                val lastMsg = messages.lastOrNull()
+                val suggestions = if (lastMsg != null && lastMsg.role == ChatRole.ASSISTANT && lastMsg.status == ChatMessageStatus.COMPLETED) {
+                    lastMsg.suggestions
+                } else {
+                    emptyList()
+                }
                 _uiState.update { state ->
                     val currentState = state.characterStates[characterId] ?: CharacterChatState()
                     state.copy(
                         characterStates = state.characterStates + (characterId to currentState.copy(
-                            messages = uiModels
+                            messages = uiModels,
+                            suggestions = suggestions,
                         ))
                     )
                 }
@@ -380,6 +427,7 @@ class ChatViewModel(
                 completionTokens = result.completionTokens,
                 totalTokens = result.totalTokens,
                 createdAt = currentTimeMillis(),
+                suggestions = result.suggestions,
             ),
         )
     }

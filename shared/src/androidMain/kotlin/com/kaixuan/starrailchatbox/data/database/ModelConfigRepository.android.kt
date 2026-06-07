@@ -18,6 +18,7 @@ fun createPersistentRepositories(
         name = databaseName,
     )
         .setDriver(BundledSQLiteDriver())
+        .fallbackToDestructiveMigration(true)
         .build()
     val keyStorePath = context.filesDir.resolve("api_key.key.preferences_pb").absolutePath
     return PersistentRepositories(

@@ -106,6 +106,7 @@ private fun NewChatMessage.toEntity(seq: Long) = ChatMessageEntity(
     isContextExcluded = false,
     createdAt = createdAt,
     updatedAt = createdAt,
+    suggestionsJson = if (suggestions.isNotEmpty()) kotlinx.serialization.json.Json.encodeToString(suggestions) else null,
 )
 
 private fun ChatSessionEntity.toDomain() = ChatSession(
@@ -142,4 +143,11 @@ private fun ChatMessageEntity.toDomain() = StoredChatMessage(
     estimatedTokens = estimatedTokens,
     isContextExcluded = isContextExcluded,
     createdAt = createdAt,
+    suggestions = suggestionsJson?.let {
+        try {
+            kotlinx.serialization.json.Json.decodeFromString<List<String>>(it)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }.orEmpty(),
 )

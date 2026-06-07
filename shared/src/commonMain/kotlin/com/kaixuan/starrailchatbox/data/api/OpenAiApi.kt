@@ -42,12 +42,48 @@ data class ChatCompletionRequest(
     val topP: Double? = null,
     @SerialName("max_tokens")
     val maxTokens: Int? = null,
+    val tools: List<ToolDefinition>? = null,
+    @SerialName("tool_choice")
+    val toolChoice: ToolChoice? = null,
+)
+
+@Serializable
+data class ToolChoice(
+    val type: String,
+    val function: ToolChoiceFunction,
+)
+
+@Serializable
+data class ToolChoiceFunction(
+    val name: String,
 )
 
 @Serializable
 data class ChatMessage(
     val role: String,
-    val content: String,
+    val content: String? = null,
+    @SerialName("tool_calls")
+    val toolCalls: List<ToolCall>? = null,
+)
+
+@Serializable
+data class ToolCall(
+    val id: String,
+    val type: String,
+    val function: FunctionCall,
+)
+
+@Serializable
+data class FunctionCall(
+    val name: String,
+    val arguments: String,
+)
+
+@Serializable
+data class ToolCallArguments(
+    @SerialName("ai_response")
+    val aiResponse: String,
+    val suggestions: List<String>,
 )
 
 @Serializable
@@ -92,5 +128,26 @@ data class ToolDefinition(
 data class FunctionDefinition(
     val name: String,
     val description: String,
+    val parameters: FunctionParameters? = null,
 )
+
+@Serializable
+data class FunctionParameters(
+    val type: String = "object",
+    val properties: Map<String, PropertyDefinition>,
+    val required: List<String>,
+)
+
+@Serializable
+data class PropertyDefinition(
+    val type: String,
+    val description: String,
+    val items: PropertyItems? = null,
+)
+
+@Serializable
+data class PropertyItems(
+    val type: String,
+)
+
 

@@ -212,6 +212,7 @@ private class FakeOpenAiRepository : OpenAiRepository {
     override suspend fun createChatCompletion(
         config: ModelConfig,
         messages: List<ChatMessage>,
+        characterName: String,
     ): ApiResult<ChatCompletionResult> {
         requests += messages
         return ApiResult.Success(
@@ -242,7 +243,7 @@ private fun testConfig() = ModelConfig(
     contextWindow = 128_000,
     maxOutputTokens = 4_096,
     supportVision = false,
-    supportToolCall = false,
+    supportToolCall = true,
     supportReasoning = false,
     temperature = 0.7,
     topP = 1.0,

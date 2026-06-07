@@ -72,4 +72,6 @@ data class ChatMessageEntity(
     val updatedAt: Long,
     @ColumnInfo(name = "deleted_at")
     val deletedAt: Long? = null,
+    @ColumnInfo(name = "suggestions_json")
+    val suggestionsJson: String? = null,
 )

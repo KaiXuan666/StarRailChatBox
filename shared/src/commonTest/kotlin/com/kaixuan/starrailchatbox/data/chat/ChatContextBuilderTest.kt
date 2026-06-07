@@ -2,6 +2,7 @@ package com.kaixuan.starrailchatbox.data.chat
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class ChatContextBuilderTest {
     @Test
@@ -15,6 +16,8 @@ class ChatContextBuilderTest {
             ),
             currentUserMessage = "current input",
             maxHistoryMessageCount = 2,
+            supportToolCall = true,
+            characterName = "流萤",
         )
 
         assertEquals(
@@ -44,12 +47,34 @@ class ChatContextBuilderTest {
             ),
             currentUserMessage = "current",
             maxHistoryMessageCount = null,
+            supportToolCall = true,
+            characterName = "流萤",
         )
 
         assertEquals(
             listOf("user" to "kept", "user" to "current"),
             messages.map { it.role to it.content },
         )
+    }
+
+    @Test
+    fun injectsFormatSpecificationWhenToolCallNotSupported() {
+        val messages = buildChatContext(
+            systemPrompt = "保持温和人设。",
+            history = emptyList(),
+            currentUserMessage = "你好",
+            maxHistoryMessageCount = null,
+            supportToolCall = false,
+            characterName = "瑕蝶",
+        )
+
+        val systemMsg = messages.first { it.role == "system" }.content.orEmpty()
+        val userMsg = messages.first { it.role == "user" }.content.orEmpty()
+
+        assertTrue(systemMsg.contains("【重要输出格式规范】"))
+        assertTrue(systemMsg.contains("瑕蝶"))
+        assertTrue(userMsg.contains("你好"))
+        assertTrue(userMsg.contains("<suggestions>"))
     }
 }
 
@@ -69,3 +94,4 @@ private fun stored(
     isContextExcluded = excluded,
     createdAt = id.toLong(),
 )
+
