@@ -54,6 +54,7 @@ class ChatViewModel(
 
     private var activeSession: ChatSession? = null
     private var sessionJob: Job? = null
+    private val chatCaches = mutableMapOf<String, CharacterChatCache>()
 
     init {
         viewModelScope.launch {
@@ -91,51 +92,93 @@ class ChatViewModel(
         val state = uiState.value
         if (state.isSending || state.selectedCharacterId == characterId) return
         if (state.characters.none { it.id == characterId }) return
-        _uiState.update {
-            it.copy(
-                selectedCharacterId = characterId,
-                activeSessionId = null,
-                messages = emptyList(),
+
+        val currentId = state.selectedCharacterId
+        if (currentId != null) {
+            chatCaches[currentId] = CharacterChatCache(
+                activeSessionId = state.activeSessionId,
+                messages = state.messages,
+                messageDraft = state.messageDraft,
+                isLoadingSession = state.isLoadingSession
             )
         }
-        loadLatestSession(characterId)
+
+        val cache = chatCaches[characterId]
+        if (cache != null) {
+            _uiState.update {
+                it.copy(
+                    selectedCharacterId = characterId,
+                    activeSessionId = cache.activeSessionId,
+                    messages = cache.messages,
+                    messageDraft = cache.messageDraft,
+                    isLoadingSession = cache.isLoadingSession,
+                )
+            }
+        } else {
+            _uiState.update {
+                it.copy(
+                    selectedCharacterId = characterId,
+                    activeSessionId = null,
+                    messages = emptyList(),
+                    messageDraft = "",
+                    isLoadingSession = true,
+                )
+            }
+        }
+        loadLatestSession(characterId, hasCache = cache != null)
     }
 
-    private fun loadLatestSession(characterId: String) {
+    private fun loadLatestSession(characterId: String, hasCache: Boolean = false) {
         sessionJob?.cancel()
         sessionJob = viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingSession = true) }
+            if (!hasCache) {
+                _uiState.update { it.copy(isLoadingSession = true) }
+            }
             val session = runCatching {
                 chatSessionRepository.findLatestSession(characterId)
             }.getOrNull()
             if (uiState.value.selectedCharacterId != characterId) return@launch
             activeSession = session
             if (session == null) {
+                val greeting = emptyGreeting(
+                    character = uiState.value.selectedCharacter,
+                    now = currentTimeMillis(),
+                    timeFormatter = timeFormatter,
+                )
                 _uiState.update {
                     it.copy(
                         activeSessionId = null,
-                        messages = emptyGreeting(
-                            character = uiState.value.selectedCharacter,
-                            now = currentTimeMillis(),
-                            timeFormatter = timeFormatter,
-                        ),
+                        messages = greeting,
                         isLoadingSession = false,
                     )
                 }
+                chatCaches[characterId] = CharacterChatCache(
+                    activeSessionId = null,
+                    messages = greeting,
+                    messageDraft = uiState.value.messageDraft,
+                    isLoadingSession = false
+                )
                 return@launch
             }
             _uiState.update {
                 it.copy(
                     activeSessionId = session.id,
-                    messages = emptyList(),
+                    messages = if (hasCache) it.messages else emptyList(),
                     isLoadingSession = false,
                 )
             }
             chatSessionRepository.observeMessages(session.id).collect { messages ->
                 if (uiState.value.selectedCharacterId == characterId) {
+                    val uiModels = messages.toUiModels(characterId, timeFormatter)
                     _uiState.update {
-                        it.copy(messages = messages.toUiModels(characterId, timeFormatter))
+                        it.copy(messages = uiModels)
                     }
+                    chatCaches[characterId] = CharacterChatCache(
+                        activeSessionId = session.id,
+                        messages = uiModels,
+                        messageDraft = uiState.value.messageDraft,
+                        isLoadingSession = false
+                    )
                 }
             }
         }
@@ -282,9 +325,16 @@ class ChatViewModel(
             }
             chatSessionRepository.observeMessages(session.id).collect { messages ->
                 if (uiState.value.selectedCharacterId == characterId) {
+                    val uiModels = messages.toUiModels(characterId, timeFormatter)
                     _uiState.update {
-                        it.copy(messages = messages.toUiModels(characterId, timeFormatter))
+                        it.copy(messages = uiModels)
                     }
+                    chatCaches[characterId] = CharacterChatCache(
+                        activeSessionId = session.id,
+                        messages = uiModels,
+                        messageDraft = uiState.value.messageDraft,
+                        isLoadingSession = false
+                    )
                 }
             }
         }
@@ -466,4 +516,11 @@ private fun NewChatMessage.toStored(seq: Long) = StoredChatMessage(
     completionTokens = completionTokens,
     totalTokens = totalTokens,
     createdAt = createdAt,
+)
+
+private data class CharacterChatCache(
+    val activeSessionId: String?,
+    val messages: List<ChatMessageUiModel>,
+    val messageDraft: String,
+    val isLoadingSession: Boolean
 )

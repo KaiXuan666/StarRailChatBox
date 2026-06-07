@@ -118,9 +118,27 @@ fun ChatSessionScreen(
     val messagesStartIndex = 3
     var previousMessageCount by remember { mutableStateOf(state.messages.size) }
     var shouldScrollToBottomOnLoad by remember { mutableStateOf(false) }
+    val scrollPositions = remember { mutableMapOf<String, Pair<Int, Int>>() }
     val selectedCharacter = state.selectedCharacter
     val charactersById = remember(state.characters) {
         state.characters.associateBy(Character::id)
+    }
+
+    LaunchedEffect(selectedCharacter?.id) {
+        previousMessageCount = state.messages.size
+        val nextId = selectedCharacter?.id
+        if (nextId != null) {
+            val savedPos = scrollPositions[nextId]
+            if (savedPos != null) {
+                listState.scrollToItem(savedPos.first, savedPos.second)
+            } else {
+                if (state.messages.isNotEmpty()) {
+                    listState.scrollToItem(messagesStartIndex + state.messages.lastIndex)
+                } else {
+                    shouldScrollToBottomOnLoad = true
+                }
+            }
+        }
     }
 
     LaunchedEffect(state.messages, state.isLoadingSession) {
@@ -201,7 +219,10 @@ fun ChatSessionScreen(
                                 }
                             }
                         } else {
-                            shouldScrollToBottomOnLoad = true
+                            selectedCharacter?.id?.let { curId ->
+                                scrollPositions[curId] = listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
+                            }
+                            shouldScrollToBottomOnLoad = false
                             onAction(ChatAction.CharacterSelected(characterId))
                         }
                     },
