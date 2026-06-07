@@ -81,6 +81,9 @@ class SettingsViewModel(
 
     private fun handleSettingsItemClick(item: SettingsItem) {
         when (item) {
+            SettingsItem.PROFILE -> {
+                // 由框架层 MainAction 转发导航压栈
+            }
             SettingsItem.API_SETTINGS -> {
                 // 由框架层 MainAction 转发导航压栈
             }

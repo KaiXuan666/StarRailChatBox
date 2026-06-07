@@ -9,6 +9,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.kaixuan.starrailchatbox.data.character.DefaultCharacterRepository
 import com.kaixuan.starrailchatbox.data.character.createCharacterStorage
 import com.kaixuan.starrailchatbox.data.settings.createApiSettingsStore
+import com.kaixuan.starrailchatbox.data.settings.createProfileStore
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -19,6 +20,9 @@ class MainActivity : ComponentActivity() {
             App(
                 apiSettingsStore = createApiSettingsStore(
                     filesDir.resolve("api_settings.preferences_pb").absolutePath,
+                ),
+                profileStore = createProfileStore(
+                    filesDir.resolve("profile_settings.preferences_pb").absolutePath,
                 ),
                 characterRepository = DefaultCharacterRepository(
                     createCharacterStorage(filesDir.resolve("characters").absolutePath),

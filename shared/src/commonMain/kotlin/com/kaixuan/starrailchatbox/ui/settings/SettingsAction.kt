@@ -1,6 +1,7 @@
 package com.kaixuan.starrailchatbox.ui.settings
 
 enum class SettingsItem {
+    PROFILE,
     API_SETTINGS,
     CHECK_UPDATE,
     MESSAGE_NOTIFICATION,

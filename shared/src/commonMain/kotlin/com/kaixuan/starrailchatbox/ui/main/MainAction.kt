@@ -24,6 +24,7 @@ sealed interface MainAction {
  * 这对应于我们原来的 SettingsItem，以防与 SettingsAction 内的动作冲突。
  */
 enum class MainSettingsItem {
+    PROFILE,
     API_SETTINGS,
     CHECK_UPDATE,
     MESSAGE_NOTIFICATION,

@@ -35,6 +35,11 @@ class MainViewModel : ViewModel() {
 
             is MainAction.SettingsItemClicked -> {
                 when (action.item) {
+                    MainSettingsItem.PROFILE -> {
+                        _uiState.update { state ->
+                            state.copy(backStack = state.backStack + Route.Profile)
+                        }
+                    }
                     MainSettingsItem.API_SETTINGS -> {
                         _uiState.update { state ->
                             state.copy(backStack = state.backStack + Route.ApiSettings)

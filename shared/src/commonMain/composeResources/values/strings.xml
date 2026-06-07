@@ -44,6 +44,16 @@
     <string name="microphone_not_ready">录音功能正在准备中</string>
     <string name="theme_changed">已切换主题显示模式</string>
     
+    <!-- 个人信息界面 -->
+    <string name="settings_profile_title">个人信息</string>
+    <string name="settings_profile_desc">修改你的昵称与个人头像</string>
+    <string name="profile_avatar_title">更换头像</string>
+    <string name="profile_nickname_title">昵称</string>
+    <string name="profile_save_btn">保存信息</string>
+    <string name="profile_saved">个人信息已保存</string>
+    <string name="profile_nickname_empty">昵称不能为空</string>
+    <string name="profile_restore_default">恢复默认</string>
+    
     <!-- 设置界面 -->
     <string name="settings_title">设置</string>
     <string name="settings_api_title">API设置</string>

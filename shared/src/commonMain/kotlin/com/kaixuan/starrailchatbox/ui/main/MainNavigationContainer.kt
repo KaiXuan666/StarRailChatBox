@@ -54,6 +54,8 @@ import starrailchatbox.shared.generated.resources.microphone_not_ready
 import starrailchatbox.shared.generated.resources.nav_characters
 import starrailchatbox.shared.generated.resources.nav_chat
 import starrailchatbox.shared.generated.resources.nav_settings
+import starrailchatbox.shared.generated.resources.profile_nickname_empty
+import starrailchatbox.shared.generated.resources.profile_saved
 import starrailchatbox.shared.generated.resources.profile_not_ready
 import starrailchatbox.shared.generated.resources.settings_api_not_ready
 import starrailchatbox.shared.generated.resources.settings_update_check
@@ -91,18 +93,26 @@ import com.kaixuan.starrailchatbox.ui.settings.SettingsAction
 import com.kaixuan.starrailchatbox.ui.settings.SettingsEffect
 import com.kaixuan.starrailchatbox.ui.settings.SettingsEffectMessage
 import com.kaixuan.starrailchatbox.ui.settings.SettingsUiState
+import com.kaixuan.starrailchatbox.ui.profile.ProfileUiState
+import com.kaixuan.starrailchatbox.ui.profile.ProfileEffect
+import com.kaixuan.starrailchatbox.ui.profile.ProfileEffectMessage
+import com.kaixuan.starrailchatbox.ui.profile.ProfileAction
+import com.kaixuan.starrailchatbox.ui.profile.ProfileScreen
 
 @Composable
 fun MainRoute(
     mainState: MainUiState,
     chatState: ChatUiState,
     settingsState: SettingsUiState,
+    profileState: ProfileUiState,
     mainEffects: Flow<MainEffect>,
     chatEffects: Flow<ChatEffect>,
     settingsEffects: Flow<SettingsEffect>,
+    profileEffects: Flow<ProfileEffect>,
     onMainAction: (MainAction) -> Unit,
     onChatAction: (ChatAction) -> Unit,
     onSettingsAction: (SettingsAction) -> Unit,
+    onProfileAction: (ProfileAction) -> Unit,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val chatEffectMessages = mapOf(
@@ -161,6 +171,26 @@ fun MainRoute(
         }
     }
 
+    val profileEffectMessages = mapOf(
+        ProfileEffectMessage.PROFILE_SAVED to stringResource(Res.string.profile_saved),
+        ProfileEffectMessage.NICKNAME_EMPTY to stringResource(Res.string.profile_nickname_empty),
+    )
+
+    LaunchedEffect(profileEffects) {
+        profileEffects.collectLatest { effect ->
+            when (effect) {
+                is ProfileEffect.ShowMessage -> {
+                    snackbarHostState.showSnackbar(
+                        profileEffectMessages.getValue(effect.message),
+                    )
+                }
+                ProfileEffect.ProfileSaved -> {
+                    onMainAction(MainAction.PopBackStack)
+                }
+            }
+        }
+    }
+
     LaunchedEffect(mainEffects, mainEffectMessages) {
         mainEffects.collectLatest { effect ->
             when (effect) {
@@ -177,10 +207,12 @@ fun MainRoute(
         mainState = mainState,
         chatState = chatState,
         settingsState = settingsState,
+        profileState = profileState,
         snackbarHostState = snackbarHostState,
         onMainAction = onMainAction,
         onChatAction = onChatAction,
         onSettingsAction = onSettingsAction,
+        onProfileAction = onProfileAction,
     )
 }
 
@@ -189,10 +221,12 @@ fun MainNavigationContainer(
     mainState: MainUiState,
     chatState: ChatUiState,
     settingsState: SettingsUiState,
+    profileState: ProfileUiState,
     snackbarHostState: SnackbarHostState,
     onMainAction: (MainAction) -> Unit,
     onChatAction: (ChatAction) -> Unit,
     onSettingsAction: (SettingsAction) -> Unit,
+    onProfileAction: (ProfileAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.starRailColors
@@ -280,6 +314,15 @@ fun MainNavigationContainer(
                             compact = compact,
                             onMainAction = onMainAction,
                             onSettingsAction = onSettingsAction,
+                        )
+                    }
+                    entry<Route.Profile> {
+                        ProfileScreen(
+                            state = profileState,
+                            contentPadding = contentPadding,
+                            compact = compact,
+                            onMainAction = onMainAction,
+                            onAction = onProfileAction,
                         )
                     }
                 }
@@ -509,12 +552,15 @@ private fun MainContainerLightPreview() {
             mainState = MainUiState(),
             chatState = ChatUiState(),
             settingsState = SettingsUiState(),
+            profileState = ProfileUiState(),
             mainEffects = kotlinx.coroutines.flow.emptyFlow(),
             chatEffects = kotlinx.coroutines.flow.emptyFlow(),
             settingsEffects = kotlinx.coroutines.flow.emptyFlow(),
+            profileEffects = kotlinx.coroutines.flow.emptyFlow(),
             onMainAction = {},
             onChatAction = {},
             onSettingsAction = {},
+            onProfileAction = {},
         )
     }
 }
@@ -527,12 +573,15 @@ private fun MainContainerDarkPreview() {
             mainState = MainUiState(darkThemeOverride = true),
             chatState = ChatUiState(),
             settingsState = SettingsUiState(),
+            profileState = ProfileUiState(),
             mainEffects = kotlinx.coroutines.flow.emptyFlow(),
             chatEffects = kotlinx.coroutines.flow.emptyFlow(),
             settingsEffects = kotlinx.coroutines.flow.emptyFlow(),
+            profileEffects = kotlinx.coroutines.flow.emptyFlow(),
             onMainAction = {},
             onChatAction = {},
             onSettingsAction = {},
+            onProfileAction = {},
         )
     }
 }
