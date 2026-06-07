@@ -1,8 +1,10 @@
 package com.kaixuan.starrailchatbox.data.ai.tool
 
 import com.kaixuan.starrailchatbox.data.ai.AiMessage
+import com.kaixuan.starrailchatbox.data.ai.AiResponseFormat
 import com.kaixuan.starrailchatbox.data.ai.AiToolCall
 import com.kaixuan.starrailchatbox.data.ai.AiToolDefinition
+import kotlinx.serialization.json.JsonElement
 
 enum class ToolExecutionType {
     /** 直接产生最终助手输出，不再继续请求模型。 */
@@ -22,6 +24,14 @@ enum class ToolRisk {
 
 data class ToolContext(
     val characterName: String,
+)
+
+data class StructuredToolFallbackRequest(
+    val messages: List<AiMessage>,
+    val responseFormat: AiResponseFormat,
+    val temperature: Double = 0.2,
+    val topP: Double = 1.0,
+    val maxTokens: Int = 256,
 )
 
 sealed interface ToolResult {
@@ -67,6 +77,17 @@ interface AiTool {
         content: String,
         context: ToolContext,
     ): ToolResult.Terminal? = null
+
+    fun prepareStructuredFallback(
+        messages: List<AiMessage>,
+        assistantContent: String,
+        context: ToolContext,
+    ): StructuredToolFallbackRequest? = null
+
+    fun parseStructuredFallback(
+        output: JsonElement,
+        context: ToolContext,
+    ): List<String> = emptyList()
 }
 
 /**

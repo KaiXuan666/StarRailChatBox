@@ -1,6 +1,7 @@
 package com.kaixuan.starrailchatbox.data.ai.tool
 
 import com.kaixuan.starrailchatbox.data.ai.AiMessage
+import com.kaixuan.starrailchatbox.data.ai.AiResponseFormat
 import com.kaixuan.starrailchatbox.data.ai.AiToolCall
 import com.kaixuan.starrailchatbox.data.ai.AiToolDefinition
 import kotlinx.serialization.SerialName
@@ -128,13 +129,18 @@ class QuickRepliesTool(
         if (userIndex >= 0) {
             val message = prepared[userIndex]
             prepared[userIndex] = message.copy(
-                content = message.content.orEmpty().trim() +
-                    "\n\n请遵守 system 消息中的 <quick_replies_output_contract>，" +
-                    "并以完整的 <quick_replies> JSON 元数据块结束回复。",
+                content = """
+                    <user_input>
+                    ${message.content.orEmpty().trim()}
+                    </user_input>
+                    <control_signals>
+                    请遵守 system 消息中的 <quick_replies_output_contract>，并以完整的 <quick_replies> JSON 元数据块结束回复。
+                    </control_signals>
+                """.trimIndent()
             )
         }
         return prepared
-    }0
+    }
 
     override fun parseFallback(
         content: String,
@@ -163,6 +169,43 @@ class QuickRepliesTool(
 
         return parseUnclosedMetadataBlock(content, QuickRepliesOpenRegex, ::parseSuggestionsPayload)
             ?: parseUnclosedMetadataBlock(content, SuggestionsOpenRegex, ::parseSuggestionLines)
+    }
+
+    override fun prepareStructuredFallback(
+        messages: List<AiMessage>,
+        assistantContent: String,
+        context: ToolContext,
+    ): StructuredToolFallbackRequest {
+        val rolePrompt = messages.firstOrNull { message ->
+            message.role == "system" && !message.content.isNullOrBlank()
+        }
+        val recentConversation = (
+            messages.filter { message ->
+                message.role in ConversationRoles && !message.content.isNullOrBlank()
+            } + AiMessage(role = "assistant", content = assistantContent)
+            ).takeLast(RecentConversationMessageCount)
+        return StructuredToolFallbackRequest(
+            messages = listOfNotNull(rolePrompt) +
+                AiMessage(role = "system", content = StructuredFallbackInstruction) +
+                recentConversation,
+            responseFormat = AiResponseFormat(
+                name = StructuredFallbackName,
+                description = "Generate four concise replies the user may send next.",
+                schema = buildSuggestionsSchema(),
+                strict = true,
+            ),
+        )
+    }
+
+    override fun parseStructuredFallback(
+        output: JsonElement,
+        context: ToolContext,
+    ): List<String> {
+        return (output as? JsonObject)
+            ?.get("suggestions")
+            ?.let(::parseSuggestionsElement)
+            ?.takeIf { suggestions -> suggestions.size == MaxSuggestions }
+            .orEmpty()
     }
 
     private fun parseUnclosedMetadataBlock(
@@ -273,6 +316,16 @@ class QuickRepliesTool(
     companion object {
         const val Name = "respond_with_quick_replies"
         private const val MaxSuggestions = 4
+        private const val RecentConversationMessageCount = 4
+        private const val StructuredFallbackName = "quick_reply_suggestions"
+        private val ConversationRoles = setOf("user", "assistant")
+        private val StructuredFallbackInstruction = """
+            Generate exactly four concise messages that the user could naturally send next.
+            Base them only on the role instructions and recent conversation.
+            Each suggestion must use the conversation language, start with a relevant emoji,
+            be distinct, and contain at most 12 characters after the emoji.
+            Return only the JSON object required by the response schema.
+        """.trimIndent()
         private val QuickRepliesRegex = Regex(
             pattern = "<quick_replies\\s*>([\\s\\S]*?)</quick_replies\\s*>",
             option = RegexOption.IGNORE_CASE,
@@ -291,6 +344,24 @@ class QuickRepliesTool(
         )
         private val NumberedPrefixRegex = Regex("^\\d+[.)、]\\s*")
         private val CommaRegex = Regex("[,，]")
+
+        private fun buildSuggestionsSchema() = buildJsonObject {
+            put("type", "object")
+            putJsonObject("properties") {
+                putJsonObject("suggestions") {
+                    put("type", "array")
+                    putJsonObject("items") {
+                        put("type", "string")
+                    }
+                    put("minItems", MaxSuggestions)
+                    put("maxItems", MaxSuggestions)
+                }
+            }
+            putJsonArray("required") {
+                add(JsonPrimitive("suggestions"))
+            }
+            put("additionalProperties", false)
+        }
     }
 }
 

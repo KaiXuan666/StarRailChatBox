@@ -43,10 +43,28 @@ class ToolCallCoordinator(
             ?.mapNotNull(toolRegistry::find)
             ?.filter(AiTool::isAvailable)
             ?: toolRegistry.availableTools()
-        if (!supportsToolCalls) {
-            return completeWithFallback(provider, providerConfig, request, tools, context)
+        val initialResult = if (!supportsToolCalls) {
+            completeWithFallback(provider, providerConfig, request, tools, context)
+        } else {
+            completeWithTools(provider, providerConfig, request, tools, context)
         }
+        return recoverMissingStructuredOutput(
+            provider = provider,
+            providerConfig = providerConfig,
+            request = request,
+            tools = tools,
+            context = context,
+            initialResult = initialResult,
+        )
+    }
 
+    private suspend fun completeWithTools(
+        provider: AiProvider,
+        providerConfig: AiProviderConfig,
+        request: AiChatRequest,
+        tools: List<AiTool>,
+        context: ToolContext,
+    ): ApiResult<CoordinatedCompletion> {
         var messages = request.messages
         var usage = AiUsage()
         val seenCalls = mutableSetOf<String>()
@@ -113,6 +131,52 @@ class ToolCallCoordinator(
             messages = messages + completion.message + toolMessages
         }
         return ApiResult.UnexpectedError("Tool call round limit exceeded.")
+    }
+
+    private suspend fun recoverMissingStructuredOutput(
+        provider: AiProvider,
+        providerConfig: AiProviderConfig,
+        request: AiChatRequest,
+        tools: List<AiTool>,
+        context: ToolContext,
+        initialResult: ApiResult<CoordinatedCompletion>,
+    ): ApiResult<CoordinatedCompletion> {
+        val initial = (initialResult as? ApiResult.Success)?.value ?: return initialResult
+        if (initial.content.isBlank() || initial.suggestions.isNotEmpty()) {
+            return initialResult
+        }
+        val fallback = tools.firstNotNullOfOrNull { tool ->
+            tool.prepareStructuredFallback(
+                messages = request.messages,
+                assistantContent = initial.content,
+                context = context,
+            )?.let { fallbackRequest -> tool to fallbackRequest }
+        } ?: return initialResult
+        val (tool, fallbackRequest) = fallback
+        val recoveryResult = provider.complete(
+            config = providerConfig,
+            request = request.copy(
+                messages = fallbackRequest.messages,
+                temperature = fallbackRequest.temperature,
+                topP = fallbackRequest.topP,
+                maxTokens = fallbackRequest.maxTokens,
+                tools = emptyList(),
+                toolChoice = ToolChoice.None,
+                responseFormat = fallbackRequest.responseFormat,
+            ),
+        )
+        val recovery = (recoveryResult as? ApiResult.Success)?.value ?: return initialResult
+        val structuredOutput = recovery.structuredOutput ?: return initialResult
+        val suggestions = tool.parseStructuredFallback(structuredOutput, context)
+        if (suggestions.isEmpty()) {
+            return initialResult
+        }
+        return ApiResult.Success(
+            initial.copy(
+                suggestions = suggestions,
+                usage = initial.usage + recovery.usage,
+            ),
+        )
     }
 
     private suspend fun executeTool(

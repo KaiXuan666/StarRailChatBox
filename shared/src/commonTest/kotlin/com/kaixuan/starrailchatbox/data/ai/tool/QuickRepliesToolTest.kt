@@ -171,4 +171,33 @@ class QuickRepliesToolTest {
         assertEquals("没关系，我们慢慢来。", parsed.content)
         assertEquals(4, parsed.suggestions.size)
     }
+
+    @Test
+    fun structuredFallbackUsesStrictSuggestionsOnlySchema() {
+        val fallback = tool.prepareStructuredFallback(
+            messages = listOf(
+                AiMessage("system", "角色 prompt"),
+                AiMessage("user", "你好"),
+            ),
+            assistantContent = "你好，我在。",
+            context = context,
+        )
+
+        assertEquals("quick_reply_suggestions", fallback.responseFormat.name)
+        assertTrue(fallback.responseFormat.strict)
+        assertEquals(
+            setOf("suggestions"),
+            fallback.responseFormat.schema["required"]
+                ?.jsonArray
+                ?.map { it.jsonPrimitive.content }
+                ?.toSet(),
+        )
+        assertEquals(
+            false,
+            fallback.responseFormat.schema["additionalProperties"]
+                ?.jsonPrimitive
+                ?.content
+                ?.toBoolean(),
+        )
+    }
 }

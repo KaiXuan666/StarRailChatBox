@@ -7,10 +7,13 @@ import com.kaixuan.starrailchatbox.data.ai.AiProvider
 import com.kaixuan.starrailchatbox.data.ai.AiProviderConfig
 import com.kaixuan.starrailchatbox.data.ai.AiToolCall
 import com.kaixuan.starrailchatbox.data.ai.AiToolDefinition
+import com.kaixuan.starrailchatbox.data.ai.AiUsage
 import com.kaixuan.starrailchatbox.data.api.ApiResult
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -176,6 +179,124 @@ class ToolCallCoordinatorTest {
         )
 
         assertIs<ApiResult.UnexpectedError>(result)
+    }
+
+    @Test
+    fun requestsStrictQuickRepliesWhenInitialResponseHasNoSuggestions() = runTest {
+        val provider = QueueProvider(
+            listOf(
+                AiCompletion(
+                    message = AiMessage("assistant", content = "最终正文"),
+                    usage = AiUsage(promptTokens = 20, completionTokens = 5, totalTokens = 25),
+                ),
+                AiCompletion(
+                    message = AiMessage(
+                        "assistant",
+                        content = """{"suggestions":["🌸 继续聊","🍃 去散步","✨ 讲故事","🌙 看星星"]}""",
+                    ),
+                    usage = AiUsage(promptTokens = 8, completionTokens = 4, totalTokens = 12),
+                    structuredOutput = buildJsonObject {
+                        putJsonArray("suggestions") {
+                            add(JsonPrimitive("🌸 继续聊"))
+                            add(JsonPrimitive("🍃 去散步"))
+                            add(JsonPrimitive("✨ 讲故事"))
+                            add(JsonPrimitive("🌙 看星星"))
+                        }
+                    },
+                ),
+            ),
+        )
+        val coordinator = ToolCallCoordinator(
+            ToolRegistry(listOf(QuickRepliesTool())),
+            RiskBasedToolApprovalGateway,
+        )
+        val messages = listOf(
+            AiMessage("system", "角色 prompt"),
+            AiMessage("user", "第一轮用户"),
+            AiMessage("assistant", "第一轮助手"),
+            AiMessage("user", "第二轮用户"),
+            AiMessage("assistant", "第二轮助手"),
+            AiMessage("user", "第三轮用户"),
+        )
+
+        val result = coordinator.complete(
+            provider = provider,
+            providerConfig = providerConfig(),
+            request = AiChatRequest("model", messages),
+            toolNames = listOf(QuickRepliesTool.Name),
+            context = ToolContext("角色"),
+            supportsToolCalls = false,
+        )
+
+        val completion = assertIs<ApiResult.Success<CoordinatedCompletion>>(result).value
+        assertEquals("最终正文", completion.content)
+        assertEquals(4, completion.suggestions.size)
+        assertEquals(37, completion.usage.totalTokens)
+        assertEquals(2, provider.requests.size)
+
+        val recovery = provider.requests[1]
+        assertEquals("quick_reply_suggestions", recovery.responseFormat?.name)
+        assertEquals(true, recovery.responseFormat?.strict)
+        assertEquals(256, recovery.maxTokens)
+        assertEquals(emptyList(), recovery.tools)
+        assertEquals(
+            listOf("system", "system", "user", "assistant", "user", "assistant"),
+            recovery.messages.map(AiMessage::role),
+        )
+        assertEquals("角色 prompt", recovery.messages.first().content)
+        assertEquals(
+            listOf("第二轮用户", "第二轮助手", "第三轮用户", "最终正文"),
+            recovery.messages.takeLast(4).map(AiMessage::content),
+        )
+    }
+
+    @Test
+    fun keepsInitialCompletionWhenStrictQuickRepliesRequestFails() = runTest {
+        val provider = object : AiProvider {
+            override val id: String = "failure"
+            var requestCount = 0
+
+            override suspend fun getModels(
+                config: AiProviderConfig,
+            ): ApiResult<List<String>> = ApiResult.Success(emptyList())
+
+            override suspend fun complete(
+                config: AiProviderConfig,
+                request: AiChatRequest,
+            ): ApiResult<AiCompletion> {
+                requestCount += 1
+                return if (requestCount == 1) {
+                    ApiResult.Success(
+                        AiCompletion(
+                            message = AiMessage("assistant", content = "保留正文"),
+                            usage = AiUsage(totalTokens = 9),
+                        ),
+                    )
+                } else {
+                    ApiResult.HttpError(400, "Structured outputs unsupported.")
+                }
+            }
+
+            override suspend fun supportsToolCalls(config: AiProviderConfig): Boolean = false
+        }
+        val coordinator = ToolCallCoordinator(
+            ToolRegistry(listOf(QuickRepliesTool())),
+            RiskBasedToolApprovalGateway,
+        )
+
+        val result = coordinator.complete(
+            provider = provider,
+            providerConfig = providerConfig(),
+            request = AiChatRequest("model", listOf(AiMessage("user", "你好"))),
+            context = ToolContext("角色"),
+            supportsToolCalls = false,
+        )
+
+        val completion = assertIs<ApiResult.Success<CoordinatedCompletion>>(result).value
+        assertEquals("保留正文", completion.content)
+        assertEquals(emptyList(), completion.suggestions)
+        assertEquals(9, completion.usage.totalTokens)
+        assertEquals(2, provider.requestCount)
     }
 }
 
