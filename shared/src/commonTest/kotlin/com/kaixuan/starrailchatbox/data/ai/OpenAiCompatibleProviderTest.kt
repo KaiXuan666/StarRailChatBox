@@ -16,6 +16,7 @@ import io.ktor.utils.io.readRemaining
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
@@ -137,6 +138,57 @@ class OpenAiCompatibleProviderTest {
             completion.structuredOutput
                 ?.jsonObject
                 ?.get("ai_response")
+                ?.jsonPrimitive
+                ?.content,
+        )
+        client.close()
+    }
+
+    @Test
+    fun mapsAndParsesJsonObjectOutput() = runTest {
+        val engine = MockEngine { request ->
+            val body = request.body.readText()
+            assertTrue(body.contains("\"response_format\":{\"type\":\"json_object\"}"))
+            assertEquals(false, body.contains("\"json_schema\""))
+            respond(
+                content = """
+                    {
+                      "choices": [{
+                        "message": {
+                          "role": "assistant",
+                          "content": "{\"suggestions\":[\"继续聊\"]}"
+                        },
+                        "finish_reason": "stop"
+                      }]
+                    }
+                """.trimIndent(),
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+        val client = testClient(engine)
+
+        val result = OpenAiCompatibleProvider(client).complete(
+            providerConfig(),
+            AiChatRequest(
+                model = "test-model",
+                messages = listOf(AiMessage("user", "Return JSON.")),
+                responseFormat = AiResponseFormat(
+                    name = "quick_replies",
+                    schema = buildJsonObject { put("type", "object") },
+                    strict = false,
+                    type = AiResponseFormatType.JsonObject,
+                ),
+            ),
+        )
+
+        val completion = assertIs<ApiResult.Success<AiCompletion>>(result).value
+        assertEquals(
+            "继续聊",
+            completion.structuredOutput
+                ?.jsonObject
+                ?.get("suggestions")
+                ?.jsonArray
+                ?.first()
                 ?.jsonPrimitive
                 ?.content,
         )

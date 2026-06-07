@@ -117,7 +117,7 @@ internal data class OpenAiFunctionDefinition(
 internal data class OpenAiResponseFormat(
     val type: String,
     @SerialName("json_schema")
-    val jsonSchema: OpenAiJsonSchema,
+    val jsonSchema: OpenAiJsonSchema? = null,
 )
 
 @Serializable

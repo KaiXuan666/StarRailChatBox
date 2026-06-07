@@ -2,6 +2,7 @@ package com.kaixuan.starrailchatbox.data.ai.tool
 
 import com.kaixuan.starrailchatbox.data.ai.AiMessage
 import com.kaixuan.starrailchatbox.data.ai.AiResponseFormat
+import com.kaixuan.starrailchatbox.data.ai.AiResponseFormatType
 import com.kaixuan.starrailchatbox.data.ai.AiToolCall
 import com.kaixuan.starrailchatbox.data.ai.AiToolDefinition
 import kotlinx.serialization.SerialName
@@ -190,9 +191,10 @@ class QuickRepliesTool(
                 recentConversation,
             responseFormat = AiResponseFormat(
                 name = StructuredFallbackName,
-                description = "Generate four concise replies the user may send next.",
+                description = "生成 4 条用户接下来可能发送的简短快捷回复。",
                 schema = buildSuggestionsSchema(),
-                strict = true,
+                strict = false,
+                type = AiResponseFormatType.JsonObject,
             ),
         )
     }
@@ -320,11 +322,13 @@ class QuickRepliesTool(
         private const val StructuredFallbackName = "quick_reply_suggestions"
         private val ConversationRoles = setOf("user", "assistant")
         private val StructuredFallbackInstruction = """
-            Generate exactly four concise messages that the user could naturally send next.
-            Base them only on the role instructions and recent conversation.
-            Each suggestion must use the conversation language, start with a relevant emoji,
-            be distinct, and contain at most 12 characters after the emoji.
-            Return only the JSON object required by the response schema.
+            请严格生成 4 条用户接下来可能自然发送的简短回复。
+            只能根据角色设定和最近对话生成，不得引入对话之外的信息。
+            每条建议必须使用当前对话的语言，以符合语境的 Emoji 开头，内容互不重复，
+            且 Emoji 后的文字不得超过 12 个字。
+            只返回合法 JSON，不要使用 Markdown，也不要添加解释或其他字段。
+            必须严格使用以下格式：
+            {"suggestions":["🌸 快捷回复一","🍃 快捷回复二","✨ 快捷回复三","🌙 快捷回复四"]}
         """.trimIndent()
         private val QuickRepliesRegex = Regex(
             pattern = "<quick_replies\\s*>([\\s\\S]*?)</quick_replies\\s*>",

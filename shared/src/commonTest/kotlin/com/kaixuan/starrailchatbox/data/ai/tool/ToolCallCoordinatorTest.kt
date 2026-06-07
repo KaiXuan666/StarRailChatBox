@@ -5,6 +5,7 @@ import com.kaixuan.starrailchatbox.data.ai.AiCompletion
 import com.kaixuan.starrailchatbox.data.ai.AiMessage
 import com.kaixuan.starrailchatbox.data.ai.AiProvider
 import com.kaixuan.starrailchatbox.data.ai.AiProviderConfig
+import com.kaixuan.starrailchatbox.data.ai.AiResponseFormatType
 import com.kaixuan.starrailchatbox.data.ai.AiToolCall
 import com.kaixuan.starrailchatbox.data.ai.AiToolDefinition
 import com.kaixuan.starrailchatbox.data.ai.AiUsage
@@ -236,7 +237,8 @@ class ToolCallCoordinatorTest {
 
         val recovery = provider.requests[1]
         assertEquals("quick_reply_suggestions", recovery.responseFormat?.name)
-        assertEquals(true, recovery.responseFormat?.strict)
+        assertEquals(AiResponseFormatType.JsonObject, recovery.responseFormat?.type)
+        assertEquals(false, recovery.responseFormat?.strict)
         assertEquals(256, recovery.maxTokens)
         assertEquals(emptyList(), recovery.tools)
         assertEquals(

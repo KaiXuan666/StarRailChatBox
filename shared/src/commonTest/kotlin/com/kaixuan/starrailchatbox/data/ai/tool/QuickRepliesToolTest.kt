@@ -1,6 +1,7 @@
 package com.kaixuan.starrailchatbox.data.ai.tool
 
 import com.kaixuan.starrailchatbox.data.ai.AiMessage
+import com.kaixuan.starrailchatbox.data.ai.AiResponseFormatType
 import com.kaixuan.starrailchatbox.data.ai.AiToolCall
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.jsonArray
@@ -184,7 +185,9 @@ class QuickRepliesToolTest {
         )
 
         assertEquals("quick_reply_suggestions", fallback.responseFormat.name)
-        assertTrue(fallback.responseFormat.strict)
+        assertEquals(AiResponseFormatType.JsonObject, fallback.responseFormat.type)
+        assertEquals(false, fallback.responseFormat.strict)
+        assertTrue(fallback.messages[1].content.orEmpty().contains("JSON"))
         assertEquals(
             setOf("suggestions"),
             fallback.responseFormat.schema["required"]

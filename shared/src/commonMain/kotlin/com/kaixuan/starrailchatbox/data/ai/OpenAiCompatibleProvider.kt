@@ -171,18 +171,23 @@ private fun AiChatRequest.toOpenAiRequest() = OpenAiChatRequest(
         }
     },
     parallelToolCalls = false.takeIf { tools.any(AiToolDefinition::strict) },
-    responseFormat = responseFormat?.let { format ->
-        OpenAiResponseFormat(
+    responseFormat = responseFormat?.toOpenAiResponseFormat(),
+)
+
+private fun AiResponseFormat.toOpenAiResponseFormat(): OpenAiResponseFormat {
+    return when (type) {
+        AiResponseFormatType.JsonSchema -> OpenAiResponseFormat(
             type = "json_schema",
             jsonSchema = OpenAiJsonSchema(
-                name = format.name,
-                description = format.description,
-                schema = format.schema,
-                strict = format.strict,
+                name = name,
+                description = description,
+                schema = schema,
+                strict = strict,
             ),
         )
-    },
-)
+        AiResponseFormatType.JsonObject -> OpenAiResponseFormat(type = "json_object")
+    }
+}
 
 private fun OpenAiChatResponse.toCompletion(
     responseFormat: AiResponseFormat?,

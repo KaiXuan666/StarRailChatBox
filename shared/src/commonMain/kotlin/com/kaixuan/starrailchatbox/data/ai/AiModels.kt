@@ -64,7 +64,13 @@ data class AiResponseFormat(
     val description: String? = null,
     val schema: JsonObject,
     val strict: Boolean = true,
+    val type: AiResponseFormatType = AiResponseFormatType.JsonSchema,
 )
+
+enum class AiResponseFormatType {
+    JsonSchema,
+    JsonObject,
+}
 
 /** Provider 无关的工具选择策略，由各 Provider 映射为自身协议格式。 */
 sealed interface ToolChoice {
