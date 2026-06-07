@@ -3,13 +3,15 @@ package com.kaixuan.starrailchatbox.data.database
 import android.content.Context
 import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
-import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
+import com.kaixuan.starrailchatbox.data.character.DefaultCharacterRepository
+import com.kaixuan.starrailchatbox.data.character.FileCharacterAvatarStorage
+import com.kaixuan.starrailchatbox.data.character.RoomCharacterStorage
 import com.kaixuan.starrailchatbox.data.model.RoomModelConfigRepository
 
-fun createModelConfigRepository(
+fun createPersistentRepositories(
     context: Context,
     databaseName: String = "starrail_chat_box.db",
-): ModelConfigRepository {
+): PersistentRepositories {
     val database = Room.databaseBuilder<StarRailDatabase>(
         context = context.applicationContext,
         name = databaseName,
@@ -17,8 +19,18 @@ fun createModelConfigRepository(
         .setDriver(BundledSQLiteDriver())
         .build()
     val keyStorePath = context.filesDir.resolve("api_key.key.preferences_pb").absolutePath
-    return RoomModelConfigRepository(
-        dao = database.modelConfigDao(),
-        cipher = createApiKeyCipher(keyStorePath),
+    return PersistentRepositories(
+        modelConfigRepository = RoomModelConfigRepository(
+            dao = database.modelConfigDao(),
+            cipher = createApiKeyCipher(keyStorePath),
+        ),
+        characterRepository = DefaultCharacterRepository(
+            RoomCharacterStorage(
+                dao = database.agentRoleDao(),
+                avatarStorage = FileCharacterAvatarStorage(
+                    context.filesDir.resolve("character_avatars"),
+                ),
+            ),
+        ),
     )
 }

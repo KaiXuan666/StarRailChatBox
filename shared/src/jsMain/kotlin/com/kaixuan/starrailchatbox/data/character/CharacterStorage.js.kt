@@ -4,7 +4,7 @@ import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlinx.browser.localStorage
 
-actual fun createCharacterStorage(directoryPath: String?): CharacterStorage {
+fun createCharacterStorage(directoryPath: String? = null): CharacterStorage {
     return BrowserCharacterStorage(directoryPath ?: "characters")
 }
 
@@ -27,6 +27,7 @@ private class BrowserCharacterStorage(
             val prompt = localStorage.getItem("$prefix$name.md") ?: return@mapNotNull null
             val avatar = localStorage.getItem("$prefix$name.webp") ?: return@mapNotNull null
             CharacterFiles(
+                id = name,
                 name = name,
                 promptBytes = Base64.decode(prompt),
                 avatarBytes = Base64.decode(avatar),

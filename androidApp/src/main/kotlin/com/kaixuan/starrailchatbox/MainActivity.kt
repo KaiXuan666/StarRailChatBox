@@ -6,25 +6,22 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
-import com.kaixuan.starrailchatbox.data.character.DefaultCharacterRepository
-import com.kaixuan.starrailchatbox.data.character.createCharacterStorage
-import com.kaixuan.starrailchatbox.data.database.createModelConfigRepository
+import com.kaixuan.starrailchatbox.data.database.createPersistentRepositories
 import com.kaixuan.starrailchatbox.data.settings.createProfileStore
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        val repositories = createPersistentRepositories(this)
 
         setContent {
             App(
-                modelConfigRepository = createModelConfigRepository(this),
+                modelConfigRepository = repositories.modelConfigRepository,
                 profileStore = createProfileStore(
                     filesDir.resolve("profile_settings.preferences_pb").absolutePath,
                 ),
-                characterRepository = DefaultCharacterRepository(
-                    createCharacterStorage(filesDir.resolve("characters").absolutePath),
-                ),
+                characterRepository = repositories.characterRepository,
             )
         }
     }

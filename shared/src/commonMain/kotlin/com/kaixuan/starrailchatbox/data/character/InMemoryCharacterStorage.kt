@@ -7,18 +7,18 @@ class InMemoryCharacterStorage : CharacterStorage {
     override suspend fun initializeDefaults(defaults: List<CharacterFiles>) {
         if (initialized) return
         defaults.forEach {
-            if (it.name !in characters) {
-                characters[it.name] = it
+            if (it.id !in characters) {
+                characters[it.id] = it
             }
         }
         initialized = true
     }
 
     override suspend fun loadCharacters(): List<CharacterFiles> {
-        return characters.values.sortedBy(CharacterFiles::name)
+        return characters.values.toList()
     }
 
     override suspend fun saveCharacter(character: CharacterFiles) {
-        characters[character.name] = character
+        characters[character.id] = character
     }
 }

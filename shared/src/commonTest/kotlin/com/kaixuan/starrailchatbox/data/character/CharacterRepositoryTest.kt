@@ -11,6 +11,7 @@ class CharacterRepositoryTest {
     fun packagedDefaultsCanBeLoaded() = runTest {
         val characters = DefaultCharacterRepository(InMemoryCharacterStorage()).loadCharacters()
 
+        assertEquals("流萤", characters.first().name)
         assertEquals(setOf("三月七", "流萤", "瑕蝶", "黄泉"), characters.map(Character::name).toSet())
         characters.forEach { character ->
             assertTrue(character.prompt.isNotBlank())
@@ -49,6 +50,7 @@ class CharacterRepositoryTest {
 }
 
 private fun characterFiles(name: String) = CharacterFiles(
+    id = name,
     name = name,
     promptBytes = "$name prompt".encodeToByteArray(),
     avatarBytes = byteArrayOf(1),

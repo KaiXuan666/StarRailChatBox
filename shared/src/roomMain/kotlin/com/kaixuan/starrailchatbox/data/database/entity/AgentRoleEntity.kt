@@ -24,9 +24,9 @@ data class AgentRoleEntity(
     val systemPrompt: String,
     @ColumnInfo(name = "opening_message")
     val openingMessage: String,
-    val temperature: Double,
+    val temperature: Double = 0.85,
     @ColumnInfo(name = "top_p")
-    val topP: Double,
+    val topP: Double = 0.9,
     @ColumnInfo(name = "sort_order")
     val sortOrder: Int,
     @ColumnInfo(name = "is_builtin")

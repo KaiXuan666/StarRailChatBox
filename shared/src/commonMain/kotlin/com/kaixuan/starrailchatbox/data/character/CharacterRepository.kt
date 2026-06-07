@@ -28,6 +28,7 @@ data class Character(
 }
 
 data class CharacterFiles(
+    val id: String,
     val name: String,
     val promptBytes: ByteArray,
     val avatarBytes: ByteArray,
@@ -71,6 +72,7 @@ class DefaultCharacterRepository(
             "Character name cannot contain path separators or line breaks."
         }
         val files = CharacterFiles(
+            id = normalizedName,
             name = normalizedName,
             promptBytes = prompt.encodeToByteArray(),
             avatarBytes = avatarBytes,
@@ -81,7 +83,7 @@ class DefaultCharacterRepository(
 }
 
 private fun CharacterFiles.toCharacter() = Character(
-    id = name,
+    id = id,
     name = name,
     prompt = promptBytes.decodeToString(),
     avatarBytes = avatarBytes,
@@ -91,6 +93,7 @@ private fun CharacterFiles.toCharacter() = Character(
 private suspend fun loadDefaultCharacterAssets(): List<CharacterFiles> {
     return DefaultCharacterNames.map { name ->
         CharacterFiles(
+            id = "builtin:$name",
             name = name,
             promptBytes = Res.readBytes("files/characters/$name.md"),
             avatarBytes = Res.readBytes("files/characters/$name.webp"),
@@ -104,5 +107,3 @@ private val DefaultCharacterNames = listOf(
     "黄泉",
     "瑕蝶",
 )
-
-expect fun createCharacterStorage(directoryPath: String? = null): CharacterStorage

@@ -5,10 +5,10 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.painterResource
-import com.kaixuan.starrailchatbox.data.database.createModelConfigRepository
+import com.kaixuan.starrailchatbox.data.database.createPersistentRepositories
 
 fun main() = application {
-    val modelConfigRepository = createModelConfigRepository()
+    val repositories = createPersistentRepositories()
     Window(
         onCloseRequest = ::exitApplication,
         title = "崩铁ChatBox",
@@ -18,6 +18,9 @@ fun main() = application {
             height = 900.dp,
         ),
     ) {
-        App(modelConfigRepository = modelConfigRepository)
+        App(
+            modelConfigRepository = repositories.modelConfigRepository,
+            characterRepository = repositories.characterRepository,
+        )
     }
 }

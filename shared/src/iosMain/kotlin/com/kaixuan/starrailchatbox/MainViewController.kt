@@ -1,8 +1,14 @@
 package com.kaixuan.starrailchatbox
 
 import androidx.compose.ui.window.ComposeUIViewController
-import com.kaixuan.starrailchatbox.data.database.createModelConfigRepository
+import com.kaixuan.starrailchatbox.data.database.createPersistentRepositories
 
-fun MainViewController() = ComposeUIViewController {
-    App(modelConfigRepository = createModelConfigRepository())
+fun MainViewController(): platform.UIKit.UIViewController {
+    val repositories = createPersistentRepositories()
+    return ComposeUIViewController {
+        App(
+            modelConfigRepository = repositories.modelConfigRepository,
+            characterRepository = repositories.characterRepository,
+        )
+    }
 }

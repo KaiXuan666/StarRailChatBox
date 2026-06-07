@@ -8,7 +8,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kaixuan.starrailchatbox.data.character.CharacterRepository
 import com.kaixuan.starrailchatbox.data.character.DefaultCharacterRepository
-import com.kaixuan.starrailchatbox.data.character.createCharacterStorage
+import com.kaixuan.starrailchatbox.data.character.InMemoryCharacterStorage
 import com.kaixuan.starrailchatbox.data.model.InMemoryModelConfigRepository
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
 import com.kaixuan.starrailchatbox.data.settings.ProfileStore
@@ -31,7 +31,7 @@ fun App(
     modelConfigRepository: ModelConfigRepository = remember { InMemoryModelConfigRepository() },
     profileStore: ProfileStore = remember { createProfileStore() },
     characterRepository: CharacterRepository = remember {
-        DefaultCharacterRepository(createCharacterStorage())
+        DefaultCharacterRepository(InMemoryCharacterStorage())
     },
 ) {
     val koinApplication = remember(modelConfigRepository, profileStore) {
