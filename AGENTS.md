@@ -173,6 +173,17 @@ driver、provider 和日志出口等边界。
 - `local.properties`、生成的配置源码和包含真实密钥的构建产物不得提交。新增测试
   必须显式注入空值或测试值，不能依赖开发者机器上的 `local.properties`。
 
+### 多模态输入与跨平台附件读取
+
+- **多模态模型选择**：当发送的消息中包含图片附件（如相册选择或相机拍照）时，系统必须选用多模态模型配置（`id = "multimodal"`，其 `supportVision` 为 `true`）发起请求；不包含图片时默认使用普通模型配置。
+- **跨平台附件读取 (`UriReader`)**：由于不同目标平台读取 URI 字节流方式各异，使用 `expect/actual` 机制声明 `UriReader.readUriAsBytes(uri: String): ByteArray` 提供统一抽象。
+  - Android：使用 `ContentResolver` 打开输入流并读取字节。
+  - Desktop/JVM：作为本地文件路径通过 Java I/O 直接读取。
+  - Web (JS/WasmJS)：在图片/文件选择器中直接使用 `data:` Base64 格式的 Data URL 赋值给 URI，底层当检测到 `uri.startsWith("data:")` 时直接跳过字节读取，使用该 URI 往后传输。
+  - iOS/JS/WasmJS 上的其他常规 URI 读取，目前提供空或占位实现。
+- **文本文件附件拼接**：若附件为非图片类型的文本文件（如 `.txt`, `.kt`, `.json` 等），在发送前必须通过 `UriReader` 将其内容读取为字符串，并按 `[文件名.ext]\n---\n文件内容\n---` 格式追加到用户提示词 Prompt 尾部，同时将其整体作为 `chat_message` 的文本内容持久化，以确保会话历史加载时不会丢失该附件信息。
+- **Base64 编码**：多模态图片的 Base64 转换统一使用 Kotlin 1.9.0+ 标准库提供的 `kotlin.io.encoding.Base64`。
+
 ### 网络日志
 
 - Ktor Client 统一安装 Logging，并通过 Napier 输出；Android 创建 HTTP Client 前
