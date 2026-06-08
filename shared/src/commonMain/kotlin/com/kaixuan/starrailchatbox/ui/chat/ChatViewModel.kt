@@ -19,6 +19,7 @@ import com.kaixuan.starrailchatbox.data.chat.ChatSessionRepository
 import com.kaixuan.starrailchatbox.data.chat.ChatContextSnapshot
 import com.kaixuan.starrailchatbox.data.chat.ChatSummaryCoordinator
 import com.kaixuan.starrailchatbox.data.chat.ChatTitleCoordinator
+import com.kaixuan.starrailchatbox.data.chat.MessageAttachment
 import com.kaixuan.starrailchatbox.data.chat.NewChatMessage
 import com.kaixuan.starrailchatbox.data.chat.NewChatSession
 import com.kaixuan.starrailchatbox.data.chat.StoredChatMessage
@@ -900,11 +901,15 @@ class ChatViewModel(
             maxContextMessageCount = null,
             createdAt = now,
         ).let { newSession ->
+            val domainAttachments = attachments.map {
+                it.toMessageAttachment(idGenerator("message"), now)
+            }
             val userMessage = newUserMessage(
                 sessionId = newSession.id,
                 content = userText,
                 config = config,
                 now = now,
+                attachments = domainAttachments,
             )
             val openingMessage = fullCharacter.openingMessage
                 .takeIf(String::isNotBlank)
@@ -934,12 +939,16 @@ class ChatViewModel(
             }
         }
         if (previousSession != null) {
+            val domainAttachments = attachments.map {
+                it.toMessageAttachment(idGenerator("message"), now)
+            }
             chatSessionRepository.appendMessage(
                 newUserMessage(
                     sessionId = session.id,
                     content = userText,
                     config = config,
                     now = now,
+                    attachments = domainAttachments,
                 ),
             )
         }
@@ -958,6 +967,29 @@ class ChatViewModel(
         val prompt = session.customSystemPrompt
             ?.takeIf(String::isNotBlank)
             ?: session.systemPromptSnapshot
+
+        val historyMessageParts = context.messages.associate { msg ->
+            msg.id to msg.attachments.mapNotNull { attachment ->
+                if (attachment.uri.startsWith("data:")) {
+                    if (attachment.mimeType.startsWith("image/")) {
+                        AiContentPart.ImageUrl(attachment.uri)
+                    } else {
+                        AiContentPart.FileUrl(attachment.uri, attachment.mimeType)
+                    }
+                } else {
+                    val bytes = runCatching { readUriAsBytes(attachment.uri) }.getOrNull()
+                    if (bytes != null && bytes.isNotEmpty()) {
+                        val base64 = "data:${attachment.mimeType};base64,${kotlin.io.encoding.Base64.encode(bytes)}"
+                        if (attachment.mimeType.startsWith("image/")) {
+                            AiContentPart.ImageUrl(base64)
+                        } else {
+                            AiContentPart.FileUrl(base64, attachment.mimeType)
+                        }
+                    } else null
+                }
+            }
+        }.filterValues { it.isNotEmpty() }
+
         val requestMessages = buildChatContext(
             systemPrompt = prompt,
             summary = context.summary,
@@ -965,6 +997,7 @@ class ChatViewModel(
             currentUserMessage = userText,
             maxHistoryMessageCount = session.maxContextMessageCount,
             currentUserMessageParts = messageParts,
+            historyMessageParts = historyMessageParts,
         )
 
         Napier.d("maxContextMessageCount: ${session.maxContextMessageCount}, summary: ${context.summary} content: $content, history size: ${context.messages.size}", tag = "sendMessage")
@@ -1144,6 +1177,7 @@ class ChatViewModel(
         content: String,
         config: ModelConfig?,
         now: Long,
+        attachments: List<MessageAttachment> = emptyList(),
     ) = NewChatMessage(
         id = idGenerator("message"),
         sessionId = sessionId,
@@ -1153,7 +1187,39 @@ class ChatViewModel(
         modelConfigId = config?.id,
         modelNameSnapshot = config?.modelName,
         createdAt = now,
+        attachments = attachments,
     )
+
+    private fun SelectedAttachment.toMessageAttachment(messageId: String, now: Long): MessageAttachment {
+        val ext = name.substringAfterLast('.', "").lowercase()
+        val mimeType = when (this) {
+            is SelectedAttachment.Image -> when (ext) {
+                "png" -> "image/png"
+                "gif" -> "image/gif"
+                "webp" -> "image/webp"
+                else -> "image/jpeg"
+            }
+            is SelectedAttachment.File -> when (ext) {
+                "txt", "kt", "java", "py", "js", "ts" -> "text/plain"
+                "json" -> "application/json"
+                "pdf" -> "application/pdf"
+                "doc" -> "application/msword"
+                "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                "xls" -> "application/vnd.ms-excel"
+                "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                else -> "application/octet-stream"
+            }
+        }
+        return MessageAttachment(
+            id = idGenerator("attachment"),
+            messageId = messageId,
+            name = name,
+            size = 0,
+            mimeType = mimeType,
+            uri = uri,
+            createdAt = now,
+        )
+    }
 
     private fun handleHeaderAction(action: HeaderAction) {
         when (action) {
@@ -1244,6 +1310,7 @@ private fun List<StoredChatMessage>.toUiModels(
                 createdAt = message.createdAt,
                 content = MessageContent.Custom(message.content),
                 isRead = true,
+                attachments = message.attachments,
             )
             ChatRole.ASSISTANT -> ChatMessageUiModel.Received(
                 id = message.id,
@@ -1251,6 +1318,7 @@ private fun List<StoredChatMessage>.toUiModels(
                 createdAt = message.createdAt,
                 content = MessageContent.Custom(message.content),
                 senderId = characterId,
+                attachments = message.attachments,
             )
         }
     }

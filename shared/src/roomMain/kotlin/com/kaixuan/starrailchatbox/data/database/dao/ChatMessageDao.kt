@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Upsert
 import com.kaixuan.starrailchatbox.data.database.entity.ChatMessageEntity
+import com.kaixuan.starrailchatbox.data.database.entity.ChatMessageWithAttachments
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -15,7 +16,7 @@ interface ChatMessageDao {
         "SELECT * FROM chat_message " +
             "WHERE session_id = :sessionId AND deleted_at IS NULL ORDER BY seq",
     )
-    fun observeBySession(sessionId: String): Flow<List<ChatMessageEntity>>
+    fun observeBySession(sessionId: String): Flow<List<ChatMessageWithAttachments>>
 
     @Query(
         "SELECT * FROM chat_message " +
@@ -27,7 +28,7 @@ interface ChatMessageDao {
         sessionId: String,
         afterSeq: Long,
         limit: Int,
-    ): List<ChatMessageEntity>
+    ): List<ChatMessageWithAttachments>
 
     @Query("SELECT COALESCE(MAX(seq), 0) + 1 FROM chat_message WHERE session_id = :sessionId")
     suspend fun nextSeq(sessionId: String): Long

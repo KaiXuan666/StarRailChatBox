@@ -31,8 +31,100 @@ class StarRailDatabaseMigrationTest {
             assertNull(database.chatSummaryDao().findActive("session"))
         } finally {
             database.close()
-            Files.deleteIfExists(databasePath)
+            runCatching { Files.deleteIfExists(databasePath) }
         }
+    }
+
+    @Test
+    fun migratesVersionTwoToThree() = runTest {
+        val databasePath = Files.createTempFile("starrail-migration-2-3", ".db")
+        createVersionTwoDatabase(databasePath.toString())
+
+        val database = Room.databaseBuilder<StarRailDatabase>(
+            name = databasePath.toString(),
+            factory = StarRailDatabaseConstructor::initialize,
+        )
+            .setDriver(BundledSQLiteDriver())
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .build()
+
+        try {
+            // Verify that we can interact with the new table
+            database.messageAttachmentDao().upsert(
+                com.kaixuan.starrailchatbox.data.database.entity.MessageAttachmentEntity(
+                    id = "attachment",
+                    messageId = "msg1",
+                    name = "test.txt",
+                    size = 100,
+                    mimeType = "text/plain",
+                    uri = "file://test.txt",
+                    createdAt = 1000,
+                )
+            )
+        } finally {
+            database.close()
+            runCatching { Files.deleteIfExists(databasePath) }
+        }
+    }
+}
+
+private fun createVersionTwoDatabase(path: String) {
+    BundledSQLiteDriver().open(path).use { connection ->
+        versionOneSchema.forEach(connection::execSQL)
+        // Apply MIGRATION_1_2 manually (simplified)
+        connection.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `chat_summary` (
+                `id` TEXT NOT NULL,
+                `session_id` TEXT NOT NULL,
+                `from_seq` INTEGER NOT NULL,
+                `to_seq` INTEGER NOT NULL,
+                `content` TEXT NOT NULL,
+                `source_message_count` INTEGER NOT NULL,
+                `model_config_id` TEXT,
+                `model_name_snapshot` TEXT,
+                `prompt_tokens` INTEGER NOT NULL,
+                `completion_tokens` INTEGER NOT NULL,
+                `total_tokens` INTEGER NOT NULL,
+                `created_at` INTEGER NOT NULL,
+                PRIMARY KEY(`id`),
+                FOREIGN KEY(`session_id`) REFERENCES `chat_session`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                FOREIGN KEY(`model_config_id`) REFERENCES `model_config`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL
+            )
+            """.trimIndent(),
+        )
+        connection.execSQL("ALTER TABLE `chat_session` ADD COLUMN `summary_threshold_message_count` INTEGER NOT NULL DEFAULT 20")
+        connection.execSQL("ALTER TABLE `chat_session` ADD COLUMN `summary_retained_message_count` INTEGER NOT NULL DEFAULT 8")
+
+        // Add a message to reference
+        connection.execSQL(
+            """
+            INSERT INTO chat_session (
+                id, title, system_prompt_snapshot, max_context_message_count, enable_summary, 
+                summary_threshold_tokens, compaction_seq, last_message_at, pinned, archived, 
+                created_at, updated_at, summary_threshold_message_count, summary_retained_message_count
+            ) VALUES (
+                'session1', 'title', 'prompt', 2147483647, 1, 
+                0, 0, 1000, 0, 0, 
+                1000, 1000, 20, 8
+            )
+            """.trimIndent(),
+        )
+        connection.execSQL(
+            """
+            INSERT INTO chat_message (
+                id, session_id, seq, role, content, status, 
+                prompt_tokens, completion_tokens, total_tokens, estimated_tokens, 
+                is_context_excluded, created_at, updated_at
+            ) VALUES (
+                'msg1', 'session1', 1, 'user', 'hello', 'completed', 
+                0, 0, 0, 0, 
+                0, 1000, 1000
+            )
+            """.trimIndent(),
+        )
+
+        connection.execSQL("PRAGMA user_version = 2")
     }
 }
 

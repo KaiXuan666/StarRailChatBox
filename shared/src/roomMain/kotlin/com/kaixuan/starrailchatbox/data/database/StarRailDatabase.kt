@@ -9,11 +9,13 @@ import com.kaixuan.starrailchatbox.data.database.dao.ChatMessageDao
 import com.kaixuan.starrailchatbox.data.database.dao.ChatSessionDao
 import com.kaixuan.starrailchatbox.data.database.dao.ChatSummaryDao
 import com.kaixuan.starrailchatbox.data.database.dao.ModelConfigDao
+import com.kaixuan.starrailchatbox.data.database.dao.MessageAttachmentDao
 import com.kaixuan.starrailchatbox.data.database.entity.AgentRoleEntity
 import com.kaixuan.starrailchatbox.data.database.entity.ChatMessageEntity
 import com.kaixuan.starrailchatbox.data.database.entity.ChatSessionEntity
 import com.kaixuan.starrailchatbox.data.database.entity.ChatSummaryEntity
 import com.kaixuan.starrailchatbox.data.database.entity.ModelConfigEntity
+import com.kaixuan.starrailchatbox.data.database.entity.MessageAttachmentEntity
 
 @Database(
     entities = [
@@ -22,8 +24,9 @@ import com.kaixuan.starrailchatbox.data.database.entity.ModelConfigEntity
         ChatMessageEntity::class,
         ChatSummaryEntity::class,
         ModelConfigEntity::class,
+        MessageAttachmentEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 @ConstructedBy(StarRailDatabaseConstructor::class)
@@ -37,6 +40,8 @@ abstract class StarRailDatabase : RoomDatabase() {
     abstract fun chatSummaryDao(): ChatSummaryDao
 
     abstract fun modelConfigDao(): ModelConfigDao
+
+    abstract fun messageAttachmentDao(): MessageAttachmentDao
 }
 
 @Suppress("KotlinNoActualForExpect")

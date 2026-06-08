@@ -172,4 +172,8 @@
     <string name="character_list_edit_desc">编辑</string>
     <string name="character_list_empty">暂无自定义角色</string>
     <string name="character_list_drag_tip">长按角色卡可拖动排序，左滑可删除角色</string>
+    <string name="view_attachments">查看附件</string>
+    <string name="attachments_title">消息附件</string>
+    <string name="open_file">打开</string>
+    <string name="close">关闭</string>
 </resources>

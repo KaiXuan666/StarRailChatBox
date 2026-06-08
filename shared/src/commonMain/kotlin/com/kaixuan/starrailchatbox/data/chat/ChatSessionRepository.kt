@@ -46,6 +46,17 @@ data class StoredChatMessage(
     val isContextExcluded: Boolean = false,
     val createdAt: Long,
     val suggestions: List<String> = emptyList(),
+    val attachments: List<MessageAttachment> = emptyList(),
+)
+
+data class MessageAttachment(
+    val id: String,
+    val messageId: String,
+    val name: String,
+    val size: Long,
+    val mimeType: String,
+    val uri: String,
+    val createdAt: Long,
 )
 
 data class ChatSummary(
@@ -106,6 +117,7 @@ data class NewChatMessage(
     val errorMessage: String? = null,
     val createdAt: Long,
     val suggestions: List<String> = emptyList(),
+    val attachments: List<MessageAttachment> = emptyList(),
 )
 
 data class NewChatSummary(
@@ -324,6 +336,7 @@ private fun NewChatMessage.toStored(seq: Long) = StoredChatMessage(
     totalTokens = totalTokens,
     createdAt = createdAt,
     suggestions = suggestions,
+    attachments = attachments,
 )
 
 private fun NewChatSummary.toStored() = ChatSummary(

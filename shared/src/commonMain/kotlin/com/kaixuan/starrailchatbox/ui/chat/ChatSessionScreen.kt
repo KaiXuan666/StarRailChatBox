@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,6 +41,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.Button
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -56,12 +60,16 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import starrailchatbox.shared.generated.resources.Res
@@ -92,9 +100,14 @@ import starrailchatbox.shared.generated.resources.record_voice
 import starrailchatbox.shared.generated.resources.send_message
 import starrailchatbox.shared.generated.resources.sent_message_description
 import starrailchatbox.shared.generated.resources.today
+import starrailchatbox.shared.generated.resources.view_attachments
+import starrailchatbox.shared.generated.resources.attachments_title
+import starrailchatbox.shared.generated.resources.open_file
+import starrailchatbox.shared.generated.resources.close
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.starRailColors
 import com.kaixuan.starrailchatbox.data.character.Character
+import com.kaixuan.starrailchatbox.data.chat.MessageAttachment
 import com.kaixuan.starrailchatbox.ui.components.BackHandler
 import com.kaixuan.starrailchatbox.ui.components.AvatarImage
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
@@ -167,6 +180,19 @@ fun ChatSessionScreen(
     ) { characters.size }
 
     val messagesStartIndex = 3
+
+    var attachmentsToShow by remember { mutableStateOf<List<MessageAttachment>?>(null) }
+    val uriHandler = LocalUriHandler.current
+
+    if (attachmentsToShow != null) {
+        AttachmentsDialog(
+            attachments = attachmentsToShow!!,
+            onDismissRequest = { attachmentsToShow = null },
+            onOpenAttachment = { attachment ->
+                uriHandler.openUri(attachment.uri)
+            }
+        )
+    }
 
     // 缓存每个角色的 LazyListState
     val pageListStates = remember { mutableMapOf<String, LazyListState>() }
@@ -354,6 +380,12 @@ fun ChatSessionScreen(
                                 charactersById = charactersById,
                                 userAvatarUri = state.userAvatarUri,
                                 compact = compact,
+                                onViewAttachments = { attachments ->
+                                    attachmentsToShow = attachments
+                                },
+                                onOpenAttachment = { attachment ->
+                                    uriHandler.openUri(attachment.uri)
+                                }
                             )
                         }
                     }
@@ -822,17 +854,23 @@ private fun MessageItem(
     charactersById: Map<String, Character>,
     userAvatarUri: String?,
     compact: Boolean,
+    onViewAttachments: (List<MessageAttachment>) -> Unit,
+    onOpenAttachment: (MessageAttachment) -> Unit,
 ) {
     when (message) {
         is ChatMessageUiModel.Received -> ReceivedMessage(
             message = message,
             sender = charactersById[message.senderId],
             compact = compact,
+            onViewAttachments = onViewAttachments,
+            onOpenAttachment = onOpenAttachment,
         )
         is ChatMessageUiModel.Sent -> SentMessage(
             message = message,
             userAvatarUri = userAvatarUri,
             compact = compact,
+            onViewAttachments = onViewAttachments,
+            onOpenAttachment = onOpenAttachment,
         )
     }
 }
@@ -842,6 +880,8 @@ private fun ReceivedMessage(
     message: ChatMessageUiModel.Received,
     sender: Character?,
     compact: Boolean,
+    onViewAttachments: (List<MessageAttachment>) -> Unit,
+    onOpenAttachment: (MessageAttachment) -> Unit,
 ) {
     val text = message.content.resolve()
     val senderName = sender?.name ?: message.senderId
@@ -882,21 +922,46 @@ private fun ReceivedMessage(
                     ),
                     shadowElevation = 1.dp,
                 ) {
+                    Column {
+                        if (text.isNotBlank()) {
+                            Text(
+                                text = text,
+                                modifier = Modifier.padding(
+                                    horizontal = if (compact) 12.dp else StarRailSpacing.md,
+                                    vertical = if (compact) 8.dp else StarRailSpacing.sm,
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                        }
+                        MessageAttachments(
+                            attachments = message.attachments,
+                            onOpenAttachment = onOpenAttachment,
+                            compact = compact,
+                        )
+                    }
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm)
+                ) {
+                    val attachments = message.attachments
+                    val hasAttachmentsBtn = !(attachments.size == 1 && attachments.first().mimeType.startsWith("image/")) && attachments.isNotEmpty()
+                    if (hasAttachmentsBtn) {
+                        Text(
+                            text = stringResource(Res.string.view_attachments),
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelMedium,
+                            textDecoration = TextDecoration.Underline,
+                            modifier = Modifier.clickable { onViewAttachments(attachments) }
+                        )
+                    }
                     Text(
-                        text = text,
-                        modifier = Modifier.padding(
-                            horizontal = if (compact) 12.dp else StarRailSpacing.md,
-                            vertical = if (compact) 8.dp else StarRailSpacing.sm,
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        style = MaterialTheme.typography.bodyLarge,
+                        text = message.timestamp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
                     )
                 }
-                Text(
-                    text = message.timestamp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodySmall,
-                )
             }
         }
     }
@@ -907,6 +972,8 @@ private fun SentMessage(
     message: ChatMessageUiModel.Sent,
     userAvatarUri: String?,
     compact: Boolean,
+    onViewAttachments: (List<MessageAttachment>) -> Unit,
+    onOpenAttachment: (MessageAttachment) -> Unit,
 ) {
     val text = message.content.resolve()
     val semanticDescription = stringResource(
@@ -939,20 +1006,40 @@ private fun SentMessage(
                     ),
                     shadowElevation = 1.dp,
                 ) {
-                    Text(
-                        text = text,
-                        modifier = Modifier.padding(
-                            horizontal = if (compact) 12.dp else StarRailSpacing.md,
-                            vertical = if (compact) 8.dp else StarRailSpacing.sm,
-                        ),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
+                    Column(horizontalAlignment = Alignment.End) {
+                        if (text.isNotBlank()) {
+                            Text(
+                                text = text,
+                                modifier = Modifier.padding(
+                                    horizontal = if (compact) 12.dp else StarRailSpacing.md,
+                                    vertical = if (compact) 8.dp else StarRailSpacing.sm,
+                                ),
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                        }
+                        MessageAttachments(
+                            attachments = message.attachments,
+                            onOpenAttachment = onOpenAttachment,
+                            compact = compact,
+                        )
+                    }
                 }
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    val attachments = message.attachments
+                    val hasAttachmentsBtn = !(attachments.size == 1 && attachments.first().mimeType.startsWith("image/")) && attachments.isNotEmpty()
+                    if (hasAttachmentsBtn) {
+                        Text(
+                            text = stringResource(Res.string.view_attachments),
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelMedium,
+                            textDecoration = TextDecoration.Underline,
+                            modifier = Modifier.clickable { onViewAttachments(attachments) }
+                        )
+                    }
                     Text(
                         text = message.timestamp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -988,6 +1075,106 @@ private fun SentMessage(
             }
         }
     }
+}
+
+@Composable
+private fun MessageAttachments(
+    attachments: List<MessageAttachment>,
+    onOpenAttachment: (MessageAttachment) -> Unit,
+    compact: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    if (attachments.isEmpty()) return
+
+    // 如果只有一张图片，直接显示
+    if (attachments.size == 1 && attachments.first().mimeType.startsWith("image/")) {
+        val attachment = attachments.first()
+        Box(
+            modifier = modifier
+                .padding(StarRailSpacing.xs)
+                .widthIn(max = 240.dp)
+                .aspectRatio(16f / 9f)
+                .clip(MaterialTheme.shapes.medium)
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                .clickable { onOpenAttachment(attachment) },
+            contentAlignment = Alignment.Center
+        ) {
+            AsyncImage(
+                model = attachment.uri,
+                contentDescription = attachment.name,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AttachmentsDialog(
+    attachments: List<MessageAttachment>,
+    onDismissRequest: () -> Unit,
+    onOpenAttachment: (MessageAttachment) -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = { Text(stringResource(Res.string.attachments_title)) },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                attachments.forEach { attachment ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(MaterialTheme.shapes.medium)
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                            .clickable { onOpenAttachment(attachment) }
+                            .padding(StarRailSpacing.sm),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm)
+                    ) {
+                        val isImage = attachment.mimeType.startsWith("image/")
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(MaterialTheme.shapes.small)
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            StarRailIcon(
+                                kind = if (isImage) StarRailIconKind.GALLERY else StarRailIconKind.FILE,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = attachment.name,
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = attachment.mimeType,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        TextButton(onClick = { onOpenAttachment(attachment) }) {
+                            Text(stringResource(Res.string.open_file))
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = onDismissRequest) {
+                Text(stringResource(Res.string.close))
+            }
+        }
+    )
 }
 
 /**
@@ -1626,6 +1813,19 @@ fun CharacterChatScreen(
         charactersState.characters.associateBy(Character::id)
     }
 
+    var attachmentsToShow by remember { mutableStateOf<List<MessageAttachment>?>(null) }
+    val uriHandler = LocalUriHandler.current
+
+    if (attachmentsToShow != null) {
+        AttachmentsDialog(
+            attachments = attachmentsToShow!!,
+            onDismissRequest = { attachmentsToShow = null },
+            onOpenAttachment = { attachment ->
+                uriHandler.openUri(attachment.uri)
+            }
+        )
+    }
+
     // 自动滚动到最新消息的逻辑
     var previousPageMessageCount by remember { mutableStateOf(pageMessages.size) }
     var shouldPageScrollToBottomOnLoad by remember { mutableStateOf(false) }
@@ -1766,6 +1966,12 @@ fun CharacterChatScreen(
                                     charactersById = charactersById,
                                     userAvatarUri = state.userAvatarUri,
                                     compact = compact,
+                                    onViewAttachments = { attachments ->
+                                        attachmentsToShow = attachments
+                                    },
+                                    onOpenAttachment = { attachment ->
+                                        uriHandler.openUri(attachment.uri)
+                                    }
                                 )
                             }
                         }

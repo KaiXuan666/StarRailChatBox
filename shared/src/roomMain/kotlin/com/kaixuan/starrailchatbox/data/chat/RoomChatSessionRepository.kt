@@ -4,8 +4,11 @@ import androidx.room.immediateTransaction
 import androidx.room.useWriterConnection
 import com.kaixuan.starrailchatbox.data.database.StarRailDatabase
 import com.kaixuan.starrailchatbox.data.database.entity.ChatMessageEntity
+import com.kaixuan.starrailchatbox.data.database.entity.ChatMessageWithAttachments
 import com.kaixuan.starrailchatbox.data.database.entity.ChatSessionEntity
 import com.kaixuan.starrailchatbox.data.database.entity.ChatSummaryEntity
+import com.kaixuan.starrailchatbox.data.database.entity.toDomain
+import com.kaixuan.starrailchatbox.data.database.entity.toEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
@@ -21,6 +24,7 @@ class RoomChatSessionRepository(
     private val sessionDao = database.chatSessionDao()
     private val messageDao = database.chatMessageDao()
     private val summaryDao = database.chatSummaryDao()
+    private val attachmentDao = database.messageAttachmentDao()
 
     override suspend fun findLatestSession(agentId: String): ChatSession? {
         return sessionDao.findLatestByAgent(agentId)?.toDomain()
@@ -42,13 +46,14 @@ class RoomChatSessionRepository(
                                 session = session.toDomain(),
                                 lastMessagePreview = messages
                                     .lastOrNull {
-                                        it.status == ChatMessageStatus.COMPLETED.storageValue &&
-                                            it.content.isNotBlank()
+                                        it.message.status == ChatMessageStatus.COMPLETED.storageValue &&
+                                            it.message.content.isNotBlank()
                                     }
+                                    ?.message
                                     ?.content
                                     .orEmpty(),
                                 messageCount = messages.count {
-                                    it.status == ChatMessageStatus.COMPLETED.storageValue
+                                    it.message.status == ChatMessageStatus.COMPLETED.storageValue
                                 },
                             )
                         }
@@ -60,7 +65,7 @@ class RoomChatSessionRepository(
 
     override fun observeMessages(sessionId: String): Flow<List<StoredChatMessage>> {
         return messageDao.observeBySession(sessionId).map { messages ->
-            messages.map(ChatMessageEntity::toDomain)
+            messages.map(ChatMessageWithAttachments::toDomain)
         }
     }
 
@@ -78,7 +83,7 @@ class RoomChatSessionRepository(
             limit = limit,
         )
             .asReversed()
-            .map(ChatMessageEntity::toDomain)
+            .map(ChatMessageWithAttachments::toDomain)
         return ChatContextSnapshot(summary = summary, messages = messages)
     }
 
@@ -96,6 +101,7 @@ class RoomChatSessionRepository(
                 sessionDao.upsert(session.toEntity(messages.last()))
                 messages.forEachIndexed { index, message ->
                     messageDao.upsert(message.toEntity(seq = index + 1L))
+                    attachmentDao.insertAll(message.attachments.map { it.toEntity() })
                 }
             }
         }
@@ -106,6 +112,7 @@ class RoomChatSessionRepository(
             connection.immediateTransaction {
                 val seq = messageDao.nextSeq(message.sessionId)
                 messageDao.upsert(message.toEntity(seq))
+                attachmentDao.insertAll(message.attachments.map { it.toEntity() })
                 check(
                     sessionDao.updateLastMessage(
                         sessionId = message.sessionId,
@@ -203,6 +210,10 @@ private fun ChatSessionEntity.toDomain() = ChatSession(
     summaryThresholdMessageCount = summaryThresholdMessageCount,
     summaryRetainedMessageCount = summaryRetainedMessageCount,
     lastMessageAt = lastMessageAt,
+)
+
+private fun ChatMessageWithAttachments.toDomain() = message.toDomain().copy(
+    attachments = attachments.map { it.toDomain() }
 )
 
 private fun ChatMessageEntity.toDomain() = StoredChatMessage(

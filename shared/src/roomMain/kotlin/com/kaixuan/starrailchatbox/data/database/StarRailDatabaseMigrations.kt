@@ -46,3 +46,26 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         connection.execSQL("UPDATE `chat_session` SET `enable_summary` = 1")
     }
 }
+
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `message_attachment` (
+                `id` TEXT NOT NULL,
+                `message_id` TEXT NOT NULL,
+                `name` TEXT NOT NULL,
+                `size` INTEGER NOT NULL,
+                `mime_type` TEXT NOT NULL,
+                `uri` TEXT NOT NULL,
+                `created_at` INTEGER NOT NULL,
+                PRIMARY KEY(`id`),
+                FOREIGN KEY(`message_id`) REFERENCES `chat_message`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent()
+        )
+        connection.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_message_attachment_message_id` ON `message_attachment` (`message_id`)"
+        )
+    }
+}

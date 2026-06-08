@@ -11,6 +11,7 @@ fun buildChatContext(
     currentUserMessage: String,
     maxHistoryMessageCount: Int?,
     currentUserMessageParts: List<AiContentPart>? = null,
+    historyMessageParts: Map<String, List<AiContentPart>> = emptyMap(),
 ): List<AiMessage> {
     val completedHistory = history.filter {
         it.status == ChatMessageStatus.COMPLETED && !it.isContextExcluded
@@ -33,7 +34,13 @@ fun buildChatContext(
             )
         }
         limitedHistory.forEach {
-            add(AiMessage(role = it.role.apiValue, content = it.content))
+            add(
+                AiMessage(
+                    role = it.role.apiValue,
+                    content = it.content,
+                    contentParts = historyMessageParts[it.id]
+                )
+            )
         }
         add(
             AiMessage(

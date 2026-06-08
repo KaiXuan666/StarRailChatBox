@@ -3,6 +3,7 @@ package com.kaixuan.starrailchatbox.ui.chat
 import androidx.compose.runtime.Immutable
 import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.data.character.CharacterAvatarSource
+import com.kaixuan.starrailchatbox.data.chat.MessageAttachment
 
 sealed interface MessageContent {
     data class Custom(val text: String) : MessageContent
@@ -14,6 +15,7 @@ sealed interface ChatMessageUiModel {
     val timestamp: String
     val createdAt: Long
     val content: MessageContent
+    val attachments: List<MessageAttachment>
 
     data class Received(
         override val id: String,
@@ -21,6 +23,7 @@ sealed interface ChatMessageUiModel {
         override val createdAt: Long,
         override val content: MessageContent,
         val senderId: String,
+        override val attachments: List<MessageAttachment> = emptyList(),
     ) : ChatMessageUiModel
 
     data class Sent(
@@ -29,6 +32,7 @@ sealed interface ChatMessageUiModel {
         override val createdAt: Long,
         override val content: MessageContent,
         val isRead: Boolean,
+        override val attachments: List<MessageAttachment> = emptyList(),
     ) : ChatMessageUiModel
 }
 
