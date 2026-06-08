@@ -842,15 +842,6 @@ class ChatViewModel(
         content: String,
         attachments: List<SelectedAttachment> = emptyList(),
     ) {
-        val hasMultimodalAttachment = attachments.any {
-            it is SelectedAttachment.Image || it is SelectedAttachment.Voice || (!enableFileAppend && it is SelectedAttachment.File)
-        }
-        val config = if (hasMultimodalAttachment) {
-            (modelConfigRepository.getMultimodal()?.takeIf(ModelConfig::isUsable)
-                ?: modelConfigRepository.getDefault()?.takeIf(ModelConfig::isUsable))
-        } else {
-            modelConfigRepository.getDefault()?.takeIf(ModelConfig::isUsable)
-        }
         val previousSession = activeSession
         var context = previousSession?.let {
             chatSessionRepository.findContext(
@@ -858,6 +849,23 @@ class ChatViewModel(
                 maxHistoryMessageCount = null,
             )
         } ?: ChatContextSnapshot(summary = null, messages = emptyList())
+
+        val hasCurrentMultimodalAttachment = attachments.any {
+            it is SelectedAttachment.Image || it is SelectedAttachment.Voice || (!enableFileAppend && it is SelectedAttachment.File)
+        }
+        val hasHistoryMultimodalAttachment = context.messages.any { msg ->
+            msg.attachments.any { att ->
+                att.mimeType.startsWith("image/") || att.mimeType.startsWith("audio/") || !enableFileAppend
+            }
+        }
+        val hasMultimodalAttachment = hasCurrentMultimodalAttachment || hasHistoryMultimodalAttachment
+
+        val config = if (hasMultimodalAttachment) {
+            (modelConfigRepository.getMultimodal()?.takeIf(ModelConfig::isUsable)
+                ?: modelConfigRepository.getDefault()?.takeIf(ModelConfig::isUsable))
+        } else {
+            modelConfigRepository.getDefault()?.takeIf(ModelConfig::isUsable)
+        }
         val now = currentTimeMillis()
 
         var userText = content

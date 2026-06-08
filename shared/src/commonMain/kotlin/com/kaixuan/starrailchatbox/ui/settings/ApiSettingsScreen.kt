@@ -228,6 +228,15 @@ fun ApiSettingsScreen(
                         }
                     }
                 }
+
+                if (isMultimodal && !isFetchingModels && modelsList.isNotEmpty()) {
+                    Text(
+                        text = stringResource(Res.string.settings_multimodal_api_tip),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
+                }
                 
                 // Show loading placeholder if loading but empty list, or overlay animation
                 Box(
@@ -250,14 +259,6 @@ fun ApiSettingsScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.padding(StarRailSpacing.md),
-                            )
-                        }
-                        if (isMultimodal && !isFetchingModels && modelsList.isNotEmpty()) {
-                            Text(
-                                text = stringResource(Res.string.settings_multimodal_api_tip),
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp)
                             )
                         }
                     }

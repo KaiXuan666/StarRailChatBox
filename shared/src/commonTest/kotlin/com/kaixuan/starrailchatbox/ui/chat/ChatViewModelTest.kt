@@ -568,6 +568,64 @@ class ChatViewModelTest {
         assertTrue(filePart.url.startsWith("data:text/plain;base64,"))
         assertEquals("text/plain", filePart.mimeType)
     }
+
+    @Test
+    fun sendWithoutAttachmentButWithHistoryAttachmentUsesMultimodalConfig() = runTest {
+        val multimodalConfig = ModelConfig(
+            id = "multimodal",
+            provider = "custom",
+            name = "Multimodal Test",
+            baseUrl = "https://example.com/v1",
+            apiKey = "test-key-multimodal",
+            modelName = "test-model-multimodal",
+            contextWindow = 128_000,
+            maxOutputTokens = 4_096,
+            supportVision = true,
+            supportToolCall = true,
+            supportReasoning = false,
+            temperature = 0.7,
+            topP = 1.0,
+            enabled = true,
+        )
+        val modelConfigRepository = InMemoryModelConfigRepository(testConfig(), multimodalConfig)
+        
+        val tempImageFile = java.io.File.createTempFile("test_image", ".png")
+        tempImageFile.writeBytes(byteArrayOf(1, 2, 3, 4))
+        tempImageFile.deleteOnExit()
+
+        val sessions = InMemoryChatSessionRepository()
+        val api = FakeOpenAiRepository()
+        var id = 0
+        val viewModel = ChatViewModel(
+            characterRepository = FakeCharacterRepository,
+            chatSessionRepository = sessions,
+            modelConfigRepository = modelConfigRepository,
+            aiRepository = api,
+            profileStore = FakeProfileStore(),
+            currentTimeMillis = { 60_000L },
+            idGenerator = { prefix -> "$prefix-${++id}" },
+            sessionTitleProvider = { "新对话" },
+            timeFormatter = { "local-$it" },
+        )
+        advanceUntilIdle()
+
+        // 1. 第一轮：带图片附件发送，验证使用的是多模态配置
+        viewModel.onAction(ChatAction.ImageSelected(tempImageFile.absolutePath))
+        viewModel.onAction(ChatAction.MessageChanged("Describe this image"))
+        viewModel.onAction(ChatAction.SendClicked)
+        advanceUntilIdle()
+
+        assertEquals(1, api.requests.size)
+        assertEquals("multimodal", api.configs.single().id)
+
+        // 2. 第二轮：发送普通纯文本消息（不带附件），验证由于未总结历史消息中包含图片附件，依旧使用多模态配置
+        viewModel.onAction(ChatAction.MessageChanged("What color was it?"))
+        viewModel.onAction(ChatAction.SendClicked)
+        advanceUntilIdle()
+
+        assertEquals(2, api.requests.size)
+        assertEquals("multimodal", api.configs[1].id)
+    }
 }
 
 private data class Fixture(
@@ -685,6 +743,7 @@ private class EditableCharacterRepository(
 
 private open class FakeOpenAiRepository : AiRepository {
     val requests = mutableListOf<List<AiMessage>>()
+    val configs = mutableListOf<ModelConfig>()
 
     override suspend fun getModels(
         apiHost: String,
@@ -698,6 +757,7 @@ private open class FakeOpenAiRepository : AiRepository {
         characterName: String,
     ): ApiResult<ChatCompletionResult> {
         requests += messages
+        configs += config
         return ApiResult.Success(
             ChatCompletionResult(
                 content = "你好呀",
