@@ -1395,7 +1395,7 @@ fun CharacterChatScreen(
         previousPageMessageCount = pageMessages.size
         if (pageMessages.isNotEmpty()) {
             pageListState.scrollToMessageBottomAfterLayout(
-                1, // 二级页面中没有 stickyHeader 的 CharacterSelector，消息从 index = 1 开始
+                0, // Header 已经被移到 LazyColumn 外层，所以消息序列从 index = 0 开始
                 pageMessages.lastIndex,
             )
         } else {
@@ -1407,7 +1407,7 @@ fun CharacterChatScreen(
         if (shouldPageScrollToBottomOnLoad && !pageState.isLoadingSession && pageMessages.isNotEmpty()) {
             shouldPageScrollToBottomOnLoad = false
             pageListState.scrollToMessageBottomAfterLayout(
-                1,
+                0,
                 pageMessages.lastIndex,
             )
         }
@@ -1423,7 +1423,7 @@ fun CharacterChatScreen(
             pageMessages.isNotEmpty()
         ) {
             pageListState.scrollToMessageBottomAfterLayout(
-                1,
+                0,
                 pageMessages.lastIndex,
             )
         }
@@ -1461,91 +1461,108 @@ fun CharacterChatScreen(
             }
         }
     ) { scaffoldPadding ->
-        Box(modifier = Modifier.fillMaxSize()) {
-            if (pageState.isLoadingSession) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator()
-                }
-            } else {
-                LazyColumn(
-                    state = pageListState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = scaffoldPadding.calculateTopPadding())
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
                         start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
                         end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                        top = scaffoldPadding.calculateTopPadding(),
-                        bottom = scaffoldPadding.calculateBottomPadding() + StarRailSpacing.lg,
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
-                ) {
-                    item(key = "header") {
-                        CharacterChatHeader(
-                            selectedCharacter = character,
-                            compact = compact,
-                            onAction = onAction,
-                            onCharacterAction = onCharacterAction,
-                            onMainAction = onMainAction,
-                        )
-                    }
+                        bottom = StarRailSpacing.md,
+                    )
+            ) {
+                CharacterChatHeader(
+                    selectedCharacter = character,
+                    compact = compact,
+                    onAction = onAction,
+                    onCharacterAction = onCharacterAction,
+                    onMainAction = onMainAction,
+                )
+            }
 
-                    pageMessages.forEachIndexed { index, message ->
-                        val showDivider = if (index > 0) {
-                            val prevMessage = pageMessages[index - 1]
-                            !com.kaixuan.starrailchatbox.platform.isSameDay(message.createdAt, prevMessage.createdAt)
-                        } else {
-                            false
-                        }
-
-                        if (showDivider) {
-                            item(key = "date_${message.id}") {
-                                DateDivider(com.kaixuan.starrailchatbox.platform.formatHeaderDate(message.createdAt))
-                            }
-                        }
-
-                        item(key = message.id) {
-                            MessageItem(
-                                message = message,
-                                charactersById = charactersById,
-                                userAvatarUri = state.userAvatarUri,
-                                compact = compact,
-                            )
-                        }
-                    }
-                }
-
-                if (showScrollToTop) {
-                    Surface(
-                        onClick = {
-                            coroutineScope.launch {
-                                pageListState.scrollToItem(0)
-                            }
-                        },
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(
-                                start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                                bottom = scaffoldPadding.calculateBottomPadding() + StarRailSpacing.md,
-                            )
-                            .size(if (compact) 38.dp else 48.dp),
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.88f),
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        border = BorderStroke(
-                            1.dp,
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
-                        ),
-                        shadowElevation = 4.dp,
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                if (pageState.isLoadingSession) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            StarRailIcon(
-                                kind = StarRailIconKind.ARROW_UP,
-                                contentDescription = "滚动到最顶部",
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.size(if (compact) 20.dp else 24.dp),
-                            )
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    LazyColumn(
+                        state = pageListState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                            end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                            bottom = scaffoldPadding.calculateBottomPadding() + StarRailSpacing.lg,
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
+                    ) {
+                        pageMessages.forEachIndexed { index, message ->
+                            val showDivider = if (index > 0) {
+                                val prevMessage = pageMessages[index - 1]
+                                !com.kaixuan.starrailchatbox.platform.isSameDay(message.createdAt, prevMessage.createdAt)
+                            } else {
+                                false
+                            }
+
+                            if (showDivider) {
+                                item(key = "date_${message.id}") {
+                                    DateDivider(com.kaixuan.starrailchatbox.platform.formatHeaderDate(message.createdAt))
+                                }
+                            }
+
+                            item(key = message.id) {
+                                MessageItem(
+                                    message = message,
+                                    charactersById = charactersById,
+                                    userAvatarUri = state.userAvatarUri,
+                                    compact = compact,
+                                )
+                            }
+                        }
+                    }
+
+                    if (showScrollToTop) {
+                        Surface(
+                            onClick = {
+                                coroutineScope.launch {
+                                    pageListState.scrollToItem(0)
+                                }
+                            },
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(
+                                    start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                                    bottom = scaffoldPadding.calculateBottomPadding() + StarRailSpacing.md,
+                                )
+                                .size(if (compact) 38.dp else 48.dp),
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.88f),
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            border = BorderStroke(
+                                1.dp,
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                            ),
+                            shadowElevation = 4.dp,
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                StarRailIcon(
+                                    kind = StarRailIconKind.ARROW_UP,
+                                    contentDescription = "滚动到最顶部",
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.size(if (compact) 20.dp else 24.dp),
+                                )
+                            }
                         }
                     }
                 }
