@@ -101,7 +101,6 @@ fun CharacterEditScreen(
     }
 
     val editState = state.characterEdit
-    var deleteDialogVisible by remember { mutableStateOf(false) }
     val imagePicker = rememberImagePicker { image ->
         if (image != null) {
             onAction(CharacterAction.CharacterAvatarChanged(CharacterAvatarSource(image.uri)))
@@ -242,27 +241,6 @@ fun CharacterEditScreen(
                 enabled = !editState.isSaving,
             )
         }
-
-        if (editState.characterId != null) {
-            Surface(
-                onClick = { deleteDialogVisible = true },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                shape = MaterialTheme.shapes.extraLarge,
-                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.8f),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.65f)),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = stringResource(Res.string.character_edit_delete),
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
-        }
     }
 
     if (editState.isPromptGenDialogOpen) {
@@ -281,31 +259,7 @@ fun CharacterEditScreen(
                 minLines = 4,
             )
         }
-    }
-
-    if (deleteDialogVisible) {
-        StarRailDialog(
-            title = stringResource(Res.string.character_edit_delete_confirm_title),
-            dismissText = stringResource(Res.string.cancel),
-            confirmText = stringResource(Res.string.character_edit_delete_confirm_action),
-            destructive = true,
-            onDismissRequest = { deleteDialogVisible = false },
-            onConfirm = {
-                deleteDialogVisible = false
-                editState.characterId?.let { onAction(CharacterAction.CharacterDeleteClicked(it)) }
-            },
-        ) {
-            Text(
-                text = stringResource(
-                    Res.string.character_edit_delete_confirm_message,
-                    editState.name,
-                ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyLarge,
-            )
-        }
-    }
-}
+    }}
 
 @Composable
 private fun CharacterIdentityCard(

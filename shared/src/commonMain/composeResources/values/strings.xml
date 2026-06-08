@@ -14,6 +14,8 @@
     <string name="action_character_settings">角色设置</string>
     <string name="action_character_edit">角色编辑</string>
     <string name="today">今天</string>
+    <string name="yesterday">昨天</string>
+    <string name="date_format_year_month_day_time">%1$d年%2$d月%3$d日 %4$02d:%5$02d</string>
     <string name="message_welcome">嘿，回来啦，星空下的旅人。\n今天的你，辛苦了。</string>
     <string name="message_user_tired">有点累，今天遇到一些不开心的事。</string>
     <string name="message_comfort">没关系的，有些情绪需要被看见，\n才能慢慢放下哦。</string>
@@ -101,7 +103,13 @@
     <string name="profile_saved">个人信息已保存</string>
     <string name="profile_nickname_empty">昵称不能为空</string>
     <string name="profile_restore_default">恢复默认</string>
-    
+    <string name="profile_unsaved_changes_title">未保存的更改</string>
+    <string name="profile_unsaved_changes_message">你有未保存的个人信息更改，是否保存后再离开？</string>
+    <string name="profile_unsaved_changes_save">保存</string>
+    <string name="profile_unsaved_changes_discard">不保存</string>
+    <string name="profile_unsaved_changes_cancel">取消</string>
+
+
     <!-- 设置界面 -->
     <string name="settings_title">设置</string>
     <string name="settings_api_title">API设置</string>
@@ -156,5 +164,5 @@
     <string name="character_list_create_btn">新建角色</string>
     <string name="character_list_edit_desc">编辑</string>
     <string name="character_list_empty">暂无自定义角色</string>
-    <string name="character_list_drag_tip">长按角色卡可拖动排序</string>
+    <string name="character_list_drag_tip">长按角色卡可拖动排序，左滑可删除角色</string>
 </resources>

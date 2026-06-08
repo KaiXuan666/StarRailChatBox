@@ -7,7 +7,6 @@ import com.kaixuan.starrailchatbox.data.ai.AiRepository
 import com.kaixuan.starrailchatbox.data.ai.ChatCompletionResult
 import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.character.Character
-import com.kaixuan.starrailchatbox.data.character.CharacterAvatarSource
 import com.kaixuan.starrailchatbox.data.character.CharacterRepository
 import com.kaixuan.starrailchatbox.data.chat.ChatMessageStatus
 import com.kaixuan.starrailchatbox.data.chat.ChatRole
@@ -85,7 +84,11 @@ class ChatViewModel(
     private var sessionListJob: Job? = null
 
     init {
-        refreshUserAvatar()
+        viewModelScope.launch {
+            profileStore.profile.collect { profile ->
+                _uiState.update { it.copy(userAvatarUri = profile?.customAvatarUri) }
+            }
+        }
         viewModelScope.launch {
             val characters = runCatching { characterRepository.loadCharacters() }
                 .getOrDefault(emptyList())
@@ -163,7 +166,6 @@ class ChatViewModel(
             is ChatAction.SessionDeleteClicked -> deleteSession(action.sessionId)
             is ChatAction.HeaderActionClicked -> handleHeaderAction(action.action)
             is ChatAction.ComposerActionClicked -> handleComposerAction(action.action)
-            ChatAction.RefreshUserAvatar -> refreshUserAvatar()
         }
     }
 
@@ -270,7 +272,7 @@ class ChatViewModel(
                         }
                     } catch (cancellation: CancellationException) {
                         throw cancellation
-                    } catch (e: Throwable) {
+                    } catch (_: Throwable) {
                         emitCharacterMessage(CharacterEffectMessage.PROMPT_GEN_FAILED)
                         updateCharacterEdit { it.copy(isGeneratingPrompt = false) }
                     }
@@ -377,7 +379,7 @@ class ChatViewModel(
                 }
             }.onSuccess { saved ->
                 val characters = runCatching { characterRepository.loadCharacters() }
-                    .getOrElse { current ->
+                    .getOrElse {
                         if (characterId == null) {
                             characterUiState.value.characters + saved
                         } else {
@@ -424,6 +426,11 @@ class ChatViewModel(
         viewModelScope.launch {
             runCatching {
                 characterRepository.deleteCharacter(characterId, currentTimeMillis())
+                val remaining = characterRepository.loadCharacters()
+                    .sortedWith(compareBy({ it.sortOrder }, { it.createdAt }))
+                remaining.forEachIndexed { index, character ->
+                    characterRepository.updateSortOrder(character.id, index)
+                }
                 characterRepository.loadCharacters()
             }.onSuccess { characters ->
                 val fallbackId = characters.firstOrNull()?.id
@@ -1019,13 +1026,6 @@ class ChatViewModel(
     private fun emitMessage(message: EffectMessage) {
         _effects.trySend(ChatEffect.ShowMessage(message))
     }
-
-    private fun refreshUserAvatar() {
-        viewModelScope.launch {
-            val profile = runCatching { profileStore.load() }.getOrNull()
-            _uiState.update { it.copy(userAvatarUri = profile?.customAvatarUri) }
-        }
-    }
 }
 
 private fun ModelConfig.isUsable(): Boolean {
@@ -1060,6 +1060,7 @@ private fun emptyGreeting(
         ChatMessageUiModel.Received(
             id = "empty-greeting:${character.id}",
             timestamp = timeFormatter(now),
+            createdAt = now,
             content = MessageContent.Custom(openingMessage),
             senderId = character.id,
         ),
@@ -1075,12 +1076,14 @@ private fun List<StoredChatMessage>.toUiModels(
             ChatRole.USER -> ChatMessageUiModel.Sent(
                 id = message.id,
                 timestamp = timeFormatter(message.createdAt),
+                createdAt = message.createdAt,
                 content = MessageContent.Custom(message.content),
                 isRead = true,
             )
             ChatRole.ASSISTANT -> ChatMessageUiModel.Received(
                 id = message.id,
                 timestamp = timeFormatter(message.createdAt),
+                createdAt = message.createdAt,
                 content = MessageContent.Custom(message.content),
                 senderId = characterId,
             )

@@ -12,11 +12,13 @@ sealed interface MessageContent {
 sealed interface ChatMessageUiModel {
     val id: String
     val timestamp: String
+    val createdAt: Long
     val content: MessageContent
 
     data class Received(
         override val id: String,
         override val timestamp: String,
+        override val createdAt: Long,
         override val content: MessageContent,
         val senderId: String,
     ) : ChatMessageUiModel
@@ -24,6 +26,7 @@ sealed interface ChatMessageUiModel {
     data class Sent(
         override val id: String,
         override val timestamp: String,
+        override val createdAt: Long,
         override val content: MessageContent,
         val isRead: Boolean,
     ) : ChatMessageUiModel

@@ -3,6 +3,8 @@ package com.kaixuan.starrailchatbox.ui.profile
 import com.kaixuan.starrailchatbox.data.settings.ProfileStore
 import com.kaixuan.starrailchatbox.data.settings.UserProfile
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
@@ -121,6 +123,48 @@ class ProfileViewModelTest {
         assertFalse(viewModel.uiState.value.isSaving)
     }
 
+    @Test
+    fun backWithChangesShowsDiscardDialog() = runTest {
+        val viewModel = createViewModel(scope = this)
+        runCurrent()
+
+        viewModel.onAction(ProfileAction.NicknameChanged("新昵称"))
+        viewModel.onAction(ProfileAction.BackClicked)
+
+        assertTrue(viewModel.uiState.value.isDiscardDialogOpen)
+    }
+
+    @Test
+    fun backWithoutChangesEmitsSavedEffect() = runTest {
+        val viewModel = createViewModel(scope = this)
+        runCurrent()
+
+        val effect = async { viewModel.effects.first { it is ProfileEffect.ProfileSaved } }
+        viewModel.onAction(ProfileAction.BackClicked)
+
+        assertEquals(ProfileEffect.ProfileSaved, effect.await())
+    }
+
+    @Test
+    fun confirmDiscardRestoresOriginalAndEmitsSavedEffect() = runTest {
+        val store = FakeProfileStore(UserProfile("原本的", "file:///old.png"))
+        val viewModel = createViewModel(store = store, scope = this)
+        runCurrent()
+
+        viewModel.onAction(ProfileAction.NicknameChanged("改变后的"))
+        viewModel.onAction(ProfileAction.AvatarChanged(null))
+        viewModel.onAction(ProfileAction.BackClicked)
+        
+        val effect = async { viewModel.effects.first { it is ProfileEffect.ProfileSaved } }
+        viewModel.onAction(ProfileAction.ConfirmDiscard)
+
+        assertEquals(ProfileEffect.ProfileSaved, effect.await())
+        val state = viewModel.uiState.value
+        assertEquals("原本的", state.nickname)
+        assertEquals("file:///old.png", state.customAvatarUri)
+        assertFalse(state.isDiscardDialogOpen)
+    }
+
     private fun createViewModel(
         store: ProfileStore = FakeProfileStore(),
         scope: kotlinx.coroutines.CoroutineScope
@@ -131,13 +175,17 @@ class ProfileViewModelTest {
 }
 
 private class FakeProfileStore(
-    private val initial: UserProfile? = null
+    initial: UserProfile? = null
 ) : ProfileStore {
+    private val _profile = MutableStateFlow(initial)
+    override val profile: Flow<UserProfile?> = _profile
+
     var saved: UserProfile? = null
 
-    override suspend fun load(): UserProfile? = initial
+    override suspend fun load(): UserProfile? = _profile.value
 
     override suspend fun save(profile: UserProfile) {
         saved = profile
+        _profile.value = profile
     }
 }

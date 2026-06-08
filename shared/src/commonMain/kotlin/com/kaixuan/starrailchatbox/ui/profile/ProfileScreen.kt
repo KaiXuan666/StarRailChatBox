@@ -40,6 +40,11 @@ import starrailchatbox.shared.generated.resources.profile_avatar_title
 import starrailchatbox.shared.generated.resources.profile_nickname_title
 import starrailchatbox.shared.generated.resources.profile_save_btn
 import starrailchatbox.shared.generated.resources.profile_restore_default
+import starrailchatbox.shared.generated.resources.profile_unsaved_changes_title
+import starrailchatbox.shared.generated.resources.profile_unsaved_changes_message
+import starrailchatbox.shared.generated.resources.profile_unsaved_changes_save
+import starrailchatbox.shared.generated.resources.profile_unsaved_changes_discard
+import starrailchatbox.shared.generated.resources.profile_unsaved_changes_cancel
 import starrailchatbox.shared.generated.resources.settings_saving
 import starrailchatbox.shared.generated.resources.navigation_back
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
@@ -50,6 +55,7 @@ import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import com.kaixuan.starrailchatbox.ui.components.BackHandler
 import com.kaixuan.starrailchatbox.ui.components.AvatarImage
+import com.kaixuan.starrailchatbox.ui.components.StarRailDialog
 import com.kaixuan.starrailchatbox.ui.main.MainAction
 import com.kaixuan.starrailchatbox.platform.rememberImagePicker
 import kotlin.io.encoding.Base64
@@ -71,7 +77,25 @@ fun ProfileScreen(
     }
 
     BackHandler {
-        onMainAction(MainAction.PopBackStack)
+        onAction(ProfileAction.BackClicked)
+    }
+
+    if (state.isDiscardDialogOpen) {
+        StarRailDialog(
+            title = stringResource(Res.string.profile_unsaved_changes_title),
+            dismissText = stringResource(Res.string.profile_unsaved_changes_cancel),
+            confirmText = stringResource(Res.string.profile_unsaved_changes_save),
+            neutralText = stringResource(Res.string.profile_unsaved_changes_discard),
+            onDismissRequest = { onAction(ProfileAction.CancelDiscard) },
+            onConfirm = { onAction(ProfileAction.SaveClicked) },
+            onNeutral = { onAction(ProfileAction.ConfirmDiscard) },
+        ) {
+            Text(
+                text = stringResource(Res.string.profile_unsaved_changes_message),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        }
     }
 
     StarRailPageLayout(
@@ -79,7 +103,7 @@ fun ProfileScreen(
         contentPadding = contentPadding,
         compact = compact,
         backContentDescription = stringResource(Res.string.navigation_back),
-        onBackClick = { onMainAction(MainAction.PopBackStack) },
+        onBackClick = { onAction(ProfileAction.BackClicked) },
         modifier = modifier,
     ) {
         // 2. Avatar Display & Action Card

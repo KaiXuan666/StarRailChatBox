@@ -1,5 +1,6 @@
 package com.kaixuan.starrailchatbox.platform
 
+import platform.Foundation.NSCalendar
 import platform.Foundation.NSDate
 import platform.Foundation.NSDateFormatter
 import platform.Foundation.NSLocale
@@ -12,5 +13,27 @@ actual fun formatLocalTime(epochMilliseconds: Long): String {
         locale = NSLocale.currentLocale
     }
     val date = NSDate.dateWithTimeIntervalSince1970(epochMilliseconds / 1_000.0)
+    return formatter.stringFromDate(date)
+}
+
+actual fun formatHeaderDate(epochMilliseconds: Long): String {
+    val date = NSDate.dateWithTimeIntervalSince1970(epochMilliseconds / 1_000.0)
+    val calendar = NSCalendar.currentCalendar
+
+    if (calendar.isDateInToday(date)) return "今天"
+    if (calendar.isDateInYesterday(date)) return "昨天"
+
+    val formatter = NSDateFormatter().apply {
+        locale = NSLocale.currentLocale
+        // 判断是否是今年
+        val isThisYear = calendar.component(platform.Foundation.NSCalendarUnitYear, fromDate = date) ==
+            calendar.component(platform.Foundation.NSCalendarUnitYear, fromDate = NSDate())
+        
+        dateFormat = if (isThisYear) {
+            "M月d日 HH:mm"
+        } else {
+            "yyyy年M月d日 HH:mm"
+        }
+    }
     return formatter.stringFromDate(date)
 }

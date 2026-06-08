@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 
 class ProfileViewModel(
     private val profileStore: ProfileStore,
-    private val coroutineScope: CoroutineScope? = null
+    private val coroutineScope: CoroutineScope? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState = _uiState.asStateFlow()
@@ -26,9 +26,13 @@ class ProfileViewModel(
         scope().launch {
             val profile = profileStore.load()
             _uiState.update { state ->
+                val nickname = profile?.nickname ?: "星空旅人"
+                val avatarUri = profile?.customAvatarUri
                 state.copy(
-                    nickname = profile?.nickname ?: "星空旅人",
-                    customAvatarUri = profile?.customAvatarUri,
+                    nickname = nickname,
+                    customAvatarUri = avatarUri,
+                    originalNickname = nickname,
+                    originalCustomAvatarUri = avatarUri,
                     isLoaded = true
                 )
             }
@@ -49,6 +53,26 @@ class ProfileViewModel(
             ProfileAction.SaveClicked -> {
                 saveProfile()
             }
+            ProfileAction.BackClicked -> {
+                if (uiState.value.hasUnsavedChanges) {
+                    _uiState.update { it.copy(isDiscardDialogOpen = true) }
+                } else {
+                    scope().launch { _effects.send(ProfileEffect.ProfileSaved) }
+                }
+            }
+            ProfileAction.ConfirmDiscard -> {
+                _uiState.update {
+                    it.copy(
+                        nickname = it.originalNickname,
+                        customAvatarUri = it.originalCustomAvatarUri,
+                        isDiscardDialogOpen = false
+                    )
+                }
+                scope().launch { _effects.send(ProfileEffect.ProfileSaved) }
+            }
+            ProfileAction.CancelDiscard -> {
+                _uiState.update { it.copy(isDiscardDialogOpen = false) }
+            }
         }
     }
 
@@ -62,13 +86,19 @@ class ProfileViewModel(
         _uiState.update { it.copy(isSaving = true) }
         scope().launch {
             try {
-                profileStore.save(
-                    UserProfile(
-                        nickname = state.nickname.trim(),
-                        customAvatarUri = state.customAvatarUri
-                    )
+                val updatedProfile = UserProfile(
+                    nickname = state.nickname.trim(),
+                    customAvatarUri = state.customAvatarUri
                 )
-                _uiState.update { it.copy(isSaving = false) }
+                profileStore.save(updatedProfile)
+                _uiState.update {
+                    it.copy(
+                        isSaving = false,
+                        isDiscardDialogOpen = false,
+                        originalNickname = updatedProfile.nickname,
+                        originalCustomAvatarUri = updatedProfile.customAvatarUri
+                    )
+                }
                 _effects.send(ProfileEffect.ProfileSaved)
             } catch (t: Throwable) {
                 t.printStackTrace()

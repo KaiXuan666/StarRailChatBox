@@ -12,7 +12,6 @@ sealed interface ChatAction {
     data class SessionDeleteClicked(val sessionId: String) : ChatAction
     data class HeaderActionClicked(val action: HeaderAction) : ChatAction
     data class ComposerActionClicked(val action: ComposerAction) : ChatAction
-    data object RefreshUserAvatar : ChatAction
 }
 
 enum class HeaderAction {

@@ -5,6 +5,8 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
 import okio.Path.Companion.toPath
 
@@ -22,12 +24,13 @@ private class DataStoreProfileStore(
     private val resolvedPath: String,
     private val context: android.content.Context?
 ) : ProfileStore {
-    override suspend fun load(): UserProfile? {
-        val preferences = dataStore.data.first()
-        val nickname = preferences[NicknameKey] ?: return null
+    override val profile: Flow<UserProfile?> = dataStore.data.map { preferences ->
+        val nickname = preferences[NicknameKey] ?: return@map null
         val customAvatar = preferences[CustomAvatarKey]
-        return UserProfile(nickname, customAvatar)
+        UserProfile(nickname, customAvatar)
     }
+
+    override suspend fun load(): UserProfile? = profile.first()
 
     override suspend fun save(profile: UserProfile) {
         val finalAvatarUri = if (!profile.customAvatarUri.isNullOrBlank()) {

@@ -308,19 +308,34 @@ fun ChatSessionScreen(
                             )
                         }
                     }
-                    item(key = "date") {
-                        DateDivider()
-                    }
-                    items(
-                        items = pageMessages,
-                        key = ChatMessageUiModel::id,
-                    ) { message ->
-                        MessageItem(
-                            message = message,
-                            charactersById = charactersById,
-                            userAvatarUri = state.userAvatarUri,
-                            compact = compact,
-                        )
+                    
+                    pageMessages.forEachIndexed { index, message ->
+                        val showDivider = if (index == 0) {
+                            true
+                        } else {
+                            val prevMessage = pageMessages[index - 1]
+                            // 如果两条消息间隔超过 10 分钟，或者日期不同，显示时间分割
+                            // 这里简单判断日期字符串是否一致，因为 formatHeaderDate 在同一天返回相同字符串（或“今天”）
+                            // 为了更精确，建议在 commonMain 实现日期逻辑，但目前先用 formatHeaderDate
+                            val currentDay = com.kaixuan.starrailchatbox.platform.formatHeaderDate(message.createdAt)
+                            val prevDay = com.kaixuan.starrailchatbox.platform.formatHeaderDate(prevMessage.createdAt)
+                            currentDay != prevDay || (message.createdAt - prevMessage.createdAt > 10 * 60 * 1000)
+                        }
+
+                        if (showDivider) {
+                            item(key = "date_${message.id}") {
+                                DateDivider(com.kaixuan.starrailchatbox.platform.formatHeaderDate(message.createdAt))
+                            }
+                        }
+
+                        item(key = message.id) {
+                            MessageItem(
+                                message = message,
+                                charactersById = charactersById,
+                                userAvatarUri = state.userAvatarUri,
+                                compact = compact,
+                            )
+                        }
                     }
                 }
 
@@ -746,37 +761,37 @@ fun CharacterAvatar(
 }
 
 @Composable
-private fun DateDivider() {
+private fun DateDivider(dateText: String) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().padding(vertical = StarRailSpacing.sm),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
         HorizontalDivider(
-            modifier = Modifier.width(90.dp),
-            color = MaterialTheme.colorScheme.outlineVariant,
+            modifier = Modifier.weight(1f).padding(horizontal = StarRailSpacing.md),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
         )
         StarRailIcon(
             kind = StarRailIconKind.SPARKLE,
             contentDescription = null,
             tint = MaterialTheme.starRailColors.constellation,
-            modifier = Modifier.size(24.dp).padding(5.dp),
+            modifier = Modifier.size(18.dp),
         )
         Text(
-            text = stringResource(Res.string.today),
-            modifier = Modifier.padding(horizontal = StarRailSpacing.xs),
+            text = dateText,
+            modifier = Modifier.padding(horizontal = StarRailSpacing.sm),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.labelMedium,
         )
         StarRailIcon(
             kind = StarRailIconKind.SPARKLE,
             contentDescription = null,
             tint = MaterialTheme.starRailColors.constellation,
-            modifier = Modifier.size(24.dp).padding(5.dp),
+            modifier = Modifier.size(18.dp),
         )
         HorizontalDivider(
-            modifier = Modifier.width(90.dp),
-            color = MaterialTheme.colorScheme.outlineVariant,
+            modifier = Modifier.weight(1f).padding(horizontal = StarRailSpacing.md),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
         )
     }
 }
@@ -1254,18 +1269,21 @@ private val chatPreviewState = ChatUiState(
                 ChatMessageUiModel.Received(
                     id = "preview-opening",
                     timestamp = "10:21",
+                    createdAt = 1715832060000L,
                     content = MessageContent.Custom("今天要聊点什么呢？"),
                     senderId = "builtin:流萤",
                 ),
                 ChatMessageUiModel.Sent(
                     id = "preview-user-1",
                     timestamp = "10:22",
+                    createdAt = 1715832120000L,
                     content = MessageContent.Custom("今天有点累，想和你聊聊天。"),
                     isRead = true,
                 ),
                 ChatMessageUiModel.Received(
                     id = "preview-assistant-1",
                     timestamp = "10:23",
+                    createdAt = 1715832180000L,
                     content = MessageContent.Custom(
                         "好呀，我会认真听着。发生了什么让你觉得累呢？",
                     ),
@@ -1274,12 +1292,14 @@ private val chatPreviewState = ChatUiState(
                 ChatMessageUiModel.Sent(
                     id = "preview-user-2",
                     timestamp = "10:24",
+                    createdAt = 1715832240000L,
                     content = MessageContent.Custom("忙了一整天，不过现在感觉好多了。"),
                     isRead = true,
                 ),
                 ChatMessageUiModel.Received(
                     id = "preview-assistant-2",
                     timestamp = "10:25",
+                    createdAt = 1715832300000L,
                     content = MessageContent.Custom(
                         "那就先放松一下吧。你已经很努力了，剩下的时间留给自己。",
                     ),

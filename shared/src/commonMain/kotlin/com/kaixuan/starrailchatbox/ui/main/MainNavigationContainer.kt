@@ -330,9 +330,6 @@ fun MainNavigationContainer(
             ) { contentPadding ->
                 val entryProvider = entryProvider<Route> {
                     entry<Route.ChatSession> {
-                        LaunchedEffect(Unit) {
-                            onChatAction(ChatAction.RefreshUserAvatar)
-                        }
                         ChatSessionScreen(
                             state = chatState,
                             charactersState = charactersState,
@@ -713,6 +710,7 @@ private val previewChatState = ChatUiState(
                 ChatMessageUiModel.Received(
                     id = "preview-opening",
                     timestamp = "10:21",
+                    createdAt = 0L,
                     content = MessageContent.Custom("今天要聊点什么呢？"),
                     senderId = "builtin:流萤",
                 )

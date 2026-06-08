@@ -20,6 +20,7 @@ import com.kaixuan.starrailchatbox.ui.character.CharacterEditUiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -604,10 +605,14 @@ private fun testConfig() = ModelConfig(
 )
 
 private class FakeProfileStore(
-    private var profile: UserProfile? = UserProfile("星空旅人", null)
+    initial: UserProfile? = UserProfile("星空旅人", null)
 ) : ProfileStore {
-    override suspend fun load(): UserProfile? = profile
+    private val _profile = MutableStateFlow(initial)
+    override val profile: Flow<UserProfile?> = _profile
+
+    override suspend fun load(): UserProfile? = _profile.value
     override suspend fun save(profile: UserProfile) {
-        this.profile = profile
+        _profile.value = profile
     }
 }
+

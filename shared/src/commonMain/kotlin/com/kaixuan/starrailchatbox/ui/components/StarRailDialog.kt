@@ -44,6 +44,8 @@ fun StarRailDialog(
     onDismissRequest: () -> Unit,
     onConfirm: () -> Unit,
     modifier: Modifier = Modifier,
+    neutralText: String? = null,
+    onNeutral: (() -> Unit)? = null,
     destructive: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -102,6 +104,14 @@ fun StarRailDialog(
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    if (neutralText != null && onNeutral != null) {
+                        DialogActionButton(
+                            text = neutralText,
+                            onClick = onNeutral,
+                            primary = false,
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                    }
                     DialogActionButton(
                         text = dismissText,
                         onClick = onDismissRequest,

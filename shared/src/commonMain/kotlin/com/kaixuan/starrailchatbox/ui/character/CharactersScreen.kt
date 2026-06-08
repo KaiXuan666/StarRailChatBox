@@ -61,6 +61,23 @@ import starrailchatbox.shared.generated.resources.character_list_my_characters
 import starrailchatbox.shared.generated.resources.character_list_create_btn
 import starrailchatbox.shared.generated.resources.character_list_edit_desc
 import starrailchatbox.shared.generated.resources.character_list_empty
+import androidx.compose.foundation.layout.offset
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.unit.IntOffset
+import com.kaixuan.starrailchatbox.ui.components.StarRailDialog
+import starrailchatbox.shared.generated.resources.cancel
+import starrailchatbox.shared.generated.resources.confirm
+import starrailchatbox.shared.generated.resources.character_edit_delete_confirm_title
+import starrailchatbox.shared.generated.resources.character_edit_delete_confirm_message
+import starrailchatbox.shared.generated.resources.character_edit_delete_confirm_action
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
+
 
 @Composable
 fun CharactersScreen(
@@ -82,6 +99,7 @@ fun CharactersScreen(
     var draggingItemId by remember { mutableStateOf<String?>(null) }
     var dragOffsetY by remember { mutableStateOf(0f) }
     var currentList by remember(sortedCharacters) { mutableStateOf(sortedCharacters) }
+    var deleteTargetCharacter by remember { mutableStateOf<Character?>(null) }
 
     LaunchedEffect(sortedCharacters) {
         if (draggingItemId == null) {
@@ -225,7 +243,6 @@ fun CharactersScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .then(dragModifier)
                             .zIndex(if (isDragging) 1f else 0f)
                             .graphicsLayer {
                                 if (isDragging) {
@@ -236,7 +253,7 @@ fun CharactersScreen(
                                 }
                             }
                     ) {
-                        CharacterCard(
+                        SwipeableCharacterCard(
                             character = character,
                             index = cardIndex + 1,
                             compact = compact,
@@ -250,11 +267,165 @@ fun CharactersScreen(
                                 if (draggingItemId == null) {
                                     onMainAction(MainAction.NavigateTo(Route.CharacterEdit(character.id)))
                                 }
-                            }
+                            },
+                            onDeleteClick = {
+                                deleteTargetCharacter = character
+                            },
+                            dragModifier = dragModifier,
+                            isDragging = isDragging,
+                            isAnyDragging = draggingItemId != null
                         )
                     }
                 }
             }
+        }
+
+        if (deleteTargetCharacter != null) {
+            val char = deleteTargetCharacter!!
+            StarRailDialog(
+                title = stringResource(Res.string.character_edit_delete_confirm_title),
+                dismissText = stringResource(Res.string.cancel),
+                confirmText = stringResource(Res.string.character_edit_delete_confirm_action),
+                destructive = true,
+                onDismissRequest = { deleteTargetCharacter = null },
+                onConfirm = {
+                    deleteTargetCharacter = null
+                    onAction(CharacterAction.CharacterDeleteClicked(char.id))
+                },
+            ) {
+                Text(
+                    text = stringResource(
+                        Res.string.character_edit_delete_confirm_message,
+                        char.name,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SwipeableCharacterCard(
+    character: Character,
+    index: Int,
+    compact: Boolean,
+    onClick: () -> Unit,
+    onEditClick: () -> Unit,
+    onDeleteClick: () -> Unit,
+    dragModifier: Modifier,
+    isDragging: Boolean,
+    isAnyDragging: Boolean,
+) {
+    val density = LocalDensity.current
+    val deleteButtonWidth = 80.dp
+    val deleteButtonWidthPx = with(density) { deleteButtonWidth.toPx() }
+    val scope = rememberCoroutineScope()
+    val offsetX = remember { Animatable(0f) }
+
+    LaunchedEffect(isAnyDragging) {
+        if (isAnyDragging) {
+            offsetX.animateTo(0f)
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.large)
+    ) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+        ) {
+            Surface(
+                onClick = {
+                    onDeleteClick()
+                    scope.launch { offsetX.animateTo(0f) }
+                },
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxHeight()
+                    .width(deleteButtonWidth),
+                color = MaterialTheme.colorScheme.error,
+                shape = RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp)
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        StarRailIcon(
+                            kind = StarRailIconKind.DELETE,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onError,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "删除",
+                            color = MaterialTheme.colorScheme.onError,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+
+        val combinedModifier = if (offsetX.value == 0f) dragModifier else Modifier
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .offset { IntOffset(offsetX.value.roundToInt(), 0) }
+                .then(combinedModifier)
+                .pointerInput(character.id, isAnyDragging) {
+                    if (isAnyDragging) return@pointerInput
+                    detectHorizontalDragGestures(
+                        onHorizontalDrag = { change, dragAmount ->
+                            change.consume()
+                            val newOffset = (offsetX.value + dragAmount).coerceIn(-deleteButtonWidthPx, 0f)
+                            scope.launch {
+                                offsetX.snapTo(newOffset)
+                            }
+                        },
+                        onDragEnd = {
+                            scope.launch {
+                                if (offsetX.value < -deleteButtonWidthPx / 2f) {
+                                    offsetX.animateTo(-deleteButtonWidthPx)
+                                } else {
+                                    offsetX.animateTo(0f)
+                                }
+                            }
+                        },
+                        onDragCancel = {
+                            scope.launch {
+                                offsetX.animateTo(0f)
+                            }
+                        }
+                    )
+                }
+        ) {
+            CharacterCard(
+                character = character,
+                index = index,
+                compact = compact,
+                onClick = {
+                    if (offsetX.value == 0f) {
+                        onClick()
+                    } else {
+                        scope.launch { offsetX.animateTo(0f) }
+                    }
+                },
+                onEditClick = {
+                    if (offsetX.value == 0f) {
+                        onEditClick()
+                    }
+                }
+            )
         }
     }
 }
