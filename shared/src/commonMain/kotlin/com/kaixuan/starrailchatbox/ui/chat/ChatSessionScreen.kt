@@ -129,6 +129,10 @@ fun ChatSessionScreen(
     val selectedCharacter = charactersState.selectedCharacter
     val coroutineScope = rememberCoroutineScope()
 
+    BackHandler(enabled = state.isAttachmentPanelVisible) {
+        onAction(ChatAction.ComposerActionClicked(ComposerAction.ATTACH))
+    }
+
     if (charactersState.isLoadingCharacters) {
         Box(
             modifier = modifier.fillMaxSize().padding(StarRailSpacing.xl),
@@ -996,20 +1000,43 @@ fun ChatSessionBottomBar(
     onAction: (ChatAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val imagePicker = rememberImagePicker { picked ->
+        picked?.let { onAction(ChatAction.ImageSelected(it.uri)) }
+    }
+    val filePicker = rememberFilePicker { picked ->
+        picked?.let { onAction(ChatAction.FileSelected(it.uri, it.name)) }
+    }
+    val cameraLauncher = rememberCameraLauncher { picked ->
+        picked?.let { onAction(ChatAction.ImageSelected(it.uri)) }
+    }
+
+    val interceptedOnAction: (ChatAction) -> Unit = { action ->
+        if (action is ChatAction.ComposerActionClicked) {
+            when (action.action) {
+                ComposerAction.PICK_IMAGE -> imagePicker()
+                ComposerAction.PICK_FILE -> filePicker()
+                ComposerAction.TAKE_PHOTO -> cameraLauncher()
+                else -> onAction(action)
+            }
+        } else {
+            onAction(action)
+        }
+    }
+
     Column(modifier = modifier) {
         if (state.selectedAttachments.isNotEmpty()) {
             SelectedAttachmentsArea(
                 attachments = state.selectedAttachments,
                 compact = compact,
-                onAddClicked = { onAction(ChatAction.ComposerActionClicked(ComposerAction.ATTACH)) },
-                onRemoveClicked = { onAction(ChatAction.RemoveAttachment(it)) },
+                onAddClicked = { interceptedOnAction(ChatAction.ComposerActionClicked(ComposerAction.ATTACH)) },
+                onRemoveClicked = { interceptedOnAction(ChatAction.RemoveAttachment(it)) },
             )
         } else {
             QuickReplies(
                 suggestions = state.suggestions,
                 compact = compact,
                 onReplyClicked = {
-                    onAction(ChatAction.QuickReplyClicked(it))
+                    interceptedOnAction(ChatAction.QuickReplyClicked(it))
                 },
             )
         }
@@ -1019,17 +1046,17 @@ fun ChatSessionBottomBar(
             attachments = state.selectedAttachments,
             compact = compact,
             onValueChange = {
-                onAction(ChatAction.MessageChanged(it))
+                interceptedOnAction(ChatAction.MessageChanged(it))
             },
-            onSend = { onAction(ChatAction.SendClicked) },
+            onSend = { interceptedOnAction(ChatAction.SendClicked) },
             onComposerAction = {
-                onAction(ChatAction.ComposerActionClicked(it))
+                interceptedOnAction(ChatAction.ComposerActionClicked(it))
             },
         )
         if (state.isAttachmentPanelVisible) {
             AttachmentPanel(
                 compact = compact,
-                onAction = { onAction(ChatAction.ComposerActionClicked(it)) }
+                onAction = { interceptedOnAction(ChatAction.ComposerActionClicked(it)) }
             )
         }
     }
@@ -1584,11 +1611,15 @@ fun CharacterChatScreen(
         charactersState.characters.firstOrNull { it.id == characterId }
     } ?: return
 
+    val pageState = state.characterStates[characterId] ?: CharacterChatState()
+
+    BackHandler(enabled = pageState.isAttachmentPanelVisible) {
+        onAction(ChatAction.ComposerActionClicked(ComposerAction.ATTACH))
+    }
+
     BackHandler {
         onMainAction(MainAction.PopBackStack)
     }
-
-    val pageState = state.characterStates[characterId] ?: CharacterChatState()
     val pageListState = rememberLazyListState()
     val pageMessages = pageState.messages
     val charactersById = remember(charactersState.characters) {

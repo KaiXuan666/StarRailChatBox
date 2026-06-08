@@ -1,9 +1,13 @@
+@file:OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
+
 package com.kaixuan.starrailchatbox.ui.chat
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kaixuan.starrailchatbox.data.ai.AiContentPart
 import com.kaixuan.starrailchatbox.data.ai.AiMessage
 import com.kaixuan.starrailchatbox.data.ai.AiRepository
+import com.kaixuan.starrailchatbox.platform.readUriAsBytes
 import com.kaixuan.starrailchatbox.data.ai.ChatCompletionResult
 import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.character.Character
@@ -664,7 +668,7 @@ class ChatViewModel(
         }
         viewModelScope.launch {
             try {
-                sendMessage(character, content)
+                sendMessage(character, content, attachments)
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (_: Throwable) {
@@ -776,9 +780,15 @@ class ChatViewModel(
     private suspend fun sendMessage(
         character: Character,
         content: String,
+        attachments: List<SelectedAttachment> = emptyList(),
     ) {
-        val config = modelConfigRepository.getDefault()
-            ?.takeIf(ModelConfig::isUsable)
+        val hasImages = attachments.any { it is SelectedAttachment.Image }
+        val config = if (hasImages) {
+            (modelConfigRepository.getMultimodal()?.takeIf(ModelConfig::isUsable)
+                ?: modelConfigRepository.getDefault()?.takeIf(ModelConfig::isUsable))
+        } else {
+            modelConfigRepository.getDefault()?.takeIf(ModelConfig::isUsable)
+        }
         val previousSession = activeSession
         var context = previousSession?.let {
             chatSessionRepository.findContext(
@@ -787,6 +797,61 @@ class ChatViewModel(
             )
         } ?: ChatContextSnapshot(summary = null, messages = emptyList())
         val now = currentTimeMillis()
+
+        var userText = content
+        val imageParts = mutableListOf<AiContentPart>()
+
+        attachments.forEach { attachment ->
+            when (attachment) {
+                is SelectedAttachment.Image -> {
+                    val base64Url = if (attachment.uri.startsWith("data:")) {
+                        attachment.uri
+                    } else {
+                        val bytes = runCatching { readUriAsBytes(attachment.uri) }.getOrDefault(ByteArray(0))
+                        if (bytes.isNotEmpty()) {
+                            val ext = attachment.uri.substringAfterLast('.', "jpg").lowercase()
+                            val mimeType = when (ext) {
+                                "png" -> "image/png"
+                                "gif" -> "image/gif"
+                                "webp" -> "image/webp"
+                                else -> "image/jpeg"
+                            }
+                            "data:$mimeType;base64,${kotlin.io.encoding.Base64.encode(bytes)}"
+                        } else {
+                            null
+                        }
+                    }
+                    if (base64Url != null) {
+                        imageParts.add(AiContentPart.ImageUrl(base64Url))
+                    }
+                }
+                is SelectedAttachment.File -> {
+                    val bytes = runCatching { readUriAsBytes(attachment.uri) }.getOrDefault(ByteArray(0))
+                    val fileText = if (bytes.isNotEmpty()) {
+                        try {
+                            bytes.decodeToString()
+                        } catch (_: Exception) {
+                            "[Binary File: ${attachment.name}]"
+                        }
+                    } else {
+                        "[Empty File: ${attachment.name}]"
+                    }
+                    userText += "\n\n[File: ${attachment.name}]\n$fileText\n[End File]"
+                }
+            }
+        }
+
+        val messageParts = if (imageParts.isNotEmpty()) {
+            buildList<AiContentPart> {
+                if (userText.isNotBlank()) {
+                    add(AiContentPart.Text(userText))
+                }
+                addAll(imageParts)
+            }
+        } else {
+            null
+        }
+
         val fullCharacter = characterRepository.getCharacter(character.id) ?: character
         val session = previousSession ?: NewChatSession(
             id = idGenerator("session"),
@@ -799,7 +864,7 @@ class ChatViewModel(
         ).let { newSession ->
             val userMessage = newUserMessage(
                 sessionId = newSession.id,
-                content = content,
+                content = userText,
                 config = config,
                 now = now,
             )
@@ -834,7 +899,7 @@ class ChatViewModel(
             chatSessionRepository.appendMessage(
                 newUserMessage(
                     sessionId = session.id,
-                    content = content,
+                    content = userText,
                     config = config,
                     now = now,
                 ),
@@ -859,8 +924,9 @@ class ChatViewModel(
             systemPrompt = prompt,
             summary = context.summary,
             history = context.messages,
-            currentUserMessage = content,
+            currentUserMessage = userText,
             maxHistoryMessageCount = session.maxContextMessageCount,
+            currentUserMessageParts = messageParts,
         )
 
         Napier.d("maxContextMessageCount: ${session.maxContextMessageCount}, summary: ${context.summary} content: $content, history size: ${context.messages.size}", tag = "sendMessage")

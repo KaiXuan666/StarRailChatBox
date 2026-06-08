@@ -1,7 +1,9 @@
 package com.kaixuan.starrailchatbox.ui.chat
 
+import com.kaixuan.starrailchatbox.data.ai.AiContentPart
 import com.kaixuan.starrailchatbox.data.ai.AiMessage
 import com.kaixuan.starrailchatbox.data.ai.AiRepository
+import kotlin.test.assertTrue
 import com.kaixuan.starrailchatbox.data.ai.ChatCompletionResult
 import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.character.Character
@@ -418,6 +420,108 @@ class ChatViewModelTest {
             timeFormatter = { "local-$it" },
         )
         return Fixture(viewModel, sessions, api)
+    }
+
+    @Test
+    fun sendWithImageAttachmentUsesMultimodalConfigAndSendsContentParts() = runTest {
+        val multimodalConfig = ModelConfig(
+            id = "multimodal",
+            provider = "custom",
+            name = "Multimodal Test",
+            baseUrl = "https://example.com/v1",
+            apiKey = "test-key-multimodal",
+            modelName = "test-model-multimodal",
+            contextWindow = 128_000,
+            maxOutputTokens = 4_096,
+            supportVision = true,
+            supportToolCall = true,
+            supportReasoning = false,
+            temperature = 0.7,
+            topP = 1.0,
+            enabled = true,
+        )
+        val modelConfigRepository = InMemoryModelConfigRepository(testConfig(), multimodalConfig)
+        
+        val tempImageFile = java.io.File.createTempFile("test_image", ".png")
+        tempImageFile.writeBytes(byteArrayOf(1, 2, 3, 4))
+        tempImageFile.deleteOnExit()
+
+        val sessions = InMemoryChatSessionRepository()
+        val api = FakeOpenAiRepository()
+        var id = 0
+        val viewModel = ChatViewModel(
+            characterRepository = FakeCharacterRepository,
+            chatSessionRepository = sessions,
+            modelConfigRepository = modelConfigRepository,
+            aiRepository = api,
+            profileStore = FakeProfileStore(),
+            currentTimeMillis = { 60_000L },
+            idGenerator = { prefix -> "$prefix-${++id}" },
+            sessionTitleProvider = { "新对话" },
+            timeFormatter = { "local-$it" },
+        )
+        advanceUntilIdle()
+
+        viewModel.onAction(ChatAction.ImageSelected(tempImageFile.absolutePath))
+        viewModel.onAction(ChatAction.MessageChanged("Describe this image"))
+        viewModel.onAction(ChatAction.SendClicked)
+        advanceUntilIdle()
+
+        assertEquals(1, api.requests.size)
+        val sentRequest = api.requests.single()
+        val userMsg = sentRequest.last()
+        assertEquals("user", userMsg.role)
+        assertEquals("Describe this image", userMsg.content)
+        
+        val parts = requireNotNull(userMsg.contentParts)
+        assertEquals(2, parts.size)
+        
+        val textPart = assertIs<AiContentPart.Text>(parts[0])
+        assertEquals("Describe this image", textPart.text)
+        
+        val imagePart = assertIs<AiContentPart.ImageUrl>(parts[1])
+        assertTrue(imagePart.url.startsWith("data:image/png;base64,"))
+    }
+
+    @Test
+    fun sendWithFileAttachmentAppendsContentAndStoresToDatabase() = runTest {
+        val tempTextFile = java.io.File.createTempFile("test_file", ".txt")
+        tempTextFile.writeText("hello file content")
+        tempTextFile.deleteOnExit()
+
+        val sessions = InMemoryChatSessionRepository()
+        val api = FakeOpenAiRepository()
+        var id = 0
+        val viewModel = ChatViewModel(
+            characterRepository = FakeCharacterRepository,
+            chatSessionRepository = sessions,
+            modelConfigRepository = InMemoryModelConfigRepository(testConfig()),
+            aiRepository = api,
+            profileStore = FakeProfileStore(),
+            currentTimeMillis = { 60_000L },
+            idGenerator = { prefix -> "$prefix-${++id}" },
+            sessionTitleProvider = { "新对话" },
+            timeFormatter = { "local-$it" },
+        )
+        advanceUntilIdle()
+
+        viewModel.onAction(ChatAction.FileSelected(tempTextFile.absolutePath, "test.txt"))
+        viewModel.onAction(ChatAction.MessageChanged("Check this file:"))
+        viewModel.onAction(ChatAction.SendClicked)
+        advanceUntilIdle()
+
+        val expectedText = "Check this file:\n\n[File: test.txt]\nhello file content\n[End File]"
+        
+        val sentRequest = api.requests.single()
+        val userMsg = sentRequest.last()
+        assertEquals("user", userMsg.role)
+        assertEquals(expectedText, userMsg.content)
+        assertNull(userMsg.contentParts)
+
+        val session = requireNotNull(sessions.findLatestSession("builtin:流萤"))
+        val storedMessages = sessions.observeMessages(session.id).first()
+        val userMsgIndex = storedMessages.size - 2
+        assertEquals(expectedText, storedMessages[userMsgIndex].content)
     }
 }
 
