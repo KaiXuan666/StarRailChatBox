@@ -9,54 +9,48 @@ data class Character(
     val name: String,
     val prompt: String,
     val openingMessage: String,
-    val avatarBytes: ByteArray,
+    val avatarUri: String,
     val temperature: Double = 0.85,
     val topP: Double = 0.9,
     val createdAt: Long = 0L,
-) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is Character) return false
-        return id == other.id &&
-            name == other.name &&
-            prompt == other.prompt &&
-            openingMessage == other.openingMessage &&
-            avatarBytes.contentEquals(other.avatarBytes) &&
-            temperature == other.temperature &&
-            topP == other.topP &&
-            createdAt == other.createdAt
-    }
-
-    override fun hashCode(): Int {
-        var result = id.hashCode()
-        result = 31 * result + name.hashCode()
-        result = 31 * result + prompt.hashCode()
-        result = 31 * result + openingMessage.hashCode()
-        result = 31 * result + avatarBytes.contentHashCode()
-        result = 31 * result + temperature.hashCode()
-        result = 31 * result + topP.hashCode()
-        result = 31 * result + createdAt.hashCode()
-        return result
-    }
-}
+)
 
 data class CharacterFiles(
     val id: String,
     val name: String,
-    val promptBytes: ByteArray,
+    val prompt: String,
     val openingMessage: String,
-    val avatarBytes: ByteArray,
+    val avatarUri: String,
     val temperature: Double = 0.85,
     val topP: Double = 0.9,
     val createdAt: Long = Clock.System.now().toEpochMilliseconds(),
 )
 
+data class CharacterAvatarSource(
+    val uri: String,
+)
+
+data class DefaultCharacterAsset(
+    val id: String,
+    val name: String,
+    val prompt: String,
+    val openingMessage: String,
+    val avatarContent: ByteArray,
+    val temperature: Double = 0.85,
+    val topP: Double = 0.9,
+)
+
 interface CharacterStorage {
-    suspend fun initializeDefaults(defaults: List<CharacterFiles>)
+    suspend fun initializeDefaults(defaults: List<DefaultCharacterAsset>)
 
     suspend fun loadCharacters(): List<CharacterFiles>
 
-    suspend fun saveCharacter(character: CharacterFiles)
+    suspend fun saveCharacter(
+        character: CharacterFiles,
+        avatarSource: CharacterAvatarSource?,
+    ): CharacterFiles
+
+    suspend fun deleteCharacter(id: String, deletedAt: Long)
 }
 
 interface CharacterRepository {
@@ -65,15 +59,20 @@ interface CharacterRepository {
     suspend fun addCharacter(
         name: String,
         prompt: String,
-        avatarBytes: ByteArray,
+        avatarSource: CharacterAvatarSource?,
     ): Character
 
-    suspend fun updateCharacter(character: Character): Character
+    suspend fun updateCharacter(
+        character: Character,
+        avatarSource: CharacterAvatarSource? = null,
+    ): Character
+
+    suspend fun deleteCharacter(id: String, deletedAt: Long)
 }
 
 class DefaultCharacterRepository(
     private val storage: CharacterStorage,
-    private val defaultAssets: suspend () -> List<CharacterFiles> = ::loadDefaultCharacterAssets,
+    private val defaultAssets: suspend () -> List<DefaultCharacterAsset> = ::loadDefaultCharacterAssets,
 ) : CharacterRepository {
     override suspend fun loadCharacters(): List<Character> {
         storage.initializeDefaults(defaultAssets())
@@ -83,7 +82,7 @@ class DefaultCharacterRepository(
     override suspend fun addCharacter(
         name: String,
         prompt: String,
-        avatarBytes: ByteArray,
+        avatarSource: CharacterAvatarSource?,
     ): Character {
         val normalizedName = name.trim()
         require(normalizedName.isNotEmpty()) { "Character name cannot be blank." }
@@ -93,15 +92,17 @@ class DefaultCharacterRepository(
         val files = CharacterFiles(
             id = normalizedName,
             name = normalizedName,
-            promptBytes = prompt.encodeToByteArray(),
+            prompt = prompt,
             openingMessage = "",
-            avatarBytes = avatarBytes,
+            avatarUri = avatarSource?.uri.orEmpty(),
         )
-        storage.saveCharacter(files)
-        return files.toCharacter()
+        return storage.saveCharacter(files, avatarSource).toCharacter()
     }
 
-    override suspend fun updateCharacter(character: Character): Character {
+    override suspend fun updateCharacter(
+        character: Character,
+        avatarSource: CharacterAvatarSource?,
+    ): Character {
         val normalizedName = character.name.trim()
         require(normalizedName.isNotEmpty()) { "Character name cannot be blank." }
         require('/' !in normalizedName && '\\' !in normalizedName && '\n' !in normalizedName) {
@@ -110,41 +111,44 @@ class DefaultCharacterRepository(
         val files = CharacterFiles(
             id = character.id,
             name = normalizedName,
-            promptBytes = character.prompt.encodeToByteArray(),
+            prompt = character.prompt,
             openingMessage = character.openingMessage,
-            avatarBytes = character.avatarBytes,
+            avatarUri = character.avatarUri,
             temperature = character.temperature.coerceIn(0.0, 2.0),
             topP = character.topP.coerceIn(0.0, 1.0),
             createdAt = character.createdAt,
         )
-        storage.saveCharacter(files)
-        return files.toCharacter()
+        return storage.saveCharacter(files, avatarSource).toCharacter()
+    }
+
+    override suspend fun deleteCharacter(id: String, deletedAt: Long) {
+        storage.deleteCharacter(id, deletedAt)
     }
 }
 
 private fun CharacterFiles.toCharacter() = Character(
     id = id,
     name = name,
-    prompt = promptBytes.decodeToString(),
+    prompt = prompt,
     openingMessage = openingMessage,
-    avatarBytes = avatarBytes,
+    avatarUri = avatarUri,
     temperature = temperature,
     topP = topP,
     createdAt = createdAt,
 )
 
 @OptIn(ExperimentalResourceApi::class)
-private suspend fun loadDefaultCharacterAssets(): List<CharacterFiles> {
+private suspend fun loadDefaultCharacterAssets(): List<DefaultCharacterAsset> {
     val openingMessage = Res.readBytes("files/characters/opening_message.txt")
         .decodeToString()
         .trim()
     return DefaultCharacterNames.map { name ->
-        CharacterFiles(
+        DefaultCharacterAsset(
             id = "builtin:$name",
             name = name,
-            promptBytes = Res.readBytes("files/characters/$name.md"),
+            prompt = Res.readBytes("files/characters/$name.md").decodeToString(),
             openingMessage = openingMessage,
-            avatarBytes = Res.readBytes("files/characters/$name.webp"),
+            avatarContent = Res.readBytes("files/characters/$name.webp"),
         )
     }
 }

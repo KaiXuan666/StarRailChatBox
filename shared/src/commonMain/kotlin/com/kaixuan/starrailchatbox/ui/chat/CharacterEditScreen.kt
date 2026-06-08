@@ -1,7 +1,6 @@
 package com.kaixuan.starrailchatbox.ui.chat
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,34 +24,41 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kaixuan.starrailchatbox.data.character.CharacterAvatarSource
 import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
 import com.kaixuan.starrailchatbox.platform.rememberImagePicker
 import com.kaixuan.starrailchatbox.ui.components.BackHandler
+import com.kaixuan.starrailchatbox.ui.components.AvatarImage
 import com.kaixuan.starrailchatbox.ui.components.StarRailDialog
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
 import com.kaixuan.starrailchatbox.ui.components.StarRailPrimaryButton
 import com.kaixuan.starrailchatbox.ui.main.MainAction
-import org.jetbrains.compose.resources.decodeToImageBitmap
 import org.jetbrains.compose.resources.stringResource
 import starrailchatbox.shared.generated.resources.Res
 import starrailchatbox.shared.generated.resources.character_edit_avatar
 import starrailchatbox.shared.generated.resources.character_edit_change_avatar
+import starrailchatbox.shared.generated.resources.character_edit_delete
+import starrailchatbox.shared.generated.resources.character_edit_delete_confirm_action
+import starrailchatbox.shared.generated.resources.character_edit_delete_confirm_message
+import starrailchatbox.shared.generated.resources.character_edit_delete_confirm_title
 import starrailchatbox.shared.generated.resources.character_edit_name
 import starrailchatbox.shared.generated.resources.character_edit_opening_message
 import starrailchatbox.shared.generated.resources.character_edit_save
@@ -95,9 +101,10 @@ fun CharacterEditScreen(
     }
 
     val editState = state.characterEdit
-    val imagePicker = rememberImagePicker { bytes ->
-        if (bytes != null) {
-            onAction(ChatAction.CharacterAvatarChanged(bytes))
+    var deleteDialogVisible by remember { mutableStateOf(false) }
+    val imagePicker = rememberImagePicker { image ->
+        if (image != null) {
+            onAction(ChatAction.CharacterAvatarChanged(CharacterAvatarSource(image.uri)))
         }
     }
 
@@ -235,6 +242,27 @@ fun CharacterEditScreen(
                 enabled = !editState.isSaving,
             )
         }
+
+        if (editState.characterId != null) {
+            Surface(
+                onClick = { deleteDialogVisible = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = MaterialTheme.shapes.extraLarge,
+                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.8f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.65f)),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = stringResource(Res.string.character_edit_delete),
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+        }
     }
 
     if (editState.isPromptGenDialogOpen) {
@@ -251,6 +279,29 @@ fun CharacterEditScreen(
                     onAction(ChatAction.CharacterPromptGenInputChanged(text))
                 },
                 minLines = 4,
+            )
+        }
+    }
+
+    if (deleteDialogVisible) {
+        StarRailDialog(
+            title = stringResource(Res.string.character_edit_delete_confirm_title),
+            dismissText = stringResource(Res.string.cancel),
+            confirmText = stringResource(Res.string.character_edit_delete_confirm_action),
+            destructive = true,
+            onDismissRequest = { deleteDialogVisible = false },
+            onConfirm = {
+                deleteDialogVisible = false
+                editState.characterId?.let { onAction(ChatAction.CharacterDeleteClicked(it)) }
+            },
+        ) {
+            Text(
+                text = stringResource(
+                    Res.string.character_edit_delete_confirm_message,
+                    editState.name,
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyLarge,
             )
         }
     }
@@ -276,7 +327,7 @@ private fun CharacterIdentityCard(
         ) {
             Box(contentAlignment = Alignment.TopEnd) {
                 CharacterEditAvatar(
-                    avatarBytes = state.avatarBytes,
+                    avatarUri = state.avatarUri,
                     contentDescription = stringResource(Res.string.character_edit_avatar),
                     size = if (compact) 96.dp else 112.dp,
                 )
@@ -332,7 +383,7 @@ private fun CharacterIdentityCard(
 
 @Composable
 private fun CharacterEditAvatar(
-    avatarBytes: ByteArray,
+    avatarUri: String,
     contentDescription: String,
     size: androidx.compose.ui.unit.Dp,
 ) {
@@ -354,24 +405,12 @@ private fun CharacterEditAvatar(
             .background(MaterialTheme.colorScheme.surfaceContainerHighest),
         contentAlignment = Alignment.Center,
     ) {
-        val bitmap = remember(avatarBytes) {
-            runCatching { avatarBytes.decodeToImageBitmap() }.getOrNull()
-        }
-        if (bitmap != null) {
-            Image(
-                bitmap = bitmap,
-                contentDescription = contentDescription,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
-        } else {
-            StarRailIcon(
-                kind = StarRailIconKind.SPARKLE,
-                contentDescription = contentDescription,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(size * 0.44f),
-            )
-        }
+        AvatarImage(
+            avatarUri = avatarUri,
+            contentDescription = contentDescription,
+            placeholderKind = StarRailIconKind.SPARKLE,
+            placeholderSize = size * 0.44f,
+        )
     }
 }
 
@@ -580,7 +619,7 @@ private val characterEditPreviewCharacter = Character(
     name = "三月七",
     prompt = "你是三月七，热情开朗、元气满满的少女。",
     openingMessage = "今天想聊点什么呢？",
-    avatarBytes = byteArrayOf(),
+    avatarUri = "",
     temperature = 0.85,
     topP = 0.9,
 )
@@ -594,7 +633,7 @@ private val characterEditPreviewState = ChatUiState(
             name = name,
             prompt = prompt,
             openingMessage = openingMessage,
-            avatarBytes = avatarBytes,
+            avatarUri = avatarUri,
             temperature = temperature,
             topP = topP,
         )

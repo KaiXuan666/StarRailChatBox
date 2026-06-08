@@ -1,7 +1,6 @@
 package com.kaixuan.starrailchatbox.ui.chat
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,13 +18,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -34,12 +31,12 @@ import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
+import com.kaixuan.starrailchatbox.ui.components.AvatarImage
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
 import com.kaixuan.starrailchatbox.ui.main.MainAction
 import com.kaixuan.starrailchatbox.ui.navigation.Route
-import org.jetbrains.compose.resources.decodeToImageBitmap
 import org.jetbrains.compose.resources.stringResource
 import starrailchatbox.shared.generated.resources.Res
 import starrailchatbox.shared.generated.resources.character_list_title
@@ -183,7 +180,7 @@ private fun CharacterCard(
 
             // 圆形头像
             CharacterListAvatar(
-                avatarBytes = character.avatarBytes,
+                avatarUri = character.avatarUri,
                 contentDescription = null,
                 size = if (compact) 56.dp else 64.dp
             )
@@ -232,7 +229,7 @@ private fun CharacterCard(
 
 @Composable
 private fun CharacterListAvatar(
-    avatarBytes: ByteArray,
+    avatarUri: String,
     contentDescription: String?,
     size: androidx.compose.ui.unit.Dp,
 ) {
@@ -254,24 +251,12 @@ private fun CharacterListAvatar(
             .background(MaterialTheme.colorScheme.surfaceContainerHighest),
         contentAlignment = Alignment.Center,
     ) {
-        val bitmap = remember(avatarBytes) {
-            runCatching { avatarBytes.decodeToImageBitmap() }.getOrNull()
-        }
-        if (bitmap != null) {
-            Image(
-                bitmap = bitmap,
-                contentDescription = contentDescription,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
-        } else {
-            StarRailIcon(
-                kind = StarRailIconKind.SPARKLE,
-                contentDescription = contentDescription,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(size * 0.44f),
-            )
-        }
+        AvatarImage(
+            avatarUri = avatarUri,
+            contentDescription = contentDescription,
+            placeholderKind = StarRailIconKind.SPARKLE,
+            placeholderSize = size * 0.44f,
+        )
     }
 }
 
@@ -310,28 +295,28 @@ private val previewState = ChatUiState(
             name = "三月七",
             prompt = "热情开朗，元气满满的少女。",
             openingMessage = "今天想聊点什么呢？",
-            avatarBytes = byteArrayOf()
+            avatarUri = ""
         ),
         Character(
             id = "builtin:黄泉",
             name = "黄泉",
             prompt = "神秘优雅，掌控生死的使者。",
             openingMessage = "你好。",
-            avatarBytes = byteArrayOf()
+            avatarUri = ""
         ),
         Character(
             id = "builtin:流萤",
             name = "流萤",
             prompt = "温柔坚韧，追寻光明的少女。",
             openingMessage = "你好啊。",
-            avatarBytes = byteArrayOf()
+            avatarUri = ""
         ),
         Character(
             id = "builtin:瑕蝶",
             name = "瑕蝶",
             prompt = "梦幻灵动，守护记忆的使者。",
             openingMessage = "欢迎回来。",
-            avatarBytes = byteArrayOf()
+            avatarUri = ""
         )
     ),
     isLoadingCharacters = false

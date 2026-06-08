@@ -5,6 +5,7 @@ import com.kaixuan.starrailchatbox.data.ai.AiRepository
 import com.kaixuan.starrailchatbox.data.ai.ChatCompletionResult
 import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.character.Character
+import com.kaixuan.starrailchatbox.data.character.CharacterAvatarSource
 import com.kaixuan.starrailchatbox.data.character.CharacterRepository
 import com.kaixuan.starrailchatbox.data.chat.InMemoryChatSessionRepository
 import com.kaixuan.starrailchatbox.data.model.InMemoryModelConfigRepository
@@ -22,7 +23,6 @@ import kotlinx.coroutines.test.setMain
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
-import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
@@ -209,7 +209,7 @@ class ChatViewModelTest {
         fixture.viewModel.onAction(ChatAction.CharacterNameChanged("  新三月七  "))
         fixture.viewModel.onAction(ChatAction.CharacterPromptChanged("updated prompt"))
         fixture.viewModel.onAction(ChatAction.CharacterOpeningMessageChanged("updated opening"))
-        fixture.viewModel.onAction(ChatAction.CharacterAvatarChanged(byteArrayOf(9, 8, 7)))
+        fixture.viewModel.onAction(ChatAction.CharacterAvatarChanged(CharacterAvatarSource("picked://updated-avatar")))
         fixture.viewModel.onAction(ChatAction.CharacterTemperatureChanged(1.2))
         fixture.viewModel.onAction(ChatAction.CharacterTopPChanged(0.6))
         fixture.viewModel.onAction(ChatAction.CharacterSaveClicked)
@@ -221,10 +221,45 @@ class ChatViewModelTest {
         assertEquals("新三月七", selected.name)
         assertEquals("updated prompt", selected.prompt)
         assertEquals("updated opening", selected.openingMessage)
-        assertContentEquals(byteArrayOf(9, 8, 7), selected.avatarBytes)
+        assertEquals("picked://updated-avatar", selected.avatarUri)
         assertEquals(1.2, selected.temperature)
         assertEquals(0.6, selected.topP)
         assertEquals(ChatEffect.CharacterSaved, fixture.viewModel.effects.first())
+    }
+
+    @Test
+    fun characterEditWithoutNewAvatarPreservesExistingAvatarUri() = runTest {
+        val characterRepository = EditableCharacterRepository()
+        val fixture = createFixture(characterRepository = characterRepository)
+        advanceUntilIdle()
+
+        fixture.viewModel.onAction(ChatAction.CharacterEditOpened("builtin:流萤"))
+        fixture.viewModel.onAction(ChatAction.CharacterNameChanged("流萤新版"))
+        fixture.viewModel.onAction(ChatAction.CharacterSaveClicked)
+        advanceUntilIdle()
+
+        val selected = requireNotNull(fixture.viewModel.uiState.value.selectedCharacter)
+        assertEquals("avatar://firefly", selected.avatarUri)
+    }
+
+    @Test
+    fun characterDeleteRemovesCharacterAndSelectsFallback() = runTest {
+        val characterRepository = EditableCharacterRepository(
+            initialCharacters = listOf(
+                Character("builtin:流萤", "流萤", "role prompt", "", "avatar://firefly"),
+                Character("builtin:黄泉", "黄泉", "another prompt", "", "avatar://acheron"),
+            ),
+        )
+        val fixture = createFixture(characterRepository = characterRepository)
+        advanceUntilIdle()
+
+        fixture.viewModel.onAction(ChatAction.CharacterDeleteClicked("builtin:流萤"))
+        advanceUntilIdle()
+
+        val state = fixture.viewModel.uiState.value
+        assertEquals(listOf("builtin:黄泉"), state.characters.map(Character::id))
+        assertEquals("builtin:黄泉", state.selectedCharacterId)
+        assertEquals(ChatEffect.CharacterDeleted, fixture.viewModel.effects.first())
     }
 
     @Test
@@ -361,62 +396,82 @@ private object FakeCharacterRepository : CharacterRepository {
             "流萤",
             "role prompt",
             "今天要聊点什么呢？",
-            byteArrayOf(),
+            "avatar://firefly",
         ),
         Character(
             "builtin:黄泉",
             "黄泉",
             "another prompt",
             "今天要聊点什么呢？",
-            byteArrayOf(),
+            "avatar://acheron",
         ),
     )
 
     override suspend fun addCharacter(
         name: String,
         prompt: String,
-        avatarBytes: ByteArray,
-    ): Character = Character(name, name, prompt, "", avatarBytes)
+        avatarSource: CharacterAvatarSource?,
+    ): Character = Character(name, name, prompt, "", avatarSource?.uri.orEmpty())
 
-    override suspend fun updateCharacter(character: Character): Character = character
+    override suspend fun updateCharacter(
+        character: Character,
+        avatarSource: CharacterAvatarSource?,
+    ): Character = character.copy(avatarUri = avatarSource?.uri ?: character.avatarUri)
+
+    override suspend fun deleteCharacter(id: String, deletedAt: Long) = Unit
 }
 
 private object NoOpeningCharacterRepository : CharacterRepository {
     override suspend fun loadCharacters(): List<Character> = listOf(
-        Character("builtin:流萤", "流萤", "role prompt", "", byteArrayOf()),
+        Character("builtin:流萤", "流萤", "role prompt", "", "avatar://firefly"),
     )
 
     override suspend fun addCharacter(
         name: String,
         prompt: String,
-        avatarBytes: ByteArray,
-    ): Character = Character(name, name, prompt, "", avatarBytes)
+        avatarSource: CharacterAvatarSource?,
+    ): Character = Character(name, name, prompt, "", avatarSource?.uri.orEmpty())
 
-    override suspend fun updateCharacter(character: Character): Character = character
+    override suspend fun updateCharacter(
+        character: Character,
+        avatarSource: CharacterAvatarSource?,
+    ): Character = character.copy(avatarUri = avatarSource?.uri ?: character.avatarUri)
+
+    override suspend fun deleteCharacter(id: String, deletedAt: Long) = Unit
 }
 
-private class EditableCharacterRepository : CharacterRepository {
-    private var characters = listOf(
+private class EditableCharacterRepository(
+    initialCharacters: List<Character> = listOf(
         Character(
             "builtin:流萤",
             "流萤",
             "role prompt",
             "今天要聊点什么呢？",
-            byteArrayOf(),
+            "avatar://firefly",
         ),
-    )
+    ),
+) : CharacterRepository {
+    private var characters = initialCharacters
 
     override suspend fun loadCharacters(): List<Character> = characters
 
     override suspend fun addCharacter(
         name: String,
         prompt: String,
-        avatarBytes: ByteArray,
-    ): Character = Character(name, name, prompt, "", avatarBytes)
+        avatarSource: CharacterAvatarSource?,
+    ): Character = Character(name, name, prompt, "", avatarSource?.uri.orEmpty())
 
-    override suspend fun updateCharacter(character: Character): Character {
-        characters = characters.map { if (it.id == character.id) character else it }
-        return character
+    override suspend fun updateCharacter(
+        character: Character,
+        avatarSource: CharacterAvatarSource?,
+    ): Character {
+        val saved = character.copy(avatarUri = avatarSource?.uri ?: character.avatarUri)
+        characters = characters.map { if (it.id == saved.id) saved else it }
+        return saved
+    }
+
+    override suspend fun deleteCharacter(id: String, deletedAt: Long) {
+        characters = characters.filterNot { it.id == id }
     }
 }
 

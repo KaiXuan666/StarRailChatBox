@@ -16,16 +16,33 @@ private class BrowserCharacterStorage(
     private val initializedKey = "${prefix}.initialized"
     private val namesKey = "${prefix}.names"
 
-    override suspend fun initializeDefaults(defaults: List<CharacterFiles>) {
+    override suspend fun initializeDefaults(defaults: List<DefaultCharacterAsset>) {
         if (localStorage.getItem(initializedKey) != null) return
-        defaults.forEach { saveCharacter(it) }
+        defaults.forEach {
+            saveCharacter(
+                CharacterFiles(
+                    id = it.id,
+                    name = it.name,
+                    prompt = it.prompt,
+                    openingMessage = it.openingMessage,
+                    avatarUri = "data:image/webp;base64,${Base64.encode(it.avatarContent)}",
+                    temperature = it.temperature,
+                    topP = it.topP,
+                ),
+                avatarSource = null,
+            )
+        }
         localStorage.setItem(initializedKey, "1")
     }
 
     override suspend fun loadCharacters(): List<CharacterFiles> {
         return loadNames().mapNotNull { id ->
-            val prompt = localStorage.getItem("$prefix$id.md") ?: return@mapNotNull null
-            val avatar = localStorage.getItem("$prefix$id.webp") ?: return@mapNotNull null
+            val prompt = localStorage.getItem("$prefix$id.prompt")
+            val legacyPrompt = localStorage.getItem("$prefix$id.md")
+            val storedPrompt = prompt ?: legacyPrompt ?: return@mapNotNull null
+            val avatarUri = localStorage.getItem("$prefix$id.avatarUri")
+                ?: localStorage.getItem("$prefix$id.webp")?.let { "data:image/webp;base64,$it" }
+                ?: return@mapNotNull null
             val name = localStorage.getItem("$prefix$id.name") ?: id
             val openingMessage = localStorage.getItem("$prefix$id.opening").orEmpty()
             val temperature = localStorage.getItem("$prefix$id.temperature")
@@ -40,9 +57,13 @@ private class BrowserCharacterStorage(
             CharacterFiles(
                 id = id,
                 name = name,
-                promptBytes = Base64.decode(prompt),
+                prompt = if (prompt != null) {
+                    storedPrompt
+                } else {
+                    Base64.decode(storedPrompt).decodeToString()
+                },
                 openingMessage = openingMessage,
-                avatarBytes = Base64.decode(avatar),
+                avatarUri = avatarUri,
                 temperature = temperature,
                 topP = topP,
                 createdAt = createdAt,
@@ -50,16 +71,28 @@ private class BrowserCharacterStorage(
         }.sortedBy(CharacterFiles::name)
     }
 
-    override suspend fun saveCharacter(character: CharacterFiles) {
+    override suspend fun saveCharacter(
+        character: CharacterFiles,
+        avatarSource: CharacterAvatarSource?,
+    ): CharacterFiles {
+        val saved = character.copy(avatarUri = avatarSource?.uri ?: character.avatarUri)
         localStorage.setItem("$prefix${character.id}.name", character.name)
-        localStorage.setItem("$prefix${character.id}.md", Base64.encode(character.promptBytes))
+        localStorage.setItem("$prefix${character.id}.prompt", character.prompt)
         localStorage.setItem("$prefix${character.id}.opening", character.openingMessage)
-        localStorage.setItem("$prefix${character.id}.webp", Base64.encode(character.avatarBytes))
+        localStorage.setItem("$prefix${character.id}.avatarUri", saved.avatarUri)
         localStorage.setItem("$prefix${character.id}.temperature", character.temperature.toString())
         localStorage.setItem("$prefix${character.id}.topP", character.topP.toString())
         localStorage.setItem("$prefix${character.id}.createdAt", character.createdAt.toString())
         val names = (loadNames() + character.id).distinct().sorted()
         localStorage.setItem(namesKey, names.joinToString("\n"))
+        return saved
+    }
+
+    override suspend fun deleteCharacter(id: String, deletedAt: Long) {
+        listOf("name", "md", "prompt", "opening", "webp", "avatarUri", "temperature", "topP", "createdAt").forEach { suffix ->
+            localStorage.removeItem("$prefix$id.$suffix")
+        }
+        localStorage.setItem(namesKey, loadNames().filterNot { it == id }.joinToString("\n"))
     }
 
     private fun loadNames(): List<String> {

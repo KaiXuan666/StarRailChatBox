@@ -38,7 +38,8 @@ fun createPersistentRepositories(
             RoomCharacterStorage(
                 dao = database.agentRoleDao(),
                 avatarStorage = FileCharacterAvatarStorage(
-                    context.filesDir.resolve("character_avatars"),
+                    directory = context.filesDir.resolve("character_avatars"),
+                    context = context.applicationContext,
                 ),
             ),
         ),

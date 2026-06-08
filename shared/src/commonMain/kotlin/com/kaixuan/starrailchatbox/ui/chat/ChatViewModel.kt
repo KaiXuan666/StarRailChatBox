@@ -7,6 +7,7 @@ import com.kaixuan.starrailchatbox.data.ai.AiRepository
 import com.kaixuan.starrailchatbox.data.ai.ChatCompletionResult
 import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.character.Character
+import com.kaixuan.starrailchatbox.data.character.CharacterAvatarSource
 import com.kaixuan.starrailchatbox.data.character.CharacterRepository
 import com.kaixuan.starrailchatbox.data.chat.ChatMessageStatus
 import com.kaixuan.starrailchatbox.data.chat.ChatRole
@@ -147,7 +148,10 @@ class ChatViewModel(
                 it.copy(openingMessage = action.openingMessage)
             }
             is ChatAction.CharacterAvatarChanged -> updateCharacterEdit {
-                it.copy(avatarBytes = action.avatarBytes)
+                it.copy(
+                    avatarUri = action.avatarSource.uri,
+                    pendingAvatarSource = action.avatarSource,
+                )
             }
             is ChatAction.CharacterTemperatureChanged -> updateCharacterEdit {
                 it.copy(temperature = action.temperature.coerceIn(0.0, 2.0))
@@ -156,6 +160,7 @@ class ChatViewModel(
                 it.copy(topP = action.topP.coerceIn(0.0, 1.0))
             }
             ChatAction.CharacterSaveClicked -> saveCharacterEdit()
+            is ChatAction.CharacterDeleteClicked -> deleteCharacter(action.characterId)
             is ChatAction.ComposerActionClicked -> handleComposerAction(action.action)
             is ChatAction.CharacterPromptGenClicked -> {
                 val name = uiState.value.characterEdit.name.trim()
@@ -255,7 +260,8 @@ class ChatViewModel(
                         name = "",
                         prompt = "",
                         openingMessage = "",
-                        avatarBytes = byteArrayOf(),
+                        avatarUri = "",
+                        pendingAvatarSource = null,
                         temperature = 0.85,
                         topP = 0.9,
                     )
@@ -292,12 +298,12 @@ class ChatViewModel(
                         name = editState.name.trim(),
                         prompt = editState.prompt,
                         openingMessage = editState.openingMessage,
-                        avatarBytes = editState.avatarBytes,
+                        avatarUri = editState.avatarUri,
                         temperature = editState.temperature.coerceIn(0.0, 2.0),
                         topP = editState.topP.coerceIn(0.0, 1.0),
                         createdAt = currentTimeMillis(),
                     )
-                    characterRepository.updateCharacter(newCharacter)
+                    characterRepository.updateCharacter(newCharacter, editState.pendingAvatarSource)
                 } else {
                     val original = uiState.value.characters.firstOrNull { it.id == characterId }
                         ?: throw IllegalStateException("Character not found")
@@ -306,10 +312,11 @@ class ChatViewModel(
                             name = editState.name.trim(),
                             prompt = editState.prompt,
                             openingMessage = editState.openingMessage,
-                            avatarBytes = editState.avatarBytes,
+                            avatarUri = editState.avatarUri,
                             temperature = editState.temperature.coerceIn(0.0, 2.0),
                             topP = editState.topP.coerceIn(0.0, 1.0),
                         ),
+                        editState.pendingAvatarSource,
                     )
                 }
             }.onSuccess { saved ->
@@ -346,6 +353,35 @@ class ChatViewModel(
                 _effects.send(ChatEffect.CharacterSaved)
             }.onFailure {
                 updateCharacterEdit { it.copy(isSaving = false) }
+                emitMessage(EffectMessage.CHARACTER_SAVE_FAILED)
+            }
+        }
+    }
+
+    private fun deleteCharacter(characterId: String) {
+        viewModelScope.launch {
+            runCatching {
+                characterRepository.deleteCharacter(characterId, currentTimeMillis())
+                characterRepository.loadCharacters()
+            }.onSuccess { characters ->
+                val fallbackId = characters.firstOrNull()?.id
+                _uiState.update { state ->
+                    state.copy(
+                        characters = characters,
+                        selectedCharacterId = if (state.selectedCharacterId == characterId) {
+                            fallbackId
+                        } else {
+                            state.selectedCharacterId?.takeIf { id -> characters.any { it.id == id } } ?: fallbackId
+                        },
+                        characterStates = state.characterStates - characterId,
+                    )
+                }
+                fallbackId?.let {
+                    observeSessions(it)
+                    loadLatestSession(it)
+                }
+                _effects.send(ChatEffect.CharacterDeleted)
+            }.onFailure {
                 emitMessage(EffectMessage.CHARACTER_SAVE_FAILED)
             }
         }
@@ -983,7 +1019,8 @@ private fun Character.toEditUiState() = CharacterEditUiState(
     name = name,
     prompt = prompt,
     openingMessage = openingMessage,
-    avatarBytes = avatarBytes,
+    avatarUri = avatarUri,
+    pendingAvatarSource = null,
     temperature = temperature,
     topP = topP,
     isSaving = false,

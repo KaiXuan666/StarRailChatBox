@@ -3,7 +3,7 @@ package com.kaixuan.starrailchatbox.platform
 import androidx.compose.runtime.Composable
 
 @Composable
-actual fun rememberImagePicker(onImagePicked: (ByteArray?) -> Unit): () -> Unit {
+actual fun rememberImagePicker(onImagePicked: (PickedImage?) -> Unit): () -> Unit {
     return {
         val document = kotlinx.browser.document
         val input = document.createElement("input") as org.w3c.dom.HTMLInputElement
@@ -15,12 +15,9 @@ actual fun rememberImagePicker(onImagePicked: (ByteArray?) -> Unit): () -> Unit 
                 val file = files.item(0)!!
                 val reader = org.w3c.files.FileReader()
                 reader.onload = {
-                    val arrayBuffer = reader.result as org.khronos.webgl.ArrayBuffer
-                    val array = org.khronos.webgl.Int8Array(arrayBuffer)
-                    val bytes = ByteArray(array.length) { i -> array.asDynamic()[i] as Byte }
-                    onImagePicked(bytes)
+                    onImagePicked(PickedImage(reader.result as String))
                 }
-                reader.readAsArrayBuffer(file)
+                reader.readAsDataURL(file)
             } else {
                 onImagePicked(null)
             }

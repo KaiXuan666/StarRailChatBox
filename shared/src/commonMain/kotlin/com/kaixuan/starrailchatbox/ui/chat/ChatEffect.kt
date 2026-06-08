@@ -3,6 +3,7 @@ package com.kaixuan.starrailchatbox.ui.chat
 sealed interface ChatEffect {
     data class ShowMessage(val message: EffectMessage) : ChatEffect
     data object CharacterSaved : ChatEffect
+    data object CharacterDeleted : ChatEffect
 }
 
 enum class EffectMessage {

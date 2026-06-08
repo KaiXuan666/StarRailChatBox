@@ -8,7 +8,7 @@ import javax.swing.JFileChooser
 import javax.swing.filechooser.FileNameExtensionFilter
 
 @Composable
-actual fun rememberImagePicker(onImagePicked: (ByteArray?) -> Unit): () -> Unit {
+actual fun rememberImagePicker(onImagePicked: (PickedImage?) -> Unit): () -> Unit {
     val coroutineScope = rememberCoroutineScope()
     return {
         coroutineScope.launch(Dispatchers.IO) {
@@ -18,13 +18,7 @@ actual fun rememberImagePicker(onImagePicked: (ByteArray?) -> Unit): () -> Unit 
             }
             val result = fileChooser.showOpenDialog(null)
             if (result == JFileChooser.APPROVE_OPTION) {
-                try {
-                    val bytes = fileChooser.selectedFile.readBytes()
-                    onImagePicked(bytes)
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    onImagePicked(null)
-                }
+                onImagePicked(PickedImage(fileChooser.selectedFile.absolutePath))
             } else {
                 onImagePicked(null)
             }

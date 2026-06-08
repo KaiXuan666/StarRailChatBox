@@ -63,9 +63,10 @@ fun ProfileScreen(
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.starRailColors
-    val imagePicker = rememberImagePicker { bytes ->
-        if (bytes != null) {
-            onAction(ProfileAction.AvatarChanged(bytes))
+    val imagePicker = rememberImagePicker { image ->
+        val base64 = image?.uri?.substringAfter("base64,", missingDelimiterValue = "")
+        if (!base64.isNullOrBlank()) {
+            onAction(ProfileAction.AvatarChanged(base64))
         }
     }
 

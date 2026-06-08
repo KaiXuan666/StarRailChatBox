@@ -75,6 +75,7 @@ import starrailchatbox.shared.generated.resources.chat_model_config_required
 import starrailchatbox.shared.generated.resources.chat_request_failed
 import starrailchatbox.shared.generated.resources.chat_empty_response
 import starrailchatbox.shared.generated.resources.character_saved
+import starrailchatbox.shared.generated.resources.character_deleted
 import starrailchatbox.shared.generated.resources.character_name_empty
 import starrailchatbox.shared.generated.resources.character_save_failed
 import starrailchatbox.shared.generated.resources.character_edit_prompt_gen_failed
@@ -136,6 +137,7 @@ fun MainRoute(
         EffectMessage.CHARACTER_NAME_REQUIRED to stringResource(Res.string.character_name_required),
     )
     val characterSavedMessage = stringResource(Res.string.character_saved)
+    val characterDeletedMessage = stringResource(Res.string.character_deleted)
     val settingsEffectMessages = mapOf(
         SettingsEffectMessage.SETTINGS_API_NOT_READY to stringResource(Res.string.settings_api_not_ready),
         SettingsEffectMessage.SETTINGS_UPDATE_CHECK to stringResource(Res.string.settings_update_check),
@@ -155,7 +157,7 @@ fun MainRoute(
         MainEffectMessage.THEME_CHANGED to stringResource(Res.string.theme_changed),
     )
 
-    LaunchedEffect(chat.effects, chatEffectMessages, characterSavedMessage) {
+    LaunchedEffect(chat.effects, chatEffectMessages, characterSavedMessage, characterDeletedMessage) {
         chat.effects.collectLatest { effect ->
             when (effect) {
                 is ChatEffect.ShowMessage -> {
@@ -165,6 +167,10 @@ fun MainRoute(
                 }
                 ChatEffect.CharacterSaved -> {
                     snackbarHostState.showSnackbar(characterSavedMessage)
+                    main.onAction(MainAction.PopBackStack)
+                }
+                ChatEffect.CharacterDeleted -> {
+                    snackbarHostState.showSnackbar(characterDeletedMessage)
                     main.onAction(MainAction.PopBackStack)
                 }
             }
@@ -650,7 +656,7 @@ private val previewCharacter = Character(
     name = "流萤",
     prompt = "Preview prompt",
     openingMessage = "今天要聊点什么呢？",
-    avatarBytes = byteArrayOf(),
+    avatarUri = "",
 )
 
 private val previewChatState = ChatUiState(

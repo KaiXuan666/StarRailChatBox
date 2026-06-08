@@ -8,18 +8,26 @@ class RoomCharacterStorage(
     private val avatarStorage: CharacterAvatarStorage,
     private val currentTimeMillis: () -> Long = { kotlin.time.Clock.System.now().toEpochMilliseconds() },
 ) : CharacterStorage {
-    override suspend fun initializeDefaults(defaults: List<CharacterFiles>) {
+    override suspend fun initializeDefaults(defaults: List<DefaultCharacterAsset>) {
         val now = currentTimeMillis()
         val missingRoles = defaults.mapIndexedNotNull { index, character ->
             if (dao.containsId(character.id)) {
                 null
             } else {
-                val avatarUri = avatarStorage.save(character.id, character.avatarBytes)
-                character.toEntity(
+                val avatarUri = avatarStorage.saveBytes(character.id, character.avatarContent)
+                AgentRoleEntity(
+                    id = character.id,
+                    name = character.name,
                     avatarUri = avatarUri,
-                    isBuiltin = true,
+                    description = "",
+                    systemPrompt = character.prompt,
+                    openingMessage = character.openingMessage,
+                    temperature = character.temperature,
+                    topP = character.topP,
                     sortOrder = index,
+                    isBuiltin = true,
                     createdAt = now,
+                    updatedAt = now,
                 )
             }
         }
@@ -32,10 +40,17 @@ class RoomCharacterStorage(
         return dao.findAll().map { entity -> entity.toCharacterFiles() }
     }
 
-    override suspend fun saveCharacter(character: CharacterFiles) {
+    override suspend fun saveCharacter(
+        character: CharacterFiles,
+        avatarSource: CharacterAvatarSource?,
+    ): CharacterFiles {
         val existing = dao.findById(character.id)
         val now = currentTimeMillis()
-        val avatarUri = avatarStorage.save(character.id, character.avatarBytes)
+        val oldAvatarUri = existing?.avatarUri
+        val avatarUri = avatarSource
+            ?.let { avatarStorage.copyFrom(character.id, it.uri) }
+            ?: character.avatarUri.takeIf(String::isNotBlank)
+            ?: oldAvatarUri.orEmpty()
         val sortOrder = if (existing != null) {
             existing.sortOrder
         } else {
@@ -51,6 +66,18 @@ class RoomCharacterStorage(
                 updatedAt = now,
             ),
         )
+        if (avatarSource != null && oldAvatarUri != null && oldAvatarUri != avatarUri) {
+            avatarStorage.delete(oldAvatarUri)
+        }
+        return character.copy(avatarUri = avatarUri)
+    }
+
+    override suspend fun deleteCharacter(id: String, deletedAt: Long) {
+        val existing = dao.findById(id) ?: return
+        check(dao.softDelete(id, deletedAt) == 1) {
+            "Character does not exist: $id"
+        }
+        avatarStorage.delete(existing.avatarUri)
     }
 
     private fun CharacterFiles.toEntity(
@@ -64,7 +91,7 @@ class RoomCharacterStorage(
         name = name,
         avatarUri = avatarUri,
         description = "",
-        systemPrompt = promptBytes.decodeToString(),
+        systemPrompt = prompt,
         openingMessage = openingMessage,
         temperature = temperature,
         topP = topP,
@@ -77,9 +104,9 @@ class RoomCharacterStorage(
     private fun AgentRoleEntity.toCharacterFiles() = CharacterFiles(
         id = id,
         name = name,
-        promptBytes = systemPrompt.encodeToByteArray(),
+        prompt = systemPrompt,
         openingMessage = openingMessage,
-        avatarBytes = avatarStorage.read(avatarUri),
+        avatarUri = avatarUri,
         temperature = temperature,
         topP = topP,
         createdAt = createdAt,

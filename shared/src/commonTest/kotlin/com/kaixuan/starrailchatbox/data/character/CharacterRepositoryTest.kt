@@ -2,21 +2,22 @@ package com.kaixuan.starrailchatbox.data.character
 
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
-import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class CharacterRepositoryTest {
     @Test
-    fun packagedDefaultsCanBeLoaded() = runTest {
-        val characters = DefaultCharacterRepository(InMemoryCharacterStorage()).loadCharacters()
+    fun injectedDefaultsCanBeLoaded() = runTest {
+        val characters = DefaultCharacterRepository(InMemoryCharacterStorage()) {
+            listOf(characterFiles("流萤"), characterFiles("黄泉"))
+        }.loadCharacters()
 
         assertEquals("流萤", characters.first().name)
-        assertEquals(setOf("三月七", "流萤", "瑕蝶", "黄泉"), characters.map(Character::name).toSet())
+        assertEquals(setOf("流萤", "黄泉"), characters.map(Character::name).toSet())
         characters.forEach { character ->
             assertTrue(character.prompt.isNotBlank())
-            assertEquals("今天要聊点什么呢？", character.openingMessage)
-            assertTrue(character.avatarBytes.isNotEmpty())
+            assertTrue(character.openingMessage.isNotBlank())
+            assertTrue(character.avatarUri.isNotBlank())
         }
     }
 
@@ -40,20 +41,20 @@ class CharacterRepositoryTest {
         val character = repository.addCharacter(
             name = "  银狼  ",
             prompt = "测试 prompt",
-            avatarBytes = byteArrayOf(1, 2, 3),
+            avatarSource = CharacterAvatarSource("picked://silver-wolf"),
         )
 
         assertEquals("银狼", character.id)
         assertEquals("测试 prompt", character.prompt)
-        assertContentEquals(byteArrayOf(1, 2, 3), character.avatarBytes)
+        assertEquals("picked://silver-wolf", character.avatarUri)
         assertEquals(listOf("银狼"), repository.loadCharacters().map(Character::name))
     }
 }
 
-private fun characterFiles(name: String) = CharacterFiles(
+private fun characterFiles(name: String) = DefaultCharacterAsset(
     id = name,
     name = name,
-    promptBytes = "$name prompt".encodeToByteArray(),
+    prompt = "$name prompt",
     openingMessage = "欢迎 $name",
-    avatarBytes = byteArrayOf(1),
+    avatarContent = byteArrayOf(1),
 )

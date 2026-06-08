@@ -1,7 +1,6 @@
 package com.kaixuan.starrailchatbox.ui.chat
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,13 +28,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.painter.BitmapPainter
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import org.jetbrains.compose.resources.decodeToImageBitmap
 import org.jetbrains.compose.resources.stringResource
 import starrailchatbox.shared.generated.resources.Res
 import starrailchatbox.shared.generated.resources.cancel
@@ -59,6 +55,7 @@ import starrailchatbox.shared.generated.resources.navigation_back
 import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
+import com.kaixuan.starrailchatbox.ui.components.AvatarImage
 import com.kaixuan.starrailchatbox.ui.components.BackHandler
 import com.kaixuan.starrailchatbox.ui.components.StarRailDialog
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
@@ -215,21 +212,18 @@ private fun CharacterConversationCard(
             horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            val bitmap = character.avatarBytes.takeIf(ByteArray::isNotEmpty)?.decodeToImageBitmap()
             Surface(
                 modifier = Modifier.size(if (compact) 72.dp else 88.dp),
                 shape = CircleShape,
                 border = BorderStroke(3.dp, MaterialTheme.colorScheme.primary),
                 color = MaterialTheme.colorScheme.primaryContainer,
             ) {
-                if (bitmap != null) {
-                    Image(
-                        painter = BitmapPainter(bitmap),
-                        contentDescription = character.name,
-                        modifier = Modifier.clip(CircleShape),
-                        contentScale = ContentScale.Crop,
-                    )
-                }
+                AvatarImage(
+                    avatarUri = character.avatarUri,
+                    contentDescription = character.name,
+                    placeholderKind = StarRailIconKind.SPARKLE,
+                    placeholderSize = if (compact) 32.dp else 40.dp,
+                )
             }
             Column(
                 modifier = Modifier.weight(1f),
@@ -471,7 +465,7 @@ private fun ConversationManagementPreview(darkTheme: Boolean) {
                         name = "流萤",
                         prompt = "",
                         openingMessage = "",
-                        avatarBytes = byteArrayOf(),
+                        avatarUri = "",
                         createdAt = Clock.System.now().toEpochMilliseconds() - 85L * MillisecondsPerDay,
                     ),
                 ),

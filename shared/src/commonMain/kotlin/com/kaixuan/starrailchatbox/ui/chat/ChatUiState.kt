@@ -2,6 +2,7 @@ package com.kaixuan.starrailchatbox.ui.chat
 
 import androidx.compose.runtime.Immutable
 import com.kaixuan.starrailchatbox.data.character.Character
+import com.kaixuan.starrailchatbox.data.character.CharacterAvatarSource
 
 sealed interface MessageContent {
     data class Custom(val text: String) : MessageContent
@@ -54,45 +55,15 @@ data class CharacterEditUiState(
     val name: String = "",
     val prompt: String = "",
     val openingMessage: String = "",
-    val avatarBytes: ByteArray = byteArrayOf(),
+    val avatarUri: String = "",
+    val pendingAvatarSource: CharacterAvatarSource? = null,
     val temperature: Double = 0.85,
     val topP: Double = 0.9,
     val isSaving: Boolean = false,
     val isPromptGenDialogOpen: Boolean = false,
     val promptGenInputText: String = "",
     val isGeneratingPrompt: Boolean = false,
-) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is CharacterEditUiState) return false
-        return characterId == other.characterId &&
-            name == other.name &&
-            prompt == other.prompt &&
-            openingMessage == other.openingMessage &&
-            avatarBytes.contentEquals(other.avatarBytes) &&
-            temperature == other.temperature &&
-            topP == other.topP &&
-            isSaving == other.isSaving &&
-            isPromptGenDialogOpen == other.isPromptGenDialogOpen &&
-            promptGenInputText == other.promptGenInputText &&
-            isGeneratingPrompt == other.isGeneratingPrompt
-    }
-
-    override fun hashCode(): Int {
-        var result = characterId?.hashCode() ?: 0
-        result = 31 * result + name.hashCode()
-        result = 31 * result + prompt.hashCode()
-        result = 31 * result + openingMessage.hashCode()
-        result = 31 * result + avatarBytes.contentHashCode()
-        result = 31 * result + temperature.hashCode()
-        result = 31 * result + topP.hashCode()
-        result = 31 * result + isSaving.hashCode()
-        result = 31 * result + isPromptGenDialogOpen.hashCode()
-        result = 31 * result + promptGenInputText.hashCode()
-        result = 31 * result + isGeneratingPrompt.hashCode()
-        return result
-    }
-}
+)
 
 @Immutable
 data class ChatUiState(

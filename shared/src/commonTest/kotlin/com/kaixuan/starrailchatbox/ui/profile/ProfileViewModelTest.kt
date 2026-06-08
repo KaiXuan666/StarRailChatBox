@@ -61,8 +61,7 @@ class ProfileViewModelTest {
         val viewModel = createViewModel(scope = this)
         runCurrent()
 
-        val bytes = byteArrayOf(1, 2, 3, 4)
-        viewModel.onAction(ProfileAction.AvatarChanged(bytes))
+        viewModel.onAction(ProfileAction.AvatarChanged("AQIDBA=="))
         // "AQIDBA==" is the Base64 encoding of [1, 2, 3, 4]
         assertEquals("AQIDBA==", viewModel.uiState.value.customAvatarBase64)
     }
@@ -84,7 +83,7 @@ class ProfileViewModelTest {
         runCurrent()
 
         viewModel.onAction(ProfileAction.NicknameChanged(" 丹恒 "))
-        viewModel.onAction(ProfileAction.AvatarChanged(byteArrayOf(10, 20)))
+        viewModel.onAction(ProfileAction.AvatarChanged("ChQ="))
         
         val effect = async { viewModel.effects.first { it is ProfileEffect.ProfileSaved } }
         

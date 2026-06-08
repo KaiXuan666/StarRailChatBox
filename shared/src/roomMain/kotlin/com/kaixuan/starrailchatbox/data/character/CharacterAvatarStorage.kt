@@ -1,9 +1,11 @@
 package com.kaixuan.starrailchatbox.data.character
 
 interface CharacterAvatarStorage {
-    fun save(characterId: String, avatarBytes: ByteArray): String
+    fun saveBytes(characterId: String, avatarBytes: ByteArray): String
 
-    fun read(avatarUri: String): ByteArray
+    fun copyFrom(characterId: String, sourceUri: String): String
+
+    fun delete(avatarUri: String)
 }
 
 internal fun characterAvatarFileName(characterId: String): String {

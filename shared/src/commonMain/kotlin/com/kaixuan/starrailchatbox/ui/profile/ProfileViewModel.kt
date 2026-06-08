@@ -1,12 +1,9 @@
-@file:OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
-
 package com.kaixuan.starrailchatbox.ui.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kaixuan.starrailchatbox.data.settings.ProfileStore
 import com.kaixuan.starrailchatbox.data.settings.UserProfile
-import kotlin.io.encoding.Base64
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,8 +41,7 @@ class ProfileViewModel(
                 _uiState.update { it.copy(nickname = action.name) }
             }
             is ProfileAction.AvatarChanged -> {
-                val base64 = action.avatarBytes?.let { Base64.encode(it) }
-                _uiState.update { it.copy(customAvatarBase64 = base64) }
+                _uiState.update { it.copy(customAvatarBase64 = action.avatarBase64) }
             }
             ProfileAction.RestoreDefaultAvatar -> {
                 _uiState.update { it.copy(customAvatarBase64 = null) }

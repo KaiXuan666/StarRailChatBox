@@ -2,7 +2,6 @@ package com.kaixuan.starrailchatbox.ui.chat
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -55,8 +54,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.painter.BitmapPainter
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -64,7 +61,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.StringResource
-import org.jetbrains.compose.resources.decodeToImageBitmap
 import org.jetbrains.compose.resources.stringResource
 import starrailchatbox.shared.generated.resources.Res
 import starrailchatbox.shared.generated.resources.action_character_edit
@@ -91,6 +87,7 @@ import starrailchatbox.shared.generated.resources.today
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.starRailColors
 import com.kaixuan.starrailchatbox.data.character.Character
+import com.kaixuan.starrailchatbox.ui.components.AvatarImage
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -668,11 +665,6 @@ fun CharacterAvatar(
     selected: Boolean,
     contentDescription: String?,
 ) {
-    val painter = remember(character.avatarBytes) {
-        runCatching {
-            BitmapPainter(character.avatarBytes.decodeToImageBitmap())
-        }.getOrNull()
-    }
     val ringBrush = if (selected) {
         Brush.linearGradient(
             listOf(
@@ -696,21 +688,12 @@ fun CharacterAvatar(
             .background(MaterialTheme.colorScheme.surface, CircleShape),
         contentAlignment = Alignment.Center,
     ) {
-        if (painter != null) {
-            Image(
-                painter = painter,
-                contentDescription = contentDescription,
-                modifier = Modifier.fillMaxSize().clip(CircleShape),
-                contentScale = ContentScale.Crop,
-            )
-        } else {
-            StarRailIcon(
-                kind = StarRailIconKind.PROFILE,
-                contentDescription = contentDescription,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(size / 2),
-            )
-        }
+        AvatarImage(
+            avatarUri = character.avatarUri,
+            contentDescription = contentDescription,
+            placeholderKind = StarRailIconKind.PROFILE,
+            placeholderSize = size / 2,
+        )
     }
 }
 
@@ -1257,7 +1240,7 @@ private fun previewCharacter(
     name = name,
     prompt = "Preview prompt for $name",
     openingMessage = "今天要聊点什么呢？",
-    avatarBytes = byteArrayOf(),
+    avatarUri = "",
 )
 
 @Preview

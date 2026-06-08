@@ -64,6 +64,7 @@
     <string name="emoji_not_ready">表情功能正在准备中</string>
     <string name="microphone_not_ready">录音功能正在准备中</string>
     <string name="character_saved">角色已保存</string>
+    <string name="character_deleted">角色已删除</string>
     <string name="character_name_empty">角色名称不能为空</string>
     <string name="character_name_required">请先输入角色名称</string>
     <string name="character_save_failed">角色保存失败</string>
@@ -86,6 +87,10 @@
     <string name="character_edit_prompt_gen_generating">生成中...</string>
     <string name="character_edit_prompt_gen_failed">自动生成提示词失败，请检查 API 配置和网络状态</string>
     <string name="character_edit_save">保存</string>
+    <string name="character_edit_delete">删除角色</string>
+    <string name="character_edit_delete_confirm_title">删除角色？</string>
+    <string name="character_edit_delete_confirm_message">确定删除“%1$s”吗？关联头像文件会一并删除。</string>
+    <string name="character_edit_delete_confirm_action">删除</string>
     
     <!-- 个人信息界面 -->
     <string name="settings_profile_title">个人信息</string>
