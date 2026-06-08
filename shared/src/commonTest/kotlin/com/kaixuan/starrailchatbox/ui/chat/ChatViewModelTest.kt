@@ -225,6 +225,101 @@ class ChatViewModelTest {
         assertEquals(ChatEffect.CharacterSaved, fixture.viewModel.effects.first())
     }
 
+    @Test
+    fun promptGenWithoutNameEmitsError() = runTest {
+        val fixture = createFixture()
+        advanceUntilIdle()
+
+        fixture.viewModel.onAction(ChatAction.CharacterEditOpened(null))
+        fixture.viewModel.onAction(ChatAction.CharacterPromptGenClicked("请帮我设计一个流萤的提示词"))
+        advanceUntilIdle()
+
+        val state = fixture.viewModel.uiState.value
+        assertFalse(state.characterEdit.isPromptGenDialogOpen)
+        assertEquals(
+            ChatEffect.ShowMessage(EffectMessage.CHARACTER_NAME_REQUIRED),
+            fixture.viewModel.effects.first(),
+        )
+    }
+
+    @Test
+    fun promptGenWithNameOpensDialog() = runTest {
+        val fixture = createFixture()
+        advanceUntilIdle()
+
+        fixture.viewModel.onAction(ChatAction.CharacterEditOpened(null))
+        fixture.viewModel.onAction(ChatAction.CharacterNameChanged("流萤"))
+        fixture.viewModel.onAction(ChatAction.CharacterPromptGenClicked("请帮我设计一个流萤的提示词"))
+        advanceUntilIdle()
+
+        val state = fixture.viewModel.uiState.value
+        assertEquals(true, state.characterEdit.isPromptGenDialogOpen)
+        assertEquals("请帮我设计一个流萤的提示词", state.characterEdit.promptGenInputText)
+    }
+
+    @Test
+    fun promptGenConfirmTriggersApiAndUpdatesPrompt() = runTest {
+        val fixture = createFixture()
+        advanceUntilIdle()
+
+        fixture.viewModel.onAction(ChatAction.CharacterEditOpened(null))
+        fixture.viewModel.onAction(ChatAction.CharacterNameChanged("流萤"))
+        fixture.viewModel.onAction(ChatAction.CharacterPromptGenClicked("请帮我设计一个流萤的提示词"))
+        fixture.viewModel.onAction(ChatAction.CharacterPromptGenConfirmClicked)
+        advanceUntilIdle()
+
+        val state = fixture.viewModel.uiState.value
+        assertEquals(false, state.characterEdit.isPromptGenDialogOpen)
+        assertEquals(false, state.characterEdit.isGeneratingPrompt)
+        assertEquals("你好呀", state.characterEdit.prompt)
+
+        val lastRequest = fixture.api.requests.last()
+        assertEquals(1, lastRequest.size)
+        assertEquals("user", lastRequest.first().role)
+        assertEquals("请帮我设计一个流萤的提示词", lastRequest.first().content)
+    }
+
+    @Test
+    fun promptGenConfirmFailureEmitsError() = runTest {
+        val api = object : FakeOpenAiRepository() {
+            override suspend fun createPromptCompletion(
+                config: ModelConfig,
+                messages: List<AiMessage>,
+            ): ApiResult<ChatCompletionResult> {
+                return ApiResult.NetworkError("Network issue")
+            }
+        }
+
+        var id = 0
+        val sessions = InMemoryChatSessionRepository()
+        val viewModel = ChatViewModel(
+            characterRepository = FakeCharacterRepository,
+            chatSessionRepository = sessions,
+            modelConfigRepository = InMemoryModelConfigRepository(testConfig()),
+            aiRepository = api,
+            currentTimeMillis = { 60_000L },
+            idGenerator = { prefix -> "$prefix-${++id}" },
+            sessionTitleProvider = { "新对话" },
+            timeFormatter = { "local-$it" },
+        )
+
+        val fixture = Fixture(viewModel, sessions, api)
+        advanceUntilIdle()
+
+        fixture.viewModel.onAction(ChatAction.CharacterEditOpened(null))
+        fixture.viewModel.onAction(ChatAction.CharacterNameChanged("流萤"))
+        fixture.viewModel.onAction(ChatAction.CharacterPromptGenClicked("请帮我设计一个流萤的提示词"))
+        fixture.viewModel.onAction(ChatAction.CharacterPromptGenConfirmClicked)
+        advanceUntilIdle()
+
+        val state = fixture.viewModel.uiState.value
+        assertEquals(false, state.characterEdit.isGeneratingPrompt)
+        assertEquals(
+            ChatEffect.ShowMessage(EffectMessage.PROMPT_GEN_FAILED),
+            fixture.viewModel.effects.first(),
+        )
+    }
+
     private fun createFixture(
         config: ModelConfig? = testConfig(),
         characterRepository: CharacterRepository = FakeCharacterRepository,
@@ -323,7 +418,7 @@ private class EditableCharacterRepository : CharacterRepository {
     }
 }
 
-private class FakeOpenAiRepository : AiRepository {
+private open class FakeOpenAiRepository : AiRepository {
     val requests = mutableListOf<List<AiMessage>>()
 
     override suspend fun getModels(
@@ -336,6 +431,22 @@ private class FakeOpenAiRepository : AiRepository {
         config: ModelConfig,
         messages: List<AiMessage>,
         characterName: String,
+    ): ApiResult<ChatCompletionResult> {
+        requests += messages
+        return ApiResult.Success(
+            ChatCompletionResult(
+                content = "你好呀",
+                finishReason = "stop",
+                promptTokens = 10,
+                completionTokens = 2,
+                totalTokens = 12,
+            ),
+        )
+    }
+
+    override suspend fun createPromptCompletion(
+        config: ModelConfig,
+        messages: List<AiMessage>,
     ): ApiResult<ChatCompletionResult> {
         requests += messages
         return ApiResult.Success(

@@ -23,6 +23,11 @@ interface AiRepository {
         characterName: String,
     ): ApiResult<ChatCompletionResult>
 
+    suspend fun createPromptCompletion(
+        config: ModelConfig,
+        messages: List<AiMessage>,
+    ): ApiResult<ChatCompletionResult> = ApiResult.UnexpectedError("createPromptCompletion not implemented")
+
     suspend fun createConversationSummary(
         config: ModelConfig,
         messages: List<AiMessage>,
@@ -109,6 +114,43 @@ class DefaultAiRepository(
                         completionTokens = completion.usage.completionTokens,
                         totalTokens = completion.usage.totalTokens,
                         suggestions = completion.suggestions,
+                    ),
+                )
+            }
+            is ApiResult.HttpError -> result
+            is ApiResult.NetworkError -> result
+            is ApiResult.UnexpectedError -> result
+        }
+    }
+
+    override suspend fun createPromptCompletion(
+        config: ModelConfig,
+        messages: List<AiMessage>,
+    ): ApiResult<ChatCompletionResult> {
+        val provider = providerRegistry.find(config.provider)
+            ?: return ApiResult.UnexpectedError("Unknown AI provider: ${config.provider}")
+        return when (
+            val result = provider.complete(
+                config = config.toProviderConfig(),
+                request = AiChatRequest(
+                    model = config.modelName,
+                    messages = messages,
+                    temperature = config.temperature,
+                    topP = config.topP,
+                    maxTokens = 1024,
+                    toolChoice = ToolChoice.None,
+                ),
+            )
+        ) {
+            is ApiResult.Success -> {
+                val completion = result.value
+                ApiResult.Success(
+                    ChatCompletionResult(
+                        content = completion.message.content.orEmpty(),
+                        finishReason = completion.finishReason,
+                        promptTokens = completion.usage.promptTokens,
+                        completionTokens = completion.usage.completionTokens,
+                        totalTokens = completion.usage.totalTokens,
                     ),
                 )
             }

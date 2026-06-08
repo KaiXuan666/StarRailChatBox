@@ -65,9 +65,10 @@
     <string name="microphone_not_ready">录音功能正在准备中</string>
     <string name="character_saved">角色已保存</string>
     <string name="character_name_empty">角色名称不能为空</string>
+    <string name="character_name_required">请先输入角色名称</string>
     <string name="character_save_failed">角色保存失败</string>
     <string name="theme_changed">已切换主题显示模式</string>
-
+ 
     <!-- 角色编辑界面 -->
     <string name="character_edit_title">角色编辑</string>
     <string name="character_edit_avatar">头像</string>
@@ -79,6 +80,11 @@
     <string name="character_edit_temperature_hint">控制回复的随机性。较低值（如 0.2）更稳定保守，较高值（如 0.85）更具创意。角色聊天建议设置为 0.7 - 1.0。</string>
     <string name="character_edit_top_p">Top P</string>
     <string name="character_edit_top_p_hint">控制词汇采样的可能性范围。通常建议保持默认（1.0）或设置为 0.85 - 0.95，一般不与 Temperature 同步大幅微调。</string>
+    <string name="character_edit_prompt_gen_btn">帮我生成</string>
+    <string name="character_edit_prompt_gen_title">角色Prompt自动生成</string>
+    <string name="character_edit_prompt_gen_default_input">请帮我设计一个%1$s的角色扮演提示词，要求包含角色背景、标志性说话风格、详细的行为准则（Rules），并使用清晰的 Markdown 结构化格式输出。</string>
+    <string name="character_edit_prompt_gen_generating">生成中...</string>
+    <string name="character_edit_prompt_gen_failed">自动生成提示词失败，请检查 API 配置和网络状态</string>
     <string name="character_edit_save">保存</string>
     
     <!-- 个人信息界面 -->

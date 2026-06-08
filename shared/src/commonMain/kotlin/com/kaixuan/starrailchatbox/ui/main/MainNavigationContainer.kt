@@ -77,6 +77,8 @@ import starrailchatbox.shared.generated.resources.chat_empty_response
 import starrailchatbox.shared.generated.resources.character_saved
 import starrailchatbox.shared.generated.resources.character_name_empty
 import starrailchatbox.shared.generated.resources.character_save_failed
+import starrailchatbox.shared.generated.resources.character_edit_prompt_gen_failed
+import starrailchatbox.shared.generated.resources.character_name_required
 import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
@@ -130,6 +132,8 @@ fun MainRoute(
         EffectMessage.CHAT_EMPTY_RESPONSE to stringResource(Res.string.chat_empty_response),
         EffectMessage.CHARACTER_NAME_EMPTY to stringResource(Res.string.character_name_empty),
         EffectMessage.CHARACTER_SAVE_FAILED to stringResource(Res.string.character_save_failed),
+        EffectMessage.PROMPT_GEN_FAILED to stringResource(Res.string.character_edit_prompt_gen_failed),
+        EffectMessage.CHARACTER_NAME_REQUIRED to stringResource(Res.string.character_name_required),
     )
     val characterSavedMessage = stringResource(Res.string.character_saved)
     val settingsEffectMessages = mapOf(

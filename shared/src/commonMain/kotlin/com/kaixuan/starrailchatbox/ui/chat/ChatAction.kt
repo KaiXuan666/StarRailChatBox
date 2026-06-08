@@ -18,6 +18,10 @@ sealed interface ChatAction {
     data class CharacterTopPChanged(val topP: Double) : ChatAction
     data object CharacterSaveClicked : ChatAction
     data class ComposerActionClicked(val action: ComposerAction) : ChatAction
+    data class CharacterPromptGenClicked(val defaultPromptRequestText: String) : ChatAction
+    data class CharacterPromptGenInputChanged(val text: String) : ChatAction
+    data object CharacterPromptGenConfirmClicked : ChatAction
+    data object CharacterPromptGenCancelClicked : ChatAction
 }
 
 enum class HeaderAction {

@@ -58,6 +58,9 @@ data class CharacterEditUiState(
     val temperature: Double = 0.85,
     val topP: Double = 0.9,
     val isSaving: Boolean = false,
+    val isPromptGenDialogOpen: Boolean = false,
+    val promptGenInputText: String = "",
+    val isGeneratingPrompt: Boolean = false,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -69,7 +72,10 @@ data class CharacterEditUiState(
             avatarBytes.contentEquals(other.avatarBytes) &&
             temperature == other.temperature &&
             topP == other.topP &&
-            isSaving == other.isSaving
+            isSaving == other.isSaving &&
+            isPromptGenDialogOpen == other.isPromptGenDialogOpen &&
+            promptGenInputText == other.promptGenInputText &&
+            isGeneratingPrompt == other.isGeneratingPrompt
     }
 
     override fun hashCode(): Int {
@@ -81,6 +87,9 @@ data class CharacterEditUiState(
         result = 31 * result + temperature.hashCode()
         result = 31 * result + topP.hashCode()
         result = 31 * result + isSaving.hashCode()
+        result = 31 * result + isPromptGenDialogOpen.hashCode()
+        result = 31 * result + promptGenInputText.hashCode()
+        result = 31 * result + isGeneratingPrompt.hashCode()
         return result
     }
 }

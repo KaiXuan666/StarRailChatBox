@@ -42,6 +42,7 @@ import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
 import com.kaixuan.starrailchatbox.platform.rememberImagePicker
 import com.kaixuan.starrailchatbox.ui.components.BackHandler
+import com.kaixuan.starrailchatbox.ui.components.StarRailDialog
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
@@ -61,7 +62,12 @@ import starrailchatbox.shared.generated.resources.character_edit_temperature_hin
 import starrailchatbox.shared.generated.resources.character_edit_title
 import starrailchatbox.shared.generated.resources.character_edit_top_p
 import starrailchatbox.shared.generated.resources.character_edit_top_p_hint
+import starrailchatbox.shared.generated.resources.character_edit_prompt_gen_btn
+import starrailchatbox.shared.generated.resources.character_edit_prompt_gen_title
+import starrailchatbox.shared.generated.resources.character_edit_prompt_gen_default_input
+import starrailchatbox.shared.generated.resources.character_edit_prompt_gen_generating
 import starrailchatbox.shared.generated.resources.cancel
+import starrailchatbox.shared.generated.resources.confirm
 import starrailchatbox.shared.generated.resources.navigation_back
 import starrailchatbox.shared.generated.resources.settings_saving
 import kotlin.math.roundToInt
@@ -113,6 +119,10 @@ fun CharacterEditScreen(
             },
         )
 
+        val defaultPromptRequestText = stringResource(
+            Res.string.character_edit_prompt_gen_default_input,
+            editState.name
+        )
         CharacterTextCard(
             title = stringResource(Res.string.character_edit_system_prompt),
             value = editState.prompt,
@@ -121,6 +131,46 @@ fun CharacterEditScreen(
             onValueChange = { prompt ->
                 onAction(ChatAction.CharacterPromptChanged(prompt.take(MaxPromptLength)))
             },
+            actionButton = {
+                Surface(
+                    onClick = {
+                        onAction(ChatAction.CharacterPromptGenClicked(defaultPromptRequestText))
+                    },
+                    shape = MaterialTheme.shapes.extraLarge,
+                    color = if (editState.isGeneratingPrompt) {
+                        MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f)
+                    } else {
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f)
+                    },
+                    border = BorderStroke(
+                        1.dp,
+                        if (editState.isGeneratingPrompt) {
+                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)
+                        } else {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                        }
+                    ),
+                    enabled = !editState.isGeneratingPrompt,
+                ) {
+                    Text(
+                        text = stringResource(
+                            if (editState.isGeneratingPrompt) {
+                                Res.string.character_edit_prompt_gen_generating
+                            } else {
+                                Res.string.character_edit_prompt_gen_btn
+                            }
+                        ),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        color = if (editState.isGeneratingPrompt) {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        },
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
         )
 
         CharacterTextCard(
@@ -183,6 +233,24 @@ fun CharacterEditScreen(
                 onClick = { onAction(ChatAction.CharacterSaveClicked) },
                 modifier = Modifier.weight(1f),
                 enabled = !editState.isSaving,
+            )
+        }
+    }
+
+    if (editState.isPromptGenDialogOpen) {
+        StarRailDialog(
+            title = stringResource(Res.string.character_edit_prompt_gen_title),
+            dismissText = stringResource(Res.string.cancel),
+            confirmText = stringResource(Res.string.confirm),
+            onDismissRequest = { onAction(ChatAction.CharacterPromptGenCancelClicked) },
+            onConfirm = { onAction(ChatAction.CharacterPromptGenConfirmClicked) },
+        ) {
+            LabeledTextField(
+                value = editState.promptGenInputText,
+                onValueChange = { text ->
+                    onAction(ChatAction.CharacterPromptGenInputChanged(text))
+                },
+                minLines = 4,
             )
         }
     }
@@ -314,6 +382,7 @@ private fun CharacterTextCard(
     maxLength: Int,
     minLines: Int,
     onValueChange: (String) -> Unit,
+    actionButton: @Composable (() -> Unit)? = null,
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -325,12 +394,21 @@ private fun CharacterTextCard(
             modifier = Modifier.padding(horizontal = StarRailSpacing.md, vertical = StarRailSpacing.sm),
             verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
         ) {
-            Text(
-                text = title,
-                color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = title,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                if (actionButton != null) {
+                    actionButton()
+                }
+            }
             LabeledTextField(
                 value = value,
                 onValueChange = onValueChange,

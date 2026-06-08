@@ -2,6 +2,7 @@ package com.kaixuan.starrailchatbox.ui.chat
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kaixuan.starrailchatbox.data.ai.AiMessage
 import com.kaixuan.starrailchatbox.data.ai.AiRepository
 import com.kaixuan.starrailchatbox.data.ai.ChatCompletionResult
 import com.kaixuan.starrailchatbox.data.api.ApiResult
@@ -156,6 +157,83 @@ class ChatViewModel(
             }
             ChatAction.CharacterSaveClicked -> saveCharacterEdit()
             is ChatAction.ComposerActionClicked -> handleComposerAction(action.action)
+            is ChatAction.CharacterPromptGenClicked -> {
+                val name = uiState.value.characterEdit.name.trim()
+                if (name.isEmpty()) {
+                    emitMessage(EffectMessage.CHARACTER_NAME_REQUIRED)
+                } else {
+                    updateCharacterEdit {
+                        it.copy(
+                            isPromptGenDialogOpen = true,
+                            promptGenInputText = action.defaultPromptRequestText
+                        )
+                    }
+                }
+            }
+            is ChatAction.CharacterPromptGenInputChanged -> {
+                updateCharacterEdit {
+                    it.copy(promptGenInputText = action.text)
+                }
+            }
+            ChatAction.CharacterPromptGenCancelClicked -> {
+                updateCharacterEdit {
+                    it.copy(isPromptGenDialogOpen = false)
+                }
+            }
+            ChatAction.CharacterPromptGenConfirmClicked -> {
+                val inputPrompt = uiState.value.characterEdit.promptGenInputText
+                val characterName = uiState.value.characterEdit.name
+                updateCharacterEdit {
+                    it.copy(
+                        isPromptGenDialogOpen = false,
+                        isGeneratingPrompt = true
+                    )
+                }
+                viewModelScope.launch {
+                    try {
+                        val config = modelConfigRepository.getDefault()
+                            ?.takeIf(ModelConfig::isUsable)
+                        if (config == null) {
+                            emitMessage(EffectMessage.MODEL_CONFIG_REQUIRED)
+                            updateCharacterEdit { it.copy(isGeneratingPrompt = false) }
+                            return@launch
+                        }
+
+                        val requestMessages = listOf(
+                            AiMessage(
+                                role = ChatRole.USER.apiValue,
+                                content = inputPrompt
+                            )
+                        )
+
+                        when (val result = aiRepository.createPromptCompletion(config, requestMessages)) {
+                            is ApiResult.Success -> {
+                                val generatedPrompt = result.value.content.trim()
+                                if (generatedPrompt.isNotEmpty()) {
+                                    updateCharacterEdit {
+                                        it.copy(
+                                            prompt = generatedPrompt,
+                                            isGeneratingPrompt = false
+                                        )
+                                    }
+                                } else {
+                                    emitMessage(EffectMessage.PROMPT_GEN_FAILED)
+                                    updateCharacterEdit { it.copy(isGeneratingPrompt = false) }
+                                }
+                            }
+                            else -> {
+                                emitMessage(EffectMessage.PROMPT_GEN_FAILED)
+                                updateCharacterEdit { it.copy(isGeneratingPrompt = false) }
+                            }
+                        }
+                    } catch (cancellation: CancellationException) {
+                        throw cancellation
+                    } catch (e: Throwable) {
+                        emitMessage(EffectMessage.PROMPT_GEN_FAILED)
+                        updateCharacterEdit { it.copy(isGeneratingPrompt = false) }
+                    }
+                }
+            }
         }
     }
 
