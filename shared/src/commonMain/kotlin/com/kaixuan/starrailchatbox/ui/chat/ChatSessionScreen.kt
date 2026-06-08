@@ -39,8 +39,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Button
@@ -132,6 +133,15 @@ import starrailchatbox.shared.generated.resources.hold_to_speak
 import starrailchatbox.shared.generated.resources.release_to_send
 import starrailchatbox.shared.generated.resources.release_to_cancel
 
+import androidx.compose.runtime.DisposableEffect
+import com.kaixuan.starrailchatbox.platform.rememberAudioPlayer
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+
 /**
  * 聊天会话主屏组件 (原 ChatContent 模块)
  */
@@ -196,6 +206,14 @@ fun ChatSessionScreen(
 
     var attachmentsToShow by remember { mutableStateOf<List<MessageAttachment>?>(null) }
     val uriHandler = LocalUriHandler.current
+
+    val audioPlayer = rememberAudioPlayer()
+    var playingAudioUri by remember { mutableStateOf<String?>(null) }
+    DisposableEffect(audioPlayer) {
+        onDispose {
+            audioPlayer.release()
+        }
+    }
 
     if (attachmentsToShow != null) {
         AttachmentsDialog(
@@ -394,11 +412,26 @@ fun ChatSessionScreen(
                                     charactersById = charactersById,
                                     userAvatarUri = state.userAvatarUri,
                                     compact = compact,
+                                    playingAudioUri = playingAudioUri,
                                     onViewAttachments = { attachments ->
                                         attachmentsToShow = attachments
                                     },
                                     onOpenAttachment = { attachment ->
-                                        uriHandler.openUri(attachment.uri)
+                                        if (attachment.mimeType.startsWith("audio/")) {
+                                            if (playingAudioUri == attachment.uri) {
+                                                audioPlayer.stop()
+                                                playingAudioUri = null
+                                            } else {
+                                                playingAudioUri = attachment.uri
+                                                audioPlayer.play(attachment.uri) {
+                                                    if (playingAudioUri == attachment.uri) {
+                                                        playingAudioUri = null
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            uriHandler.openUri(attachment.uri)
+                                        }
                                     }
                                 )
                             }
@@ -946,6 +979,7 @@ private fun MessageItem(
     charactersById: Map<String, Character>,
     userAvatarUri: String?,
     compact: Boolean,
+    playingAudioUri: String?,
     onViewAttachments: (List<MessageAttachment>) -> Unit,
     onOpenAttachment: (MessageAttachment) -> Unit,
 ) {
@@ -954,6 +988,7 @@ private fun MessageItem(
             message = message,
             sender = charactersById[message.senderId],
             compact = compact,
+            playingAudioUri = playingAudioUri,
             onViewAttachments = onViewAttachments,
             onOpenAttachment = onOpenAttachment,
         )
@@ -961,6 +996,7 @@ private fun MessageItem(
             message = message,
             userAvatarUri = userAvatarUri,
             compact = compact,
+            playingAudioUri = playingAudioUri,
             onViewAttachments = onViewAttachments,
             onOpenAttachment = onOpenAttachment,
         )
@@ -972,6 +1008,7 @@ private fun ReceivedMessage(
     message: ChatMessageUiModel.Received,
     sender: Character?,
     compact: Boolean,
+    playingAudioUri: String?,
     onViewAttachments: (List<MessageAttachment>) -> Unit,
     onOpenAttachment: (MessageAttachment) -> Unit,
 ) {
@@ -983,37 +1020,73 @@ private fun ReceivedMessage(
         text,
         message.timestamp,
     )
+    val isVoiceOnly = text.isBlank() && message.attachments.size == 1 && message.attachments.first().mimeType.startsWith("audio/")
+
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
             .semantics { contentDescription = semanticDescription },
     ) {
         val bubbleMaxWidth = maxWidth * if (compact) 0.72f else 0.74f
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
-            verticalAlignment = Alignment.Top,
-        ) {
-            if (sender != null) {
-                CharacterAvatar(
-                    character = sender,
-                    size = if (compact) 40.dp else 44.dp,
-                    selected = true,
-                    contentDescription = null,
-                )
-            }
+
+        if (isVoiceOnly) {
             Column(
-                modifier = Modifier.widthIn(max = bubbleMaxWidth),
-                verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs)
             ) {
-                val isVoiceOnly = text.isBlank() && message.attachments.size == 1 && message.attachments.first().mimeType.startsWith("audio/")
-                if (isVoiceOnly) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (sender != null) {
+                        CharacterAvatar(
+                            character = sender,
+                            size = if (compact) 40.dp else 44.dp,
+                            selected = true,
+                            contentDescription = null,
+                        )
+                    }
                     VoiceMessageBubble(
                         durationMs = message.attachments.first().durationMs ?: 0L,
                         compact = compact,
                         isSent = false,
+                        isPlaying = playingAudioUri == message.attachments.first().uri,
                         onClick = { onOpenAttachment(message.attachments.first()) }
                     )
-                } else {
+                }
+                Row(
+                    modifier = Modifier.padding(
+                        start = if (sender != null) {
+                            (if (compact) 40.dp else 44.dp) + StarRailSpacing.sm
+                        } else 0.dp
+                    ),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm)
+                ) {
+                    Text(
+                        text = message.timestamp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+        } else {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
+                verticalAlignment = Alignment.Top,
+            ) {
+                if (sender != null) {
+                    CharacterAvatar(
+                        character = sender,
+                        size = if (compact) 40.dp else 44.dp,
+                        selected = true,
+                        contentDescription = null,
+                    )
+                }
+                Column(
+                    modifier = Modifier.widthIn(max = bubbleMaxWidth),
+                    verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
+                ) {
                     Surface(
                         shape = MaterialTheme.shapes.large,
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -1042,27 +1115,27 @@ private fun ReceivedMessage(
                             )
                         }
                     }
-                }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm)
-                ) {
-                    val attachments = message.attachments
-                    val hasAttachmentsBtn = !(attachments.size == 1 && attachments.first().mimeType.startsWith("image/")) && attachments.isNotEmpty()
-                    if (hasAttachmentsBtn) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm)
+                    ) {
+                        val attachments = message.attachments
+                        val hasAttachmentsBtn = !(attachments.size == 1 && attachments.first().mimeType.startsWith("image/")) && attachments.isNotEmpty()
+                        if (hasAttachmentsBtn) {
+                            Text(
+                                text = stringResource(Res.string.view_attachments),
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.labelMedium,
+                                textDecoration = TextDecoration.Underline,
+                                modifier = Modifier.clickable { onViewAttachments(attachments) }
+                            )
+                        }
                         Text(
-                            text = stringResource(Res.string.view_attachments),
-                            color = MaterialTheme.colorScheme.primary,
-                            style = MaterialTheme.typography.labelMedium,
-                            textDecoration = TextDecoration.Underline,
-                            modifier = Modifier.clickable { onViewAttachments(attachments) }
+                            text = message.timestamp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall,
                         )
                     }
-                    Text(
-                        text = message.timestamp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
                 }
             }
         }
@@ -1074,6 +1147,7 @@ private fun SentMessage(
     message: ChatMessageUiModel.Sent,
     userAvatarUri: String?,
     compact: Boolean,
+    playingAudioUri: String?,
     onViewAttachments: (List<MessageAttachment>) -> Unit,
     onOpenAttachment: (MessageAttachment) -> Unit,
 ) {
@@ -1083,31 +1157,85 @@ private fun SentMessage(
         text,
         message.timestamp,
     )
+    val isVoiceOnly = text.isBlank() && message.attachments.size == 1 && message.attachments.first().mimeType.startsWith("audio/")
+
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
             .semantics { contentDescription = semanticDescription },
     ) {
         val bubbleMaxWidth = maxWidth * if (compact) 0.72f else 0.74f
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.Top,
-        ) {
+
+        if (isVoiceOnly) {
             Column(
-                modifier = Modifier.widthIn(max = bubbleMaxWidth),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
+                verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs)
             ) {
-                val isVoiceOnly = text.isBlank() && message.attachments.size == 1 && message.attachments.first().mimeType.startsWith("audio/")
-                if (isVoiceOnly) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     VoiceMessageBubble(
                         durationMs = message.attachments.first().durationMs ?: 0L,
                         compact = compact,
                         isSent = true,
+                        isPlaying = playingAudioUri == message.attachments.first().uri,
                         onClick = { onOpenAttachment(message.attachments.first()) }
                     )
-                } else {
+                    Spacer(Modifier.width(StarRailSpacing.sm))
+                    Surface(
+                        modifier = Modifier.size(if (compact) 32.dp else 48.dp),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.starRailColors.sentBubbleBorder,
+                        ),
+                    ) {
+                        AvatarImage(
+                            avatarUri = userAvatarUri.orEmpty(),
+                            contentDescription = null,
+                            placeholderKind = StarRailIconKind.SPARKLE,
+                            placeholderSize = if (compact) 18.dp else 26.dp,
+                            isUser = true,
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier.padding(
+                        end = (if (compact) 32.dp else 48.dp) + StarRailSpacing.sm
+                    ),
+                    horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = message.timestamp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    if (message.isRead) {
+                        StarRailIcon(
+                            kind = StarRailIconKind.CHECK,
+                            contentDescription = stringResource(Res.string.read_status),
+                            tint = MaterialTheme.starRailColors.successCheck,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
+                }
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.Top,
+            ) {
+                Column(
+                    modifier = Modifier.widthIn(max = bubbleMaxWidth),
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
+                ) {
                     Surface(
                         shape = MaterialTheme.shapes.large,
                         color = MaterialTheme.colorScheme.primaryContainer,
@@ -1136,54 +1264,54 @@ private fun SentMessage(
                             )
                         }
                     }
-                }
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    val attachments = message.attachments
-                    val hasAttachmentsBtn = !(attachments.size == 1 && attachments.first().mimeType.startsWith("image/")) && attachments.isNotEmpty()
-                    if (hasAttachmentsBtn) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        val attachments = message.attachments
+                        val hasAttachmentsBtn = !(attachments.size == 1 && attachments.first().mimeType.startsWith("image/")) && attachments.isNotEmpty()
+                        if (hasAttachmentsBtn) {
+                            Text(
+                                text = stringResource(Res.string.view_attachments),
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.labelMedium,
+                                textDecoration = TextDecoration.Underline,
+                                modifier = Modifier.clickable { onViewAttachments(attachments) }
+                            )
+                        }
                         Text(
-                            text = stringResource(Res.string.view_attachments),
-                            color = MaterialTheme.colorScheme.primary,
-                            style = MaterialTheme.typography.labelMedium,
-                            textDecoration = TextDecoration.Underline,
-                            modifier = Modifier.clickable { onViewAttachments(attachments) }
+                            text = message.timestamp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall,
                         )
-                    }
-                    Text(
-                        text = message.timestamp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    if (message.isRead) {
-                        StarRailIcon(
-                            kind = StarRailIconKind.CHECK,
-                            contentDescription = stringResource(Res.string.read_status),
-                            tint = MaterialTheme.starRailColors.successCheck,
-                            modifier = Modifier.size(16.dp),
-                        )
+                        if (message.isRead) {
+                            StarRailIcon(
+                                kind = StarRailIconKind.CHECK,
+                                contentDescription = stringResource(Res.string.read_status),
+                                tint = MaterialTheme.starRailColors.successCheck,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
                     }
                 }
-            }
-            Spacer(Modifier.width(StarRailSpacing.sm))
-            Surface(
-                modifier = Modifier.size(if (compact) 32.dp else 48.dp),
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                border = BorderStroke(
-                    1.dp,
-                    MaterialTheme.starRailColors.sentBubbleBorder,
-                ),
-            ) {
-                AvatarImage(
-                    avatarUri = userAvatarUri.orEmpty(),
-                    contentDescription = null,
-                    placeholderKind = StarRailIconKind.SPARKLE,
-                    placeholderSize = if (compact) 18.dp else 26.dp,
-                    isUser = true,
-                )
+                Spacer(Modifier.width(StarRailSpacing.sm))
+                Surface(
+                    modifier = Modifier.size(if (compact) 32.dp else 48.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(
+                        1.dp,
+                        MaterialTheme.starRailColors.sentBubbleBorder,
+                    ),
+                ) {
+                    AvatarImage(
+                        avatarUri = userAvatarUri.orEmpty(),
+                        contentDescription = null,
+                        placeholderKind = StarRailIconKind.SPARKLE,
+                        placeholderSize = if (compact) 18.dp else 26.dp,
+                        isUser = true,
+                    )
+                }
             }
         }
     }
@@ -1226,6 +1354,7 @@ private fun VoiceMessageBubble(
     durationMs: Long,
     compact: Boolean,
     isSent: Boolean,
+    isPlaying: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1251,6 +1380,21 @@ private fun VoiceMessageBubble(
         MaterialTheme.starRailColors.sentBubbleBorder
     } else {
         MaterialTheme.starRailColors.receivedBubbleBorder
+    }
+
+    // 播放时的透明度微动画（0.4f -> 1.0f 呼吸渐变效果）
+    val infiniteTransition = rememberInfiniteTransition()
+    val animatedAlpha by if (isPlaying) {
+        infiniteTransition.animateFloat(
+            initialValue = 0.4f,
+            targetValue = 1.0f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 600, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse
+            )
+        )
+    } else {
+        remember { mutableStateOf(1f) }
     }
 
     Surface(
@@ -1282,14 +1426,21 @@ private fun VoiceMessageBubble(
                     tint = contentColor,
                     modifier = Modifier
                         .size(if (compact) 18.dp else 22.dp)
-                        .graphicsLayer { rotationY = 180f }
+                        .graphicsLayer { 
+                            rotationY = 180f 
+                            alpha = animatedAlpha
+                        }
                 )
             } else {
                 StarRailIcon(
                     kind = StarRailIconKind.VOICE_WAVE,
                     contentDescription = null,
                     tint = contentColor,
-                    modifier = Modifier.size(if (compact) 18.dp else 22.dp)
+                    modifier = Modifier
+                        .size(if (compact) 18.dp else 22.dp)
+                        .graphicsLayer {
+                            alpha = animatedAlpha
+                        }
                 )
                 Spacer(Modifier.width(StarRailSpacing.xs))
                 Text(
@@ -1755,7 +1906,7 @@ private fun MessageComposer(
             Surface(
                 modifier = Modifier
                     .weight(1f)
-                    .height(if (compact) 38.dp else 56.dp)
+                    .height(if (compact) 38.dp else 52.dp)
                     .pointerInput(Unit) {
                         detectDragGesturesAfterLongPress(
                             onDragStart = {
@@ -1821,39 +1972,44 @@ private fun MessageComposer(
                 }
             }
         } else {
-            TextField(
+            BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
                 modifier = Modifier
                     .weight(1f)
-                    .defaultMinSize(minWidth = 0.dp, minHeight = if (compact) 38.dp else 56.dp)
+                    .defaultMinSize(minWidth = 0.dp, minHeight = if (compact) 38.dp else 52.dp)
                     .animateContentSize(),
-                placeholder = {
-                    Text(stringResource(Res.string.message_placeholder))
-                },
-                trailingIcon = {
-                    IconButton(
-                        onClick = { onComposerAction(ComposerAction.EMOJI) },
-                    ) {
-                        StarRailIcon(
-                            kind = StarRailIconKind.SMILE,
-                            contentDescription = stringResource(Res.string.open_emoji),
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(24.dp),
-                        )
-                    }
-                },
-                shape = MaterialTheme.shapes.extraLarge,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(
+                    color = MaterialTheme.colorScheme.onSurface
+                ),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                 minLines = 1,
                 maxLines = 4,
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    disabledIndicatorColor = Color.Transparent,
-                ),
+                decorationBox = { innerTextField ->
+                    Surface(
+                        shape = MaterialTheme.shapes.extraLarge,
+                        color = MaterialTheme.colorScheme.surfaceContainer,
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.outlineVariant,
+                        ),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp, vertical = if (compact) 4.dp else 12.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            if (value.isEmpty()) {
+                                Text(
+                                    text = stringResource(Res.string.message_placeholder),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            innerTextField()
+                        }
+                    }
+                }
             )
         }
 
@@ -2135,6 +2291,14 @@ fun CharacterChatScreen(
     var attachmentsToShow by remember { mutableStateOf<List<MessageAttachment>?>(null) }
     val uriHandler = LocalUriHandler.current
 
+    val audioPlayer = rememberAudioPlayer()
+    var playingAudioUri by remember { mutableStateOf<String?>(null) }
+    DisposableEffect(audioPlayer) {
+        onDispose {
+            audioPlayer.release()
+        }
+    }
+
     if (attachmentsToShow != null) {
         AttachmentsDialog(
             attachments = attachmentsToShow!!,
@@ -2290,11 +2454,26 @@ fun CharacterChatScreen(
                                         charactersById = charactersById,
                                         userAvatarUri = state.userAvatarUri,
                                         compact = compact,
+                                        playingAudioUri = playingAudioUri,
                                         onViewAttachments = { attachments ->
                                             attachmentsToShow = attachments
                                         },
                                         onOpenAttachment = { attachment ->
-                                            uriHandler.openUri(attachment.uri)
+                                            if (attachment.mimeType.startsWith("audio/")) {
+                                                if (playingAudioUri == attachment.uri) {
+                                                    audioPlayer.stop()
+                                                    playingAudioUri = null
+                                                } else {
+                                                    playingAudioUri = attachment.uri
+                                                    audioPlayer.play(attachment.uri) {
+                                                        if (playingAudioUri == attachment.uri) {
+                                                            playingAudioUri = null
+                                                        }
+                                                    }
+                                                }
+                                            } else {
+                                                uriHandler.openUri(attachment.uri)
+                                            }
                                         }
                                     )
                                 }

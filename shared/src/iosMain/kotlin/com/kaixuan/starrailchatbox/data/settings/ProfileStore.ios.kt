@@ -59,7 +59,7 @@ private class DataStoreProfileStore(
                         fileSystem.delete(it, mustExist = false)
                     }
                 }
-                val targetPath = avatarDirPath / "user_avatar_${System.currentTimeMillis()}.png"
+                val targetPath = avatarDirPath / "user_avatar_${platform.Foundation.NSUUID().UUIDString}.png"
                 val sourcePath = profile.customAvatarUri.removePrefix("file://").toPath()
                 fileSystem.copy(sourcePath, targetPath)
                 "file://$targetPath"
