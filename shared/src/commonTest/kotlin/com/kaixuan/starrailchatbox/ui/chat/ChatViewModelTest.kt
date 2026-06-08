@@ -10,6 +10,8 @@ import com.kaixuan.starrailchatbox.data.character.CharacterRepository
 import com.kaixuan.starrailchatbox.data.chat.InMemoryChatSessionRepository
 import com.kaixuan.starrailchatbox.data.model.InMemoryModelConfigRepository
 import com.kaixuan.starrailchatbox.data.model.ModelConfig
+import com.kaixuan.starrailchatbox.data.settings.ProfileStore
+import com.kaixuan.starrailchatbox.data.settings.UserProfile
 import com.kaixuan.starrailchatbox.ui.character.CharacterAction
 import com.kaixuan.starrailchatbox.ui.character.CharacterEffect
 import com.kaixuan.starrailchatbox.ui.character.CharacterEffectMessage
@@ -342,6 +344,7 @@ class ChatViewModelTest {
             chatSessionRepository = sessions,
             modelConfigRepository = InMemoryModelConfigRepository(testConfig()),
             aiRepository = api,
+            profileStore = FakeProfileStore(),
             currentTimeMillis = { 60_000L },
             idGenerator = { prefix -> "$prefix-${++id}" },
             sessionTitleProvider = { "新对话" },
@@ -377,6 +380,7 @@ class ChatViewModelTest {
             chatSessionRepository = sessions,
             modelConfigRepository = InMemoryModelConfigRepository(config),
             aiRepository = api,
+            profileStore = FakeProfileStore(),
             currentTimeMillis = { 60_000L },
             idGenerator = { prefix -> "$prefix-${++id}" },
             sessionTitleProvider = { "新对话" },
@@ -598,3 +602,12 @@ private fun testConfig() = ModelConfig(
     topP = 1.0,
     enabled = true,
 )
+
+private class FakeProfileStore(
+    private var profile: UserProfile? = UserProfile("星空旅人", null)
+) : ProfileStore {
+    override suspend fun load(): UserProfile? = profile
+    override suspend fun save(profile: UserProfile) {
+        this.profile = profile
+    }
+}

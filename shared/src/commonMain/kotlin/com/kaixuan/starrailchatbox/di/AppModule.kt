@@ -42,7 +42,7 @@ fun appModule(
     single { profileStore }
     single { characterRepository }
     single { chatSessionRepository }
-    factory { ChatViewModel(get(), get(), get(), get()) }
+    factory { ChatViewModel(get(), get(), get(), get(), get()) }
     factory { SettingsViewModel(get(), get()) }
     factory { ProfileViewModel(get()) }
 }

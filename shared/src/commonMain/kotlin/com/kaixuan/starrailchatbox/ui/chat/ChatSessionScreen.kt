@@ -298,6 +298,7 @@ fun ChatSessionScreen(
                         MessageItem(
                             message = message,
                             charactersById = charactersById,
+                            userAvatarUri = state.userAvatarUri,
                             compact = compact,
                         )
                     }
@@ -749,6 +750,7 @@ private fun DateDivider() {
 private fun MessageItem(
     message: ChatMessageUiModel,
     charactersById: Map<String, Character>,
+    userAvatarUri: String?,
     compact: Boolean,
 ) {
     when (message) {
@@ -759,6 +761,7 @@ private fun MessageItem(
         )
         is ChatMessageUiModel.Sent -> SentMessage(
             message = message,
+            userAvatarUri = userAvatarUri,
             compact = compact,
         )
     }
@@ -832,6 +835,7 @@ private fun ReceivedMessage(
 @Composable
 private fun SentMessage(
     message: ChatMessageUiModel.Sent,
+    userAvatarUri: String?,
     compact: Boolean,
 ) {
     val text = message.content.resolve()
@@ -904,14 +908,13 @@ private fun SentMessage(
                     MaterialTheme.starRailColors.sentBubbleBorder,
                 ),
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    StarRailIcon(
-                        kind = StarRailIconKind.SPARKLE,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(if (compact) 18.dp else 26.dp),
-                    )
-                }
+                AvatarImage(
+                    avatarUri = userAvatarUri.orEmpty(),
+                    contentDescription = null,
+                    placeholderKind = StarRailIconKind.SPARKLE,
+                    placeholderSize = if (compact) 18.dp else 26.dp,
+                    isUser = true,
+                )
             }
         }
     }

@@ -13,6 +13,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.material3.MaterialTheme
 import coil3.compose.AsyncImage
+import starrailchatbox.shared.generated.resources.Res
+import starrailchatbox.shared.generated.resources.avatar_default_ai
 
 @Composable
 fun AvatarImage(
@@ -21,6 +23,7 @@ fun AvatarImage(
     placeholderKind: StarRailIconKind,
     placeholderSize: Dp,
     modifier: Modifier = Modifier,
+    isUser: Boolean = false,
 ) {
     Box(
         modifier = modifier
@@ -36,12 +39,19 @@ fun AvatarImage(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
             )
-        } else {
+        } else if (isUser) {
             StarRailIcon(
                 kind = placeholderKind,
                 contentDescription = contentDescription,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(placeholderSize),
+            )
+        } else {
+            androidx.compose.foundation.Image(
+                painter = org.jetbrains.compose.resources.painterResource(Res.drawable.avatar_default_ai),
+                contentDescription = contentDescription,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
             )
         }
     }

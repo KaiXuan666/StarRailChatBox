@@ -28,7 +28,7 @@ class ProfileViewModel(
             _uiState.update { state ->
                 state.copy(
                     nickname = profile?.nickname ?: "星空旅人",
-                    customAvatarBase64 = profile?.customAvatarBase64,
+                    customAvatarUri = profile?.customAvatarUri,
                     isLoaded = true
                 )
             }
@@ -41,10 +41,10 @@ class ProfileViewModel(
                 _uiState.update { it.copy(nickname = action.name) }
             }
             is ProfileAction.AvatarChanged -> {
-                _uiState.update { it.copy(customAvatarBase64 = action.avatarBase64) }
+                _uiState.update { it.copy(customAvatarUri = action.avatarUri) }
             }
             ProfileAction.RestoreDefaultAvatar -> {
-                _uiState.update { it.copy(customAvatarBase64 = null) }
+                _uiState.update { it.copy(customAvatarUri = null) }
             }
             ProfileAction.SaveClicked -> {
                 saveProfile()
@@ -65,7 +65,7 @@ class ProfileViewModel(
                 profileStore.save(
                     UserProfile(
                         nickname = state.nickname.trim(),
-                        customAvatarBase64 = state.customAvatarBase64
+                        customAvatarUri = state.customAvatarUri
                     )
                 )
                 _uiState.update { it.copy(isSaving = false) }

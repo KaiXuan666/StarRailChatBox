@@ -2,7 +2,7 @@ package com.kaixuan.starrailchatbox.data.settings
 
 data class UserProfile(
     val nickname: String,
-    val customAvatarBase64: String? = null
+    val customAvatarUri: String? = null
 )
 
 interface ProfileStore {
@@ -19,4 +19,4 @@ class InMemoryProfileStore(
     }
 }
 
-expect fun createProfileStore(path: String? = null): ProfileStore
+expect fun createProfileStore(path: String? = null, context: Any? = null): ProfileStore

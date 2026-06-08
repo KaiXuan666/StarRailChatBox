@@ -26,7 +26,7 @@ class ProfileViewModelTest {
 
         val state = viewModel.uiState.value
         assertEquals("星空旅人", state.nickname)
-        assertNull(state.customAvatarBase64)
+        assertNull(state.customAvatarUri)
         assertFalse(state.isSaving)
         assertTrue(state.isLoaded)
     }
@@ -36,7 +36,7 @@ class ProfileViewModelTest {
         val store = FakeProfileStore(
             UserProfile(
                 nickname = "三月七",
-                customAvatarBase64 = "base64encodedavatarstring"
+                customAvatarUri = "file:///test/avatar.png"
             )
         )
         val viewModel = createViewModel(store = store, scope = this)
@@ -44,7 +44,7 @@ class ProfileViewModelTest {
 
         val state = viewModel.uiState.value
         assertEquals("三月七", state.nickname)
-        assertEquals("base64encodedavatarstring", state.customAvatarBase64)
+        assertEquals("file:///test/avatar.png", state.customAvatarUri)
     }
 
     @Test
@@ -61,19 +61,18 @@ class ProfileViewModelTest {
         val viewModel = createViewModel(scope = this)
         runCurrent()
 
-        viewModel.onAction(ProfileAction.AvatarChanged("AQIDBA=="))
-        // "AQIDBA==" is the Base64 encoding of [1, 2, 3, 4]
-        assertEquals("AQIDBA==", viewModel.uiState.value.customAvatarBase64)
+        viewModel.onAction(ProfileAction.AvatarChanged("file:///test/avatar.png"))
+        assertEquals("file:///test/avatar.png", viewModel.uiState.value.customAvatarUri)
     }
 
     @Test
     fun restoreDefaultAvatarClearsCustomAvatar() = runTest {
-        val store = FakeProfileStore(UserProfile("星空旅人", "somebase64"))
+        val store = FakeProfileStore(UserProfile("星空旅人", "file:///test/avatar.png"))
         val viewModel = createViewModel(store = store, scope = this)
         runCurrent()
 
         viewModel.onAction(ProfileAction.RestoreDefaultAvatar)
-        assertNull(viewModel.uiState.value.customAvatarBase64)
+        assertNull(viewModel.uiState.value.customAvatarUri)
     }
 
     @Test
@@ -83,7 +82,7 @@ class ProfileViewModelTest {
         runCurrent()
 
         viewModel.onAction(ProfileAction.NicknameChanged(" 丹恒 "))
-        viewModel.onAction(ProfileAction.AvatarChanged("ChQ="))
+        viewModel.onAction(ProfileAction.AvatarChanged("file:///test/avatar.png"))
         
         val effect = async { viewModel.effects.first { it is ProfileEffect.ProfileSaved } }
         
@@ -93,7 +92,7 @@ class ProfileViewModelTest {
         assertEquals(
             UserProfile(
                 nickname = "丹恒",
-                customAvatarBase64 = "ChQ="
+                customAvatarUri = "file:///test/avatar.png"
             ),
             store.saved
         )

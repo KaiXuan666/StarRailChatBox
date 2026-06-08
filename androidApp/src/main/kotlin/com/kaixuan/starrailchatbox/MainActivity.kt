@@ -19,7 +19,8 @@ class MainActivity : ComponentActivity() {
             App(
                 modelConfigRepository = repositories.modelConfigRepository,
                 profileStore = createProfileStore(
-                    filesDir.resolve("profile_settings.preferences_pb").absolutePath,
+                    path = filesDir.resolve("profile_settings.preferences_pb").absolutePath,
+                    context = this,
                 ),
                 characterRepository = repositories.characterRepository,
                 chatSessionRepository = repositories.chatSessionRepository,

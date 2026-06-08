@@ -1,3 +1,3 @@
 package com.kaixuan.starrailchatbox.data.settings
 
-actual fun createProfileStore(path: String?): ProfileStore = InMemoryProfileStore()
+actual fun createProfileStore(path: String?, context: Any?): ProfileStore = InMemoryProfileStore()

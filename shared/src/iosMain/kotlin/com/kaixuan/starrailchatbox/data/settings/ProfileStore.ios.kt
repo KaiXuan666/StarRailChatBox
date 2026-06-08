@@ -13,7 +13,7 @@ import platform.Foundation.NSDocumentDirectory
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSUserDomainMask
 
-actual fun createProfileStore(path: String?): ProfileStore {
+actual fun createProfileStore(path: String?, context: Any?): ProfileStore {
     val resolvedPath = path ?: run {
         val directory = NSFileManager.defaultManager.URLForDirectory(
             directory = NSDocumentDirectory,
@@ -25,13 +25,17 @@ actual fun createProfileStore(path: String?): ProfileStore {
         "${requireNotNull(directory?.path)}/profile_settings.preferences_pb"
     }
     return DataStoreProfileStore(
-        dataStore = PreferenceDataStoreFactory.createWithPath { resolvedPath.toPath() }
+        dataStore = PreferenceDataStoreFactory.createWithPath { resolvedPath.toPath() },
+        resolvedPath = resolvedPath
     )
 }
 
 private class DataStoreProfileStore(
-    private val dataStore: DataStore<Preferences>
+    private val dataStore: DataStore<Preferences>,
+    private val resolvedPath: String
 ) : ProfileStore {
+    private val fileSystem = okio.FileSystem.SYSTEM
+
     override suspend fun load(): UserProfile? {
         val preferences = dataStore.data.first()
         val nickname = preferences[NicknameKey] ?: return null
@@ -40,10 +44,38 @@ private class DataStoreProfileStore(
     }
 
     override suspend fun save(profile: UserProfile) {
+        val finalAvatarUri = if (!profile.customAvatarUri.isNullOrBlank()) {
+            val avatarDirStr = "${resolvedPath.substringBeforeLast("/")}/user_avatars"
+            val avatarDirPath = avatarDirStr.toPath()
+            if (profile.customAvatarUri.contains("user_avatars/")) {
+                profile.customAvatarUri
+            } else {
+                fileSystem.createDirectories(avatarDirPath)
+                if (fileSystem.exists(avatarDirPath)) {
+                    fileSystem.list(avatarDirPath).forEach {
+                        fileSystem.delete(it, mustExist = false)
+                    }
+                }
+                val targetPath = avatarDirPath / "user_avatar_${System.currentTimeMillis()}.png"
+                val sourcePath = profile.customAvatarUri.removePrefix("file://").toPath()
+                fileSystem.copy(sourcePath, targetPath)
+                "file://$targetPath"
+            }
+        } else {
+            val avatarDirStr = "${resolvedPath.substringBeforeLast("/")}/user_avatars"
+            val avatarDirPath = avatarDirStr.toPath()
+            if (fileSystem.exists(avatarDirPath)) {
+                fileSystem.list(avatarDirPath).forEach {
+                    fileSystem.delete(it, mustExist = false)
+                }
+            }
+            null
+        }
+
         dataStore.edit { preferences ->
             preferences[NicknameKey] = profile.nickname
-            if (profile.customAvatarBase64 != null) {
-                preferences[CustomAvatarKey] = profile.customAvatarBase64
+            if (finalAvatarUri != null) {
+                preferences[CustomAvatarKey] = finalAvatarUri
             } else {
                 preferences.remove(CustomAvatarKey)
             }
@@ -52,4 +84,4 @@ private class DataStoreProfileStore(
 }
 
 private val NicknameKey = stringPreferencesKey("profile_nickname")
-private val CustomAvatarKey = stringPreferencesKey("profile_custom_avatar_base64")
+private val CustomAvatarKey = stringPreferencesKey("profile_custom_avatar_uri")

@@ -49,6 +49,7 @@ import com.kaixuan.starrailchatbox.ui.components.StarRailPrimaryButton
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import com.kaixuan.starrailchatbox.ui.components.BackHandler
+import com.kaixuan.starrailchatbox.ui.components.AvatarImage
 import com.kaixuan.starrailchatbox.ui.main.MainAction
 import com.kaixuan.starrailchatbox.platform.rememberImagePicker
 import kotlin.io.encoding.Base64
@@ -64,9 +65,8 @@ fun ProfileScreen(
 ) {
     val colors = MaterialTheme.starRailColors
     val imagePicker = rememberImagePicker { image ->
-        val base64 = image?.uri?.substringAfter("base64,", missingDelimiterValue = "")
-        if (!base64.isNullOrBlank()) {
-            onAction(ProfileAction.AvatarChanged(base64))
+        if (image != null) {
+            onAction(ProfileAction.AvatarChanged(image.uri))
         }
     }
 
@@ -105,39 +105,14 @@ fun ProfileScreen(
                         .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.35f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (state.customAvatarBase64 != null) {
-                        val bitmap = remember(state.customAvatarBase64) {
-                            try {
-                                val bytes = Base64.decode(state.customAvatarBase64)
-                                bytes.decodeToImageBitmap()
-                            } catch (e: Exception) {
-                                null
-                            }
-                        }
-                        if (bitmap != null) {
-                            Image(
-                                bitmap = bitmap,
-                                contentDescription = null,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            StarRailIcon(
-                                kind = StarRailIconKind.SPARKLE,
-                                contentDescription = null,
-                                tint = colors.warmSparkle,
-                                modifier = Modifier.size(64.dp)
-                            )
-                        }
-                    } else {
-                        // Default fallback avatar is StarRailIconKind.SPARKLE
-                        StarRailIcon(
-                            kind = StarRailIconKind.SPARKLE,
-                            contentDescription = null,
-                            tint = colors.warmSparkle,
-                            modifier = Modifier.size(64.dp)
-                        )
-                    }
+                    AvatarImage(
+                        avatarUri = state.customAvatarUri.orEmpty(),
+                        contentDescription = null,
+                        placeholderKind = StarRailIconKind.SPARKLE,
+                        placeholderSize = 64.dp,
+                        modifier = Modifier.fillMaxSize(),
+                        isUser = true,
+                    )
                 }
 
                 // Avatar action row (Choose avatar + restore default)
@@ -171,7 +146,7 @@ fun ProfileScreen(
                         }
                     }
 
-                    if (state.customAvatarBase64 != null) {
+                    if (state.customAvatarUri != null) {
                         Text(
                             text = stringResource(Res.string.profile_restore_default),
                             modifier = Modifier.clickable {

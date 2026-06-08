@@ -37,6 +37,7 @@ import kotlin.time.Clock
 import org.jetbrains.compose.resources.getString
 import starrailchatbox.shared.generated.resources.Res
 import starrailchatbox.shared.generated.resources.chat_new_session_title
+import com.kaixuan.starrailchatbox.data.settings.ProfileStore
 import com.kaixuan.starrailchatbox.ui.character.CharacterAction
 import com.kaixuan.starrailchatbox.ui.character.CharacterEffect
 import com.kaixuan.starrailchatbox.ui.character.CharacterEffectMessage
@@ -49,6 +50,7 @@ class ChatViewModel(
     private val chatSessionRepository: ChatSessionRepository,
     private val modelConfigRepository: ModelConfigRepository,
     private val aiRepository: AiRepository,
+    private val profileStore: ProfileStore,
     private val chatSummaryCoordinator: ChatSummaryCoordinator = ChatSummaryCoordinator(
         chatSessionRepository = chatSessionRepository,
         aiRepository = aiRepository,
@@ -83,6 +85,7 @@ class ChatViewModel(
     private var sessionListJob: Job? = null
 
     init {
+        refreshUserAvatar()
         viewModelScope.launch {
             val characters = runCatching { characterRepository.loadCharacters() }
                 .getOrDefault(emptyList())
@@ -160,6 +163,7 @@ class ChatViewModel(
             is ChatAction.SessionDeleteClicked -> deleteSession(action.sessionId)
             is ChatAction.HeaderActionClicked -> handleHeaderAction(action.action)
             is ChatAction.ComposerActionClicked -> handleComposerAction(action.action)
+            ChatAction.RefreshUserAvatar -> refreshUserAvatar()
         }
     }
 
@@ -1014,6 +1018,13 @@ class ChatViewModel(
 
     private fun emitMessage(message: EffectMessage) {
         _effects.trySend(ChatEffect.ShowMessage(message))
+    }
+
+    private fun refreshUserAvatar() {
+        viewModelScope.launch {
+            val profile = runCatching { profileStore.load() }.getOrNull()
+            _uiState.update { it.copy(userAvatarUri = profile?.customAvatarUri) }
+        }
     }
 }
 

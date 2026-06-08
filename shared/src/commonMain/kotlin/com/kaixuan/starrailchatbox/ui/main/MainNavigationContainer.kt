@@ -330,6 +330,9 @@ fun MainNavigationContainer(
             ) { contentPadding ->
                 val entryProvider = entryProvider<Route> {
                     entry<Route.ChatSession> {
+                        LaunchedEffect(Unit) {
+                            onChatAction(ChatAction.RefreshUserAvatar)
+                        }
                         ChatSessionScreen(
                             state = chatState,
                             charactersState = charactersState,

@@ -54,6 +54,7 @@ data class ChatUiState(
     val selectedCharacterId: String? = null,
     val selectedCharacter: Character? = null,
     val characterStates: Map<String, CharacterChatState> = emptyMap(),
+    val userAvatarUri: String? = null,
 ) {
     val activeSessionId: String?
         get() = characterStates[selectedCharacterId]?.activeSessionId
