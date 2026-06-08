@@ -1020,7 +1020,8 @@ private fun ReceivedMessage(
         text,
         message.timestamp,
     )
-    val isVoiceOnly = text.isBlank() && message.attachments.size == 1 && message.attachments.first().mimeType.startsWith("audio/")
+    val voiceAttachment = message.attachments.find { it.mimeType.startsWith("audio/") }
+    val isVoiceOnly = voiceAttachment != null
 
     BoxWithConstraints(
         modifier = Modifier
@@ -1047,11 +1048,11 @@ private fun ReceivedMessage(
                         )
                     }
                     VoiceMessageBubble(
-                        durationMs = message.attachments.first().durationMs ?: 0L,
+                        durationMs = voiceAttachment.durationMs ?: 0L,
                         compact = compact,
                         isSent = false,
-                        isPlaying = playingAudioUri == message.attachments.first().uri,
-                        onClick = { onOpenAttachment(message.attachments.first()) }
+                        isPlaying = playingAudioUri == voiceAttachment.uri,
+                        onClick = { onOpenAttachment(voiceAttachment) }
                     )
                 }
                 Row(
@@ -1157,7 +1158,8 @@ private fun SentMessage(
         text,
         message.timestamp,
     )
-    val isVoiceOnly = text.isBlank() && message.attachments.size == 1 && message.attachments.first().mimeType.startsWith("audio/")
+    val voiceAttachment = message.attachments.find { it.mimeType.startsWith("audio/") }
+    val isVoiceOnly = voiceAttachment != null
 
     BoxWithConstraints(
         modifier = Modifier
@@ -1178,11 +1180,11 @@ private fun SentMessage(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     VoiceMessageBubble(
-                        durationMs = message.attachments.first().durationMs ?: 0L,
+                        durationMs = voiceAttachment.durationMs ?: 0L,
                         compact = compact,
                         isSent = true,
-                        isPlaying = playingAudioUri == message.attachments.first().uri,
-                        onClick = { onOpenAttachment(message.attachments.first()) }
+                        isPlaying = playingAudioUri == voiceAttachment.uri,
+                        onClick = { onOpenAttachment(voiceAttachment) }
                     )
                     Spacer(Modifier.width(StarRailSpacing.sm))
                     Surface(
