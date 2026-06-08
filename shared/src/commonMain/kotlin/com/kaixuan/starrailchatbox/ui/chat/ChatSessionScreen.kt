@@ -375,6 +375,7 @@ private fun ChatHeader(
                 compact = compact,
             )
             HeaderActions(
+                characterId = selectedCharacter.id,
                 compact = compact,
                 onAction = onAction,
                 onMainAction = onMainAction,
@@ -451,6 +452,7 @@ private fun CharacterSummary(
 
 @Composable
 private fun HeaderActions(
+    characterId: String,
     compact: Boolean,
     onAction: (ChatAction) -> Unit,
     onMainAction: (MainAction) -> Unit,
@@ -490,8 +492,8 @@ private fun HeaderActions(
                                 onMainAction(MainAction.NavigateTo(Route.ConversationManagement))
                             }
                             HeaderAction.CHARACTER_EDIT -> {
-                                onAction(ChatAction.CharacterEditOpened)
-                                onMainAction(MainAction.NavigateTo(Route.CharacterEdit))
+                                onAction(ChatAction.CharacterEditOpened(characterId))
+                                onMainAction(MainAction.NavigateTo(Route.CharacterEdit(characterId)))
                             }
                             HeaderAction.VOICE -> {
                                 onAction(ChatAction.HeaderActionClicked(action))

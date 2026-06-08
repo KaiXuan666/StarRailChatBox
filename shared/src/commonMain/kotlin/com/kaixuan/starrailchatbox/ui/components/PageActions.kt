@@ -35,13 +35,15 @@ import androidx.compose.ui.unit.dp
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 
+
+
 @Composable
 fun StarRailPageLayout(
     title: String,
     contentPadding: PaddingValues,
     compact: Boolean,
-    backContentDescription: String,
-    onBackClick: () -> Unit,
+    backContentDescription: String? = null,
+    onBackClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     contentSpacing: Dp = StarRailSpacing.xl,
     content: @Composable ColumnScope.() -> Unit,
@@ -73,8 +75,8 @@ fun StarRailPageLayout(
 fun StarRailPageHeader(
     title: String,
     compact: Boolean,
-    backContentDescription: String,
-    onBackClick: () -> Unit,
+    backContentDescription: String? = null,
+    onBackClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -82,20 +84,22 @@ fun StarRailPageHeader(
         horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Surface(
-            onClick = onBackClick,
-            modifier = Modifier.size(40.dp),
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.55f),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                StarRailIcon(
-                    kind = StarRailIconKind.CHEVRON_LEFT,
-                    contentDescription = backContentDescription,
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(20.dp),
-                )
+        if (onBackClick != null && backContentDescription != null) {
+            Surface(
+                onClick = onBackClick,
+                modifier = Modifier.size(40.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.55f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    StarRailIcon(
+                        kind = StarRailIconKind.CHEVRON_LEFT,
+                        contentDescription = backContentDescription,
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
             }
         }
 

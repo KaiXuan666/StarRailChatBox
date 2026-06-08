@@ -46,6 +46,7 @@ enum class StarRailIconKind {
     CHEVRON_LEFT,
     ARROW_UP,
     DELETE,
+    EDIT,
 }
 
 @Composable
@@ -489,6 +490,19 @@ fun StarRailIcon(
                 drawLine(tint, point(0.38f, 0.18f), point(0.62f, 0.18f), strokeWidth)
                 drawLine(tint, point(0.41f, 0.43f), point(0.41f, 0.72f), strokeWidth)
                 drawLine(tint, point(0.59f, 0.43f), point(0.59f, 0.72f), strokeWidth)
+            }
+
+            StarRailIconKind.EDIT -> {
+                val path = Path().apply {
+                    moveTo(size.width * 0.73f, size.height * 0.15f)
+                    lineTo(size.width * 0.85f, size.height * 0.27f)
+                    lineTo(size.width * 0.42f, size.height * 0.7f)
+                    lineTo(size.width * 0.22f, size.height * 0.78f)
+                    lineTo(size.width * 0.3f, size.height * 0.58f)
+                    close()
+                }
+                drawPath(path, tint, style = stroke)
+                drawLine(tint, point(0.63f, 0.25f), point(0.75f, 0.37f), strokeWidth)
             }
         }
     }

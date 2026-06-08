@@ -17,7 +17,7 @@ sealed interface Route {
     data object ConversationManagement : Route
 
     // 当前角色的角色编辑二级界面
-    data object CharacterEdit : Route
+    data class CharacterEdit(val characterId: String?) : Route
 
     // “角色” Tab 占位屏幕
     data object Characters : Route

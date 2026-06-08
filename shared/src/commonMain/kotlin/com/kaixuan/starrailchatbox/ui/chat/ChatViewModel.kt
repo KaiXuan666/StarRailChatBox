@@ -139,7 +139,7 @@ class ChatViewModel(
             is ChatAction.SessionSelected -> selectSession(action.sessionId)
             is ChatAction.SessionDeleteClicked -> deleteSession(action.sessionId)
             is ChatAction.HeaderActionClicked -> handleHeaderAction(action.action)
-            ChatAction.CharacterEditOpened -> openCharacterEdit()
+            is ChatAction.CharacterEditOpened -> openCharacterEdit(action.characterId)
             is ChatAction.CharacterNameChanged -> updateCharacterEdit { it.copy(name = action.name) }
             is ChatAction.CharacterPromptChanged -> updateCharacterEdit { it.copy(prompt = action.prompt) }
             is ChatAction.CharacterOpeningMessageChanged -> updateCharacterEdit {
@@ -159,10 +159,26 @@ class ChatViewModel(
         }
     }
 
-    private fun openCharacterEdit() {
-        val character = uiState.value.selectedCharacter ?: return
-        _uiState.update {
-            it.copy(characterEdit = character.toEditUiState())
+    private fun openCharacterEdit(characterId: String?) {
+        if (characterId == null) {
+            _uiState.update {
+                it.copy(
+                    characterEdit = CharacterEditUiState(
+                        characterId = null,
+                        name = "",
+                        prompt = "",
+                        openingMessage = "",
+                        avatarBytes = byteArrayOf(),
+                        temperature = 0.85,
+                        topP = 0.9,
+                    )
+                )
+            }
+        } else {
+            val character = uiState.value.characters.firstOrNull { it.id == characterId } ?: return
+            _uiState.update {
+                it.copy(characterEdit = character.toEditUiState())
+            }
         }
     }
 
@@ -174,8 +190,7 @@ class ChatViewModel(
 
     private fun saveCharacterEdit() {
         val editState = uiState.value.characterEdit
-        val characterId = editState.characterId ?: return
-        val original = uiState.value.characters.firstOrNull { it.id == characterId } ?: return
+        val characterId = editState.characterId
         if (editState.name.isBlank()) {
             emitMessage(EffectMessage.CHARACTER_NAME_EMPTY)
             return
@@ -183,20 +198,41 @@ class ChatViewModel(
         updateCharacterEdit { it.copy(isSaving = true) }
         viewModelScope.launch {
             runCatching {
-                characterRepository.updateCharacter(
-                    original.copy(
+                if (characterId == null) {
+                    val newId = "user_${currentTimeMillis()}"
+                    val newCharacter = Character(
+                        id = newId,
                         name = editState.name.trim(),
                         prompt = editState.prompt,
                         openingMessage = editState.openingMessage,
                         avatarBytes = editState.avatarBytes,
                         temperature = editState.temperature.coerceIn(0.0, 2.0),
                         topP = editState.topP.coerceIn(0.0, 1.0),
-                    ),
-                )
+                        createdAt = currentTimeMillis(),
+                    )
+                    characterRepository.updateCharacter(newCharacter)
+                } else {
+                    val original = uiState.value.characters.firstOrNull { it.id == characterId }
+                        ?: throw IllegalStateException("Character not found")
+                    characterRepository.updateCharacter(
+                        original.copy(
+                            name = editState.name.trim(),
+                            prompt = editState.prompt,
+                            openingMessage = editState.openingMessage,
+                            avatarBytes = editState.avatarBytes,
+                            temperature = editState.temperature.coerceIn(0.0, 2.0),
+                            topP = editState.topP.coerceIn(0.0, 1.0),
+                        ),
+                    )
+                }
             }.onSuccess { saved ->
                 val characters = runCatching { characterRepository.loadCharacters() }
                     .getOrElse { current ->
-                        uiState.value.characters.map { if (it.id == saved.id) saved else it }
+                        if (characterId == null) {
+                            uiState.value.characters + saved
+                        } else {
+                            uiState.value.characters.map { if (it.id == saved.id) saved else it }
+                        }
                     }
                 _uiState.update { state ->
                     val currentCharacterState = state.characterStates[saved.id]

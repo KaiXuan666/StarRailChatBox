@@ -138,4 +138,11 @@
     <string name="settings_api_save_failed">API 配置保存失败</string>
     <string name="settings_api_empty_models">填写 API 主机和密钥后获取模型列表</string>
     <string name="settings_saving">保存中...</string>
+
+    <!-- 角色列表界面 -->
+    <string name="character_list_title">角色列表</string>
+    <string name="character_list_my_characters">我的角色</string>
+    <string name="character_list_create_btn">新建角色</string>
+    <string name="character_list_edit_desc">编辑</string>
+    <string name="character_list_empty">暂无自定义角色</string>
 </resources>

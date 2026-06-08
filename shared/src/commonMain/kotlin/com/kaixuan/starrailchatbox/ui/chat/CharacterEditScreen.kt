@@ -72,6 +72,7 @@ private const val MaxOpeningMessageLength = 200
 
 @Composable
 fun CharacterEditScreen(
+    characterId: String?,
     state: ChatUiState,
     contentPadding: PaddingValues,
     compact: Boolean,
@@ -79,9 +80,8 @@ fun CharacterEditScreen(
     onAction: (ChatAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val selectedCharacterId = state.selectedCharacter?.id
-    LaunchedEffect(selectedCharacterId) {
-        onAction(ChatAction.CharacterEditOpened)
+    LaunchedEffect(characterId) {
+        onAction(ChatAction.CharacterEditOpened(characterId))
     }
 
     BackHandler {
@@ -468,12 +468,12 @@ private fun Double.sliderLabel(): String {
         rounded.toString()
     }
 }
-
 @Preview(widthDp = 360, heightDp = 800)
 @Composable
 private fun CharacterEditScreenLightPreview() {
     StarRailTheme(darkThemeOverride = false) {
         CharacterEditScreen(
+            characterId = characterEditPreviewCharacter.id,
             state = characterEditPreviewState,
             contentPadding = PaddingValues(0.dp),
             compact = true,
@@ -488,6 +488,7 @@ private fun CharacterEditScreenLightPreview() {
 private fun CharacterEditScreenDarkPreview() {
     StarRailTheme(darkThemeOverride = true) {
         CharacterEditScreen(
+            characterId = characterEditPreviewCharacter.id,
             state = characterEditPreviewState,
             contentPadding = PaddingValues(0.dp),
             compact = true,
@@ -496,7 +497,6 @@ private fun CharacterEditScreenDarkPreview() {
         )
     }
 }
-
 private val characterEditPreviewCharacter = Character(
     id = "builtin:三月七",
     name = "三月七",

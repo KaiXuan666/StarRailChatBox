@@ -9,7 +9,7 @@ sealed interface ChatAction {
     data class SessionSelected(val sessionId: String) : ChatAction
     data class SessionDeleteClicked(val sessionId: String) : ChatAction
     data class HeaderActionClicked(val action: HeaderAction) : ChatAction
-    data object CharacterEditOpened : ChatAction
+    data class CharacterEditOpened(val characterId: String?) : ChatAction
     data class CharacterNameChanged(val name: String) : ChatAction
     data class CharacterPromptChanged(val prompt: String) : ChatAction
     data class CharacterOpeningMessageChanged(val openingMessage: String) : ChatAction

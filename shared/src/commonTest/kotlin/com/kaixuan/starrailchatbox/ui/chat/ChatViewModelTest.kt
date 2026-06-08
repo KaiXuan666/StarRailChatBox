@@ -203,7 +203,7 @@ class ChatViewModelTest {
         val fixture = createFixture(characterRepository = characterRepository)
         advanceUntilIdle()
 
-        fixture.viewModel.onAction(ChatAction.CharacterEditOpened)
+        fixture.viewModel.onAction(ChatAction.CharacterEditOpened("builtin:流萤"))
         fixture.viewModel.onAction(ChatAction.CharacterNameChanged("  新三月七  "))
         fixture.viewModel.onAction(ChatAction.CharacterPromptChanged("updated prompt"))
         fixture.viewModel.onAction(ChatAction.CharacterOpeningMessageChanged("updated opening"))

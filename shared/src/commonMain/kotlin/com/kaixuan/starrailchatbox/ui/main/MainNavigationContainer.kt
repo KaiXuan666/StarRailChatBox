@@ -86,6 +86,7 @@ import com.kaixuan.starrailchatbox.ui.chat.ChatEffect
 import com.kaixuan.starrailchatbox.ui.chat.ChatSessionBottomBar
 import com.kaixuan.starrailchatbox.ui.chat.ChatSessionScreen
 import com.kaixuan.starrailchatbox.ui.chat.CharacterEditScreen
+import com.kaixuan.starrailchatbox.ui.chat.CharactersScreen
 import com.kaixuan.starrailchatbox.ui.chat.ChatUiState
 import com.kaixuan.starrailchatbox.ui.chat.CharacterChatState
 import com.kaixuan.starrailchatbox.ui.chat.ChatMessageUiModel
@@ -313,8 +314,9 @@ fun MainNavigationContainer(
                             onMainAction = onMainAction,
                         )
                     }
-                    entry<Route.CharacterEdit> {
+                    entry<Route.CharacterEdit> { entry ->
                         CharacterEditScreen(
+                            characterId = entry.characterId,
                             state = chatState,
                             contentPadding = contentPadding,
                             compact = compact,
@@ -323,9 +325,12 @@ fun MainNavigationContainer(
                         )
                     }
                     entry<Route.Characters> {
-                        NavigationPlaceholderScreen(
-                            title = stringResource(Res.string.nav_characters),
+                        CharactersScreen(
+                            state = chatState,
                             contentPadding = contentPadding,
+                            compact = compact,
+                            onMainAction = onMainAction,
+                            onAction = onChatAction,
                         )
                     }
                     entry<Route.Settings> {
