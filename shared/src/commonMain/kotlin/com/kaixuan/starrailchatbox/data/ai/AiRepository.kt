@@ -137,7 +137,7 @@ class DefaultAiRepository(
                     messages = messages,
                     temperature = config.temperature,
                     topP = config.topP,
-                    maxTokens = 1024,
+                    maxTokens = config.maxOutputTokens,
                     toolChoice = ToolChoice.None,
                 ),
             )
