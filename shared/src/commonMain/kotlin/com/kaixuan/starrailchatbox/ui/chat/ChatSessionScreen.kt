@@ -89,6 +89,7 @@ import starrailchatbox.shared.generated.resources.today
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.starRailColors
 import com.kaixuan.starrailchatbox.data.character.Character
+import com.kaixuan.starrailchatbox.ui.components.BackHandler
 import com.kaixuan.starrailchatbox.ui.components.AvatarImage
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
@@ -1379,6 +1380,10 @@ fun CharacterChatScreen(
     val character = remember(charactersState.characters, characterId) {
         charactersState.characters.firstOrNull { it.id == characterId }
     } ?: return
+
+    BackHandler {
+        onMainAction(MainAction.PopBackStack)
+    }
 
     val pageState = state.characterStates[characterId] ?: CharacterChatState()
     val pageListState = rememberLazyListState()
