@@ -11,7 +11,9 @@ import com.kaixuan.starrailchatbox.data.model.InMemoryModelConfigRepository
 import com.kaixuan.starrailchatbox.data.model.ModelConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -282,11 +284,11 @@ class ChatViewModelTest {
     @Test
     fun promptGenConfirmFailureEmitsError() = runTest {
         val api = object : FakeOpenAiRepository() {
-            override suspend fun createPromptCompletion(
+            override fun createPromptCompletion(
                 config: ModelConfig,
                 messages: List<AiMessage>,
-            ): ApiResult<ChatCompletionResult> {
-                return ApiResult.NetworkError("Network issue")
+            ): Flow<ApiResult<ChatCompletionResult>> {
+                return flowOf(ApiResult.NetworkError("Network issue"))
             }
         }
 
@@ -444,18 +446,20 @@ private open class FakeOpenAiRepository : AiRepository {
         )
     }
 
-    override suspend fun createPromptCompletion(
+    override fun createPromptCompletion(
         config: ModelConfig,
         messages: List<AiMessage>,
-    ): ApiResult<ChatCompletionResult> {
+    ): Flow<ApiResult<ChatCompletionResult>> {
         requests += messages
-        return ApiResult.Success(
-            ChatCompletionResult(
-                content = "你好呀",
-                finishReason = "stop",
-                promptTokens = 10,
-                completionTokens = 2,
-                totalTokens = 12,
+        return flowOf(
+            ApiResult.Success(
+                ChatCompletionResult(
+                    content = "你好呀",
+                    finishReason = "stop",
+                    promptTokens = 10,
+                    completionTokens = 2,
+                    totalTokens = 12,
+                ),
             ),
         )
     }

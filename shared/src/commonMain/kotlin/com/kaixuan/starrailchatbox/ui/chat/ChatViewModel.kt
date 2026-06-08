@@ -182,7 +182,6 @@ class ChatViewModel(
             }
             ChatAction.CharacterPromptGenConfirmClicked -> {
                 val inputPrompt = uiState.value.characterEdit.promptGenInputText
-                val characterName = uiState.value.characterEdit.name
                 updateCharacterEdit {
                     it.copy(
                         isPromptGenDialogOpen = false,
@@ -206,24 +205,34 @@ class ChatViewModel(
                             )
                         )
 
-                        when (val result = aiRepository.createPromptCompletion(config, requestMessages)) {
-                            is ApiResult.Success -> {
-                                val generatedPrompt = result.value.content.trim()
-                                if (generatedPrompt.isNotEmpty()) {
-                                    updateCharacterEdit {
-                                        it.copy(
-                                            prompt = generatedPrompt,
-                                            isGeneratingPrompt = false
-                                        )
+                        var generatedPrompt = ""
+                        var hasError = false
+                        aiRepository.createPromptCompletion(config, requestMessages).collect { result ->
+                            when (result) {
+                                is ApiResult.Success -> {
+                                    generatedPrompt = result.value.content
+                                    if (generatedPrompt.isNotBlank()) {
+                                        updateCharacterEdit {
+                                            it.copy(prompt = generatedPrompt)
+                                        }
                                     }
-                                } else {
-                                    emitMessage(EffectMessage.PROMPT_GEN_FAILED)
-                                    updateCharacterEdit { it.copy(isGeneratingPrompt = false) }
+                                }
+                                else -> {
+                                    hasError = true
                                 }
                             }
-                            else -> {
-                                emitMessage(EffectMessage.PROMPT_GEN_FAILED)
-                                updateCharacterEdit { it.copy(isGeneratingPrompt = false) }
+                        }
+
+                        val finalPrompt = generatedPrompt.trim()
+                        if (hasError || finalPrompt.isEmpty()) {
+                            emitMessage(EffectMessage.PROMPT_GEN_FAILED)
+                            updateCharacterEdit { it.copy(isGeneratingPrompt = false) }
+                        } else {
+                            updateCharacterEdit {
+                                it.copy(
+                                    prompt = finalPrompt,
+                                    isGeneratingPrompt = false
+                                )
                             }
                         }
                     } catch (cancellation: CancellationException) {

@@ -34,6 +34,12 @@ data class AiCompletion(
     val structuredOutput: JsonElement? = null,
 )
 
+data class AiCompletionChunk(
+    val contentDelta: String = "",
+    val finishReason: String? = null,
+    val usage: AiUsage = AiUsage(),
+)
+
 data class AiUsage(
     val promptTokens: Int = 0,
     val completionTokens: Int = 0,

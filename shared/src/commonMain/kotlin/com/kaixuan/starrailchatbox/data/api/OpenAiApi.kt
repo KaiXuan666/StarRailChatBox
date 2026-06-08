@@ -54,6 +54,25 @@ internal data class OpenAiChatRequest(
 )
 
 @Serializable
+internal data class OpenAiChatStreamResponse(
+    val choices: List<OpenAiStreamChoice> = emptyList(),
+    val usage: OpenAiUsage? = null,
+)
+
+@Serializable
+internal data class OpenAiStreamChoice(
+    val delta: OpenAiStreamDelta = OpenAiStreamDelta(),
+    @SerialName("finish_reason")
+    val finishReason: String? = null,
+)
+
+@Serializable
+internal data class OpenAiStreamDelta(
+    val role: String? = null,
+    val content: String? = null,
+)
+
+@Serializable
 internal data class OpenAiMessage(
     val role: String,
     val content: String? = null,

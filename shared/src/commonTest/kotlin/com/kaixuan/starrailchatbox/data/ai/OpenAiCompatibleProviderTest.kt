@@ -13,6 +13,7 @@ import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.core.readText
 import io.ktor.utils.io.readRemaining
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
@@ -256,6 +257,39 @@ class OpenAiCompatibleProviderTest {
             ),
         )
 
+        client.close()
+    }
+
+    @Test
+    fun parsesStreamingChatCompletionChunks() = runTest {
+        val engine = MockEngine { request ->
+            val body = request.body.readText()
+            assertTrue(body.contains("\"stream\":true"))
+            assertTrue(body.contains("\"tool_choice\":\"none\""))
+            respond(
+                content = """
+                    data: {"choices":[{"delta":{"role":"assistant","content":"你"},"finish_reason":null}]}
+                    data: {"choices":[{"delta":{"content":"好"},"finish_reason":"stop"}],"usage":{"prompt_tokens":3,"completion_tokens":2,"total_tokens":5}}
+                    data: [DONE]
+                """.trimIndent(),
+                headers = headersOf(HttpHeaders.ContentType, "text/event-stream"),
+            )
+        }
+        val client = testClient(engine)
+
+        val results = OpenAiCompatibleProvider(client).completeStreaming(
+            providerConfig(),
+            AiChatRequest(
+                model = "test-model",
+                messages = listOf(AiMessage("user", "hello")),
+                toolChoice = ToolChoice.None,
+            ),
+        ).toList()
+
+        val chunks = results.map { assertIs<ApiResult.Success<AiCompletionChunk>>(it).value }
+        assertEquals(listOf("你", "好"), chunks.map { it.contentDelta })
+        assertEquals("stop", chunks.last().finishReason)
+        assertEquals(5, chunks.last().usage.totalTokens)
         client.close()
     }
 

@@ -6,6 +6,9 @@ import com.kaixuan.starrailchatbox.data.ai.tool.ToolCallCoordinator
 import com.kaixuan.starrailchatbox.data.ai.tool.ToolRegistry
 import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.model.ModelConfig
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -100,6 +103,34 @@ class DefaultAiRepositoryTest {
 
         assertIs<ApiResult.UnexpectedError>(result)
     }
+
+    @Test
+    fun promptCompletionUsesStreamingWithoutTools() = runTest {
+        val provider = RecordingProvider(
+            AiCompletion(message = AiMessage(role = "assistant", content = "unused")),
+            streamChunks = listOf(
+                AiCompletionChunk(contentDelta = "你"),
+                AiCompletionChunk(
+                    contentDelta = "好",
+                    finishReason = "stop",
+                    usage = AiUsage(promptTokens = 3, completionTokens = 2, totalTokens = 5),
+                ),
+            ),
+        )
+        val repository = repository(provider)
+
+        val result = repository.createPromptCompletion(
+            config = modelConfig(supportToolCall = true),
+            messages = listOf(AiMessage("user", "写角色提示词")),
+        ).last()
+
+        val value = assertIs<ApiResult.Success<ChatCompletionResult>>(result).value
+        assertEquals("你好", value.content)
+        assertEquals("stop", value.finishReason)
+        assertEquals(5, value.totalTokens)
+        assertEquals(ToolChoice.None, provider.streamRequests.single().toolChoice)
+        assertTrue(provider.streamRequests.single().tools.isEmpty())
+    }
 }
 
 private fun repository(provider: AiProvider): DefaultAiRepository {
@@ -118,9 +149,11 @@ private fun repository(provider: AiProvider): DefaultAiRepository {
 
 private class RecordingProvider(
     private val completion: AiCompletion,
+    private val streamChunks: List<AiCompletionChunk> = emptyList(),
 ) : AiProvider {
     override val id: String = "recording"
     val requests = mutableListOf<AiChatRequest>()
+    val streamRequests = mutableListOf<AiChatRequest>()
 
     override suspend fun getModels(config: AiProviderConfig): ApiResult<List<String>> {
         return ApiResult.Success(emptyList())
@@ -132,6 +165,14 @@ private class RecordingProvider(
     ): ApiResult<AiCompletion> {
         requests += request
         return ApiResult.Success(completion)
+    }
+
+    override fun completeStreaming(
+        config: AiProviderConfig,
+        request: AiChatRequest,
+    ): Flow<ApiResult<AiCompletionChunk>> {
+        streamRequests += request
+        return flowOf(*streamChunks.map { ApiResult.Success(it) }.toTypedArray())
     }
 
     override suspend fun supportsToolCalls(config: AiProviderConfig): Boolean = true

@@ -1,6 +1,7 @@
 package com.kaixuan.starrailchatbox.data.ai
 
 import com.kaixuan.starrailchatbox.data.api.ApiResult
+import com.kaixuan.starrailchatbox.data.api.OpenAiChatStreamResponse
 import com.kaixuan.starrailchatbox.data.api.OpenAiApi
 import com.kaixuan.starrailchatbox.data.api.OpenAiChatRequest
 import com.kaixuan.starrailchatbox.data.api.OpenAiChatResponse
@@ -14,8 +15,18 @@ import com.kaixuan.starrailchatbox.data.api.OpenAiToolDefinition
 import com.kaixuan.starrailchatbox.data.api.createOpenAiApi
 import de.jensklingenberg.ktorfit.ktorfit
 import io.ktor.client.HttpClient
+import io.ktor.client.request.header
+import io.ktor.client.request.preparePost
+import io.ktor.client.request.setBody
 import io.ktor.client.plugins.ResponseException
+import io.ktor.client.statement.bodyAsChannel
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
+import io.ktor.http.contentType
+import io.ktor.utils.io.readLine
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -61,6 +72,44 @@ class OpenAiCompatibleProvider(
             is ApiResult.HttpError -> result
             is ApiResult.NetworkError -> result
             is ApiResult.UnexpectedError -> result
+        }
+    }
+
+    override fun completeStreaming(
+        config: AiProviderConfig,
+        request: AiChatRequest,
+    ): Flow<ApiResult<AiCompletionChunk>> = flow {
+        try {
+            httpClient.preparePost("${config.apiHost.normalizedBaseUrl()}chat/completions") {
+                header(HttpHeaders.Authorization, config.authorization)
+                contentType(ContentType.Application.Json)
+                setBody(request.toOpenAiRequest(stream = true))
+            }.execute { response ->
+                val channel = response.bodyAsChannel()
+                while (!channel.isClosedForRead) {
+                    val line = channel.readLine() ?: break
+                    val data = line.toOpenAiStreamData() ?: continue
+                    if (data == OpenAiStreamDoneMarker) break
+                    val chunk = try {
+                        json.decodeFromString<OpenAiChatStreamResponse>(data).toCompletionChunk()
+                    } catch (_: SerializationException) {
+                        emit(ApiResult.UnexpectedError("Stream completion returned invalid JSON."))
+                        return@execute
+                    }
+                    emit(ApiResult.Success(chunk))
+                }
+            }
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (error: ResponseException) {
+            emit(
+                ApiResult.HttpError(
+                    statusCode = error.response.status.value,
+                    message = error.message,
+                ),
+            )
+        } catch (error: Throwable) {
+            emit(ApiResult.NetworkError(error.message))
         }
     }
 
@@ -129,7 +178,9 @@ private suspend inline fun <T> apiCall(block: () -> T): ApiResult<T> {
     }
 }
 
-private fun AiChatRequest.toOpenAiRequest() = OpenAiChatRequest(
+private fun AiChatRequest.toOpenAiRequest(
+    stream: Boolean = false,
+) = OpenAiChatRequest(
     model = model,
     messages = messages.map { message ->
         OpenAiMessage(
@@ -147,6 +198,7 @@ private fun AiChatRequest.toOpenAiRequest() = OpenAiChatRequest(
             toolCallId = message.toolCallId,
         )
     },
+    stream = stream,
     temperature = temperature,
     topP = topP,
     maxTokens = maxTokens,
@@ -173,6 +225,28 @@ private fun AiChatRequest.toOpenAiRequest() = OpenAiChatRequest(
     parallelToolCalls = false.takeIf { tools.any(AiToolDefinition::strict) },
     responseFormat = responseFormat?.toOpenAiResponseFormat(),
 )
+
+private const val OpenAiStreamDoneMarker = "[DONE]"
+
+private fun String.toOpenAiStreamData(): String? {
+    val trimmed = trim()
+    if (!trimmed.startsWith("data:")) return null
+    return trimmed.removePrefix("data:").trim()
+}
+
+private fun OpenAiChatStreamResponse.toCompletionChunk(): AiCompletionChunk {
+    val choice = choices.firstOrNull()
+    val usage = usage
+    return AiCompletionChunk(
+        contentDelta = choice?.delta?.content.orEmpty(),
+        finishReason = choice?.finishReason,
+        usage = AiUsage(
+            promptTokens = usage?.promptTokens ?: 0,
+            completionTokens = usage?.completionTokens ?: 0,
+            totalTokens = usage?.totalTokens ?: 0,
+        ),
+    )
+}
 
 private fun AiResponseFormat.toOpenAiResponseFormat(): OpenAiResponseFormat {
     return when (type) {

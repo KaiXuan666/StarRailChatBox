@@ -4,6 +4,8 @@ import com.kaixuan.starrailchatbox.data.ai.tool.ToolCallCoordinator
 import com.kaixuan.starrailchatbox.data.ai.tool.ToolContext
 import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.model.ModelConfig
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 
 /**
  * 面向应用层的 AI 门面，统一提供模型发现、能力探测和聊天能力。
@@ -23,10 +25,12 @@ interface AiRepository {
         characterName: String,
     ): ApiResult<ChatCompletionResult>
 
-    suspend fun createPromptCompletion(
+    fun createPromptCompletion(
         config: ModelConfig,
         messages: List<AiMessage>,
-    ): ApiResult<ChatCompletionResult> = ApiResult.UnexpectedError("createPromptCompletion not implemented")
+    ): Flow<ApiResult<ChatCompletionResult>> = flow {
+        emit(ApiResult.UnexpectedError("createPromptCompletion not implemented"))
+    }
 
     suspend fun createConversationSummary(
         config: ModelConfig,
@@ -123,40 +127,66 @@ class DefaultAiRepository(
         }
     }
 
-    override suspend fun createPromptCompletion(
+    override fun createPromptCompletion(
         config: ModelConfig,
         messages: List<AiMessage>,
-    ): ApiResult<ChatCompletionResult> {
+    ): Flow<ApiResult<ChatCompletionResult>> = flow {
         val provider = providerRegistry.find(config.provider)
-            ?: return ApiResult.UnexpectedError("Unknown AI provider: ${config.provider}")
-        return when (
-            val result = provider.complete(
-                config = config.toProviderConfig(),
-                request = AiChatRequest(
-                    model = config.modelName,
-                    messages = messages,
-                    temperature = config.temperature,
-                    topP = config.topP,
-                    maxTokens = config.maxOutputTokens,
-                    toolChoice = ToolChoice.None,
-                ),
-            )
-        ) {
-            is ApiResult.Success -> {
-                val completion = result.value
-                ApiResult.Success(
-                    ChatCompletionResult(
-                        content = completion.message.content.orEmpty(),
-                        finishReason = completion.finishReason,
-                        promptTokens = completion.usage.promptTokens,
-                        completionTokens = completion.usage.completionTokens,
-                        totalTokens = completion.usage.totalTokens,
-                    ),
-                )
+        if (provider == null) {
+            emit(ApiResult.UnexpectedError("Unknown AI provider: ${config.provider}"))
+            return@flow
+        }
+
+        val content = StringBuilder()
+        var finishReason: String? = null
+        var usage = AiUsage()
+        var emitted = false
+        provider.completeStreaming(
+            config = config.toProviderConfig(),
+            request = AiChatRequest(
+                model = config.modelName,
+                messages = messages,
+                temperature = config.temperature,
+                topP = config.topP,
+                maxTokens = config.maxOutputTokens,
+                toolChoice = ToolChoice.None,
+            ),
+        ).collect { result ->
+            when (result) {
+                is ApiResult.Success -> {
+                    val chunk = result.value
+                    content.append(chunk.contentDelta)
+                    finishReason = chunk.finishReason ?: finishReason
+                    usage = usage + chunk.usage
+                    emitted = true
+                    emit(
+                        ApiResult.Success(
+                            ChatCompletionResult(
+                                content = content.toString(),
+                                finishReason = finishReason,
+                                promptTokens = usage.promptTokens,
+                                completionTokens = usage.completionTokens,
+                                totalTokens = usage.totalTokens,
+                            ),
+                        ),
+                    )
+                }
+                is ApiResult.HttpError -> {
+                    emitted = true
+                    emit(result)
+                }
+                is ApiResult.NetworkError -> {
+                    emitted = true
+                    emit(result)
+                }
+                is ApiResult.UnexpectedError -> {
+                    emitted = true
+                    emit(result)
+                }
             }
-            is ApiResult.HttpError -> result
-            is ApiResult.NetworkError -> result
-            is ApiResult.UnexpectedError -> result
+        }
+        if (!emitted) {
+            emit(ApiResult.UnexpectedError("Stream completion returned no chunks."))
         }
     }
 

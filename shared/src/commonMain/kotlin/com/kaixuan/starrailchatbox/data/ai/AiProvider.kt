@@ -1,6 +1,8 @@
 package com.kaixuan.starrailchatbox.data.ai
 
 import com.kaixuan.starrailchatbox.data.api.ApiResult
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 
 /**
  * 一类 AI 服务协议或 Provider 家族的适配策略。
@@ -16,6 +18,26 @@ interface AiProvider {
         config: AiProviderConfig,
         request: AiChatRequest,
     ): ApiResult<AiCompletion>
+
+    fun completeStreaming(
+        config: AiProviderConfig,
+        request: AiChatRequest,
+    ): Flow<ApiResult<AiCompletionChunk>> = flow {
+        when (val result = complete(config, request)) {
+            is ApiResult.Success -> emit(
+                ApiResult.Success(
+                    AiCompletionChunk(
+                        contentDelta = result.value.message.content.orEmpty(),
+                        finishReason = result.value.finishReason,
+                        usage = result.value.usage,
+                    ),
+                ),
+            )
+            is ApiResult.HttpError -> emit(result)
+            is ApiResult.NetworkError -> emit(result)
+            is ApiResult.UnexpectedError -> emit(result)
+        }
+    }
 
     suspend fun supportsToolCalls(config: AiProviderConfig): Boolean
 }
