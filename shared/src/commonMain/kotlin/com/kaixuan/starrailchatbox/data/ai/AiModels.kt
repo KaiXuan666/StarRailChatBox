@@ -104,4 +104,5 @@ internal fun ModelConfig.toProviderConfig() = AiProviderConfig(
 sealed interface AiContentPart {
     data class Text(val text: String) : AiContentPart
     data class ImageUrl(val url: String, val detail: String? = null) : AiContentPart
+    data class FileUrl(val url: String, val mimeType: String) : AiContentPart
 }

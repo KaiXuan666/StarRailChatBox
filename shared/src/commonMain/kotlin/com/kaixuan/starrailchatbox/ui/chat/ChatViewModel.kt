@@ -70,6 +70,7 @@ class ChatViewModel(
         getString(Res.string.chat_new_session_title)
     },
     private val timeFormatter: (Long) -> String = ::formatLocalTime,
+    private val enableFileAppend: Boolean = false,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState = _uiState.asStateFlow()
@@ -782,8 +783,10 @@ class ChatViewModel(
         content: String,
         attachments: List<SelectedAttachment> = emptyList(),
     ) {
-        val hasImages = attachments.any { it is SelectedAttachment.Image }
-        val config = if (hasImages) {
+        val hasMultimodalAttachment = attachments.any {
+            it is SelectedAttachment.Image || (!enableFileAppend && it is SelectedAttachment.File)
+        }
+        val config = if (hasMultimodalAttachment) {
             (modelConfigRepository.getMultimodal()?.takeIf(ModelConfig::isUsable)
                 ?: modelConfigRepository.getDefault()?.takeIf(ModelConfig::isUsable))
         } else {
@@ -799,7 +802,7 @@ class ChatViewModel(
         val now = currentTimeMillis()
 
         var userText = content
-        val imageParts = mutableListOf<AiContentPart>()
+        val contentParts = mutableListOf<AiContentPart>()
 
         attachments.forEach { attachment ->
             when (attachment) {
@@ -822,31 +825,63 @@ class ChatViewModel(
                         }
                     }
                     if (base64Url != null) {
-                        imageParts.add(AiContentPart.ImageUrl(base64Url))
+                        contentParts.add(AiContentPart.ImageUrl(base64Url))
                     }
                 }
                 is SelectedAttachment.File -> {
-                    val bytes = runCatching { readUriAsBytes(attachment.uri) }.getOrDefault(ByteArray(0))
-                    val fileText = if (bytes.isNotEmpty()) {
-                        try {
-                            bytes.decodeToString()
-                        } catch (_: Exception) {
-                            "[Binary File: ${attachment.name}]"
+                    if (enableFileAppend) {
+                        val bytes = runCatching { readUriAsBytes(attachment.uri) }.getOrDefault(ByteArray(0))
+                        val fileText = if (bytes.isNotEmpty()) {
+                            try {
+                                bytes.decodeToString()
+                            } catch (_: Exception) {
+                                "[Binary File: ${attachment.name}]"
+                            }
+                        } else {
+                            "[Empty File: ${attachment.name}]"
                         }
+                        userText += "\n\n[File: ${attachment.name}]\n$fileText\n[End File]"
                     } else {
-                        "[Empty File: ${attachment.name}]"
+                        val ext = attachment.name.substringAfterLast('.', "").lowercase()
+                        val mimeType = when (ext) {
+                            "txt" -> "text/plain"
+                            "kt" -> "text/plain"
+                            "java" -> "text/plain"
+                            "py" -> "text/plain"
+                            "js" -> "text/plain"
+                            "ts" -> "text/plain"
+                            "json" -> "application/json"
+                            "pdf" -> "application/pdf"
+                            "doc" -> "application/msword"
+                            "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                            "xls" -> "application/vnd.ms-excel"
+                            "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                            else -> "application/octet-stream"
+                        }
+                        val base64Url = if (attachment.uri.startsWith("data:")) {
+                            attachment.uri
+                        } else {
+                            val bytes = runCatching { readUriAsBytes(attachment.uri) }.getOrDefault(ByteArray(0))
+                            if (bytes.isNotEmpty()) {
+                                "data:$mimeType;base64,${kotlin.io.encoding.Base64.encode(bytes)}"
+                            } else {
+                                null
+                            }
+                        }
+                        if (base64Url != null) {
+                            contentParts.add(AiContentPart.FileUrl(base64Url, mimeType))
+                        }
                     }
-                    userText += "\n\n[File: ${attachment.name}]\n$fileText\n[End File]"
                 }
             }
         }
 
-        val messageParts = if (imageParts.isNotEmpty()) {
+        val messageParts = if (contentParts.isNotEmpty()) {
             buildList<AiContentPart> {
                 if (userText.isNotBlank()) {
                     add(AiContentPart.Text(userText))
                 }
-                addAll(imageParts)
+                addAll(contentParts)
             }
         } else {
             null

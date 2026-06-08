@@ -340,6 +340,12 @@ private fun toOpenAiContent(message: AiMessage): JsonElement? {
                                 part.detail?.let { put("detail", it) }
                             })
                         }
+                        is AiContentPart.FileUrl -> {
+                            put("type", "image_url")
+                            put("image_url", buildJsonObject {
+                                put("url", part.url)
+                            })
+                        }
                     }
                 })
             }

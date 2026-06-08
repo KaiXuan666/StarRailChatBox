@@ -502,6 +502,7 @@ class ChatViewModelTest {
             idGenerator = { prefix -> "$prefix-${++id}" },
             sessionTitleProvider = { "新对话" },
             timeFormatter = { "local-$it" },
+            enableFileAppend = true,
         )
         advanceUntilIdle()
 
@@ -522,6 +523,50 @@ class ChatViewModelTest {
         val storedMessages = sessions.observeMessages(session.id).first()
         val userMsgIndex = storedMessages.size - 2
         assertEquals(expectedText, storedMessages[userMsgIndex].content)
+    }
+
+    @Test
+    fun sendWithFileAttachmentAsMultimodalPart() = runTest {
+        val tempTextFile = java.io.File.createTempFile("test_file", ".txt")
+        tempTextFile.writeText("hello file content")
+        tempTextFile.deleteOnExit()
+
+        val sessions = InMemoryChatSessionRepository()
+        val api = FakeOpenAiRepository()
+        var id = 0
+        val viewModel = ChatViewModel(
+            characterRepository = FakeCharacterRepository,
+            chatSessionRepository = sessions,
+            modelConfigRepository = InMemoryModelConfigRepository(testConfig()),
+            aiRepository = api,
+            profileStore = FakeProfileStore(),
+            currentTimeMillis = { 60_000L },
+            idGenerator = { prefix -> "$prefix-${++id}" },
+            sessionTitleProvider = { "新对话" },
+            timeFormatter = { "local-$it" },
+            enableFileAppend = false,
+        )
+        advanceUntilIdle()
+
+        viewModel.onAction(ChatAction.FileSelected(tempTextFile.absolutePath, "test.txt"))
+        viewModel.onAction(ChatAction.MessageChanged("Check this file:"))
+        viewModel.onAction(ChatAction.SendClicked)
+        advanceUntilIdle()
+
+        val sentRequest = api.requests.single()
+        val userMsg = sentRequest.last()
+        assertEquals("user", userMsg.role)
+        assertEquals("Check this file:", userMsg.content)
+
+        val parts = requireNotNull(userMsg.contentParts)
+        assertEquals(2, parts.size)
+
+        val textPart = assertIs<AiContentPart.Text>(parts[0])
+        assertEquals("Check this file:", textPart.text)
+
+        val filePart = assertIs<AiContentPart.FileUrl>(parts[1])
+        assertTrue(filePart.url.startsWith("data:text/plain;base64,"))
+        assertEquals("text/plain", filePart.mimeType)
     }
 }
 

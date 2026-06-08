@@ -175,13 +175,13 @@ driver、provider 和日志出口等边界。
 
 ### 多模态输入与跨平台附件读取
 
-- **多模态模型选择**：当发送的消息中包含图片附件（如相册选择或相机拍照）时，系统必须选用多模态模型配置（`id = "multimodal"`，其 `supportVision` 为 `true`）发起请求；不包含图片时默认使用普通模型配置。
+- **多模态模型选择**：当发送的消息中包含图片附件，或者在不启用文本拼接的情况下包含任意文件附件时，系统必须选用多模态模型配置（`id = "multimodal"`，其 `supportVision` 为 `true`）发起请求；否则默认使用普通模型配置。
 - **跨平台附件读取 (`UriReader`)**：由于不同目标平台读取 URI 字节流方式各异，使用 `expect/actual` 机制声明 `UriReader.readUriAsBytes(uri: String): ByteArray` 提供统一抽象。
   - Android：使用 `ContentResolver` 打开输入流并读取字节。
   - Desktop/JVM：作为本地文件路径通过 Java I/O 直接读取。
   - Web (JS/WasmJS)：在图片/文件选择器中直接使用 `data:` Base64 格式的 Data URL 赋值给 URI，底层当检测到 `uri.startsWith("data:")` 时直接跳过字节读取，使用该 URI 往后传输。
   - iOS/JS/WasmJS 上的其他常规 URI 读取，目前提供空或占位实现。
-- **文本文件附件拼接**：若附件为非图片类型的文本文件（如 `.txt`, `.kt`, `.json` 等），在发送前必须通过 `UriReader` 将其内容读取为字符串，并按 `[文件名.ext]\n---\n文件内容\n---` 格式追加到用户提示词 Prompt 尾部，同时将其整体作为 `chat_message` 的文本内容持久化，以确保会话历史加载时不会丢失该附件信息。
+- **常规文件传输与文本拼接可选方案**：常规文件（包括文本文件，如 `.txt`, `.kt`, `.pdf` 等）优先使用常规多模态文件传输方式，即通过 `UriReader` 读取字节并转换为 Base64 编码的 Data URL（带有相应的 MIME 类型），封装为多模态内容（`AiContentPart.FileUrl`）进行传输。之前的文本拼接方案保留作为可选方案（由 `enableFileAppend` 开关控制，默认不启用），该方案将非图片文本文件以特殊格式拼接到用户 Prompt 尾部并持久化至数据库。
 - **Base64 编码**：多模态图片的 Base64 转换统一使用 Kotlin 1.9.0+ 标准库提供的 `kotlin.io.encoding.Base64`。
 
 ### 网络日志
