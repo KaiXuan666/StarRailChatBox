@@ -244,6 +244,9 @@ fun MainRoute(
                     }
                     main.onAction(MainAction.PopBackStack)
                 }
+                ProfileEffect.NavigateBack -> {
+                    main.onAction(MainAction.PopBackStack)
+                }
             }
         }
     }

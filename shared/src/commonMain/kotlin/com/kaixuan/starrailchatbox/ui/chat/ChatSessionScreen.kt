@@ -533,7 +533,7 @@ private fun HeaderActions(
         Triple(
             HeaderAction.CHARACTER_EDIT,
             Res.string.action_character_edit,
-            StarRailIconKind.SETTINGS,
+            StarRailIconKind.EDIT,
         ),
     )
     Row(

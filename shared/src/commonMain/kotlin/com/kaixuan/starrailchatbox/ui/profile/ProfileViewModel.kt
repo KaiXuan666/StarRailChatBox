@@ -57,7 +57,7 @@ class ProfileViewModel(
                 if (uiState.value.hasUnsavedChanges) {
                     _uiState.update { it.copy(isDiscardDialogOpen = true) }
                 } else {
-                    scope().launch { _effects.send(ProfileEffect.ProfileSaved) }
+                    scope().launch { _effects.send(ProfileEffect.NavigateBack) }
                 }
             }
             ProfileAction.ConfirmDiscard -> {
@@ -68,7 +68,7 @@ class ProfileViewModel(
                         isDiscardDialogOpen = false
                     )
                 }
-                scope().launch { _effects.send(ProfileEffect.ProfileSaved) }
+                scope().launch { _effects.send(ProfileEffect.NavigateBack) }
             }
             ProfileAction.CancelDiscard -> {
                 _uiState.update { it.copy(isDiscardDialogOpen = false) }
