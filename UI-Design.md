@@ -595,6 +595,9 @@ sealed interface ChatMessageUiModel {
 
 头像图片：
 
+- 角色头像统一通过共享头像组件（当前为 `AvatarImage`）和 Coil 加载 `avatarUri`、
+  文件路径、Compose Resource URI 或浏览器 `data:` URI；业务 Composable 不直接
+  持有或手动解码头像 `ByteArray`。
 - 使用圆形裁切。
 - 设置裁切策略为 `ContentScale.Crop`。
 - 为加载中、失败和无头像状态提供占位。
