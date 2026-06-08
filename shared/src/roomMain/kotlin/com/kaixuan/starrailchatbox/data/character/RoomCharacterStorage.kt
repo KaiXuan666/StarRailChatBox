@@ -69,7 +69,7 @@ class RoomCharacterStorage(
         if (avatarSource != null && oldAvatarUri != null && oldAvatarUri != avatarUri) {
             avatarStorage.delete(oldAvatarUri)
         }
-        return character.copy(avatarUri = avatarUri)
+        return character.copy(avatarUri = avatarUri, sortOrder = sortOrder)
     }
 
     override suspend fun deleteCharacter(id: String, deletedAt: Long) {
@@ -110,5 +110,6 @@ class RoomCharacterStorage(
         temperature = temperature,
         topP = topP,
         createdAt = createdAt,
+        sortOrder = sortOrder,
     )
 }

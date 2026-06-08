@@ -13,6 +13,7 @@ data class Character(
     val temperature: Double = 0.85,
     val topP: Double = 0.9,
     val createdAt: Long = 0L,
+    val sortOrder: Int = 0,
 )
 
 data class CharacterFiles(
@@ -24,6 +25,7 @@ data class CharacterFiles(
     val temperature: Double = 0.85,
     val topP: Double = 0.9,
     val createdAt: Long = Clock.System.now().toEpochMilliseconds(),
+    val sortOrder: Int = 0,
 )
 
 data class CharacterAvatarSource(
@@ -135,6 +137,7 @@ private fun CharacterFiles.toCharacter() = Character(
     temperature = temperature,
     topP = topP,
     createdAt = createdAt,
+    sortOrder = sortOrder,
 )
 
 @OptIn(ExperimentalResourceApi::class)

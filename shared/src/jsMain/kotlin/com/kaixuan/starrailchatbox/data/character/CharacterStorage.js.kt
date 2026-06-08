@@ -18,7 +18,7 @@ private class BrowserCharacterStorage(
 
     override suspend fun initializeDefaults(defaults: List<DefaultCharacterAsset>) {
         if (localStorage.getItem(initializedKey) != null) return
-        defaults.forEach {
+        defaults.forEachIndexed { index, it ->
             saveCharacter(
                 CharacterFiles(
                     id = it.id,
@@ -28,6 +28,7 @@ private class BrowserCharacterStorage(
                     avatarUri = "data:image/webp;base64,${Base64.encode(it.avatarContent)}",
                     temperature = it.temperature,
                     topP = it.topP,
+                    sortOrder = index,
                 ),
                 avatarSource = null,
             )
@@ -54,6 +55,9 @@ private class BrowserCharacterStorage(
             val createdAt = localStorage.getItem("$prefix$id.createdAt")
                 ?.toLongOrNull()
                 ?: 0L
+            val sortOrder = localStorage.getItem("$prefix$id.sortOrder")
+                ?.toIntOrNull()
+                ?: 0
             CharacterFiles(
                 id = id,
                 name = name,
@@ -67,15 +71,26 @@ private class BrowserCharacterStorage(
                 temperature = temperature,
                 topP = topP,
                 createdAt = createdAt,
+                sortOrder = sortOrder,
             )
-        }.sortedBy(CharacterFiles::name)
+        }.sortedWith(compareBy({ it.sortOrder }, { it.createdAt }))
     }
 
     override suspend fun saveCharacter(
         character: CharacterFiles,
         avatarSource: CharacterAvatarSource?,
     ): CharacterFiles {
-        val saved = character.copy(avatarUri = avatarSource?.uri ?: character.avatarUri)
+        val existingSortOrder = localStorage.getItem("$prefix${character.id}.sortOrder")?.toIntOrNull()
+        val sortOrder = if (existingSortOrder != null) {
+            existingSortOrder
+        } else {
+            val maxSortOrder = loadCharacters().maxOfOrNull { it.sortOrder } ?: -1
+            maxSortOrder + 1
+        }
+        val saved = character.copy(
+            avatarUri = avatarSource?.uri ?: character.avatarUri,
+            sortOrder = sortOrder,
+        )
         localStorage.setItem("$prefix${character.id}.name", character.name)
         localStorage.setItem("$prefix${character.id}.prompt", character.prompt)
         localStorage.setItem("$prefix${character.id}.opening", character.openingMessage)
@@ -83,6 +98,7 @@ private class BrowserCharacterStorage(
         localStorage.setItem("$prefix${character.id}.temperature", character.temperature.toString())
         localStorage.setItem("$prefix${character.id}.topP", character.topP.toString())
         localStorage.setItem("$prefix${character.id}.createdAt", character.createdAt.toString())
+        localStorage.setItem("$prefix${character.id}.sortOrder", sortOrder.toString())
         val names = (loadNames() + character.id).distinct().sorted()
         localStorage.setItem(namesKey, names.joinToString("\n"))
         return saved

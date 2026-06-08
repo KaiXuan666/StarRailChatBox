@@ -537,6 +537,10 @@ private fun CharacterSelector(
     compact: Boolean,
     onCharacterSelected: (String) -> Unit,
 ) {
+    val displayedCharacters = remember(characters, compact) {
+        val sorted = characters.sortedWith(compareBy({ it.sortOrder }, { it.createdAt }))
+        if (compact) sorted.take(4) else sorted
+    }
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
@@ -566,7 +570,7 @@ private fun CharacterSelector(
             ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            characters.forEach { character ->
+            displayedCharacters.forEach { character ->
                 CharacterSelectorItem(
                     character = character,
                     selected = character.id == selectedCharacterId,

@@ -6,7 +6,7 @@ class InMemoryCharacterStorage : CharacterStorage {
 
     override suspend fun initializeDefaults(defaults: List<DefaultCharacterAsset>) {
         if (initialized) return
-        defaults.forEach {
+        defaults.forEachIndexed { index, it ->
             if (it.id !in characters) {
                 characters[it.id] = CharacterFiles(
                     id = it.id,
@@ -16,6 +16,7 @@ class InMemoryCharacterStorage : CharacterStorage {
                     avatarUri = "memory:${it.id}",
                     temperature = it.temperature,
                     topP = it.topP,
+                    sortOrder = index,
                 )
             }
         }
@@ -23,15 +24,18 @@ class InMemoryCharacterStorage : CharacterStorage {
     }
 
     override suspend fun loadCharacters(): List<CharacterFiles> {
-        return characters.values.toList()
+        return characters.values.sortedWith(compareBy({ it.sortOrder }, { it.createdAt }))
     }
 
     override suspend fun saveCharacter(
         character: CharacterFiles,
         avatarSource: CharacterAvatarSource?,
     ): CharacterFiles {
+        val existing = characters[character.id]
+        val sortOrder = existing?.sortOrder ?: characters.size
         val saved = character.copy(
             avatarUri = avatarSource?.uri ?: character.avatarUri,
+            sortOrder = sortOrder,
         )
         characters[character.id] = saved
         return saved
