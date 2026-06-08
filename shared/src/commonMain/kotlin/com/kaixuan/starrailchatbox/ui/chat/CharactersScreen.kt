@@ -19,6 +19,22 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.zIndex
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
+import com.kaixuan.starrailchatbox.ui.components.StarRailPageHeader
+import starrailchatbox.shared.generated.resources.character_list_drag_tip
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,60 +71,91 @@ fun CharactersScreen(
     onAction: (ChatAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    StarRailPageLayout(
-        title = stringResource(Res.string.character_list_title),
-        contentPadding = contentPadding,
-        compact = compact,
-        modifier = modifier,
-        contentSpacing = StarRailSpacing.md,
-    ) {
-        // "我的角色" 与 "新建角色" 标题行
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = StarRailSpacing.xs),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(Res.string.character_list_my_characters),
-                color = MaterialTheme.colorScheme.onBackground,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+    val density = LocalDensity.current
+    val cardHeightWithSpacing = if (compact) 96.dp else 104.dp
+    val thresholdPx = with(density) { cardHeightWithSpacing.toPx() }
 
-            Surface(
-                onClick = {
-                    // 跳转至新建角色页
-                    onMainAction(MainAction.NavigateTo(Route.CharacterEdit(null)))
-                },
-                shape = RoundedCornerShape(50),
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.height(34.dp)
+    val sortedCharacters = remember(state.characters) {
+        state.characters.sortedWith(compareBy({ it.sortOrder }, { it.createdAt }))
+    }
+
+    var draggingItemId by remember { mutableStateOf<String?>(null) }
+    var dragOffsetY by remember { mutableStateOf(0f) }
+    var currentList by remember(sortedCharacters) { mutableStateOf(sortedCharacters) }
+
+    LaunchedEffect(sortedCharacters) {
+        if (draggingItemId == null) {
+            currentList = sortedCharacters
+        }
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(
+                start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + StarRailSpacing.lg,
+                end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+            ),
+        verticalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
+    ) {
+        StarRailPageHeader(
+            title = stringResource(Res.string.character_list_title),
+            compact = compact,
+        )
+
+        // "我的角色" 与 "新建角色" 标题行，以及拖动提示
+        Column(verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Text(
+                    text = stringResource(Res.string.character_list_my_characters),
+                    color = MaterialTheme.colorScheme.onBackground,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Surface(
+                    onClick = {
+                        onMainAction(MainAction.NavigateTo(Route.CharacterEdit(null)))
+                    },
+                    shape = RoundedCornerShape(50),
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.height(34.dp)
                 ) {
-                    Text(
-                        text = stringResource(Res.string.character_list_create_btn),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    StarRailIcon(
-                        kind = StarRailIconKind.ADD,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(12.dp)
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.character_list_create_btn),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        StarRailIcon(
+                            kind = StarRailIconKind.ADD,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
                 }
             }
+
+            Text(
+                text = stringResource(Res.string.character_list_drag_tip),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                style = MaterialTheme.typography.bodySmall
+            )
         }
 
         // 角色卡片列表
-        if (state.characters.isEmpty() && !state.isLoadingCharacters) {
+        if (currentList.isEmpty() && !state.isLoadingCharacters) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -122,24 +169,91 @@ fun CharactersScreen(
                 )
             }
         } else {
-            val sortedCharacters = remember(state.characters) {
-                state.characters.sortedWith(compareBy({ it.sortOrder }, { it.createdAt }))
-            }
-            sortedCharacters.forEach { character ->
-                CharacterCard(
-                    character = character,
-                    index = character.sortOrder + 1,
-                    compact = compact,
-                    onClick = {
-                        // 选中该角色，并导航至对话 Tab
-                        onAction(ChatAction.CharacterSelected(character.id))
-                        onMainAction(MainAction.NavigationSelected(Route.ChatSession))
-                    },
-                    onEditClick = {
-                        // 跳转至编辑角色页
-                        onMainAction(MainAction.NavigateTo(Route.CharacterEdit(character.id)))
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding() + StarRailSpacing.lg),
+                verticalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
+            ) {
+                items(
+                    items = currentList,
+                    key = { it.id }
+                ) { character ->
+                    val isDragging = character.id == draggingItemId
+                    val cardIndex = currentList.indexOfFirst { it.id == character.id }
+                    
+                    val dragModifier = Modifier.pointerInput(character.id) {
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = {
+                                draggingItemId = character.id
+                                dragOffsetY = 0f
+                            },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                dragOffsetY += dragAmount.y
+                                
+                                val index = currentList.indexOfFirst { it.id == draggingItemId }
+                                if (index != -1) {
+                                    if (dragOffsetY > thresholdPx && index < currentList.lastIndex) {
+                                        val newList = currentList.toMutableList()
+                                        val temp = newList[index]
+                                        newList[index] = newList[index + 1]
+                                        newList[index + 1] = temp
+                                        currentList = newList
+                                        dragOffsetY -= thresholdPx
+                                    } else if (dragOffsetY < -thresholdPx && index > 0) {
+                                        val newList = currentList.toMutableList()
+                                        val temp = newList[index]
+                                        newList[index] = newList[index - 1]
+                                        newList[index - 1] = temp
+                                        currentList = newList
+                                        dragOffsetY += thresholdPx
+                                    }
+                                }
+                            },
+                            onDragEnd = {
+                                onAction(ChatAction.CharactersReordered(currentList))
+                                draggingItemId = null
+                                dragOffsetY = 0f
+                            },
+                            onDragCancel = {
+                                draggingItemId = null
+                                dragOffsetY = 0f
+                            }
+                        )
                     }
-                )
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(dragModifier)
+                            .zIndex(if (isDragging) 1f else 0f)
+                            .graphicsLayer {
+                                if (isDragging) {
+                                    translationY = dragOffsetY
+                                    scaleX = 1.03f
+                                    scaleY = 1.03f
+                                    alpha = 0.95f
+                                }
+                            }
+                    ) {
+                        CharacterCard(
+                            character = character,
+                            index = cardIndex + 1,
+                            compact = compact,
+                            onClick = {
+                                if (draggingItemId == null) {
+                                    onAction(ChatAction.CharacterSelected(character.id))
+                                    onMainAction(MainAction.NavigationSelected(Route.ChatSession))
+                                }
+                            },
+                            onEditClick = {
+                                if (draggingItemId == null) {
+                                    onMainAction(MainAction.NavigateTo(Route.CharacterEdit(character.id)))
+                                }
+                            }
+                        )
+                    }
+                }
             }
         }
     }

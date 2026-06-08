@@ -52,6 +52,8 @@ interface CharacterStorage {
         avatarSource: CharacterAvatarSource?,
     ): CharacterFiles
 
+    suspend fun updateSortOrder(id: String, sortOrder: Int)
+
     suspend fun deleteCharacter(id: String, deletedAt: Long)
 }
 
@@ -68,6 +70,8 @@ interface CharacterRepository {
         character: Character,
         avatarSource: CharacterAvatarSource? = null,
     ): Character
+
+    suspend fun updateSortOrder(id: String, sortOrder: Int)
 
     suspend fun deleteCharacter(id: String, deletedAt: Long)
 }
@@ -119,8 +123,13 @@ class DefaultCharacterRepository(
             temperature = character.temperature.coerceIn(0.0, 2.0),
             topP = character.topP.coerceIn(0.0, 1.0),
             createdAt = character.createdAt,
+            sortOrder = character.sortOrder,
         )
         return storage.saveCharacter(files, avatarSource).toCharacter()
+    }
+
+    override suspend fun updateSortOrder(id: String, sortOrder: Int) {
+        storage.updateSortOrder(id, sortOrder)
     }
 
     override suspend fun deleteCharacter(id: String, deletedAt: Long) {

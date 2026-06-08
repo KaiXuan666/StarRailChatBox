@@ -418,6 +418,8 @@ private object FakeCharacterRepository : CharacterRepository {
         avatarSource: CharacterAvatarSource?,
     ): Character = character.copy(avatarUri = avatarSource?.uri ?: character.avatarUri)
 
+    override suspend fun updateSortOrder(id: String, sortOrder: Int) = Unit
+
     override suspend fun deleteCharacter(id: String, deletedAt: Long) = Unit
 }
 
@@ -436,6 +438,8 @@ private object NoOpeningCharacterRepository : CharacterRepository {
         character: Character,
         avatarSource: CharacterAvatarSource?,
     ): Character = character.copy(avatarUri = avatarSource?.uri ?: character.avatarUri)
+
+    override suspend fun updateSortOrder(id: String, sortOrder: Int) = Unit
 
     override suspend fun deleteCharacter(id: String, deletedAt: Long) = Unit
 }
@@ -468,6 +472,12 @@ private class EditableCharacterRepository(
         val saved = character.copy(avatarUri = avatarSource?.uri ?: character.avatarUri)
         characters = characters.map { if (it.id == saved.id) saved else it }
         return saved
+    }
+
+    override suspend fun updateSortOrder(id: String, sortOrder: Int) {
+        characters = characters.map {
+            if (it.id == id) it.copy(sortOrder = sortOrder) else it
+        }
     }
 
     override suspend fun deleteCharacter(id: String, deletedAt: Long) {

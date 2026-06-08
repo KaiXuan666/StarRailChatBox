@@ -41,6 +41,11 @@ class InMemoryCharacterStorage : CharacterStorage {
         return saved
     }
 
+    override suspend fun updateSortOrder(id: String, sortOrder: Int) {
+        val existing = characters[id] ?: throw IllegalArgumentException("Character does not exist: $id")
+        characters[id] = existing.copy(sortOrder = sortOrder)
+    }
+
     override suspend fun deleteCharacter(id: String, deletedAt: Long) {
         characters.remove(id)
     }

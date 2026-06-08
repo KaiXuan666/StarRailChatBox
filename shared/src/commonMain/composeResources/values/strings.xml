@@ -156,4 +156,5 @@
     <string name="character_list_create_btn">新建角色</string>
     <string name="character_list_edit_desc">编辑</string>
     <string name="character_list_empty">暂无自定义角色</string>
+    <string name="character_list_drag_tip">长按角色卡可拖动排序</string>
 </resources>

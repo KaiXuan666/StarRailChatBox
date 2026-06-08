@@ -248,6 +248,25 @@ class ChatViewModel(
                     }
                 }
             }
+            is ChatAction.CharactersReordered -> reorderCharacters(action.orderedCharacters)
+        }
+    }
+
+    private fun reorderCharacters(orderedCharacters: List<Character>) {
+        val updatedCharacters = orderedCharacters.mapIndexed { index, character ->
+            character.copy(sortOrder = index)
+        }
+        _uiState.update { state ->
+            state.copy(characters = updatedCharacters)
+        }
+        viewModelScope.launch {
+            runCatching {
+                updatedCharacters.forEach { character ->
+                    characterRepository.updateSortOrder(character.id, character.sortOrder)
+                }
+            }.onFailure {
+                Napier.e("Failed to save reordered characters", it)
+            }
         }
     }
 

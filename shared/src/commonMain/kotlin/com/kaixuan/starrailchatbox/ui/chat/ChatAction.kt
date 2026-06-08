@@ -1,5 +1,6 @@
 package com.kaixuan.starrailchatbox.ui.chat
 
+import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.data.character.CharacterAvatarSource
 
 sealed interface ChatAction {
@@ -25,6 +26,7 @@ sealed interface ChatAction {
     data class CharacterPromptGenInputChanged(val text: String) : ChatAction
     data object CharacterPromptGenConfirmClicked : ChatAction
     data object CharacterPromptGenCancelClicked : ChatAction
+    data class CharactersReordered(val orderedCharacters: List<Character>) : ChatAction
 }
 
 enum class HeaderAction {

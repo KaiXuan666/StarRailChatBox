@@ -72,6 +72,13 @@ class RoomCharacterStorage(
         return character.copy(avatarUri = avatarUri, sortOrder = sortOrder)
     }
 
+    override suspend fun updateSortOrder(id: String, sortOrder: Int) {
+        val now = currentTimeMillis()
+        check(dao.updateSortOrder(id, sortOrder, now) == 1) {
+            "Character does not exist: $id"
+        }
+    }
+
     override suspend fun deleteCharacter(id: String, deletedAt: Long) {
         val existing = dao.findById(id) ?: return
         check(dao.softDelete(id, deletedAt) == 1) {

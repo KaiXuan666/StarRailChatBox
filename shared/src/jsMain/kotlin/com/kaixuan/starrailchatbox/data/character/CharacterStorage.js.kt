@@ -104,8 +104,15 @@ private class BrowserCharacterStorage(
         return saved
     }
 
+    override suspend fun updateSortOrder(id: String, sortOrder: Int) {
+        if (localStorage.getItem("$prefix$id.name") == null) {
+            throw IllegalArgumentException("Character does not exist: $id")
+        }
+        localStorage.setItem("$prefix$id.sortOrder", sortOrder.toString())
+    }
+
     override suspend fun deleteCharacter(id: String, deletedAt: Long) {
-        listOf("name", "md", "prompt", "opening", "webp", "avatarUri", "temperature", "topP", "createdAt").forEach { suffix ->
+        listOf("name", "md", "prompt", "opening", "webp", "avatarUri", "temperature", "topP", "createdAt", "sortOrder").forEach { suffix ->
             localStorage.removeItem("$prefix$id.$suffix")
         }
         localStorage.setItem(namesKey, loadNames().filterNot { it == id }.joinToString("\n"))
