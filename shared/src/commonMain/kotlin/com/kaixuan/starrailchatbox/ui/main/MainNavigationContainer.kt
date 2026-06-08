@@ -88,8 +88,12 @@ import com.kaixuan.starrailchatbox.ui.chat.ChatAction
 import com.kaixuan.starrailchatbox.ui.chat.ChatEffect
 import com.kaixuan.starrailchatbox.ui.chat.ChatSessionBottomBar
 import com.kaixuan.starrailchatbox.ui.chat.ChatSessionScreen
-import com.kaixuan.starrailchatbox.ui.chat.CharacterEditScreen
-import com.kaixuan.starrailchatbox.ui.chat.CharactersScreen
+import com.kaixuan.starrailchatbox.ui.character.CharacterAction
+import com.kaixuan.starrailchatbox.ui.character.CharacterEffect
+import com.kaixuan.starrailchatbox.ui.character.CharacterEffectMessage
+import com.kaixuan.starrailchatbox.ui.character.CharactersUiState
+import com.kaixuan.starrailchatbox.ui.character.CharactersScreen
+import com.kaixuan.starrailchatbox.ui.character.CharacterEditScreen
 import com.kaixuan.starrailchatbox.ui.chat.ChatUiState
 import com.kaixuan.starrailchatbox.ui.chat.CharacterChatState
 import com.kaixuan.starrailchatbox.ui.chat.ChatMessageUiModel
@@ -108,15 +112,16 @@ import com.kaixuan.starrailchatbox.ui.settings.SettingsAction
 import com.kaixuan.starrailchatbox.ui.settings.SettingsEffect
 import com.kaixuan.starrailchatbox.ui.settings.SettingsEffectMessage
 import com.kaixuan.starrailchatbox.ui.settings.SettingsUiState
-import com.kaixuan.starrailchatbox.ui.profile.ProfileUiState
-import com.kaixuan.starrailchatbox.ui.profile.ProfileEffect
-import com.kaixuan.starrailchatbox.ui.profile.ProfileEffectMessage
-import com.kaixuan.starrailchatbox.ui.profile.ProfileAction
 import com.kaixuan.starrailchatbox.ui.profile.ProfileScreen
+import com.kaixuan.starrailchatbox.ui.profile.ProfileAction
+import com.kaixuan.starrailchatbox.ui.profile.ProfileEffect
+import com.kaixuan.starrailchatbox.ui.profile.ProfileUiState
+import com.kaixuan.starrailchatbox.ui.profile.ProfileEffectMessage
 
 @Composable
 fun MainRoute(
     main: MainRouteBinding,
+    characters: CharactersRouteBinding,
     chat: ChatRouteBinding,
     settings: SettingsRouteBinding,
     profile: ProfileRouteBinding,
@@ -131,10 +136,13 @@ fun MainRoute(
         EffectMessage.MODEL_CONFIG_REQUIRED to stringResource(Res.string.chat_model_config_required),
         EffectMessage.CHAT_REQUEST_FAILED to stringResource(Res.string.chat_request_failed),
         EffectMessage.CHAT_EMPTY_RESPONSE to stringResource(Res.string.chat_empty_response),
-        EffectMessage.CHARACTER_NAME_EMPTY to stringResource(Res.string.character_name_empty),
-        EffectMessage.CHARACTER_SAVE_FAILED to stringResource(Res.string.character_save_failed),
-        EffectMessage.PROMPT_GEN_FAILED to stringResource(Res.string.character_edit_prompt_gen_failed),
-        EffectMessage.CHARACTER_NAME_REQUIRED to stringResource(Res.string.character_name_required),
+    )
+    val characterEffectMessages = mapOf(
+        CharacterEffectMessage.CHARACTER_NAME_EMPTY to stringResource(Res.string.character_name_empty),
+        CharacterEffectMessage.CHARACTER_SAVE_FAILED to stringResource(Res.string.character_save_failed),
+        CharacterEffectMessage.PROMPT_GEN_FAILED to stringResource(Res.string.character_edit_prompt_gen_failed),
+        CharacterEffectMessage.CHARACTER_NAME_REQUIRED to stringResource(Res.string.character_name_required),
+        CharacterEffectMessage.MODEL_CONFIG_REQUIRED to stringResource(Res.string.chat_model_config_required),
     )
     val characterSavedMessage = stringResource(Res.string.character_saved)
     val characterDeletedMessage = stringResource(Res.string.character_deleted)
@@ -153,11 +161,15 @@ fun MainRoute(
         SettingsEffectMessage.SETTINGS_API_NO_MODELS to stringResource(Res.string.settings_api_no_models),
         SettingsEffectMessage.SETTINGS_API_SAVE_FAILED to stringResource(Res.string.settings_api_save_failed),
     )
+    val profileEffectMessages = mapOf(
+        ProfileEffectMessage.PROFILE_SAVED to stringResource(Res.string.profile_saved),
+        ProfileEffectMessage.NICKNAME_EMPTY to stringResource(Res.string.profile_nickname_empty),
+    )
     val mainEffectMessages = mapOf(
         MainEffectMessage.THEME_CHANGED to stringResource(Res.string.theme_changed),
     )
 
-    LaunchedEffect(chat.effects, chatEffectMessages, characterSavedMessage, characterDeletedMessage) {
+    LaunchedEffect(chat.effects, chatEffectMessages) {
         chat.effects.collectLatest { effect ->
             when (effect) {
                 is ChatEffect.ShowMessage -> {
@@ -165,11 +177,23 @@ fun MainRoute(
                         chatEffectMessages.getValue(effect.message),
                     )
                 }
-                ChatEffect.CharacterSaved -> {
+            }
+        }
+    }
+
+    LaunchedEffect(characters.effects, characterEffectMessages, characterSavedMessage, characterDeletedMessage) {
+        characters.effects.collectLatest { effect ->
+            when (effect) {
+                is CharacterEffect.ShowMessage -> {
+                    snackbarHostState.showSnackbar(
+                        characterEffectMessages.getValue(effect.message),
+                    )
+                }
+                CharacterEffect.CharacterSaved -> {
                     snackbarHostState.showSnackbar(characterSavedMessage)
                     main.onAction(MainAction.PopBackStack)
                 }
-                ChatEffect.CharacterDeleted -> {
+                CharacterEffect.CharacterDeleted -> {
                     snackbarHostState.showSnackbar(characterDeletedMessage)
                     main.onAction(MainAction.PopBackStack)
                 }
@@ -194,11 +218,6 @@ fun MainRoute(
             }
         }
     }
-
-    val profileEffectMessages = mapOf(
-        ProfileEffectMessage.PROFILE_SAVED to stringResource(Res.string.profile_saved),
-        ProfileEffectMessage.NICKNAME_EMPTY to stringResource(Res.string.profile_nickname_empty),
-    )
 
     LaunchedEffect(profile.effects) {
         profile.effects.collectLatest { effect ->
@@ -229,11 +248,13 @@ fun MainRoute(
 
     MainNavigationContainer(
         mainState = main.state,
+        charactersState = characters.state,
         chatState = chat.state,
         settingsState = settings.state,
         profileState = profile.state,
         snackbarHostState = snackbarHostState,
         onMainAction = main.onAction,
+        onCharacterAction = characters.onAction,
         onChatAction = chat.onAction,
         onSettingsAction = settings.onAction,
         onProfileAction = profile.onAction,
@@ -243,11 +264,13 @@ fun MainRoute(
 @Composable
 fun MainNavigationContainer(
     mainState: MainUiState,
+    charactersState: CharactersUiState,
     chatState: ChatUiState,
     settingsState: SettingsUiState,
     profileState: ProfileUiState,
     snackbarHostState: SnackbarHostState,
     onMainAction: (MainAction) -> Unit,
+    onCharacterAction: (CharacterAction) -> Unit,
     onChatAction: (ChatAction) -> Unit,
     onSettingsAction: (SettingsAction) -> Unit,
     onProfileAction: (ProfileAction) -> Unit,
@@ -309,9 +332,11 @@ fun MainNavigationContainer(
                     entry<Route.ChatSession> {
                         ChatSessionScreen(
                             state = chatState,
+                            charactersState = charactersState,
                             contentPadding = contentPadding,
                             compact = compact,
                             onAction = onChatAction,
+                            onCharacterAction = onCharacterAction,
                             onMainAction = onMainAction,
                         )
                     }
@@ -327,20 +352,20 @@ fun MainNavigationContainer(
                     entry<Route.CharacterEdit> { entry ->
                         CharacterEditScreen(
                             characterId = entry.characterId,
-                            state = chatState,
+                            state = charactersState,
                             contentPadding = contentPadding,
                             compact = compact,
                             onMainAction = onMainAction,
-                            onAction = onChatAction,
+                            onAction = onCharacterAction,
                         )
                     }
                     entry<Route.Characters> {
                         CharactersScreen(
-                            state = chatState,
+                            state = charactersState,
                             contentPadding = contentPadding,
                             compact = compact,
                             onMainAction = onMainAction,
-                            onAction = onChatAction,
+                            onAction = onCharacterAction,
                         )
                     }
                     entry<Route.Settings> {
@@ -603,6 +628,11 @@ private fun MainContainerLightPreview() {
                 effects = emptyFlow(),
                 onAction = {},
             ),
+            characters = CharactersRouteBinding(
+                state = previewCharactersState,
+                effects = emptyFlow(),
+                onAction = {},
+            ),
             chat = ChatRouteBinding(
                 state = previewChatState,
                 effects = emptyFlow(),
@@ -629,6 +659,11 @@ private fun MainContainerDarkPreview() {
         MainRoute(
             main = MainRouteBinding(
                 state = MainUiState(darkThemeOverride = true),
+                effects = emptyFlow(),
+                onAction = {},
+            ),
+            characters = CharactersRouteBinding(
+                state = previewCharactersState,
                 effects = emptyFlow(),
                 onAction = {},
             ),
@@ -659,9 +694,15 @@ private val previewCharacter = Character(
     avatarUri = "",
 )
 
-private val previewChatState = ChatUiState(
+private val previewCharactersState = CharactersUiState(
     characters = listOf(previewCharacter),
     selectedCharacterId = "builtin:流萤",
+    isLoadingCharacters = false,
+)
+
+private val previewChatState = ChatUiState(
+    selectedCharacterId = "builtin:流萤",
+    selectedCharacter = previewCharacter,
     characterStates = mapOf(
         "builtin:流萤" to CharacterChatState(
             activeSessionId = "preview-session",
@@ -678,5 +719,4 @@ private val previewChatState = ChatUiState(
             suggestions = listOf("讲讲星核猎手", "你喜欢橡木蛋糕卷吗", "关于这片星空...", "想听听你的过去"),
         )
     ),
-    isLoadingCharacters = false,
 )

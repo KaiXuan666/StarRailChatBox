@@ -1,4 +1,4 @@
-package com.kaixuan.starrailchatbox.ui.chat
+package com.kaixuan.starrailchatbox.ui.character
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -64,11 +64,11 @@ import starrailchatbox.shared.generated.resources.character_list_empty
 
 @Composable
 fun CharactersScreen(
-    state: ChatUiState,
+    state: CharactersUiState,
     contentPadding: PaddingValues,
     compact: Boolean,
     onMainAction: (MainAction) -> Unit,
-    onAction: (ChatAction) -> Unit,
+    onAction: (CharacterAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
@@ -211,7 +211,7 @@ fun CharactersScreen(
                                 }
                             },
                             onDragEnd = {
-                                onAction(ChatAction.CharactersReordered(currentList))
+                                onAction(CharacterAction.CharactersReordered(currentList))
                                 draggingItemId = null
                                 dragOffsetY = 0f
                             },
@@ -242,7 +242,7 @@ fun CharactersScreen(
                             compact = compact,
                             onClick = {
                                 if (draggingItemId == null) {
-                                    onAction(ChatAction.CharacterSelected(character.id))
+                                    onAction(CharacterAction.CharacterSelected(character.id))
                                     onMainAction(MainAction.NavigationSelected(Route.ChatSession))
                                 }
                             },
@@ -406,7 +406,7 @@ private fun CharactersScreenDarkPreview() {
     }
 }
 
-private val previewState = ChatUiState(
+private val previewState = CharactersUiState(
     characters = listOf(
         Character(
             id = "builtin:三月七",

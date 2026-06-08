@@ -1,4 +1,4 @@
-package com.kaixuan.starrailchatbox.ui.chat
+package com.kaixuan.starrailchatbox.ui.character
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -85,15 +85,15 @@ private const val MaxOpeningMessageLength = 200
 @Composable
 fun CharacterEditScreen(
     characterId: String?,
-    state: ChatUiState,
+    state: CharactersUiState,
     contentPadding: PaddingValues,
     compact: Boolean,
     onMainAction: (MainAction) -> Unit,
-    onAction: (ChatAction) -> Unit,
+    onAction: (CharacterAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LaunchedEffect(characterId) {
-        onAction(ChatAction.CharacterEditOpened(characterId))
+        onAction(CharacterAction.CharacterEditOpened(characterId))
     }
 
     BackHandler {
@@ -104,7 +104,7 @@ fun CharacterEditScreen(
     var deleteDialogVisible by remember { mutableStateOf(false) }
     val imagePicker = rememberImagePicker { image ->
         if (image != null) {
-            onAction(ChatAction.CharacterAvatarChanged(CharacterAvatarSource(image.uri)))
+            onAction(CharacterAction.CharacterAvatarChanged(CharacterAvatarSource(image.uri)))
         }
     }
 
@@ -122,7 +122,7 @@ fun CharacterEditScreen(
             compact = compact,
             onPickAvatar = imagePicker,
             onNameChanged = { name ->
-                onAction(ChatAction.CharacterNameChanged(name.take(MaxCharacterNameLength)))
+                onAction(CharacterAction.CharacterNameChanged(name.take(MaxCharacterNameLength)))
             },
         )
 
@@ -136,12 +136,12 @@ fun CharacterEditScreen(
             maxLength = MaxPromptLength,
             minLines = 5,
             onValueChange = { prompt ->
-                onAction(ChatAction.CharacterPromptChanged(prompt.take(MaxPromptLength)))
+                onAction(CharacterAction.CharacterPromptChanged(prompt.take(MaxPromptLength)))
             },
             actionButton = {
                 Surface(
                     onClick = {
-                        onAction(ChatAction.CharacterPromptGenClicked(defaultPromptRequestText))
+                        onAction(CharacterAction.CharacterPromptGenClicked(defaultPromptRequestText))
                     },
                     shape = MaterialTheme.shapes.extraLarge,
                     color = if (editState.isGeneratingPrompt) {
@@ -186,7 +186,7 @@ fun CharacterEditScreen(
             maxLength = MaxOpeningMessageLength,
             minLines = 2,
             onValueChange = { openingMessage ->
-                onAction(ChatAction.CharacterOpeningMessageChanged(openingMessage.take(MaxOpeningMessageLength)))
+                onAction(CharacterAction.CharacterOpeningMessageChanged(openingMessage.take(MaxOpeningMessageLength)))
             },
         )
 
@@ -195,7 +195,7 @@ fun CharacterEditScreen(
             value = editState.temperature,
             valueRange = 0.0..2.0,
             hint = stringResource(Res.string.character_edit_temperature_hint),
-            onValueChange = { onAction(ChatAction.CharacterTemperatureChanged(it)) },
+            onValueChange = { onAction(CharacterAction.CharacterTemperatureChanged(it)) },
         )
 
         CharacterSliderCard(
@@ -203,7 +203,7 @@ fun CharacterEditScreen(
             value = editState.topP,
             valueRange = 0.0..1.0,
             hint = stringResource(Res.string.character_edit_top_p_hint),
-            onValueChange = { onAction(ChatAction.CharacterTopPChanged(it)) },
+            onValueChange = { onAction(CharacterAction.CharacterTopPChanged(it)) },
         )
 
         Row(
@@ -237,7 +237,7 @@ fun CharacterEditScreen(
                         Res.string.character_edit_save
                     },
                 ),
-                onClick = { onAction(ChatAction.CharacterSaveClicked) },
+                onClick = { onAction(CharacterAction.CharacterSaveClicked) },
                 modifier = Modifier.weight(1f),
                 enabled = !editState.isSaving,
             )
@@ -270,13 +270,13 @@ fun CharacterEditScreen(
             title = stringResource(Res.string.character_edit_prompt_gen_title),
             dismissText = stringResource(Res.string.cancel),
             confirmText = stringResource(Res.string.confirm),
-            onDismissRequest = { onAction(ChatAction.CharacterPromptGenCancelClicked) },
-            onConfirm = { onAction(ChatAction.CharacterPromptGenConfirmClicked) },
+            onDismissRequest = { onAction(CharacterAction.CharacterPromptGenCancelClicked) },
+            onConfirm = { onAction(CharacterAction.CharacterPromptGenConfirmClicked) },
         ) {
             LabeledTextField(
                 value = editState.promptGenInputText,
                 onValueChange = { text ->
-                    onAction(ChatAction.CharacterPromptGenInputChanged(text))
+                    onAction(CharacterAction.CharacterPromptGenInputChanged(text))
                 },
                 minLines = 4,
             )
@@ -292,7 +292,7 @@ fun CharacterEditScreen(
             onDismissRequest = { deleteDialogVisible = false },
             onConfirm = {
                 deleteDialogVisible = false
-                editState.characterId?.let { onAction(ChatAction.CharacterDeleteClicked(it)) }
+                editState.characterId?.let { onAction(CharacterAction.CharacterDeleteClicked(it)) }
             },
         ) {
             Text(
@@ -585,6 +585,7 @@ private fun Double.sliderLabel(): String {
         rounded.toString()
     }
 }
+
 @Preview(widthDp = 360, heightDp = 800)
 @Composable
 private fun CharacterEditScreenLightPreview() {
@@ -614,6 +615,7 @@ private fun CharacterEditScreenDarkPreview() {
         )
     }
 }
+
 private val characterEditPreviewCharacter = Character(
     id = "builtin:三月七",
     name = "三月七",
@@ -624,7 +626,7 @@ private val characterEditPreviewCharacter = Character(
     topP = 0.9,
 )
 
-private val characterEditPreviewState = ChatUiState(
+private val characterEditPreviewState = CharactersUiState(
     characters = listOf(characterEditPreviewCharacter),
     selectedCharacterId = characterEditPreviewCharacter.id,
     characterEdit = characterEditPreviewCharacter.run {

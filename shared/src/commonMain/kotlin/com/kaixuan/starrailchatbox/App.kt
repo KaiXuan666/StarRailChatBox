@@ -22,8 +22,9 @@ import com.kaixuan.starrailchatbox.ui.main.ChatRouteBinding
 import com.kaixuan.starrailchatbox.ui.main.MainRoute
 import com.kaixuan.starrailchatbox.ui.main.MainRouteBinding
 import com.kaixuan.starrailchatbox.ui.main.MainViewModel
-import com.kaixuan.starrailchatbox.ui.main.ProfileRouteBinding
+import com.kaixuan.starrailchatbox.ui.main.CharactersRouteBinding
 import com.kaixuan.starrailchatbox.ui.main.SettingsRouteBinding
+import com.kaixuan.starrailchatbox.ui.main.ProfileRouteBinding
 import com.kaixuan.starrailchatbox.ui.profile.ProfileViewModel
 import com.kaixuan.starrailchatbox.ui.settings.SettingsViewModel
 import org.koin.dsl.koinApplication
@@ -67,6 +68,7 @@ fun App(
 
     val chatViewModel = viewModel { koinApplication.koin.get<ChatViewModel>() }
     val chatState by chatViewModel.uiState.collectAsStateWithLifecycle()
+    val characterState by chatViewModel.characterUiState.collectAsStateWithLifecycle()
 
     val settingsViewModel = viewModel { koinApplication.koin.get<SettingsViewModel>() }
     val settingsState by settingsViewModel.uiState.collectAsStateWithLifecycle()
@@ -80,6 +82,11 @@ fun App(
                 state = mainState,
                 effects = mainViewModel.effects,
                 onAction = mainViewModel::onAction,
+            ),
+            characters = CharactersRouteBinding(
+                state = characterState,
+                effects = chatViewModel.characterEffects,
+                onAction = chatViewModel::onCharacterAction,
             ),
             chat = ChatRouteBinding(
                 state = chatState,

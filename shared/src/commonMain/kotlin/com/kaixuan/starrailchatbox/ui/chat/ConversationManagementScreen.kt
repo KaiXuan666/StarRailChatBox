@@ -457,19 +457,18 @@ private fun ConversationManagementDarkPreview() {
 @Composable
 private fun ConversationManagementPreview(darkTheme: Boolean) {
     StarRailTheme(darkThemeOverride = darkTheme) {
+        val previewChar = Character(
+            id = "preview",
+            name = "流萤",
+            prompt = "",
+            openingMessage = "",
+            avatarUri = "",
+            createdAt = Clock.System.now().toEpochMilliseconds() - 85L * MillisecondsPerDay,
+        )
         ConversationManagementScreen(
             state = ChatUiState(
-                characters = listOf(
-                    Character(
-                        id = "preview",
-                        name = "流萤",
-                        prompt = "",
-                        openingMessage = "",
-                        avatarUri = "",
-                        createdAt = Clock.System.now().toEpochMilliseconds() - 85L * MillisecondsPerDay,
-                    ),
-                ),
                 selectedCharacterId = "preview",
+                selectedCharacter = previewChar,
                 characterStates = mapOf(
                     "preview" to CharacterChatState(
                         activeSessionId = "session-1",
@@ -491,7 +490,6 @@ private fun ConversationManagementPreview(darkTheme: Boolean) {
                         ),
                     ),
                 ),
-                isLoadingCharacters = false,
             ),
             contentPadding = PaddingValues(),
             compact = true,

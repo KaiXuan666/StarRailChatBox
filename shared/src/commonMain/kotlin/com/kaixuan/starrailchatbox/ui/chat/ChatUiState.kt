@@ -50,51 +50,29 @@ data class ConversationSummaryUiModel(
 )
 
 @Immutable
-data class CharacterEditUiState(
-    val characterId: String? = null,
-    val name: String = "",
-    val prompt: String = "",
-    val openingMessage: String = "",
-    val avatarUri: String = "",
-    val pendingAvatarSource: CharacterAvatarSource? = null,
-    val temperature: Double = 0.85,
-    val topP: Double = 0.9,
-    val isSaving: Boolean = false,
-    val isPromptGenDialogOpen: Boolean = false,
-    val promptGenInputText: String = "",
-    val isGeneratingPrompt: Boolean = false,
-)
-
-@Immutable
 data class ChatUiState(
-    val characters: List<Character> = emptyList(),
     val selectedCharacterId: String? = null,
+    val selectedCharacter: Character? = null,
     val characterStates: Map<String, CharacterChatState> = emptyMap(),
-    val characterEdit: CharacterEditUiState = CharacterEditUiState(),
-    val isLoadingCharacters: Boolean = true,
 ) {
-    val selectedCharacter: Character?
-        get() = characters.firstOrNull { it.id == selectedCharacterId }
-            ?: characters.firstOrNull()
-
     val activeSessionId: String?
-        get() = characterStates[selectedCharacter?.id]?.activeSessionId
+        get() = characterStates[selectedCharacterId]?.activeSessionId
 
     val sessions: List<ConversationSummaryUiModel>
-        get() = characterStates[selectedCharacter?.id]?.sessions.orEmpty()
+        get() = characterStates[selectedCharacterId]?.sessions.orEmpty()
 
     val messages: List<ChatMessageUiModel>
-        get() = characterStates[selectedCharacter?.id]?.messages.orEmpty()
+        get() = characterStates[selectedCharacterId]?.messages.orEmpty()
 
     val messageDraft: String
-        get() = characterStates[selectedCharacter?.id]?.messageDraft.orEmpty()
+        get() = characterStates[selectedCharacterId]?.messageDraft.orEmpty()
 
     val isSending: Boolean
-        get() = characterStates[selectedCharacter?.id]?.isSending ?: false
+        get() = characterStates[selectedCharacterId]?.isSending ?: false
 
     val isLoadingSession: Boolean
-        get() = characterStates[selectedCharacter?.id]?.isLoadingSession ?: false
+        get() = characterStates[selectedCharacterId]?.isLoadingSession ?: false
 
     val suggestions: List<String>
-        get() = characterStates[selectedCharacter?.id]?.suggestions.orEmpty()
+        get() = characterStates[selectedCharacterId]?.suggestions.orEmpty()
 }

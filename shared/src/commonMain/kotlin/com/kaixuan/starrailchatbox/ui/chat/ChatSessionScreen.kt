@@ -96,6 +96,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.ui.tooling.preview.Preview
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.ui.main.MainAction
+import com.kaixuan.starrailchatbox.ui.character.CharactersUiState
+import com.kaixuan.starrailchatbox.ui.character.CharacterAction
 import com.kaixuan.starrailchatbox.ui.navigation.Route
 
 /**
@@ -105,17 +107,19 @@ import com.kaixuan.starrailchatbox.ui.navigation.Route
 @Composable
 fun ChatSessionScreen(
     state: ChatUiState,
+    charactersState: CharactersUiState,
     contentPadding: PaddingValues,
     compact: Boolean,
     onAction: (ChatAction) -> Unit,
+    onCharacterAction: (CharacterAction) -> Unit,
     onMainAction: (MainAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val characters = state.characters
-    val selectedCharacter = state.selectedCharacter
+    val characters = charactersState.characters
+    val selectedCharacter = charactersState.selectedCharacter
     val coroutineScope = rememberCoroutineScope()
 
-    if (state.isLoadingCharacters) {
+    if (charactersState.isLoadingCharacters) {
         Box(
             modifier = modifier.fillMaxSize().padding(StarRailSpacing.xl),
             contentAlignment = Alignment.Center,
@@ -166,7 +170,7 @@ fun ChatSessionScreen(
     LaunchedEffect(pagerState.currentPage) {
         val targetCharacter = characters.getOrNull(pagerState.currentPage)
         if (targetCharacter != null && targetCharacter.id != selectedCharacter?.id) {
-            onAction(ChatAction.CharacterSelected(targetCharacter.id))
+            onCharacterAction(CharacterAction.CharacterSelected(targetCharacter.id))
         }
     }
 
@@ -248,6 +252,7 @@ fun ChatSessionScreen(
                             selectedCharacter = pageCharacter,
                             compact = compact,
                             onAction = onAction,
+                            onCharacterAction = onCharacterAction,
                             onMainAction = onMainAction,
                         )
                     }
@@ -341,6 +346,7 @@ private fun ChatHeader(
     selectedCharacter: Character,
     compact: Boolean,
     onAction: (ChatAction) -> Unit,
+    onCharacterAction: (CharacterAction) -> Unit,
     onMainAction: (MainAction) -> Unit,
 ) {
     Column(
@@ -375,6 +381,7 @@ private fun ChatHeader(
                 characterId = selectedCharacter.id,
                 compact = compact,
                 onAction = onAction,
+                onCharacterAction = onCharacterAction,
                 onMainAction = onMainAction,
             )
         }
@@ -452,6 +459,7 @@ private fun HeaderActions(
     characterId: String,
     compact: Boolean,
     onAction: (ChatAction) -> Unit,
+    onCharacterAction: (CharacterAction) -> Unit,
     onMainAction: (MainAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -489,7 +497,7 @@ private fun HeaderActions(
                                 onMainAction(MainAction.NavigateTo(Route.ConversationManagement))
                             }
                             HeaderAction.CHARACTER_EDIT -> {
-                                onAction(ChatAction.CharacterEditOpened(characterId))
+                                onCharacterAction(CharacterAction.CharacterEditOpened(characterId))
                                 onMainAction(MainAction.NavigateTo(Route.CharacterEdit(characterId)))
                             }
                             HeaderAction.VOICE -> {
@@ -1159,9 +1167,11 @@ private fun ChatSessionScreenLightPreview() {
     StarRailTheme(darkThemeOverride = false) {
         ChatSessionScreen(
             state = chatPreviewState,
+            charactersState = charactersPreviewState,
             contentPadding = PaddingValues(0.dp),
             compact = true,
             onAction = {},
+            onCharacterAction = {},
             onMainAction = {}
         )
     }
@@ -1173,22 +1183,32 @@ private fun ChatSessionScreenDarkPreview() {
     StarRailTheme(darkThemeOverride = true) {
         ChatSessionScreen(
             state = chatPreviewState,
+            charactersState = charactersPreviewState,
             contentPadding = PaddingValues(0.dp),
             compact = true,
             onAction = {},
+            onCharacterAction = {},
             onMainAction = {}
         )
     }
 }
 
-private val chatPreviewState = ChatUiState(
-    characters = listOf(
-        previewCharacter("builtin:流萤", "流萤"),
-        previewCharacter("builtin:三月七", "三月七"),
-        previewCharacter("builtin:黄泉", "黄泉"),
-        previewCharacter("builtin:瑕蝶", "瑕蝶"),
-    ),
+private val previewCharacters = listOf(
+    previewCharacter("builtin:流萤", "流萤"),
+    previewCharacter("builtin:三月七", "三月七"),
+    previewCharacter("builtin:黄泉", "黄泉"),
+    previewCharacter("builtin:瑕蝶", "瑕蝶"),
+)
+
+private val charactersPreviewState = CharactersUiState(
+    characters = previewCharacters,
     selectedCharacterId = "builtin:流萤",
+    isLoadingCharacters = false,
+)
+
+private val chatPreviewState = ChatUiState(
+    selectedCharacterId = "builtin:流萤",
+    selectedCharacter = previewCharacters.first(),
     characterStates = mapOf(
         "builtin:流萤" to CharacterChatState(
             activeSessionId = "preview-session",
@@ -1233,7 +1253,6 @@ private val chatPreviewState = ChatUiState(
             suggestions = listOf("讲讲星核猎手", "你喜欢橡木蛋糕卷吗", "关于这片星空...", "想听听你的过去"),
             )
     ),
-    isLoadingCharacters = false,
 )
 
 private fun previewCharacter(
