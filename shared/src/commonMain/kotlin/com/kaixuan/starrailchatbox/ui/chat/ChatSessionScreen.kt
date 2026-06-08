@@ -93,6 +93,7 @@ import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.tooling.preview.Preview
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.ui.main.MainAction
@@ -203,7 +204,10 @@ fun ChatSessionScreen(
             LaunchedEffect(pageCharacter.id) {
                 previousPageMessageCount = pageMessages.size
                 if (pageMessages.isNotEmpty()) {
-                    pageListState.scrollToItem(messagesStartIndex + pageMessages.lastIndex)
+                    pageListState.scrollToMessageBottomAfterLayout(
+                        messagesStartIndex,
+                        pageMessages.lastIndex,
+                    )
                 } else {
                     shouldPageScrollToBottomOnLoad = true
                 }
@@ -212,7 +216,10 @@ fun ChatSessionScreen(
             LaunchedEffect(pageMessages, pageState.isLoadingSession) {
                 if (shouldPageScrollToBottomOnLoad && !pageState.isLoadingSession && pageMessages.isNotEmpty()) {
                     shouldPageScrollToBottomOnLoad = false
-                    pageListState.scrollToItem(messagesStartIndex + pageMessages.lastIndex)
+                    pageListState.scrollToMessageBottomAfterLayout(
+                        messagesStartIndex,
+                        pageMessages.lastIndex,
+                    )
                 }
             }
 
@@ -225,7 +232,10 @@ fun ChatSessionScreen(
                     wasNearBottom &&
                     pageMessages.isNotEmpty()
                 ) {
-                    pageListState.scrollToItem(messagesStartIndex + pageMessages.lastIndex)
+                    pageListState.scrollToMessageBottomAfterLayout(
+                        messagesStartIndex,
+                        pageMessages.lastIndex,
+                    )
                 }
                 previousPageMessageCount = pageMessages.size
             }
@@ -279,7 +289,10 @@ fun ChatSessionScreen(
                                                 val targetPageState = state.characterStates[characterId]
                                                 val targetMessages = targetPageState?.messages.orEmpty()
                                                 if (targetMessages.isNotEmpty()) {
-                                                    targetListState.scrollToItem(messagesStartIndex + targetMessages.lastIndex)
+                                                    pageListState.scrollToMessageBottomAfterLayout(
+                                                        messagesStartIndex,
+                                                        pageMessages.lastIndex,
+                                                    )
                                                 }
                                             }
                                         }
@@ -340,6 +353,21 @@ fun ChatSessionScreen(
             }
         }
     }
+}
+
+private suspend fun LazyListState.scrollToMessageBottomAfterLayout(
+    messagesStartIndex: Int,
+    lastMessageIndex: Int,
+) {
+    if (lastMessageIndex < 0) return
+
+    withFrameNanos { }
+    withFrameNanos { }
+
+    scrollToItem(
+        index = messagesStartIndex + lastMessageIndex,
+        scrollOffset = Int.MAX_VALUE,
+    )
 }
 
 @Composable
