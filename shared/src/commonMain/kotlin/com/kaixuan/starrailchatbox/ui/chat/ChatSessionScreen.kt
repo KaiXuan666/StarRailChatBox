@@ -153,13 +153,20 @@ fun ChatSessionScreen(
         initialPage = initialPage,
     ) { characters.size }
 
+    val messagesStartIndex = 3
+
     // 缓存每个角色的 LazyListState
     val pageListStates = remember { mutableMapOf<String, LazyListState>() }
     val currentStates = remember(characters) {
-        characters.associate { it.id to (pageListStates[it.id] ?: LazyListState()) }
+        characters.associate { character ->
+            character.id to pageListStates.getOrPut(character.id) {
+                // 如果当前已经有消息（例如从其他 Tab 切回时），初始化在底部，避免闪烁
+                val messages = state.characterStates[character.id]?.messages.orEmpty()
+                val initialIndex = if (messages.isNotEmpty()) messagesStartIndex + messages.lastIndex else 0
+                LazyListState(firstVisibleItemIndex = initialIndex)
+            }
+        }
     }
-
-    val messagesStartIndex = 3
 
     LaunchedEffect(selectedCharacter?.id) {
         val targetPage = characters.indexOfFirst { it.id == selectedCharacter?.id }
@@ -289,9 +296,9 @@ fun ChatSessionScreen(
                                                 val targetPageState = state.characterStates[characterId]
                                                 val targetMessages = targetPageState?.messages.orEmpty()
                                                 if (targetMessages.isNotEmpty()) {
-                                                    pageListState.scrollToMessageBottomAfterLayout(
+                                                    targetListState.scrollToMessageBottomAfterLayout(
                                                         messagesStartIndex,
-                                                        pageMessages.lastIndex,
+                                                        targetMessages.lastIndex,
                                                     )
                                                 }
                                             }
