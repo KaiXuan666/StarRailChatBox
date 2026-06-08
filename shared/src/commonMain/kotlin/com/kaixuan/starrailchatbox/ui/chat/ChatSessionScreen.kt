@@ -1890,6 +1890,7 @@ private fun MessageComposer(
             .padding(
                 start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
                 end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                top = if (compact) StarRailSpacing.xs else StarRailSpacing.md,
                 bottom = StarRailSpacing.sm,
             ),
         horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),

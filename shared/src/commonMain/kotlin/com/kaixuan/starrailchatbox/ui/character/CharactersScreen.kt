@@ -132,10 +132,9 @@ fun CharactersScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = stringResource(Res.string.character_list_my_characters),
-                    color = MaterialTheme.colorScheme.onBackground,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    text = stringResource(Res.string.character_list_drag_tip),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                    style = MaterialTheme.typography.bodySmall
                 )
 
                 Surface(
@@ -167,11 +166,7 @@ fun CharactersScreen(
                 }
             }
 
-            Text(
-                text = stringResource(Res.string.character_list_drag_tip),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
-                style = MaterialTheme.typography.bodySmall
-            )
+
         }
 
         // 角色卡片列表

@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.core.content.FileProvider
 import java.io.File
 
@@ -37,23 +38,31 @@ actual fun rememberFilePicker(onFilePicked: (PickedFile?) -> Unit): () -> Unit {
 @Composable
 actual fun rememberCameraLauncher(onImageCaptured: (PickedImage?) -> Unit): () -> Unit {
     val context = LocalContext.current
+    val isPreview = LocalInspectionMode.current
     
     // 使用 remember 避免在重组时重复创建文件和生成 URI
-    val uri = remember {
-        val tempFile = File(context.cacheDir, "temp_camera_image_${System.currentTimeMillis()}.jpg")
-        val authority = "${context.packageName}.fileprovider"
-        FileProvider.getUriForFile(context, authority, tempFile)
+    // 在预览模式下跳过 FileProvider 调用，因为它依赖于 Manifest 中的配置，预览环境可能无法识别
+    val uri = remember(isPreview) {
+        if (isPreview) {
+            null
+        } else {
+            val tempFile = File(context.cacheDir, "temp_camera_image_${System.currentTimeMillis()}.jpg")
+            val authority = "${context.packageName}.fileprovider"
+            FileProvider.getUriForFile(context, authority, tempFile)
+        }
     }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
         if (success) {
-            onImageCaptured(PickedImage(uri.toString()))
+            onImageCaptured(PickedImage(uri?.toString() ?: ""))
         } else {
             onImageCaptured(null)
         }
     }
     
-    return { launcher.launch(uri) }
+    return { 
+        uri?.let { launcher.launch(it) }
+    }
 }
