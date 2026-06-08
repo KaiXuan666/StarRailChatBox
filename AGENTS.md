@@ -324,6 +324,7 @@ UI --Action--> ViewModel --StateFlow<UiState>--> UI
 - 避免通配符导入、无意义包装层、全局可变状态和不必要的单例。
 - 协程不得使用 `GlobalScope`，也不要吞掉 `CancellationException`。
 - 不在公共代码中使用 JVM、Android 或 Java 专属类型。
+- 将头像、文件等尽量不要使用 `ByteArray`、`byte` 或 Base64 存储在变量/内存中，尽量使用文件路径（或 URI）传递，除非在特定平台环境（例如 Web 端持久化）中不得不使用。
 - 修改保持聚焦，不顺带格式化或重构无关文件。
 
 ## 测试要求
