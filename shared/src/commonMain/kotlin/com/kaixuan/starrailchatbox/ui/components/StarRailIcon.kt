@@ -47,6 +47,9 @@ enum class StarRailIconKind {
     ARROW_UP,
     DELETE,
     EDIT,
+    FILE,
+    CAMERA,
+    GALLERY,
 }
 
 @Composable
@@ -503,6 +506,56 @@ fun StarRailIcon(
                 }
                 drawPath(path, tint, style = stroke)
                 drawLine(tint, point(0.63f, 0.25f), point(0.75f, 0.37f), strokeWidth)
+            }
+
+            StarRailIconKind.FILE -> {
+                val path = Path().apply {
+                    moveTo(size.width * 0.25f, size.height * 0.15f)
+                    lineTo(size.width * 0.6f, size.height * 0.15f)
+                    lineTo(size.width * 0.75f, size.height * 0.3f)
+                    lineTo(size.width * 0.75f, size.height * 0.85f)
+                    lineTo(size.width * 0.25f, size.height * 0.85f)
+                    close()
+                }
+                drawPath(path, tint, style = stroke)
+                drawLine(tint, point(0.6f, 0.15f), point(0.6f, 0.3f), strokeWidth)
+                drawLine(tint, point(0.6f, 0.3f), point(0.75f, 0.3f), strokeWidth)
+            }
+
+            StarRailIconKind.CAMERA -> {
+                drawRoundRect(
+                    color = tint,
+                    topLeft = point(0.18f, 0.28f),
+                    size = Size(size.width * 0.64f, size.height * 0.52f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(side * 0.08f),
+                    style = stroke,
+                )
+                drawCircle(tint, side * 0.14f, point(0.5f, 0.54f), style = stroke)
+                drawRect(
+                    color = tint,
+                    topLeft = point(0.38f, 0.2f),
+                    size = Size(size.width * 0.24f, size.height * 0.08f),
+                    style = stroke,
+                )
+            }
+
+            StarRailIconKind.GALLERY -> {
+                drawRoundRect(
+                    color = tint,
+                    topLeft = point(0.18f, 0.22f),
+                    size = Size(size.width * 0.64f, size.height * 0.56f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(side * 0.06f),
+                    style = stroke,
+                )
+                drawCircle(tint, side * 0.06f, point(0.32f, 0.38f))
+                val path = Path().apply {
+                    moveTo(size.width * 0.22f, size.height * 0.72f)
+                    lineTo(size.width * 0.42f, size.height * 0.42f)
+                    lineTo(size.width * 0.58f, size.height * 0.62f)
+                    lineTo(size.width * 0.68f, size.height * 0.48f)
+                    lineTo(size.width * 0.78f, size.height * 0.72f)
+                }
+                drawPath(path, tint, style = stroke)
             }
         }
     }

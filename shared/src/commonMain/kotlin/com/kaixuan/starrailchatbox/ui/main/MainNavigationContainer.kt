@@ -47,6 +47,9 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
+import com.kaixuan.starrailchatbox.platform.rememberCameraLauncher
+import com.kaixuan.starrailchatbox.platform.rememberFilePicker
+import com.kaixuan.starrailchatbox.platform.rememberImagePicker
 import starrailchatbox.shared.generated.resources.Res
 import starrailchatbox.shared.generated.resources.attach_not_ready
 import starrailchatbox.shared.generated.resources.emoji_not_ready
@@ -129,6 +132,30 @@ fun MainRoute(
     settings: SettingsRouteBinding,
     profile: ProfileRouteBinding,
 ) {
+    val imagePicker = rememberImagePicker { picked ->
+        picked?.let { chat.onAction(ChatAction.ImageSelected(it.uri)) }
+    }
+    val filePicker = rememberFilePicker { picked ->
+        picked?.let { chat.onAction(ChatAction.FileSelected(it.uri, it.name)) }
+    }
+    val cameraLauncher = rememberCameraLauncher { captured ->
+        captured?.let { chat.onAction(ChatAction.ImageSelected(captured.uri)) }
+    }
+
+    val wrappedOnChatAction: (ChatAction) -> Unit = { action ->
+        when (action) {
+            is ChatAction.ComposerActionClicked -> {
+                when (action.action) {
+                    com.kaixuan.starrailchatbox.ui.chat.ComposerAction.PICK_IMAGE -> imagePicker()
+                    com.kaixuan.starrailchatbox.ui.chat.ComposerAction.PICK_FILE -> filePicker()
+                    com.kaixuan.starrailchatbox.ui.chat.ComposerAction.TAKE_PHOTO -> cameraLauncher()
+                    else -> chat.onAction(action)
+                }
+            }
+            else -> chat.onAction(action)
+        }
+    }
+
     val snackbarHostState = remember { SnackbarHostState() }
     val chatEffectMessages = mapOf(
         EffectMessage.VOICE_NOT_READY to stringResource(Res.string.voice_not_ready),
@@ -272,7 +299,7 @@ fun MainRoute(
         snackbarHostState = snackbarHostState,
         onMainAction = main.onAction,
         onCharacterAction = characters.onAction,
-        onChatAction = chat.onAction,
+        onChatAction = wrappedOnChatAction,
         onSettingsAction = settings.onAction,
         onProfileAction = profile.onAction,
     )

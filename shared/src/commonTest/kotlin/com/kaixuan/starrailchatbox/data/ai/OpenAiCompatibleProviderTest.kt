@@ -340,6 +340,80 @@ class OpenAiCompatibleProviderTest {
         )
         client.close()
     }
+
+    @Test
+    fun mapsRequestWithMultimodalContent() = runTest {
+        val engine = MockEngine { request ->
+            val body = request.body.readText()
+            assertTrue(body.contains("\"type\":\"text\""))
+            assertTrue(body.contains("\"text\":\"Describe this image\""))
+            assertTrue(body.contains("\"type\":\"image_url\""))
+            assertTrue(body.contains("\"image_url\":{\"url\":\"https://example.com/image.png\",\"detail\":\"high\"}"))
+            respond(
+                content = """{"choices":[{"message":{"role":"assistant","content":"I see a dog."}}]}""",
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+        val client = testClient(engine)
+        val provider = OpenAiCompatibleProvider(client)
+
+        val result = provider.complete(
+            providerConfig(),
+            AiChatRequest(
+                model = "test-model",
+                messages = listOf(
+                    AiMessage(
+                        role = "user",
+                        contentParts = listOf(
+                            AiContentPart.Text("Describe this image"),
+                            AiContentPart.ImageUrl("https://example.com/image.png", "high")
+                        )
+                    )
+                )
+            )
+        )
+
+        val completion = assertIs<ApiResult.Success<AiCompletion>>(result).value
+        assertEquals("I see a dog.", completion.message.content)
+        client.close()
+    }
+
+    @Test
+    fun mapsResponseWithMultimodalContent() = runTest {
+        val engine = MockEngine { request ->
+            respond(
+                content = """
+                    {
+                      "choices": [{
+                        "message": {
+                          "role": "assistant",
+                          "content": [
+                            {"type": "text", "text": "This is part 1. "},
+                            {"type": "text", "text": "This is part 2."}
+                          ]
+                        },
+                        "finish_reason": "stop"
+                      }]
+                    }
+                """.trimIndent(),
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+        val client = testClient(engine)
+        val provider = OpenAiCompatibleProvider(client)
+
+        val result = provider.complete(
+            providerConfig(),
+            AiChatRequest(
+                model = "test-model",
+                messages = listOf(AiMessage("user", "hello"))
+            )
+        )
+
+        val completion = assertIs<ApiResult.Success<AiCompletion>>(result).value
+        assertEquals("This is part 1. This is part 2.", completion.message.content)
+        client.close()
+    }
 }
 
 private fun providerConfig() = AiProviderConfig(

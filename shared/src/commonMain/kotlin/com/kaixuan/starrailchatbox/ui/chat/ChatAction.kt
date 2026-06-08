@@ -12,6 +12,8 @@ sealed interface ChatAction {
     data class SessionDeleteClicked(val sessionId: String) : ChatAction
     data class HeaderActionClicked(val action: HeaderAction) : ChatAction
     data class ComposerActionClicked(val action: ComposerAction) : ChatAction
+    data class FileSelected(val uri: String, val name: String) : ChatAction
+    data class ImageSelected(val uri: String) : ChatAction
     data object RestoreMainCharacter : ChatAction
 }
 
@@ -25,4 +27,7 @@ enum class ComposerAction {
     ATTACH,
     EMOJI,
     VOICE,
+    PICK_FILE,
+    TAKE_PHOTO,
+    PICK_IMAGE,
 }

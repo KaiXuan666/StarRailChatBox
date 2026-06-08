@@ -75,7 +75,7 @@ internal data class OpenAiStreamDelta(
 @Serializable
 internal data class OpenAiMessage(
     val role: String,
-    val content: String? = null,
+    val content: JsonElement? = null,
     @SerialName("tool_calls")
     val toolCalls: List<OpenAiToolCall>? = null,
     @SerialName("tool_call_id")

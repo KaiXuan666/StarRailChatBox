@@ -29,10 +29,16 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * OpenAI 兼容协议适配器。
@@ -185,7 +191,7 @@ private fun AiChatRequest.toOpenAiRequest(
     messages = messages.map { message ->
         OpenAiMessage(
             role = message.role,
-            content = message.content,
+            content = toOpenAiContent(message),
             toolCalls = message.toolCalls.takeIf(List<*>::isNotEmpty)?.map { call ->
                 OpenAiToolCall(
                     id = call.id,
@@ -269,8 +275,9 @@ private fun OpenAiChatResponse.toCompletion(
 ): ApiResult<AiCompletion> {
     val choice = choices.firstOrNull()
         ?: return ApiResult.UnexpectedError("Chat completion returned no choices.")
+    val contentString = choice.message.content.toContentString()
     val structuredOutput = if (responseFormat != null) {
-        val content = choice.message.content
+        val content = contentString
             ?: return ApiResult.UnexpectedError("Structured completion returned no content.")
         val parsed = try {
             json.parseToJsonElement(content)
@@ -286,7 +293,7 @@ private fun OpenAiChatResponse.toCompletion(
         AiCompletion(
             message = AiMessage(
                 role = choice.message.role,
-                content = choice.message.content,
+                content = contentString,
                 toolCalls = choice.message.toolCalls.orEmpty().map { call ->
                     AiToolCall(
                         id = call.id,
@@ -314,3 +321,58 @@ internal fun String.normalizedBaseUrl(): String {
 
 private val AiProviderConfig.authorization: String
     get() = "Bearer ${apiKey.trim()}"
+
+private fun toOpenAiContent(message: AiMessage): JsonElement? {
+    val parts = message.contentParts
+    if (!parts.isNullOrEmpty()) {
+        return buildJsonArray {
+            parts.forEach { part ->
+                add(buildJsonObject {
+                    when (part) {
+                        is AiContentPart.Text -> {
+                            put("type", "text")
+                            put("text", part.text)
+                        }
+                        is AiContentPart.ImageUrl -> {
+                            put("type", "image_url")
+                            put("image_url", buildJsonObject {
+                                put("url", part.url)
+                                part.detail?.let { put("detail", it) }
+                            })
+                        }
+                    }
+                })
+            }
+        }
+    }
+    return message.content?.let { JsonPrimitive(it) }
+}
+
+private fun JsonElement?.toContentString(): String? {
+    if (this == null || this is JsonNull) return null
+    return when (this) {
+        is JsonPrimitive -> content
+        is JsonArray -> {
+            this.mapNotNull { element ->
+                when (element) {
+                    is JsonPrimitive -> element.content
+                    is JsonObject -> {
+                        if (element["type"]?.jsonPrimitive?.content == "text") {
+                            element["text"]?.jsonPrimitive?.content
+                        } else {
+                            null
+                        }
+                    }
+                    else -> null
+                }
+            }.joinToString("")
+        }
+        is JsonObject -> {
+            if (this["type"]?.jsonPrimitive?.content == "text") {
+                this["text"]?.jsonPrimitive?.content
+            } else {
+                this.toString()
+            }
+        }
+    }
+}

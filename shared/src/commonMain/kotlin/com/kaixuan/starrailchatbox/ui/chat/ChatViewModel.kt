@@ -168,6 +168,14 @@ class ChatViewModel(
             is ChatAction.SessionDeleteClicked -> deleteSession(action.sessionId)
             is ChatAction.HeaderActionClicked -> handleHeaderAction(action.action)
             is ChatAction.ComposerActionClicked -> handleComposerAction(action.action)
+            is ChatAction.FileSelected -> {
+                Napier.d("File selected: ${action.name} at ${action.uri}")
+                // 暂时仅打印，后续接入附件处理逻辑
+            }
+            is ChatAction.ImageSelected -> {
+                Napier.d("Image selected at ${action.uri}")
+                // 暂时仅打印，后续接入附件处理逻辑
+            }
             ChatAction.RestoreMainCharacter -> {
                 lastActiveMainCharacterId?.let { selectCharacter(it) }
             }
@@ -1029,13 +1037,27 @@ class ChatViewModel(
     }
 
     private fun handleComposerAction(action: ComposerAction) {
-        emitMessage(
-            when (action) {
-                ComposerAction.ATTACH -> EffectMessage.ATTACH_NOT_READY
-                ComposerAction.EMOJI -> EffectMessage.EMOJI_NOT_READY
-                ComposerAction.VOICE -> EffectMessage.MICROPHONE_NOT_READY
-            },
-        )
+        when (action) {
+            ComposerAction.ATTACH -> {
+                val selectedId = uiState.value.selectedCharacterId ?: return
+                updateCharacterState(selectedId) {
+                    it.copy(isAttachmentPanelVisible = !it.isAttachmentPanelVisible)
+                }
+            }
+            ComposerAction.EMOJI -> emitMessage(EffectMessage.EMOJI_NOT_READY)
+            ComposerAction.VOICE -> emitMessage(EffectMessage.MICROPHONE_NOT_READY)
+            ComposerAction.PICK_FILE,
+            ComposerAction.TAKE_PHOTO,
+            ComposerAction.PICK_IMAGE -> {
+                // 暂时只显示对应的提示或空操作
+                emitMessage(EffectMessage.ATTACH_NOT_READY)
+                // 执行后关闭面板
+                val selectedId = uiState.value.selectedCharacterId ?: return
+                updateCharacterState(selectedId) {
+                    it.copy(isAttachmentPanelVisible = false)
+                }
+            }
+        }
     }
 
     private fun emitMessage(message: EffectMessage) {

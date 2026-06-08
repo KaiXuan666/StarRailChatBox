@@ -52,6 +52,9 @@
     <string name="nav_settings">设置</string>
     <string name="send_message">发送消息</string>
     <string name="add_attachment">添加附件</string>
+    <string name="attach_file">文件</string>
+    <string name="attach_camera">拍照</string>
+    <string name="attach_gallery">相册</string>
     <string name="open_emoji">选择表情</string>
     <string name="record_voice">录制语音</string>
     <string name="read_status">已读</string>

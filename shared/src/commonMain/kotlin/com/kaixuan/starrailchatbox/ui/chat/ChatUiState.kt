@@ -41,6 +41,7 @@ data class CharacterChatState(
     val isLoadingSession: Boolean = false,
     val isSending: Boolean = false,
     val suggestions: List<String> = emptyList(),
+    val isAttachmentPanelVisible: Boolean = false,
 )
 
 @Immutable
@@ -79,4 +80,7 @@ data class ChatUiState(
 
     val suggestions: List<String>
         get() = characterStates[selectedCharacterId]?.suggestions.orEmpty()
+
+    val isAttachmentPanelVisible: Boolean
+        get() = characterStates[selectedCharacterId]?.isAttachmentPanelVisible ?: false
 }

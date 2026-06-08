@@ -25,6 +25,7 @@ data class AiMessage(
     val content: String? = null,
     val toolCalls: List<AiToolCall> = emptyList(),
     val toolCallId: String? = null,
+    val contentParts: List<AiContentPart>? = null,
 )
 
 data class AiCompletion(
@@ -99,3 +100,8 @@ internal fun ModelConfig.toProviderConfig() = AiProviderConfig(
     apiKey = apiKey,
     model = modelName,
 )
+
+sealed interface AiContentPart {
+    data class Text(val text: String) : AiContentPart
+    data class ImageUrl(val url: String, val detail: String? = null) : AiContentPart
+}

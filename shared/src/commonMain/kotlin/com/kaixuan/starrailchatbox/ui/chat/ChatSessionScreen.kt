@@ -65,9 +65,15 @@ import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import starrailchatbox.shared.generated.resources.Res
+import com.kaixuan.starrailchatbox.platform.rememberCameraLauncher
+import com.kaixuan.starrailchatbox.platform.rememberFilePicker
+import com.kaixuan.starrailchatbox.platform.rememberImagePicker
 import starrailchatbox.shared.generated.resources.action_character_edit
 import starrailchatbox.shared.generated.resources.action_conversation_management
 import starrailchatbox.shared.generated.resources.add_attachment
+import starrailchatbox.shared.generated.resources.attach_camera
+import starrailchatbox.shared.generated.resources.attach_file
+import starrailchatbox.shared.generated.resources.attach_gallery
 import starrailchatbox.shared.generated.resources.app_title
 import starrailchatbox.shared.generated.resources.character_selected_description
 import starrailchatbox.shared.generated.resources.character_selection_description
@@ -1009,6 +1015,92 @@ fun ChatSessionBottomBar(
             onComposerAction = {
                 onAction(ChatAction.ComposerActionClicked(it))
             },
+        )
+        if (state.isAttachmentPanelVisible) {
+            AttachmentPanel(
+                compact = compact,
+                onAction = { onAction(ChatAction.ComposerActionClicked(it)) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun AttachmentPanel(
+    compact: Boolean,
+    onAction: (ComposerAction) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                start = if (compact) StarRailSpacing.md else StarRailSpacing.lg,
+                end = if (compact) StarRailSpacing.md else StarRailSpacing.lg,
+                bottom = if (compact) StarRailSpacing.md else StarRailSpacing.lg,
+                top = StarRailSpacing.xxs,
+            )
+            .animateContentSize(),
+        horizontalArrangement = Arrangement.spacedBy(
+            if (compact) StarRailSpacing.lg else StarRailSpacing.xl
+        ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AttachmentItem(
+            icon = StarRailIconKind.FILE,
+            label = stringResource(Res.string.attach_file),
+            compact = compact,
+            onClick = { onAction(ComposerAction.PICK_FILE) }
+        )
+        AttachmentItem(
+            icon = StarRailIconKind.CAMERA,
+            label = stringResource(Res.string.attach_camera),
+            compact = compact,
+            onClick = { onAction(ComposerAction.TAKE_PHOTO) }
+        )
+        AttachmentItem(
+            icon = StarRailIconKind.GALLERY,
+            label = stringResource(Res.string.attach_gallery),
+            compact = compact,
+            onClick = { onAction(ComposerAction.PICK_IMAGE) }
+        )
+    }
+}
+
+@Composable
+private fun AttachmentItem(
+    icon: StarRailIconKind,
+    label: String,
+    compact: Boolean,
+    onClick: () -> Unit,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
+        modifier = Modifier
+            .clip(MaterialTheme.shapes.medium)
+            .clickable(onClick = onClick)
+            .padding(StarRailSpacing.xs)
+    ) {
+        Surface(
+            modifier = Modifier.size(if (compact) 52.dp else 60.dp),
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            shadowElevation = 1.dp,
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                StarRailIcon(
+                    kind = icon,
+                    contentDescription = label,
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(if (compact) 26.dp else 30.dp)
+                )
+            }
+        }
+        Text(
+            text = label,
+            style = if (compact) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
