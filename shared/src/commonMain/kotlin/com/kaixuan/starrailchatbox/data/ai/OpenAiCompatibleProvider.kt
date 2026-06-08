@@ -341,8 +341,8 @@ private fun toOpenAiContent(message: AiMessage): JsonElement? {
                             })
                         }
                         is AiContentPart.FileUrl -> {
-                            put("type", "image_url")
-                            put("image_url", buildJsonObject {
+                            put("type", "file_url")
+                            put("file_url", buildJsonObject {
                                 put("url", part.url)
                             })
                         }

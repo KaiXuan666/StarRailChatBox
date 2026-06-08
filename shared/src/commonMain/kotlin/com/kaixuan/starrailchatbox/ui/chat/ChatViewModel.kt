@@ -153,7 +153,8 @@ class ChatViewModel(
                             sendMessage(character, action.message)
                         } catch (cancellation: CancellationException) {
                             throw cancellation
-                        } catch (_: Throwable) {
+                        } catch (e: Throwable) {
+                            Napier.e("Send message (text-only) failed", e)
                             emitMessage(EffectMessage.CHAT_REQUEST_FAILED)
                         } finally {
                             _uiState.update { s ->
@@ -672,7 +673,9 @@ class ChatViewModel(
                 sendMessage(character, content, attachments)
             } catch (cancellation: CancellationException) {
                 throw cancellation
-            } catch (_: Throwable) {
+            } catch (e: Throwable) {
+                e.printStackTrace()
+                Napier.e("Send message with attachments failed", e)
                 emitMessage(EffectMessage.CHAT_REQUEST_FAILED)
             } finally {
                 _uiState.update { s ->
@@ -1109,6 +1112,7 @@ class ChatViewModel(
         errorCode: String,
         errorMessage: String?,
     ) {
+        Napier.e("CHAT API request failed: configModel=${config.modelName}, errorCode=$errorCode, errorMessage=$errorMessage")
         appendFailedAssistant(session, config, errorCode, errorMessage)
         emitMessage(EffectMessage.CHAT_REQUEST_FAILED)
     }
