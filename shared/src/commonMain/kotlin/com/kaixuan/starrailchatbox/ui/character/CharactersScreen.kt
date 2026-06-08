@@ -399,8 +399,10 @@ private fun SwipeableCharacterCard(
                     enabled = !isAnyDragging,
                     onDragStopped = {
                         scope.launch {
-                            if (offsetX.value < -deleteButtonWidthPx / 2f) {
-                                offsetX.animateTo(-deleteButtonWidthPx)
+                            if (offsetX.value < -deleteButtonWidthPx * 0.5f) {
+                                // 触发删除弹窗并让卡片回弹
+                                onDeleteClick()
+                                offsetX.animateTo(0f)
                             } else {
                                 offsetX.animateTo(0f)
                             }
