@@ -76,6 +76,7 @@ import starrailchatbox.shared.generated.resources.Res
 import com.kaixuan.starrailchatbox.platform.rememberCameraLauncher
 import com.kaixuan.starrailchatbox.platform.rememberFilePicker
 import com.kaixuan.starrailchatbox.platform.rememberImagePicker
+import com.kaixuan.starrailchatbox.platform.rememberAudioRecorder
 import starrailchatbox.shared.generated.resources.action_character_edit
 import starrailchatbox.shared.generated.resources.action_conversation_management
 import starrailchatbox.shared.generated.resources.add_attachment
@@ -1627,6 +1628,8 @@ private fun MessageComposer(
     onVoiceFinished: (String, Long) -> Unit,
 ) {
     var dragOffsetY by remember { mutableStateOf(0f) }
+    val audioRecorder = rememberAudioRecorder()
+    var isRecordingActive by remember { mutableStateOf(false) }
 
     Row(
         modifier = Modifier
@@ -1654,23 +1657,45 @@ private fun MessageComposer(
                     .pointerInput(Unit) {
                         detectDragGesturesAfterLongPress(
                             onDragStart = {
-                                dragOffsetY = 0f
-                                onRecordingStateChanged(true, false)
+                                if (audioRecorder.hasPermission()) {
+                                    dragOffsetY = 0f
+                                    isRecordingActive = true
+                                    audioRecorder.startRecording()
+                                    onRecordingStateChanged(true, false)
+                                } else {
+                                    isRecordingActive = false
+                                    audioRecorder.requestPermission { granted ->
+                                        // 权限申请成功，下一次长按便能开始录音
+                                    }
+                                }
                             },
                             onDragEnd = {
-                                if (dragOffsetY < -160f) {
-                                    onRecordingStateChanged(false, false)
-                                } else {
-                                    onRecordingStateChanged(false, false)
-                                    onVoiceFinished("builtin:voice_sample.m4a", 2000L)
+                                if (isRecordingActive) {
+                                    isRecordingActive = false
+                                    if (dragOffsetY < -160f) {
+                                        audioRecorder.stopRecording(cancel = true)
+                                        onRecordingStateChanged(false, false)
+                                    } else {
+                                        onRecordingStateChanged(false, false)
+                                        val result = audioRecorder.stopRecording(cancel = false)
+                                        if (result != null) {
+                                            onVoiceFinished(result.uri, result.durationMs)
+                                        }
+                                    }
                                 }
                             },
                             onDragCancel = {
-                                onRecordingStateChanged(false, false)
+                                if (isRecordingActive) {
+                                    isRecordingActive = false
+                                    audioRecorder.stopRecording(cancel = true)
+                                    onRecordingStateChanged(false, false)
+                                }
                             },
                             onDrag = { change, dragAmount ->
-                                dragOffsetY += dragAmount.y
-                                onRecordingStateChanged(true, dragOffsetY < -160f)
+                                if (isRecordingActive) {
+                                    dragOffsetY += dragAmount.y
+                                    onRecordingStateChanged(true, dragOffsetY < -160f)
+                                }
                             }
                         )
                     },

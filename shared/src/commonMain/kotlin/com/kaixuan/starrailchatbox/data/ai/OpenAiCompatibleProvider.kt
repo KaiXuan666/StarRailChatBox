@@ -341,10 +341,22 @@ private fun toOpenAiContent(message: AiMessage): JsonElement? {
                             })
                         }
                         is AiContentPart.FileUrl -> {
-                            put("type", "file_url")
-                            put("file_url", buildJsonObject {
-                                put("url", part.url)
-                            })
+                            if (part.mimeType.startsWith("audio/")) {
+                                put("type", "input_audio")
+                                put("input_audio", buildJsonObject {
+                                    put("data", part.url)
+                                })
+                            } else if (part.mimeType.startsWith("video/")) {
+                                put("type", "video_url")
+                                put("video_url", buildJsonObject {
+                                    put("url", part.url)
+                                })
+                            } else {
+                                put("type", "file_url")
+                                put("file_url", buildJsonObject {
+                                    put("url", part.url)
+                                })
+                            }
                         }
                     }
                 })

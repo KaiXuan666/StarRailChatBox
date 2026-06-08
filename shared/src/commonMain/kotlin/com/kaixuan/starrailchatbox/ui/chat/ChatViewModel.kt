@@ -232,8 +232,6 @@ class ChatViewModel(
         val state = uiState.value
         val character = state.selectedCharacter ?: return
         val characterId = character.id
-        val name = uri.substringAfterLast('/')
-        val attachment = SelectedAttachment.Voice(uri, name, durationMs)
 
         _uiState.update { s ->
             val curState = s.characterStates[characterId] ?: CharacterChatState()
@@ -246,6 +244,8 @@ class ChatViewModel(
 
         viewModelScope.launch {
             try {
+                val fileName = uri.substringAfterLast('/')
+                val attachment = SelectedAttachment.Voice(uri, fileName, durationMs)
                 sendMessage(character, "", listOf(attachment))
             } catch (cancellation: CancellationException) {
                 throw cancellation
@@ -935,8 +935,8 @@ class ChatViewModel(
                 is SelectedAttachment.Voice -> {
                     val bytes = runCatching { readUriAsBytes(attachment.uri) }.getOrDefault(ByteArray(0))
                     if (bytes.isNotEmpty()) {
-                        val base64Url = "data:audio/m4a;base64,${kotlin.io.encoding.Base64.encode(bytes)}"
-                        contentParts.add(AiContentPart.FileUrl(base64Url, "audio/m4a"))
+                        val base64Url = "data:audio/wav;base64,${kotlin.io.encoding.Base64.encode(bytes)}"
+                        contentParts.add(AiContentPart.FileUrl(base64Url, "audio/wav"))
                     }
                 }
             }
@@ -963,14 +963,19 @@ class ChatViewModel(
             maxContextMessageCount = null,
             createdAt = now,
         ).let { newSession ->
+            val userMessageId = idGenerator("message")
             val domainAttachments = attachments.map {
-                it.toMessageAttachment(idGenerator("message"), now)
+                it.toMessageAttachment(userMessageId, now)
             }
-            val userMessage = newUserMessage(
+            val userMessage = NewChatMessage(
+                id = userMessageId,
                 sessionId = newSession.id,
+                role = ChatRole.USER,
                 content = userText,
-                config = config,
-                now = now,
+                status = ChatMessageStatus.COMPLETED,
+                modelConfigId = config?.id,
+                modelNameSnapshot = config?.modelName,
+                createdAt = now,
                 attachments = domainAttachments,
             )
             val openingMessage = fullCharacter.openingMessage
@@ -1001,15 +1006,20 @@ class ChatViewModel(
             }
         }
         if (previousSession != null) {
+            val userMessageId = idGenerator("message")
             val domainAttachments = attachments.map {
-                it.toMessageAttachment(idGenerator("message"), now)
+                it.toMessageAttachment(userMessageId, now)
             }
             chatSessionRepository.appendMessage(
-                newUserMessage(
+                NewChatMessage(
+                    id = userMessageId,
                     sessionId = session.id,
+                    role = ChatRole.USER,
                     content = userText,
-                    config = config,
-                    now = now,
+                    status = ChatMessageStatus.COMPLETED,
+                    modelConfigId = config?.id,
+                    modelNameSnapshot = config?.modelName,
+                    createdAt = now,
                     attachments = domainAttachments,
                 ),
             )
@@ -1234,24 +1244,6 @@ class ChatViewModel(
         )
     }
 
-    private fun newUserMessage(
-        sessionId: String,
-        content: String,
-        config: ModelConfig?,
-        now: Long,
-        attachments: List<MessageAttachment> = emptyList(),
-    ) = NewChatMessage(
-        id = idGenerator("message"),
-        sessionId = sessionId,
-        role = ChatRole.USER,
-        content = content,
-        status = ChatMessageStatus.COMPLETED,
-        modelConfigId = config?.id,
-        modelNameSnapshot = config?.modelName,
-        createdAt = now,
-        attachments = attachments,
-    )
-
     private fun SelectedAttachment.toMessageAttachment(messageId: String, now: Long): MessageAttachment {
         val ext = name.substringAfterLast('.', "").lowercase()
         val mimeType = when (this) {
@@ -1271,7 +1263,7 @@ class ChatViewModel(
                 "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 else -> "application/octet-stream"
             }
-            is SelectedAttachment.Voice -> "audio/m4a"
+            is SelectedAttachment.Voice -> "audio/wav"
         }
         return MessageAttachment(
             id = idGenerator("attachment"),
