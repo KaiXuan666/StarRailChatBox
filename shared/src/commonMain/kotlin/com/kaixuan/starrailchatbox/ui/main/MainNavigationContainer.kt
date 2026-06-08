@@ -31,7 +31,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -106,6 +109,7 @@ import com.kaixuan.starrailchatbox.ui.chat.ChatMessageUiModel
 import com.kaixuan.starrailchatbox.ui.chat.MessageContent
 import com.kaixuan.starrailchatbox.ui.chat.ConversationManagementScreen
 import com.kaixuan.starrailchatbox.ui.chat.EffectMessage
+import com.kaixuan.starrailchatbox.ui.chat.RecordingOverlay
 import com.kaixuan.starrailchatbox.ui.components.NavigationPlaceholderScreen
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
@@ -323,6 +327,9 @@ fun MainNavigationContainer(
     val colors = MaterialTheme.starRailColors
     val currentRoute = mainState.backStack.lastOrNull() ?: Route.ChatSession
 
+    var isRecording by remember { mutableStateOf(false) }
+    var isCancelTargeted by remember { mutableStateOf(false) }
+
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
@@ -374,6 +381,10 @@ fun MainNavigationContainer(
                         compact = compact,
                         onMainAction = onMainAction,
                         onChatAction = onChatAction,
+                        onRecordingStateChanged = { recording, cancelTargeted ->
+                            isRecording = recording
+                            isCancelTargeted = cancelTargeted
+                        }
                     )
                 },
             ) { contentPadding ->
@@ -387,6 +398,8 @@ fun MainNavigationContainer(
                             onAction = onChatAction,
                             onCharacterAction = onCharacterAction,
                             onMainAction = onMainAction,
+                            isRecording = isRecording,
+                            isCancelTargeted = isCancelTargeted,
                         )
                     }
                     entry<Route.ConversationManagement> {
@@ -486,6 +499,7 @@ private fun MainBottomArea(
     compact: Boolean,
     onMainAction: (MainAction) -> Unit,
     onChatAction: (ChatAction) -> Unit,
+    onRecordingStateChanged: (Boolean, Boolean) -> Unit = { _, _ -> },
 ) {
     if (mainState.backStack.size > 1) {
         return
@@ -509,6 +523,7 @@ private fun MainBottomArea(
                         state = chatState,
                         compact = compact,
                         onAction = onChatAction,
+                        onRecordingStateChanged = onRecordingStateChanged,
                     )
                 }
                 if (showNavigationBar && mainState.backStack.size <= 1) {

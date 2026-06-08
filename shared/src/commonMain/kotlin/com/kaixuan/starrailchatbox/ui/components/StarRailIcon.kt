@@ -51,6 +51,7 @@ enum class StarRailIconKind {
     CAMERA,
     GALLERY,
     CLOSE,
+    KEYBOARD,
 }
 
 @Composable
@@ -562,6 +563,27 @@ fun StarRailIcon(
             StarRailIconKind.CLOSE -> {
                 drawLine(tint, point(0.28f, 0.28f), point(0.72f, 0.72f), strokeWidth)
                 drawLine(tint, point(0.72f, 0.28f), point(0.28f, 0.72f), strokeWidth)
+            }
+
+            StarRailIconKind.KEYBOARD -> {
+                drawRoundRect(
+                    color = tint,
+                    topLeft = point(0.15f, 0.25f),
+                    size = Size(size.width * 0.7f, size.height * 0.5f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(side * 0.05f),
+                    style = stroke,
+                )
+                // Keys
+                for (i in 0..3) {
+                    for (j in 0..1) {
+                        drawCircle(
+                            tint,
+                            side * 0.03f,
+                            point(0.28f + i * 0.15f, 0.38f + j * 0.18f)
+                        )
+                    }
+                }
+                drawLine(tint, point(0.35f, 0.75f), point(0.65f, 0.75f), strokeWidth)
             }
         }
     }

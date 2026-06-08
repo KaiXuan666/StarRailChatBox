@@ -207,6 +207,61 @@ class ChatViewModel(
             ChatAction.RestoreMainCharacter -> {
                 lastActiveMainCharacterId?.let { selectCharacter(it) }
             }
+            ChatAction.VoiceModeToggled -> {
+                val characterId = uiState.value.selectedCharacterId ?: return
+                updateCharacterState(characterId) { state ->
+                    state.copy(isVoiceMode = !state.isVoiceMode)
+                }
+            }
+            ChatAction.VoiceRecordingStarted -> {
+                // 可选：在这里记录开始录音的状态
+            }
+            is ChatAction.VoiceRecordingFinished -> {
+                sendVoiceMessage(action.uri, action.durationMs)
+            }
+            ChatAction.VoiceRecordingCancelled -> {
+                // 处理录音取消
+            }
+            is ChatAction.OpenAttachment -> {
+                // 已经在 UI 层通过 LocalUriHandler 处理了，ViewModel 暂时不需要处理
+            }
+        }
+    }
+
+    private fun sendVoiceMessage(uri: String, durationMs: Long) {
+        val state = uiState.value
+        val character = state.selectedCharacter ?: return
+        val characterId = character.id
+        val name = uri.substringAfterLast('/')
+        val attachment = SelectedAttachment.Voice(uri, name, durationMs)
+
+        _uiState.update { s ->
+            val curState = s.characterStates[characterId] ?: CharacterChatState()
+            s.copy(
+                characterStates = s.characterStates + (characterId to curState.copy(
+                    isSending = true
+                ))
+            )
+        }
+
+        viewModelScope.launch {
+            try {
+                sendMessage(character, "", listOf(attachment))
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (e: Throwable) {
+                Napier.e("Send voice message failed", e)
+                emitMessage(EffectMessage.CHAT_REQUEST_FAILED)
+            } finally {
+                _uiState.update { s ->
+                    val curState = s.characterStates[characterId] ?: CharacterChatState()
+                    s.copy(
+                        characterStates = s.characterStates + (characterId to curState.copy(
+                            isSending = false
+                        ))
+                    )
+                }
+            }
         }
     }
 
@@ -788,7 +843,7 @@ class ChatViewModel(
         attachments: List<SelectedAttachment> = emptyList(),
     ) {
         val hasMultimodalAttachment = attachments.any {
-            it is SelectedAttachment.Image || (!enableFileAppend && it is SelectedAttachment.File)
+            it is SelectedAttachment.Image || it is SelectedAttachment.Voice || (!enableFileAppend && it is SelectedAttachment.File)
         }
         val config = if (hasMultimodalAttachment) {
             (modelConfigRepository.getMultimodal()?.takeIf(ModelConfig::isUsable)
@@ -875,6 +930,13 @@ class ChatViewModel(
                         if (base64Url != null) {
                             contentParts.add(AiContentPart.FileUrl(base64Url, mimeType))
                         }
+                    }
+                }
+                is SelectedAttachment.Voice -> {
+                    val bytes = runCatching { readUriAsBytes(attachment.uri) }.getOrDefault(ByteArray(0))
+                    if (bytes.isNotEmpty()) {
+                        val base64Url = "data:audio/m4a;base64,${kotlin.io.encoding.Base64.encode(bytes)}"
+                        contentParts.add(AiContentPart.FileUrl(base64Url, "audio/m4a"))
                     }
                 }
             }
@@ -1209,6 +1271,7 @@ class ChatViewModel(
                 "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 else -> "application/octet-stream"
             }
+            is SelectedAttachment.Voice -> "audio/m4a"
         }
         return MessageAttachment(
             id = idGenerator("attachment"),
@@ -1239,7 +1302,7 @@ class ChatViewModel(
                 }
             }
             ComposerAction.EMOJI -> emitMessage(EffectMessage.EMOJI_NOT_READY)
-            ComposerAction.VOICE -> emitMessage(EffectMessage.MICROPHONE_NOT_READY)
+            ComposerAction.VOICE -> onAction(ChatAction.VoiceModeToggled)
             ComposerAction.PICK_FILE,
             ComposerAction.TAKE_PHOTO,
             ComposerAction.PICK_IMAGE -> {

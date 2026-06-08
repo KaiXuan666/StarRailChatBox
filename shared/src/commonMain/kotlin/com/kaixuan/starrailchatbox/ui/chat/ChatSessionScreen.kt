@@ -97,6 +97,7 @@ import starrailchatbox.shared.generated.resources.open_emoji
 import starrailchatbox.shared.generated.resources.read_status
 import starrailchatbox.shared.generated.resources.received_message_description
 import starrailchatbox.shared.generated.resources.record_voice
+import starrailchatbox.shared.generated.resources.nav_chat
 import starrailchatbox.shared.generated.resources.send_message
 import starrailchatbox.shared.generated.resources.sent_message_description
 import starrailchatbox.shared.generated.resources.today
@@ -123,6 +124,12 @@ import com.kaixuan.starrailchatbox.ui.character.CharactersUiState
 import com.kaixuan.starrailchatbox.ui.character.CharacterAction
 import com.kaixuan.starrailchatbox.ui.navigation.Route
 
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import starrailchatbox.shared.generated.resources.hold_to_speak
+import starrailchatbox.shared.generated.resources.release_to_send
+import starrailchatbox.shared.generated.resources.release_to_cancel
+
 /**
  * 聊天会话主屏组件 (原 ChatContent 模块)
  */
@@ -137,9 +144,13 @@ fun ChatSessionScreen(
     onCharacterAction: (CharacterAction) -> Unit,
     onMainAction: (MainAction) -> Unit,
     modifier: Modifier = Modifier,
+    isRecording: Boolean = false,
+    isCancelTargeted: Boolean = false,
 ) {
     val characters = charactersState.characters
     val selectedCharacter = charactersState.selectedCharacter
+    val characterId = selectedCharacter?.id
+    val characterChatState = state.characterStates[characterId] ?: CharacterChatState()
     val coroutineScope = rememberCoroutineScope()
 
     BackHandler(enabled = state.isAttachmentPanelVisible) {
@@ -232,197 +243,276 @@ fun ChatSessionScreen(
         }
     }
 
-    HorizontalPager(
-        state = pagerState,
-        modifier = modifier
-            .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.statusBars),
-    ) { page ->
-        val pageCharacter = characters[page]
-        val pageState = state.characterStates[pageCharacter.id] ?: CharacterChatState()
-        val charactersById = remember(characters) {
-            characters.associateBy(Character::id)
-        }
-
-        if (pageState.isLoadingSession) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-                ) {
-                CircularProgressIndicator()
-            }
-        } else {
-            val pageListState = currentStates.getValue(pageCharacter.id)
-            val pageMessages = pageState.messages
-
-            var previousPageMessageCount by remember { mutableStateOf(pageMessages.size) }
-            var shouldPageScrollToBottomOnLoad by remember { mutableStateOf(false) }
-
-            LaunchedEffect(pageCharacter.id) {
-                previousPageMessageCount = pageMessages.size
-                if (pageMessages.isNotEmpty()) {
-                    pageListState.scrollToMessageBottomAfterLayout(
-                        messagesStartIndex,
-                        pageMessages.lastIndex,
-                    )
-                } else {
-                    shouldPageScrollToBottomOnLoad = true
-                }
+    Box(modifier = modifier.fillMaxSize()) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.statusBars),
+        ) { page ->
+            val pageCharacter = characters[page]
+            val pageState = state.characterStates[pageCharacter.id] ?: CharacterChatState()
+            val charactersById = remember(characters) {
+                characters.associateBy(Character::id)
             }
 
-            LaunchedEffect(pageMessages, pageState.isLoadingSession) {
-                if (shouldPageScrollToBottomOnLoad && !pageState.isLoadingSession && pageMessages.isNotEmpty()) {
-                    shouldPageScrollToBottomOnLoad = false
-                    pageListState.scrollToMessageBottomAfterLayout(
-                        messagesStartIndex,
-                        pageMessages.lastIndex,
-                    )
-                }
-            }
-
-            LaunchedEffect(pageMessages.size) {
-                val lastVisibleIndex = pageListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
-                val wasNearBottom = lastVisibleIndex != null &&
-                    lastVisibleIndex >= pageListState.layoutInfo.totalItemsCount - 3
-                if (
-                    pageMessages.size > previousPageMessageCount &&
-                    wasNearBottom &&
-                    pageMessages.isNotEmpty()
-                ) {
-                    pageListState.scrollToMessageBottomAfterLayout(
-                        messagesStartIndex,
-                        pageMessages.lastIndex,
-                    )
-                }
-                previousPageMessageCount = pageMessages.size
-            }
-
-            val showScrollToTop by remember {
-                derivedStateOf {
-                    pageListState.firstVisibleItemIndex > 0 || pageListState.firstVisibleItemScrollOffset > 0
-                }
-            }
-
-            Box(modifier = Modifier.fillMaxSize()) {
-                LazyColumn(
-                    state = pageListState,
+            if (pageState.isLoadingSession) {
+                Box(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                        end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                        bottom = contentPadding.calculateBottomPadding() + StarRailSpacing.lg,
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
-                ) {
-                    item(key = "header") {
-                        ChatHeader(
-                            selectedCharacter = pageCharacter,
-                            compact = compact,
-                            onAction = onAction,
-                            onCharacterAction = onCharacterAction,
-                            onMainAction = onMainAction,
+                    contentAlignment = Alignment.Center,
+                    ) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                val pageListState = currentStates.getValue(pageCharacter.id)
+                val pageMessages = pageState.messages
+
+                var previousPageMessageCount by remember { mutableStateOf(pageMessages.size) }
+                var shouldPageScrollToBottomOnLoad by remember { mutableStateOf(false) }
+
+                LaunchedEffect(pageCharacter.id) {
+                    previousPageMessageCount = pageMessages.size
+                    if (pageMessages.isNotEmpty()) {
+                        pageListState.scrollToMessageBottomAfterLayout(
+                            messagesStartIndex,
+                            pageMessages.lastIndex,
+                        )
+                    } else {
+                        shouldPageScrollToBottomOnLoad = true
+                    }
+                }
+
+                LaunchedEffect(pageMessages, pageState.isLoadingSession) {
+                    if (shouldPageScrollToBottomOnLoad && !pageState.isLoadingSession && pageMessages.isNotEmpty()) {
+                        shouldPageScrollToBottomOnLoad = false
+                        pageListState.scrollToMessageBottomAfterLayout(
+                            messagesStartIndex,
+                            pageMessages.lastIndex,
                         )
                     }
-                    stickyHeader(key = "characters") {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color.Transparent)
-                                .padding(top = StarRailSpacing.xxs),
-                        ) {
-                            CharacterSelector(
-                                characters = characters,
-                                selectedCharacterId = selectedCharacter?.id,
+                }
+
+                LaunchedEffect(pageMessages.size) {
+                    val lastVisibleIndex = pageListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
+                    val wasNearBottom = lastVisibleIndex != null &&
+                        lastVisibleIndex >= pageListState.layoutInfo.totalItemsCount - 3
+                    if (
+                        pageMessages.size > previousPageMessageCount &&
+                        wasNearBottom &&
+                        pageMessages.isNotEmpty()
+                    ) {
+                        pageListState.scrollToMessageBottomAfterLayout(
+                            messagesStartIndex,
+                            pageMessages.lastIndex,
+                        )
+                    }
+                    previousPageMessageCount = pageMessages.size
+                }
+
+                val showScrollToTop by remember {
+                    derivedStateOf {
+                        pageListState.firstVisibleItemIndex > 0 || pageListState.firstVisibleItemScrollOffset > 0
+                    }
+                }
+
+                Box(modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        state = pageListState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                            end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                            bottom = contentPadding.calculateBottomPadding() + StarRailSpacing.lg,
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
+                    ) {
+                        item(key = "header") {
+                            ChatHeader(
+                                selectedCharacter = pageCharacter,
                                 compact = compact,
-                                onCharacterSelected = { characterId ->
-                                    val index = characters.indexOfFirst { it.id == characterId }
-                                    if (index != -1) {
-                                        coroutineScope.launch {
-                                            if (pagerState.currentPage != index) {
-                                                pagerState.scrollToPage(index)
-                                            }
-                                            val targetListState = currentStates[characterId]
-                                            if (targetListState != null) {
-                                                val targetPageState = state.characterStates[characterId]
-                                                val targetMessages = targetPageState?.messages.orEmpty()
-                                                if (targetMessages.isNotEmpty()) {
-                                                    targetListState.scrollToMessageBottomAfterLayout(
-                                                        messagesStartIndex,
-                                                        targetMessages.lastIndex,
-                                                    )
+                                onAction = onAction,
+                                onCharacterAction = onCharacterAction,
+                                onMainAction = onMainAction,
+                            )
+                        }
+                        stickyHeader(key = "characters") {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color.Transparent)
+                                    .padding(top = StarRailSpacing.xxs),
+                            ) {
+                                CharacterSelector(
+                                    characters = characters,
+                                    selectedCharacterId = selectedCharacter?.id,
+                                    compact = compact,
+                                    onCharacterSelected = { characterId ->
+                                        val index = characters.indexOfFirst { it.id == characterId }
+                                        if (index != -1) {
+                                            coroutineScope.launch {
+                                                if (pagerState.currentPage != index) {
+                                                    pagerState.scrollToPage(index)
+                                                }
+                                                val targetListState = currentStates[characterId]
+                                                if (targetListState != null) {
+                                                    val targetPageState = state.characterStates[characterId]
+                                                    val targetMessages = targetPageState?.messages.orEmpty()
+                                                    if (targetMessages.isNotEmpty()) {
+                                                        targetListState.scrollToMessageBottomAfterLayout(
+                                                            messagesStartIndex,
+                                                            targetMessages.lastIndex,
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
-                                    }
-                                },
-                            )
-                        }
-                    }
-                    
-                    pageMessages.forEachIndexed { index, message ->
-                        val showDivider = if (index > 0) {
-                            val prevMessage = pageMessages[index - 1]
-                            // 只有当两条消息跨越天数时，才显示分割线
-                            !com.kaixuan.starrailchatbox.platform.isSameDay(message.createdAt, prevMessage.createdAt)
-                        } else {
-                            false
-                        }
-
-                        if (showDivider) {
-                            item(key = "date_${message.id}") {
-                                DateDivider(com.kaixuan.starrailchatbox.platform.formatHeaderDate(message.createdAt))
+                                    },
+                                )
                             }
                         }
+                        
+                        pageMessages.forEachIndexed { index, message ->
+                            val showDivider = if (index > 0) {
+                                val prevMessage = pageMessages[index - 1]
+                                // 只有当两条消息跨越天数时，才显示分割线
+                                !com.kaixuan.starrailchatbox.platform.isSameDay(message.createdAt, prevMessage.createdAt)
+                            } else {
+                                false
+                            }
 
-                        item(key = message.id) {
-                            MessageItem(
-                                message = message,
-                                charactersById = charactersById,
-                                userAvatarUri = state.userAvatarUri,
-                                compact = compact,
-                                onViewAttachments = { attachments ->
-                                    attachmentsToShow = attachments
-                                },
-                                onOpenAttachment = { attachment ->
-                                    uriHandler.openUri(attachment.uri)
+                            if (showDivider) {
+                                item(key = "date_${message.id}") {
+                                    DateDivider(com.kaixuan.starrailchatbox.platform.formatHeaderDate(message.createdAt))
                                 }
-                            )
+                            }
+
+                            item(key = message.id) {
+                                MessageItem(
+                                    message = message,
+                                    charactersById = charactersById,
+                                    userAvatarUri = state.userAvatarUri,
+                                    compact = compact,
+                                    onViewAttachments = { attachments ->
+                                        attachmentsToShow = attachments
+                                    },
+                                    onOpenAttachment = { attachment ->
+                                        uriHandler.openUri(attachment.uri)
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    if (showScrollToTop) {
+                        Surface(
+                            onClick = {
+                                coroutineScope.launch {
+                                    pageListState.scrollToItem(0)
+                                }
+                            },
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(
+                                    start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                                    bottom = contentPadding.calculateBottomPadding() + StarRailSpacing.md,
+                                )
+                                .size(if (compact) 38.dp else 48.dp),
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.88f),
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            border = BorderStroke(
+                                1.dp,
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                            ),
+                            shadowElevation = 4.dp,
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                StarRailIcon(
+                                    kind = StarRailIconKind.ARROW_UP,
+                                    contentDescription = "滚动到最顶部",
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.size(if (compact) 20.dp else 24.dp),
+                                )
+                            }
                         }
                     }
                 }
+            }
+        }
 
-                if (showScrollToTop) {
-                    Surface(
-                        onClick = {
-                            coroutineScope.launch {
-                                pageListState.scrollToItem(0)
-                            }
-                        },
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(
-                                start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                                bottom = contentPadding.calculateBottomPadding() + StarRailSpacing.md,
-                            )
-                            .size(if (compact) 38.dp else 48.dp),
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.88f),
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        border = BorderStroke(
-                            1.dp,
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
-                        ),
-                        shadowElevation = 4.dp,
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            StarRailIcon(
-                                kind = StarRailIconKind.ARROW_UP,
-                                contentDescription = "滚动到最顶部",
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.size(if (compact) 20.dp else 24.dp),
-                            )
-                        }
+        if (isRecording) {
+            RecordingOverlay(
+                isCancelTargeted = isCancelTargeted,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+    }
+}
+
+@Composable
+fun RecordingOverlay(
+    isCancelTargeted: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val backgroundColor = if (isCancelTargeted) {
+        Brush.verticalGradient(
+            listOf(
+                Color(0xFFCC4141).copy(alpha = 0.9f),
+                Color(0xFFCC4141).copy(alpha = 0.5f),
+                Color.Transparent
+            )
+        )
+    } else {
+        Brush.verticalGradient(
+            listOf(
+                Color(0xFF418FCC).copy(alpha = 0.9f),
+                Color(0xFF418FCC).copy(alpha = 0.5f),
+                Color.Transparent
+            )
+        )
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(backgroundColor),
+        contentAlignment = Alignment.BottomCenter
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(bottom = 160.dp)
+        ) {
+            Text(
+                text = stringResource(
+                    if (isCancelTargeted) Res.string.release_to_cancel else Res.string.release_to_send
+                ),
+                color = Color.White,
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Spacer(Modifier.height(32.dp))
+            // Waveform (Simulated)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                repeat(30) { index ->
+                    // 模拟波形高度
+                    val height = when (index % 5) {
+                        0 -> 12.dp
+                        1 -> 24.dp
+                        2 -> 38.dp
+                        3 -> 28.dp
+                        else -> 16.dp
                     }
+                    Box(
+                        modifier = Modifier
+                            .width(3.dp)
+                            .height(height)
+                            .background(
+                                if (isCancelTargeted) Color(0xFFFF9999) else Color.White,
+                                CircleShape
+                            )
+                    )
                 }
             }
         }
@@ -1185,8 +1275,12 @@ fun ChatSessionBottomBar(
     state: ChatUiState,
     compact: Boolean,
     onAction: (ChatAction) -> Unit,
+    onRecordingStateChanged: (isRecording: Boolean, isCancelTargeted: Boolean) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
+    val characterId = state.selectedCharacterId
+    val isVoiceMode = characterId?.let { state.characterStates[it]?.isVoiceMode } ?: false
+
     val imagePicker = rememberImagePicker { picked ->
         picked?.let { onAction(ChatAction.ImageSelected(it.uri)) }
     }
@@ -1230,6 +1324,7 @@ fun ChatSessionBottomBar(
         MessageComposer(
             value = state.messageDraft,
             isSending = state.isSending,
+            isVoiceMode = isVoiceMode,
             attachments = state.selectedAttachments,
             compact = compact,
             onValueChange = {
@@ -1239,6 +1334,10 @@ fun ChatSessionBottomBar(
             onComposerAction = {
                 interceptedOnAction(ChatAction.ComposerActionClicked(it))
             },
+            onRecordingStateChanged = onRecordingStateChanged,
+            onVoiceFinished = { uri, duration ->
+                interceptedOnAction(ChatAction.VoiceRecordingFinished(uri, duration))
+            }
         )
         if (state.isAttachmentPanelVisible) {
             AttachmentPanel(
@@ -1480,6 +1579,16 @@ private fun AttachmentPreviewItem(
                     )
                 }
             }
+            is SelectedAttachment.Voice -> {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    StarRailIcon(
+                        kind = StarRailIconKind.MICROPHONE,
+                        contentDescription = attachment.name,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
         }
 
         Surface(
@@ -1508,12 +1617,17 @@ private fun AttachmentPreviewItem(
 private fun MessageComposer(
     value: String,
     isSending: Boolean,
+    isVoiceMode: Boolean,
     attachments: List<SelectedAttachment>,
     compact: Boolean,
     onValueChange: (String) -> Unit,
     onSend: () -> Unit,
     onComposerAction: (ComposerAction) -> Unit,
+    onRecordingStateChanged: (Boolean, Boolean) -> Unit,
+    onVoiceFinished: (String, Long) -> Unit,
 ) {
+    var dragOffsetY by remember { mutableStateOf(0f) }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1531,52 +1645,106 @@ private fun MessageComposer(
             compact = compact,
             onClick = { onComposerAction(ComposerAction.ATTACH) },
         )
-        TextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier
-                .weight(1f)
-                .defaultMinSize(minWidth = 0.dp, minHeight = if (compact) 38.dp else 56.dp)
-                .animateContentSize(),
-            placeholder = {
-                Text(stringResource(Res.string.message_placeholder))
-            },
-            trailingIcon = {
-                IconButton(
-                    onClick = { onComposerAction(ComposerAction.EMOJI) },
-                ) {
-                    StarRailIcon(
-                        kind = StarRailIconKind.SMILE,
-                        contentDescription = stringResource(Res.string.open_emoji),
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(24.dp),
+
+        if (isVoiceMode) {
+            Surface(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(if (compact) 38.dp else 56.dp)
+                    .pointerInput(Unit) {
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = {
+                                dragOffsetY = 0f
+                                onRecordingStateChanged(true, false)
+                            },
+                            onDragEnd = {
+                                if (dragOffsetY < -160f) {
+                                    onRecordingStateChanged(false, false)
+                                } else {
+                                    onRecordingStateChanged(false, false)
+                                    onVoiceFinished("builtin:voice_sample.m4a", 2000L)
+                                }
+                            },
+                            onDragCancel = {
+                                onRecordingStateChanged(false, false)
+                            },
+                            onDrag = { change, dragAmount ->
+                                dragOffsetY += dragAmount.y
+                                onRecordingStateChanged(true, dragOffsetY < -160f)
+                            }
+                        )
+                    },
+                shape = MaterialTheme.shapes.extraLarge,
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                border = BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.outlineVariant,
+                ),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = stringResource(Res.string.hold_to_speak),
+                        style = if (compact) {
+                            MaterialTheme.typography.labelLarge
+                        } else {
+                            MaterialTheme.typography.titleMedium
+                        },
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                 }
-            },
-            shape = MaterialTheme.shapes.extraLarge,
-            minLines = 1,
-            maxLines = 4,
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                disabledIndicatorColor = Color.Transparent,
-            ),
-        )
+            }
+        } else {
+            TextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier
+                    .weight(1f)
+                    .defaultMinSize(minWidth = 0.dp, minHeight = if (compact) 38.dp else 56.dp)
+                    .animateContentSize(),
+                placeholder = {
+                    Text(stringResource(Res.string.message_placeholder))
+                },
+                trailingIcon = {
+                    IconButton(
+                        onClick = { onComposerAction(ComposerAction.EMOJI) },
+                    ) {
+                        StarRailIcon(
+                            kind = StarRailIconKind.SMILE,
+                            contentDescription = stringResource(Res.string.open_emoji),
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
+                },
+                shape = MaterialTheme.shapes.extraLarge,
+                minLines = 1,
+                maxLines = 4,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent,
+                ),
+            )
+        }
+
+        if (!isVoiceMode && (value.isNotBlank() || attachments.isNotEmpty() || isSending)) {
+            ComposerIconButton(
+                icon = StarRailIconKind.SEND,
+                contentDescription = stringResource(Res.string.send_message),
+                compact = compact,
+                enabled = !isSending,
+                primary = true,
+                onClick = onSend,
+                loading = isSending,
+            )
+        }
+
         ComposerIconButton(
-            icon = StarRailIconKind.SEND,
-            contentDescription = stringResource(Res.string.send_message),
-            compact = compact,
-            enabled = (value.isNotBlank() || attachments.isNotEmpty()) && !isSending,
-            primary = true,
-            onClick = onSend,
-            loading = isSending,
-        )
-        ComposerIconButton(
-            icon = StarRailIconKind.MICROPHONE,
-            contentDescription = stringResource(Res.string.record_voice),
+            icon = if (isVoiceMode) StarRailIconKind.KEYBOARD else StarRailIconKind.MICROPHONE,
+            contentDescription = stringResource(if (isVoiceMode) Res.string.nav_chat else Res.string.record_voice),
             compact = compact,
             onClick = { onComposerAction(ComposerAction.VOICE) },
         )
@@ -1759,7 +1927,8 @@ private fun ChatSessionBottomBarLightPreview() {
             ChatSessionBottomBar(
                 state = chatPreviewState,
                 compact = true,
-                onAction = {}
+                onAction = {},
+                onRecordingStateChanged = { _, _ -> }
             )
         }
     }
@@ -1773,7 +1942,8 @@ private fun ChatSessionBottomBarDarkPreview() {
             ChatSessionBottomBar(
                 state = chatPreviewState,
                 compact = true,
-                onAction = {}
+                onAction = {},
+                onRecordingStateChanged = { _, _ -> }
             )
         }
     }
@@ -1799,6 +1969,9 @@ fun CharacterChatScreen(
     } ?: return
 
     val pageState = state.characterStates[characterId] ?: CharacterChatState()
+
+    var isRecording by remember { mutableStateOf(false) }
+    var isCancelTargeted by remember { mutableStateOf(false) }
 
     BackHandler(enabled = pageState.isAttachmentPanelVisible) {
         onAction(ChatAction.ComposerActionClicked(ComposerAction.ATTACH))
@@ -1877,141 +2050,154 @@ fun CharacterChatScreen(
 
     val coroutineScope = rememberCoroutineScope()
 
-    Scaffold(
-        modifier = modifier
-            .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.statusBars),
-        containerColor = Color.Transparent,
-        contentWindowInsets = WindowInsets(0),
-        bottomBar = {
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.97f),
-                shadowElevation = 8.dp,
-            ) {
-                Column(
-                    modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
+    Box(modifier = modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.statusBars),
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets(0),
+            bottomBar = {
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.97f),
+                    shadowElevation = 8.dp,
                 ) {
-                    ChatSessionBottomBar(
-                        state = state,
+                    Column(
+                        modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
+                    ) {
+                        ChatSessionBottomBar(
+                            state = state,
+                            compact = compact,
+                            onAction = onAction,
+                            onRecordingStateChanged = { recording, cancelTargeted ->
+                                isRecording = recording
+                                isCancelTargeted = cancelTargeted
+                            }
+                        )
+                    }
+                }
+            }
+        ) { scaffoldPadding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = scaffoldPadding.calculateTopPadding())
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                            end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                            bottom = StarRailSpacing.md,
+                        )
+                ) {
+                    CharacterChatHeader(
+                        selectedCharacter = character,
                         compact = compact,
                         onAction = onAction,
+                        onCharacterAction = onCharacterAction,
+                        onMainAction = onMainAction,
                     )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) {
+                    if (pageState.isLoadingSession) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    } else {
+                        LazyColumn(
+                            state = pageListState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(
+                                start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                                end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                                bottom = scaffoldPadding.calculateBottomPadding() + StarRailSpacing.lg,
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
+                        ) {
+                            pageMessages.forEachIndexed { index, message ->
+                                val showDivider = if (index > 0) {
+                                    val prevMessage = pageMessages[index - 1]
+                                    !com.kaixuan.starrailchatbox.platform.isSameDay(message.createdAt, prevMessage.createdAt)
+                                } else {
+                                    false
+                                }
+
+                                if (showDivider) {
+                                    item(key = "date_${message.id}") {
+                                        DateDivider(com.kaixuan.starrailchatbox.platform.formatHeaderDate(message.createdAt))
+                                    }
+                                }
+
+                                item(key = message.id) {
+                                    MessageItem(
+                                        message = message,
+                                        charactersById = charactersById,
+                                        userAvatarUri = state.userAvatarUri,
+                                        compact = compact,
+                                        onViewAttachments = { attachments ->
+                                            attachmentsToShow = attachments
+                                        },
+                                        onOpenAttachment = { attachment ->
+                                            uriHandler.openUri(attachment.uri)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        if (showScrollToTop) {
+                            Surface(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        pageListState.scrollToItem(0)
+                                    }
+                                },
+                                modifier = Modifier
+                                    .align(Alignment.BottomStart)
+                                    .padding(
+                                        start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                                        bottom = scaffoldPadding.calculateBottomPadding() + StarRailSpacing.md,
+                                    )
+                                    .size(if (compact) 38.dp else 48.dp),
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.88f),
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                border = BorderStroke(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                                ),
+                                shadowElevation = 4.dp,
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    StarRailIcon(
+                                        kind = StarRailIconKind.ARROW_UP,
+                                        contentDescription = "滚动到最顶部",
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.size(if (compact) 20.dp else 24.dp),
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
-    ) { scaffoldPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = scaffoldPadding.calculateTopPadding())
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                        end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                        bottom = StarRailSpacing.md,
-                    )
-            ) {
-                CharacterChatHeader(
-                    selectedCharacter = character,
-                    compact = compact,
-                    onAction = onAction,
-                    onCharacterAction = onCharacterAction,
-                    onMainAction = onMainAction,
-                )
-            }
 
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-            ) {
-                if (pageState.isLoadingSession) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                } else {
-                    LazyColumn(
-                        state = pageListState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(
-                            start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                            end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                            bottom = scaffoldPadding.calculateBottomPadding() + StarRailSpacing.lg,
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
-                    ) {
-                        pageMessages.forEachIndexed { index, message ->
-                            val showDivider = if (index > 0) {
-                                val prevMessage = pageMessages[index - 1]
-                                !com.kaixuan.starrailchatbox.platform.isSameDay(message.createdAt, prevMessage.createdAt)
-                            } else {
-                                false
-                            }
-
-                            if (showDivider) {
-                                item(key = "date_${message.id}") {
-                                    DateDivider(com.kaixuan.starrailchatbox.platform.formatHeaderDate(message.createdAt))
-                                }
-                            }
-
-                            item(key = message.id) {
-                                MessageItem(
-                                    message = message,
-                                    charactersById = charactersById,
-                                    userAvatarUri = state.userAvatarUri,
-                                    compact = compact,
-                                    onViewAttachments = { attachments ->
-                                        attachmentsToShow = attachments
-                                    },
-                                    onOpenAttachment = { attachment ->
-                                        uriHandler.openUri(attachment.uri)
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    if (showScrollToTop) {
-                        Surface(
-                            onClick = {
-                                coroutineScope.launch {
-                                    pageListState.scrollToItem(0)
-                                }
-                            },
-                            modifier = Modifier
-                                .align(Alignment.BottomStart)
-                                .padding(
-                                    start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                                    bottom = scaffoldPadding.calculateBottomPadding() + StarRailSpacing.md,
-                                )
-                                .size(if (compact) 38.dp else 48.dp),
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.88f),
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            border = BorderStroke(
-                                1.dp,
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
-                            ),
-                            shadowElevation = 4.dp,
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                StarRailIcon(
-                                    kind = StarRailIconKind.ARROW_UP,
-                                    contentDescription = "滚动到最顶部",
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.size(if (compact) 20.dp else 24.dp),
-                                )
-                            }
-                        }
-                    }
-                }
-            }
+        if (isRecording) {
+            RecordingOverlay(
+                isCancelTargeted = isCancelTargeted,
+                modifier = Modifier.fillMaxSize()
+            )
         }
     }
 }

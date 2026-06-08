@@ -43,6 +43,7 @@ sealed interface SelectedAttachment {
 
     data class File(override val uri: String, override val name: String) : SelectedAttachment
     data class Image(override val uri: String, override val name: String) : SelectedAttachment
+    data class Voice(override val uri: String, override val name: String, val durationMs: Long) : SelectedAttachment
 }
 
 @Immutable
@@ -56,6 +57,7 @@ data class CharacterChatState(
     val suggestions: List<String> = emptyList(),
     val isAttachmentPanelVisible: Boolean = false,
     val selectedAttachments: List<SelectedAttachment> = emptyList(),
+    val isVoiceMode: Boolean = false,
 )
 
 @Immutable

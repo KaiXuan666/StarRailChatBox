@@ -17,6 +17,10 @@ sealed interface ChatAction {
     data class RemoveAttachment(val attachment: SelectedAttachment) : ChatAction
     data class OpenAttachment(val attachment: com.kaixuan.starrailchatbox.data.chat.MessageAttachment) : ChatAction
     data object RestoreMainCharacter : ChatAction
+    data object VoiceModeToggled : ChatAction
+    data object VoiceRecordingStarted : ChatAction
+    data class VoiceRecordingFinished(val uri: String, val durationMs: Long) : ChatAction
+    data object VoiceRecordingCancelled : ChatAction
 }
 
 enum class HeaderAction {
