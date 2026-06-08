@@ -328,6 +328,36 @@ class ChatViewModelTest {
     }
 
     @Test
+    fun restoreMainCharacterResetsSelectedToLastActiveMainCharacter() = runTest {
+        val characterRepository = EditableCharacterRepository(
+            initialCharacters = listOf(
+                Character("char1", "流萤", "", "", "", sortOrder = 0),
+                Character("char2", "三月七", "", "", "", sortOrder = 1),
+                Character("char3", "黄泉", "", "", "", sortOrder = 2),
+                Character("char4", "姬子", "", "", "", sortOrder = 3),
+                Character("char5", "银狼", "", "", "", sortOrder = 4),
+            )
+        )
+        val fixture = createFixture(characterRepository = characterRepository)
+        advanceUntilIdle()
+
+        assertEquals("char1", fixture.viewModel.uiState.value.selectedCharacterId)
+
+        fixture.viewModel.onCharacterAction(CharacterAction.CharacterSelected("char2"))
+        advanceUntilIdle()
+        assertEquals("char2", fixture.viewModel.uiState.value.selectedCharacterId)
+
+        fixture.viewModel.onCharacterAction(CharacterAction.CharacterSelected("char5"))
+        advanceUntilIdle()
+        assertEquals("char5", fixture.viewModel.uiState.value.selectedCharacterId)
+
+        fixture.viewModel.onAction(ChatAction.RestoreMainCharacter)
+        advanceUntilIdle()
+
+        assertEquals("char2", fixture.viewModel.uiState.value.selectedCharacterId)
+    }
+
+    @Test
     fun promptGenConfirmFailureEmitsError() = runTest {
         val api = object : FakeOpenAiRepository() {
             override fun createPromptCompletion(

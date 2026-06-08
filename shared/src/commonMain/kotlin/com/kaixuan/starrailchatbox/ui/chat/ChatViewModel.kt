@@ -82,6 +82,7 @@ class ChatViewModel(
     private var activeSession: ChatSession? = null
     private var sessionJob: Job? = null
     private var sessionListJob: Job? = null
+    private var lastActiveMainCharacterId: String? = null
 
     init {
         viewModelScope.launch {
@@ -119,6 +120,7 @@ class ChatViewModel(
                 )
             }
             selectedId?.let {
+                lastActiveMainCharacterId = it
                 observeSessions(it)
                 loadLatestSession(it)
             }
@@ -166,6 +168,9 @@ class ChatViewModel(
             is ChatAction.SessionDeleteClicked -> deleteSession(action.sessionId)
             is ChatAction.HeaderActionClicked -> handleHeaderAction(action.action)
             is ChatAction.ComposerActionClicked -> handleComposerAction(action.action)
+            ChatAction.RestoreMainCharacter -> {
+                lastActiveMainCharacterId?.let { selectCharacter(it) }
+            }
         }
     }
 
@@ -452,6 +457,9 @@ class ChatViewModel(
                     } else {
                         state.selectedCharacterId?.takeIf { id -> characters.any { it.id == id } } ?: fallbackId
                     }
+                    if (lastActiveMainCharacterId == characterId) {
+                        lastActiveMainCharacterId = updatedSelectedId
+                    }
                     val updatedSelectedChar = characters.firstOrNull { it.id == updatedSelectedId } ?: fallbackChar
                     state.copy(
                         selectedCharacterId = updatedSelectedId,
@@ -479,6 +487,12 @@ class ChatViewModel(
         val characters = charState.characters
         if (characters.none { it.id == characterId }) return
         if (charState.selectedCharacterId == characterId) return
+
+        val sorted = characters.sortedWith(compareBy({ it.sortOrder }, { it.createdAt }))
+        val isTopFour = sorted.take(4).any { it.id == characterId }
+        if (isTopFour) {
+            lastActiveMainCharacterId = characterId
+        }
 
         val selectedChar = characters.firstOrNull { it.id == characterId }
         _characterUiState.update {

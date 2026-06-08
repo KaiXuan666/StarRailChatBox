@@ -90,6 +90,7 @@ import com.kaixuan.starrailchatbox.ui.chat.ChatAction
 import com.kaixuan.starrailchatbox.ui.chat.ChatEffect
 import com.kaixuan.starrailchatbox.ui.chat.ChatSessionBottomBar
 import com.kaixuan.starrailchatbox.ui.chat.ChatSessionScreen
+import com.kaixuan.starrailchatbox.ui.chat.CharacterChatScreen
 import com.kaixuan.starrailchatbox.ui.character.CharacterAction
 import com.kaixuan.starrailchatbox.ui.character.CharacterEffect
 import com.kaixuan.starrailchatbox.ui.character.CharacterEffectMessage
@@ -412,6 +413,18 @@ fun MainNavigationContainer(
                             compact = compact,
                             onMainAction = onMainAction,
                             onAction = onProfileAction,
+                        )
+                    }
+                    entry<Route.CharacterChat> { entry ->
+                        CharacterChatScreen(
+                            characterId = entry.characterId,
+                            state = chatState,
+                            charactersState = charactersState,
+                            contentPadding = contentPadding,
+                            compact = compact,
+                            onAction = onChatAction,
+                            onCharacterAction = onCharacterAction,
+                            onMainAction = onMainAction,
                         )
                     }
                 }

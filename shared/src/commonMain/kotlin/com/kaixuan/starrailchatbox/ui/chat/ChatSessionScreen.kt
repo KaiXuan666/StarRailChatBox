@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -35,6 +36,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -179,6 +181,17 @@ fun ChatSessionScreen(
         val targetCharacter = characters.getOrNull(pagerState.currentPage)
         if (targetCharacter != null && targetCharacter.id != selectedCharacter?.id) {
             onCharacterAction(CharacterAction.CharacterSelected(targetCharacter.id))
+        }
+    }
+
+    LaunchedEffect(characters, selectedCharacter) {
+        if (selectedCharacter != null) {
+            val isTopFour = characters.sortedWith(compareBy({ it.sortOrder }, { it.createdAt }))
+                .take(4)
+                .any { it.id == selectedCharacter.id }
+            if (!isTopFour) {
+                onAction(ChatAction.RestoreMainCharacter)
+            }
         }
     }
 
@@ -1347,3 +1360,260 @@ private fun ChatSessionBottomBarDarkPreview() {
         }
     }
 }
+
+/**
+ * 二级对话界面，面向前四个角色以外的角色。
+ */
+@Composable
+fun CharacterChatScreen(
+    characterId: String,
+    state: ChatUiState,
+    charactersState: CharactersUiState,
+    contentPadding: PaddingValues,
+    compact: Boolean,
+    onAction: (ChatAction) -> Unit,
+    onCharacterAction: (CharacterAction) -> Unit,
+    onMainAction: (MainAction) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val character = remember(charactersState.characters, characterId) {
+        charactersState.characters.firstOrNull { it.id == characterId }
+    } ?: return
+
+    val pageState = state.characterStates[characterId] ?: CharacterChatState()
+    val pageListState = rememberLazyListState()
+    val pageMessages = pageState.messages
+    val charactersById = remember(charactersState.characters) {
+        charactersState.characters.associateBy(Character::id)
+    }
+
+    // 自动滚动到最新消息的逻辑
+    var previousPageMessageCount by remember { mutableStateOf(pageMessages.size) }
+    var shouldPageScrollToBottomOnLoad by remember { mutableStateOf(false) }
+
+    LaunchedEffect(characterId) {
+        previousPageMessageCount = pageMessages.size
+        if (pageMessages.isNotEmpty()) {
+            pageListState.scrollToMessageBottomAfterLayout(
+                1, // 二级页面中没有 stickyHeader 的 CharacterSelector，消息从 index = 1 开始
+                pageMessages.lastIndex,
+            )
+        } else {
+            shouldPageScrollToBottomOnLoad = true
+        }
+    }
+
+    LaunchedEffect(pageMessages, pageState.isLoadingSession) {
+        if (shouldPageScrollToBottomOnLoad && !pageState.isLoadingSession && pageMessages.isNotEmpty()) {
+            shouldPageScrollToBottomOnLoad = false
+            pageListState.scrollToMessageBottomAfterLayout(
+                1,
+                pageMessages.lastIndex,
+            )
+        }
+    }
+
+    LaunchedEffect(pageMessages.size) {
+        val lastVisibleIndex = pageListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
+        val wasNearBottom = lastVisibleIndex != null &&
+            lastVisibleIndex >= pageListState.layoutInfo.totalItemsCount - 3
+        if (
+            pageMessages.size > previousPageMessageCount &&
+            wasNearBottom &&
+            pageMessages.isNotEmpty()
+        ) {
+            pageListState.scrollToMessageBottomAfterLayout(
+                1,
+                pageMessages.lastIndex,
+            )
+        }
+        previousPageMessageCount = pageMessages.size
+    }
+
+    val showScrollToTop by remember {
+        derivedStateOf {
+            pageListState.firstVisibleItemIndex > 0 || pageListState.firstVisibleItemScrollOffset > 0
+        }
+    }
+
+    val coroutineScope = rememberCoroutineScope()
+
+    Scaffold(
+        modifier = modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.statusBars),
+        containerColor = Color.Transparent,
+        contentWindowInsets = WindowInsets(0),
+        bottomBar = {
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.97f),
+                shadowElevation = 8.dp,
+            ) {
+                Column(
+                    modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
+                ) {
+                    ChatSessionBottomBar(
+                        state = state,
+                        compact = compact,
+                        onAction = onAction,
+                    )
+                }
+            }
+        }
+    ) { scaffoldPadding ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (pageState.isLoadingSession) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                LazyColumn(
+                    state = pageListState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                        end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                        top = scaffoldPadding.calculateTopPadding(),
+                        bottom = scaffoldPadding.calculateBottomPadding() + StarRailSpacing.lg,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
+                ) {
+                    item(key = "header") {
+                        CharacterChatHeader(
+                            selectedCharacter = character,
+                            compact = compact,
+                            onAction = onAction,
+                            onCharacterAction = onCharacterAction,
+                            onMainAction = onMainAction,
+                        )
+                    }
+
+                    pageMessages.forEachIndexed { index, message ->
+                        val showDivider = if (index > 0) {
+                            val prevMessage = pageMessages[index - 1]
+                            !com.kaixuan.starrailchatbox.platform.isSameDay(message.createdAt, prevMessage.createdAt)
+                        } else {
+                            false
+                        }
+
+                        if (showDivider) {
+                            item(key = "date_${message.id}") {
+                                DateDivider(com.kaixuan.starrailchatbox.platform.formatHeaderDate(message.createdAt))
+                            }
+                        }
+
+                        item(key = message.id) {
+                            MessageItem(
+                                message = message,
+                                charactersById = charactersById,
+                                userAvatarUri = state.userAvatarUri,
+                                compact = compact,
+                            )
+                        }
+                    }
+                }
+
+                if (showScrollToTop) {
+                    Surface(
+                        onClick = {
+                            coroutineScope.launch {
+                                pageListState.scrollToItem(0)
+                            }
+                        },
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(
+                                start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                                bottom = scaffoldPadding.calculateBottomPadding() + StarRailSpacing.md,
+                            )
+                            .size(if (compact) 38.dp else 48.dp),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.88f),
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                        ),
+                        shadowElevation = 4.dp,
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            StarRailIcon(
+                                kind = StarRailIconKind.ARROW_UP,
+                                contentDescription = "滚动到最顶部",
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(if (compact) 20.dp else 24.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CharacterChatHeader(
+    selectedCharacter: Character,
+    compact: Boolean,
+    onAction: (ChatAction) -> Unit,
+    onCharacterAction: (CharacterAction) -> Unit,
+    onMainAction: (MainAction) -> Unit,
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(
+            if (compact) StarRailSpacing.md else StarRailSpacing.lg,
+        ),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
+        ) {
+            IconButton(
+                onClick = { onMainAction(MainAction.PopBackStack) },
+                modifier = Modifier.size(if (compact) 32.dp else 40.dp),
+            ) {
+                StarRailIcon(
+                    kind = StarRailIconKind.CHEVRON_LEFT,
+                    contentDescription = "返回",
+                    tint = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.size(if (compact) 24.dp else 28.dp),
+                )
+            }
+            Text(
+                text = stringResource(Res.string.app_title),
+                color = MaterialTheme.colorScheme.onBackground,
+                style = if (compact) {
+                    MaterialTheme.typography.headlineSmall
+                } else {
+                    MaterialTheme.typography.headlineLarge
+                },
+                maxLines = 1,
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(
+                if (compact) StarRailSpacing.md else StarRailSpacing.xl,
+            ),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CharacterSummary(
+                character = selectedCharacter,
+                modifier = Modifier.weight(1f),
+                compact = compact,
+            )
+            HeaderActions(
+                characterId = selectedCharacter.id,
+                compact = compact,
+                onAction = onAction,
+                onCharacterAction = onCharacterAction,
+                onMainAction = onMainAction,
+            )
+        }
+    }
+}
+

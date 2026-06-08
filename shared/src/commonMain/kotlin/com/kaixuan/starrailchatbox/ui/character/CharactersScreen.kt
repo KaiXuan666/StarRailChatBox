@@ -261,8 +261,13 @@ fun CharactersScreen(
                             compact = compact,
                             onClick = {
                                 if (draggingItemId == null) {
+                                    val isTopFour = cardIndex < 4
                                     onAction(CharacterAction.CharacterSelected(character.id))
-                                    onMainAction(MainAction.NavigationSelected(Route.ChatSession))
+                                    if (isTopFour) {
+                                        onMainAction(MainAction.NavigationSelected(Route.ChatSession))
+                                    } else {
+                                        onMainAction(MainAction.NavigateTo(Route.CharacterChat(character.id)))
+                                    }
                                 }
                             },
                             onEditClick = {
