@@ -86,6 +86,27 @@ class AndroidAudioRecorder(private val context: Context) {
             return null
         }
 
+        // 修复 ftyp major brand。Android MediaRecorder 默认输出 mp42 容器标识，
+        // 导致小米等服务端的音频格式校验器判定为无效音频。在此将 mp42 修改为标准的 M4A 标识。
+        try {
+            java.io.RandomAccessFile(file, "rw").use { raf ->
+                if (raf.length() >= 12) {
+                    raf.seek(8)
+                    val brand = ByteArray(4)
+                    raf.readFully(brand)
+                    if (brand[0] == 'm'.toByte() && 
+                        brand[1] == 'p'.toByte() && 
+                        brand[2] == '4'.toByte() && 
+                        brand[3] == '2'.toByte()) {
+                        raf.seek(8)
+                        raf.write(byteArrayOf('M'.toByte(), '4'.toByte(), 'A'.toByte(), ' '.toByte()))
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
         return RecordResult(
             uri = file.absolutePath,
             durationMs = duration
