@@ -28,6 +28,9 @@ interface AgentRoleDao {
     @Query("SELECT EXISTS(SELECT 1 FROM agent_role WHERE id = :id)")
     suspend fun containsId(id: String): Boolean
 
+    @Query("SELECT MAX(sort_order) FROM agent_role WHERE deleted_at IS NULL")
+    suspend fun findMaxSortOrder(): Int?
+
     @Query("UPDATE agent_role SET deleted_at = :deletedAt, updated_at = :deletedAt WHERE id = :id")
     suspend fun softDelete(id: String, deletedAt: Long): Int
 }

@@ -58,6 +58,49 @@ class RoomCharacterStorageTest {
             avatarDirectory.toFile().deleteRecursively()
         }
     }
+
+    @Test
+    fun saveCharacterNewAssignsNextMaxSortOrderAndExistingRetainsSortOrder() = runTest {
+        val databasePath = Files.createTempFile("starrail-agent-role-save", ".db")
+        val avatarDirectory = Files.createTempDirectory("starrail-agent-avatars-save")
+        val database = Room.databaseBuilder<StarRailDatabase>(
+            name = databasePath.toString(),
+            factory = StarRailDatabaseConstructor::initialize,
+        )
+            .setDriver(BundledSQLiteDriver())
+            .build()
+        val storage = RoomCharacterStorage(
+            dao = database.agentRoleDao(),
+            avatarStorage = FileCharacterAvatarStorage(avatarDirectory.toFile()),
+            currentTimeMillis = { 1_000L },
+        )
+
+        try {
+            val initial = characterFiles("builtin:流萤", "流萤", "first")
+            val second = characterFiles("builtin:三月七", "三月七", "second")
+            storage.initializeDefaults(listOf(initial, second))
+
+            assertEquals(0, database.agentRoleDao().findById("builtin:流萤")?.sortOrder)
+            assertEquals(1, database.agentRoleDao().findById("builtin:三月七")?.sortOrder)
+
+            val newChar = characterFiles("custom:流萤2号", "流萤2号", "custom prompt")
+            storage.saveCharacter(newChar)
+
+            val storedNew = requireNotNull(database.agentRoleDao().findById("custom:流萤2号"))
+            assertEquals(2, storedNew.sortOrder)
+
+            val updatedInitial = characterFiles("builtin:流萤", "流萤新版", "new prompt")
+            storage.saveCharacter(updatedInitial)
+
+            val storedUpdated = requireNotNull(database.agentRoleDao().findById("builtin:流萤"))
+            assertEquals(0, storedUpdated.sortOrder)
+            assertEquals("流萤新版", storedUpdated.name)
+        } finally {
+            database.close()
+            Files.deleteIfExists(databasePath)
+            avatarDirectory.toFile().deleteRecursively()
+        }
+    }
 }
 
 private fun characterFiles(

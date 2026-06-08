@@ -421,6 +421,7 @@ val StarRailShapes = Shapes(
 - 弹窗正文使用 `onSurface` 或 `onSurfaceVariant`，可换行且不得设置会裁切内容的固定高度。
 - 弹窗打开时，系统返回键只关闭弹窗，不得同时触发页面返回或业务确认。
 - 所有弹窗可见文案必须资源化，并提供浅色、深色 Preview。
+- 弹窗内支持表单输入时（如提示词自动生成弹窗），可在 `content` 回调中放置 `LabeledTextField` 等输入框（如多行文本框建议 `minLines = 4`）。取消和确认按钮动作应精确对应并绑定 ViewModel 派发的 Action；Dialog 关闭时，ViewModel 必须清空或妥善保留临时输入草稿状态。
 
 ---
 

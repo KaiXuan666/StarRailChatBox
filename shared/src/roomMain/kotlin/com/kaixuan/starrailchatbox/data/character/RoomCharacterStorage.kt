@@ -36,11 +36,17 @@ class RoomCharacterStorage(
         val existing = dao.findById(character.id)
         val now = currentTimeMillis()
         val avatarUri = avatarStorage.save(character.id, character.avatarBytes)
+        val sortOrder = if (existing != null) {
+            existing.sortOrder
+        } else {
+            val maxSortOrder = dao.findMaxSortOrder() ?: -1
+            maxSortOrder + 1
+        }
         dao.upsert(
             character.toEntity(
                 avatarUri = avatarUri,
                 isBuiltin = existing?.isBuiltin ?: false,
-                sortOrder = existing?.sortOrder ?: Int.MAX_VALUE,
+                sortOrder = sortOrder,
                 createdAt = existing?.createdAt ?: now,
                 updatedAt = now,
             ),

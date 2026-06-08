@@ -133,6 +133,7 @@ driver、provider 和日志出口等边界。
 - UI 和 ViewModel 只依赖 `AiRepository`。`DefaultAiRepository` 通过
   `AiProviderRegistry` 按 `ModelConfig.provider` 选择 Provider，并通过
   `ToolCallCoordinator` 处理工具调用；不得恢复对具体 Provider 或协议 DTO 的直接依赖。
+- 对于纯文本生成任务（如提示词自动生成 `createPromptCompletion`、会话总结 `createConversationSummary` 与会话命名 `createSessionTitle` 等），`DefaultAiRepository` 必须绕过 `ToolCallCoordinator`，将 `toolChoice` 设为 `ToolChoice.None` 并直接调用 `provider.complete`，以从根本上防止辅助任务误触发设备或本地平台工具执行。
 - 当前 `OpenAiCompatibleProvider` 使用 OpenAI 兼容 API：模型列表调用
   `GET /models`，聊天调用 `POST /chat/completions`。接口通过 Ktorfit 声明，Provider
   负责领域模型与 wire DTO 的转换，ViewModel、Composable 和工具不得直接拼装请求。
