@@ -22,4 +22,7 @@ interface ModelConfigDao {
 
     @Query("UPDATE model_config SET deleted_at = :deletedAt, updated_at = :deletedAt WHERE id = :id")
     suspend fun softDelete(id: String, deletedAt: Long): Int
+
+    @Query("DELETE FROM model_config WHERE id = :id")
+    suspend fun deleteById(id: String): Int
 }

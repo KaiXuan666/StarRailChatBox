@@ -9,6 +9,7 @@ import com.kaixuan.starrailchatbox.data.model.DefaultModelConfig
 import com.kaixuan.starrailchatbox.data.model.ModelConfig
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
 import com.kaixuan.starrailchatbox.data.model.MultimodalModelConfig
+import com.kaixuan.starrailchatbox.data.model.VoiceCloneModelConfig
 import com.kaixuan.starrailchatbox.data.model.VoiceModelConfig
 import com.kaixuan.starrailchatbox.data.settings.ApiSettingsDefaults
 import com.kaixuan.starrailchatbox.data.settings.localApiSettingsDefaults
@@ -38,10 +39,12 @@ class SettingsViewModel(
             val settings = modelConfigRepository.getDefault()
             val mmSettings = modelConfigRepository.getMultimodal()
             val voiceSettings = modelConfigRepository.getVoice()
+            val voiceCloneSettings = modelConfigRepository.getVoiceClone()
             _uiState.update { state ->
                 val selectedModel = settings?.modelName.orEmpty()
                 val mmSelectedModel = mmSettings?.modelName.orEmpty()
                 val voiceSelectedModel = voiceSettings?.modelName.orEmpty()
+                val voiceSelectedCloneModel = voiceCloneSettings?.modelName.orEmpty()
 
                 state.copy(
                     apiHost = settings?.baseUrl
@@ -64,15 +67,19 @@ class SettingsViewModel(
                     multimodalSelectedModel = mmSelectedModel,
                     multimodalModelsList = listOfNotNull(mmSelectedModel.takeIf(String::isNotBlank)),
 
-                    voiceApiHost = mmSettings?.baseUrl
+                    voiceApiHost = voiceSettings?.baseUrl
                         ?.takeIf(String::isNotBlank)
                         ?: defaultApiSettings.apiHost.takeIf(String::isNotBlank)
-                        ?: state.multimodalApiHost,
-                    voiceApiKey = mmSettings?.apiKey
+                        ?: state.voiceApiHost,
+                    voiceApiKey = voiceSettings?.apiKey
                         ?.takeIf(String::isNotBlank)
                         ?: defaultApiSettings.apiKey,
-                    voiceSelectedModel = mmSelectedModel,
-                    voiceModelsList = listOfNotNull(mmSelectedModel.takeIf(String::isNotBlank)),
+                    voiceSelectedModel = voiceSelectedModel,
+                    voiceSelectedCloneModel = voiceSelectedCloneModel,
+                    voiceModelsList = listOfNotNull(
+                        voiceSelectedModel.takeIf(String::isNotBlank),
+                        voiceSelectedCloneModel.takeIf(String::isNotBlank)
+                    ).distinct(),
                 )
             }
         }
@@ -129,6 +136,7 @@ class SettingsViewModel(
             is SettingsAction.SelectModel -> {
                 _uiState.update { state ->
                     when {
+                        action.isVoiceClone -> state.copy(voiceSelectedCloneModel = action.model)
                         action.isVoice -> state.copy(voiceSelectedModel = action.model)
                         action.isMultimodal -> state.copy(multimodalSelectedModel = action.model)
                         else -> state.copy(selectedModel = action.model)
@@ -146,6 +154,10 @@ class SettingsViewModel(
 
             SettingsAction.SaveVoiceApiSettingsClicked -> {
                 saveApiSettings(isMultimodal = false, isVoice = true)
+            }
+
+            is SettingsAction.ClearApiSettingsClicked -> {
+                clearApiSettings(isMultimodal = action.isMultimodal, isVoice = action.isVoice)
             }
         }
     }
@@ -286,7 +298,10 @@ class SettingsViewModel(
                     state.copy(
                         voiceIsFetchingModels = false,
                         voiceModelsList = processedModels,
-                        voiceSelectedModel = state.voiceSelectedModel.takeIf(processedModels::contains) ?: processedModels.first(),
+                        voiceSelectedModel = state.voiceSelectedModel.takeIf(processedModels::contains) 
+                            ?: processedModels.firstOrNull { !it.contains("clone") && !it.contains("design") } 
+                            ?: processedModels.first(),
+                        voiceSelectedCloneModel = state.voiceSelectedCloneModel.takeIf(processedModels::contains) ?: "",
                     )
                 }
                 isMultimodal -> {
@@ -347,19 +362,11 @@ class SettingsViewModel(
         }
         scope().launch {
             try {
-                val supportToolCall = if (isVoice) {
-                    false
-                } else {
-                    aiRepository.testToolCallSupport(
-                        apiHost = apiHost,
-                        apiKey = apiKey,
-                        model = selectedModel,
-                        providerId = OpenAiCompatibleProvider.Id,
-                    )
-                }
+                if (isVoice) {
+                    val voiceSelectedModel = state.voiceSelectedModel
+                    val voiceSelectedCloneModel = state.voiceSelectedCloneModel
 
-                when {
-                    isVoice -> {
+                    if (voiceSelectedModel.isNotBlank()) {
                         modelConfigRepository.saveVoice(
                             ModelConfig(
                                 id = VoiceModelConfig.Id,
@@ -367,7 +374,7 @@ class SettingsViewModel(
                                 name = VoiceModelConfig.Name,
                                 baseUrl = apiHost.trim().trimEnd('/'),
                                 apiKey = apiKey.trim(),
-                                modelName = selectedModel,
+                                modelName = voiceSelectedModel,
                                 contextWindow = VoiceModelConfig.ContextWindow,
                                 maxOutputTokens = VoiceModelConfig.MaxOutputTokens,
                                 supportVision = false,
@@ -378,8 +385,41 @@ class SettingsViewModel(
                                 enabled = true,
                             ),
                         )
+                    } else {
+                        modelConfigRepository.deleteConfig(VoiceModelConfig.Id)
                     }
-                    isMultimodal -> {
+
+                    if (voiceSelectedCloneModel.isNotBlank()) {
+                        modelConfigRepository.saveVoiceClone(
+                            ModelConfig(
+                                id = VoiceCloneModelConfig.Id,
+                                provider = VoiceCloneModelConfig.Provider,
+                                name = VoiceCloneModelConfig.Name,
+                                baseUrl = apiHost.trim().trimEnd('/'),
+                                apiKey = apiKey.trim(),
+                                modelName = voiceSelectedCloneModel,
+                                contextWindow = VoiceCloneModelConfig.ContextWindow,
+                                maxOutputTokens = VoiceCloneModelConfig.MaxOutputTokens,
+                                supportVision = false,
+                                supportToolCall = false,
+                                supportReasoning = false,
+                                temperature = VoiceCloneModelConfig.Temperature,
+                                topP = VoiceCloneModelConfig.TopP,
+                                enabled = true,
+                            ),
+                        )
+                    } else {
+                        modelConfigRepository.deleteConfig(VoiceCloneModelConfig.Id)
+                    }
+                } else {
+                    val supportToolCall = aiRepository.testToolCallSupport(
+                        apiHost = apiHost,
+                        apiKey = apiKey,
+                        model = selectedModel,
+                        providerId = OpenAiCompatibleProvider.Id,
+                    )
+
+                    if (isMultimodal) {
                         modelConfigRepository.saveMultimodal(
                             ModelConfig(
                                 id = MultimodalModelConfig.Id,
@@ -398,8 +438,7 @@ class SettingsViewModel(
                                 enabled = true,
                             ),
                         )
-                    }
-                    else -> {
+                    } else {
                         modelConfigRepository.saveDefault(
                             ModelConfig(
                                 id = DefaultModelConfig.Id,
@@ -440,6 +479,28 @@ class SettingsViewModel(
                     }
                 }
                 emitMessage(SettingsEffectMessage.SETTINGS_API_SAVE_FAILED)
+            }
+        }
+    }
+
+    private fun clearApiSettings(isMultimodal: Boolean, isVoice: Boolean) {
+        scope().launch {
+            try {
+                when {
+                    isVoice -> {
+                        modelConfigRepository.deleteConfig(VoiceModelConfig.Id)
+                        modelConfigRepository.deleteConfig(VoiceCloneModelConfig.Id)
+                    }
+                    isMultimodal -> {
+                        modelConfigRepository.deleteConfig(MultimodalModelConfig.Id)
+                    }
+                    else -> {
+                        modelConfigRepository.deleteConfig(DefaultModelConfig.Id)
+                    }
+                }
+                _effects.send(SettingsEffect.NavigateBack)
+            } catch (t: Throwable) {
+                t.printStackTrace()
             }
         }
     }

@@ -166,6 +166,13 @@
     <string name="settings_api_save_failed">API 配置保存失败</string>
     <string name="settings_api_empty_models">填写 API 主机和密钥后获取模型列表</string>
     <string name="settings_saving">保存中...</string>
+    <string name="settings_voice_generation_models">语音生成模型</string>
+    <string name="settings_voice_clone_models">音色克隆模型</string>
+    <string name="settings_voice_clone_tip">仅对配置了音频样本的角色生效</string>
+    <string name="settings_voice_clone_none">不配置</string>
+    <string name="settings_clear_config">清空配置</string>
+    <string name="settings_clear_confirm_title">清空配置</string>
+    <string name="settings_clear_confirm_message">确定清空当前 API 配置吗？此操作将删除已保存的接口主机和密钥。</string>
 
     <!-- 角色列表界面 -->
     <string name="character_list_title">角色列表</string>

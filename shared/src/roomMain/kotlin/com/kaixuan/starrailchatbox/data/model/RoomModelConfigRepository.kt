@@ -33,6 +33,18 @@ class RoomModelConfigRepository(
         saveConfig(VoiceModelConfig.Id, config)
     }
 
+    override suspend fun getVoiceClone(): ModelConfig? {
+        return dao.findById(VoiceCloneModelConfig.Id)?.toModelConfig()
+    }
+
+    override suspend fun saveVoiceClone(config: ModelConfig) {
+        saveConfig(VoiceCloneModelConfig.Id, config)
+    }
+
+    override suspend fun deleteConfig(id: String) {
+        dao.deleteById(id)
+    }
+
     private suspend fun saveConfig(id: String, config: ModelConfig) {
         val existing = dao.findById(id)
         val now = currentTimeMillis()

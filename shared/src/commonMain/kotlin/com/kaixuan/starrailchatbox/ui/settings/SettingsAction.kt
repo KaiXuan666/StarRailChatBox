@@ -27,10 +27,13 @@ sealed interface SettingsAction {
     data object FetchModelsClicked : SettingsAction
     data object FetchMultimodalModelsClicked : SettingsAction
     data object FetchVoiceModelsClicked : SettingsAction
-    data class SelectModel(val model: String, val isMultimodal: Boolean = false, val isVoice: Boolean = false) : SettingsAction
+    data class SelectModel(val model: String, val isMultimodal: Boolean = false, val isVoice: Boolean = false, val isVoiceClone: Boolean = false) : SettingsAction
     
     // 点击保存 API 设置
     data object SaveApiSettingsClicked : SettingsAction
     data object SaveMultimodalApiSettingsClicked : SettingsAction
     data object SaveVoiceApiSettingsClicked : SettingsAction
+
+    // 清空配置并退出
+    data class ClearApiSettingsClicked(val isMultimodal: Boolean = false, val isVoice: Boolean = false) : SettingsAction
 }

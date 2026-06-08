@@ -254,6 +254,9 @@ fun MainRoute(
                     }
                     main.onAction(MainAction.PopBackStack)
                 }
+                SettingsEffect.NavigateBack -> {
+                    main.onAction(MainAction.PopBackStack)
+                }
             }
         }
     }

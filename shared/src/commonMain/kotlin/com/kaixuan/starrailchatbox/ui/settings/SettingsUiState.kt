@@ -30,6 +30,7 @@ data class SettingsUiState(
     val voiceShowApiKey: Boolean = false,
     val voiceModelsList: List<String> = emptyList(),
     val voiceSelectedModel: String = "",
+    val voiceSelectedCloneModel: String = "",
     val voiceIsFetchingModels: Boolean = false,
     val voiceIsSaving: Boolean = false,
 )

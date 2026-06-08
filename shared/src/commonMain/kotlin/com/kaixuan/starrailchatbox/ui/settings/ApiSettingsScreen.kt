@@ -66,6 +66,11 @@ import starrailchatbox.shared.generated.resources.settings_get
 import starrailchatbox.shared.generated.resources.settings_model_list
 import starrailchatbox.shared.generated.resources.settings_save_config
 import starrailchatbox.shared.generated.resources.settings_saving
+import starrailchatbox.shared.generated.resources.settings_voice_generation_models
+import starrailchatbox.shared.generated.resources.settings_voice_clone_models
+import starrailchatbox.shared.generated.resources.settings_voice_clone_tip
+import starrailchatbox.shared.generated.resources.settings_voice_clone_none
+import starrailchatbox.shared.generated.resources.settings_clear_config
 import starrailchatbox.shared.generated.resources.navigation_back
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
@@ -75,7 +80,9 @@ import com.kaixuan.starrailchatbox.ui.components.StarRailPrimaryButton
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import com.kaixuan.starrailchatbox.ui.components.BackHandler
+import com.kaixuan.starrailchatbox.ui.components.StarRailSecondaryButton
 import com.kaixuan.starrailchatbox.ui.main.MainAction
+import kotlinx.coroutines.flow.collectLatest
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -128,7 +135,9 @@ fun ApiSettingsScreen(
         isMultimodal -> state.multimodalIsSaving
         else -> state.isSaving
     }
-    
+
+    val voiceSelectedCloneModel = state.voiceSelectedCloneModel
+
     BackHandler {
         onMainAction(MainAction.PopBackStack)
     }
@@ -291,14 +300,70 @@ fun ApiSettingsScreen(
                     Column(
                         verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs)
                     ) {
-                        modelsList.forEach { model ->
-                            ModelCardItem(
-                                model = model,
-                                isSelected = selectedModel == model,
-                                onClick = { onSettingsAction(SettingsAction.SelectModel(model, isMultimodal = isMultimodal, isVoice = isVoice)) },
-                                compact = compact
+                        if (isVoice && modelsList.isNotEmpty()) {
+                            // Generation Section
+                            Text(
+                                text = "「 " + stringResource(Res.string.settings_voice_generation_models) + " 」",
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(top = 4.dp, bottom = 2.dp, start = 4.dp)
                             )
+                            modelsList.forEach { model ->
+                                ModelCardItem(
+                                    model = model,
+                                    isSelected = selectedModel == model,
+                                    onClick = { onSettingsAction(SettingsAction.SelectModel(model, isVoice = true)) },
+                                    compact = compact
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Clone Section
+                            Text(
+                                text = "「 " + stringResource(Res.string.settings_voice_clone_models) + " 」",
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(top = 4.dp, bottom = 0.dp, start = 4.dp)
+                            )
+                            
+                            Text(
+                                text = stringResource(Res.string.settings_voice_clone_tip),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 4.dp)
+                            )
+                            
+                            // "None" option for clone
+                            ModelCardItem(
+                                model = stringResource(Res.string.settings_voice_clone_none),
+                                isSelected = voiceSelectedCloneModel.isEmpty(),
+                                onClick = { onSettingsAction(SettingsAction.SelectModel("", isVoice = true, isVoiceClone = true)) },
+                                compact = compact,
+                                iconKind = StarRailIconKind.CLOSE
+                            )
+
+                            modelsList.forEach { model ->
+                                ModelCardItem(
+                                    model = model,
+                                    isSelected = voiceSelectedCloneModel == model,
+                                    onClick = { onSettingsAction(SettingsAction.SelectModel(model, isVoice = true, isVoiceClone = true)) },
+                                    compact = compact
+                                )
+                            }
+                        } else {
+                            modelsList.forEach { model ->
+                                ModelCardItem(
+                                    model = model,
+                                    isSelected = selectedModel == model,
+                                    onClick = { onSettingsAction(SettingsAction.SelectModel(model, isMultimodal = isMultimodal, isVoice = isVoice)) },
+                                    compact = compact
+                                )
+                            }
                         }
+                        
                         if (!isFetchingModels && modelsList.isEmpty()) {
                             Text(
                                 text = stringResource(Res.string.settings_api_empty_models),
@@ -361,6 +426,14 @@ fun ApiSettingsScreen(
                     )
                 },
                 enabled = !isSaving,
+            )
+
+            StarRailSecondaryButton(
+                text = stringResource(Res.string.settings_clear_config),
+                onClick = {
+                    onSettingsAction(SettingsAction.ClearApiSettingsClicked(isMultimodal = isMultimodal, isVoice = isVoice))
+                },
+                modifier = Modifier.fillMaxWidth()
             )
         }
     }
@@ -461,7 +534,8 @@ private fun ModelCardItem(
     isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    compact: Boolean = false
+    compact: Boolean = false,
+    iconKind: StarRailIconKind = StarRailIconKind.CUBE
 ) {
     val outlineBrushColor = if (isSelected) {
         MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
@@ -515,7 +589,7 @@ private fun ModelCardItem(
                     contentAlignment = Alignment.Center
                 ) {
                     StarRailIcon(
-                        kind = StarRailIconKind.CUBE,
+                        kind = iconKind,
                         contentDescription = null,
                         tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(if (compact) 16.dp else 18.dp)

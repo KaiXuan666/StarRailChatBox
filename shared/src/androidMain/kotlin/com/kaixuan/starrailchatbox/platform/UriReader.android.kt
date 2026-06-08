@@ -2,6 +2,7 @@ package com.kaixuan.starrailchatbox.platform
 
 import android.net.Uri
 import com.kaixuan.starrailchatbox.data.database.AndroidContextHolder
+import java.io.File
 
 actual suspend fun readUriAsBytes(uri: String): ByteArray {
     val context = AndroidContextHolder.context ?: return ByteArray(0)
@@ -22,8 +23,12 @@ actual suspend fun readUriAsBytes(uri: String): ByteArray {
 actual fun writeAudioBytesToCache(bytes: ByteArray, fileName: String): String {
     val context = AndroidContextHolder.context ?: return ""
     return try {
-        val cacheDir = context.cacheDir
-        val file = java.io.File(cacheDir, fileName)
+
+        val outputDir = File(context.filesDir, "chat_attachments")
+        if (!outputDir.exists()) {
+            outputDir.mkdirs()
+        }
+        val file = java.io.File(outputDir, fileName)
         file.writeBytes(bytes)
         file.absolutePath
     } catch (e: Exception) {

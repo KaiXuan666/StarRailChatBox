@@ -29,6 +29,12 @@ interface ModelConfigRepository {
     suspend fun getVoice(): ModelConfig?
 
     suspend fun saveVoice(config: ModelConfig)
+
+    suspend fun getVoiceClone(): ModelConfig?
+
+    suspend fun saveVoiceClone(config: ModelConfig)
+
+    suspend fun deleteConfig(id: String)
 }
 
 class InMemoryModelConfigRepository(
@@ -39,6 +45,7 @@ class InMemoryModelConfigRepository(
     private var config = initial
     private var multimodalConfig = initialMultimodal
     private var voiceConfig = initialVoice
+    private var voiceCloneConfig: ModelConfig? = null
 
     override suspend fun getDefault(): ModelConfig? = config
 
@@ -56,6 +63,21 @@ class InMemoryModelConfigRepository(
 
     override suspend fun saveVoice(config: ModelConfig) {
         this.voiceConfig = config
+    }
+
+    override suspend fun getVoiceClone(): ModelConfig? = voiceCloneConfig
+
+    override suspend fun saveVoiceClone(config: ModelConfig) {
+        this.voiceCloneConfig = config
+    }
+
+    override suspend fun deleteConfig(id: String) {
+        when (id) {
+            DefaultModelConfig.Id -> config = null
+            MultimodalModelConfig.Id -> multimodalConfig = null
+            VoiceModelConfig.Id -> voiceConfig = null
+            VoiceCloneModelConfig.Id -> voiceCloneConfig = null
+        }
     }
 }
 
@@ -83,6 +105,16 @@ object VoiceModelConfig {
     const val Id = "voice"
     const val Provider = "xiaomimimo"
     const val Name = "语音合成模型"
+    const val ContextWindow = 128_000
+    const val MaxOutputTokens = 4_096
+    const val Temperature = 0.7
+    const val TopP = 1.0
+}
+
+object VoiceCloneModelConfig {
+    const val Id = "voice_clone"
+    const val Provider = "xiaomimimo"
+    const val Name = "音色克隆模型"
     const val ContextWindow = 128_000
     const val MaxOutputTokens = 4_096
     const val Temperature = 0.7
