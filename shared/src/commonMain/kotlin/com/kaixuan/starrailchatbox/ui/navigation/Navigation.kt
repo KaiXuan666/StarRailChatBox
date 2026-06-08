@@ -28,6 +28,9 @@ sealed interface Route {
     // API 配置二级界面 (挂载在“我的”页面之下)
     data object ApiSettings : Route
 
+    // 多模态 API 配置二级界面 (挂载在“我的”页面之下)
+    data object MultimodalApiSettings : Route
+
     // 个人信息二级界面 (挂载在“我的”页面之下)
     data object Profile : Route
 

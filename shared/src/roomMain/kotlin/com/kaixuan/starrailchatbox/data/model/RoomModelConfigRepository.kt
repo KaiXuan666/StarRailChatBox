@@ -14,11 +14,23 @@ class RoomModelConfigRepository(
     }
 
     override suspend fun saveDefault(config: ModelConfig) {
-        val existing = dao.findById(DefaultModelConfig.Id)
+        saveConfig(DefaultModelConfig.Id, config)
+    }
+
+    override suspend fun getMultimodal(): ModelConfig? {
+        return dao.findById(MultimodalModelConfig.Id)?.toModelConfig()
+    }
+
+    override suspend fun saveMultimodal(config: ModelConfig) {
+        saveConfig(MultimodalModelConfig.Id, config)
+    }
+
+    private suspend fun saveConfig(id: String, config: ModelConfig) {
+        val existing = dao.findById(id)
         val now = currentTimeMillis()
         dao.upsert(
             ModelConfigEntity(
-                id = DefaultModelConfig.Id,
+                id = id,
                 provider = config.provider,
                 name = config.name,
                 baseUrl = config.baseUrl,

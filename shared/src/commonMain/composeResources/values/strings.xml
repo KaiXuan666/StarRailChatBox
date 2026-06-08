@@ -114,6 +114,9 @@
     <!-- 设置界面 -->
     <string name="settings_title">设置</string>
     <string name="settings_api_title">API设置</string>
+    <string name="settings_multimodal_api_title">多模态API设置</string>
+    <string name="settings_multimodal_api_desc">配置多模态模型接口、Key 与请求参数</string>
+    <string name="settings_multimodal_api_tip">一般来说，带有 -O 或 Omni是支持多模态的模型</string>
     <string name="settings_api_desc">配置模型接口、Key 与请求参数</string>
     <string name="settings_update_title">检查更新</string>
     <string name="settings_update_desc">当前版本 v1.0.0，查看是否有新版本</string>

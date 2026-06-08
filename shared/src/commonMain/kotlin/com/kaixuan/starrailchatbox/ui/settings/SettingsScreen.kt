@@ -59,6 +59,8 @@ import starrailchatbox.shared.generated.resources.settings_about_desc
 import starrailchatbox.shared.generated.resources.settings_about_title
 import starrailchatbox.shared.generated.resources.settings_api_desc
 import starrailchatbox.shared.generated.resources.settings_api_title
+import starrailchatbox.shared.generated.resources.settings_multimodal_api_desc
+import starrailchatbox.shared.generated.resources.settings_multimodal_api_title
 import starrailchatbox.shared.generated.resources.settings_profile_desc
 import starrailchatbox.shared.generated.resources.settings_profile_title
 import starrailchatbox.shared.generated.resources.settings_notice_desc
@@ -118,6 +120,15 @@ fun SettingsScreen(
             descRes = Res.string.settings_api_desc,
             getColors = {
                 MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f) to MaterialTheme.colorScheme.secondary
+            }
+        ),
+        SettingsItemUiData(
+            item = SettingsItem.MULTIMODAL_API_SETTINGS,
+            iconKind = StarRailIconKind.SPARKLE,
+            titleRes = Res.string.settings_multimodal_api_title,
+            descRes = Res.string.settings_multimodal_api_desc,
+            getColors = {
+                MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.55f) to MaterialTheme.colorScheme.tertiary
             }
         ),
         SettingsItemUiData(
@@ -204,7 +215,7 @@ fun SettingsScreen(
                     SettingsItemRow(
                         data = itemData,
                         onClick = {
-                            if (itemData.item == SettingsItem.PROFILE || itemData.item == SettingsItem.API_SETTINGS || itemData.item == SettingsItem.THEME_STYLE) {
+                            if (itemData.item == SettingsItem.PROFILE || itemData.item == SettingsItem.API_SETTINGS || itemData.item == SettingsItem.MULTIMODAL_API_SETTINGS || itemData.item == SettingsItem.THEME_STYLE) {
                                 onMainAction(MainAction.SettingsItemClicked(MainSettingsItem.valueOf(itemData.item.name)))
                             } else {
                                 onSettingsAction(SettingsAction.SettingsItemClicked(itemData.item))

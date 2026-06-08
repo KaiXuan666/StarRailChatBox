@@ -59,6 +59,8 @@ import starrailchatbox.shared.generated.resources.settings_api_key
 import starrailchatbox.shared.generated.resources.settings_api_model_selected
 import starrailchatbox.shared.generated.resources.settings_api_empty_models
 import starrailchatbox.shared.generated.resources.settings_api_title
+import starrailchatbox.shared.generated.resources.settings_multimodal_api_title
+import starrailchatbox.shared.generated.resources.settings_multimodal_api_tip
 import starrailchatbox.shared.generated.resources.settings_get
 import starrailchatbox.shared.generated.resources.settings_model_list
 import starrailchatbox.shared.generated.resources.settings_save_config
@@ -85,8 +87,17 @@ fun ApiSettingsScreen(
     onMainAction: (MainAction) -> Unit,
     onSettingsAction: (SettingsAction) -> Unit,
     modifier: Modifier = Modifier,
+    isMultimodal: Boolean = false,
 ) {
     val colors = MaterialTheme.starRailColors
+    
+    val apiHost = if (isMultimodal) state.multimodalApiHost else state.apiHost
+    val apiKey = if (isMultimodal) state.multimodalApiKey else state.apiKey
+    val showApiKey = if (isMultimodal) state.multimodalShowApiKey else state.showApiKey
+    val isFetchingModels = if (isMultimodal) state.multimodalIsFetchingModels else state.isFetchingModels
+    val modelsList = if (isMultimodal) state.multimodalModelsList else state.modelsList
+    val selectedModel = if (isMultimodal) state.multimodalSelectedModel else state.selectedModel
+    val isSaving = if (isMultimodal) state.multimodalIsSaving else state.isSaving
     
     BackHandler {
         onMainAction(MainAction.PopBackStack)
@@ -109,7 +120,11 @@ fun ApiSettingsScreen(
         }
 
         StarRailPageLayout(
-            title = stringResource(Res.string.settings_api_title),
+            title = if (isMultimodal) {
+                stringResource(Res.string.settings_multimodal_api_title)
+            } else {
+                stringResource(Res.string.settings_api_title)
+            },
             contentPadding = contentPadding,
             compact = compact,
             backContentDescription = stringResource(Res.string.navigation_back),
@@ -129,8 +144,8 @@ fun ApiSettingsScreen(
                 )
                 
                 ApiInputField(
-                    value = state.apiHost,
-                    onValueChange = { onSettingsAction(SettingsAction.ApiHostChanged(it)) },
+                    value = apiHost,
+                    onValueChange = { onSettingsAction(SettingsAction.ApiHostChanged(it, isMultimodal)) },
                     placeholder = "https://api.openai.com/v1",
                     leadingIcon = StarRailIconKind.COMPASS,
                     compact = compact
@@ -150,13 +165,13 @@ fun ApiSettingsScreen(
                 )
                 
                 ApiInputField(
-                    value = state.apiKey,
-                    onValueChange = { onSettingsAction(SettingsAction.ApiKeyChanged(it)) },
+                    value = apiKey,
+                    onValueChange = { onSettingsAction(SettingsAction.ApiKeyChanged(it, isMultimodal)) },
                     placeholder = "sk-",
                     leadingIcon = StarRailIconKind.KEY,
                     isPasswordField = true,
-                    passwordVisible = state.showApiKey,
-                    onPasswordToggle = { onSettingsAction(SettingsAction.ToggleApiKeyVisibility) },
+                    passwordVisible = showApiKey,
+                    onPasswordToggle = { onSettingsAction(if (isMultimodal) SettingsAction.ToggleMultimodalApiKeyVisibility else SettingsAction.ToggleApiKeyVisibility) },
                     compact = compact
                 )
             }
@@ -184,8 +199,8 @@ fun ApiSettingsScreen(
                     val fetchScale by animateFloatAsState(if (isFetchPressed) 0.92f else 1f)
                     
                     Surface(
-                        onClick = { onSettingsAction(SettingsAction.FetchModelsClicked) },
-                        enabled = !state.isFetchingModels,
+                        onClick = { onSettingsAction(if (isMultimodal) SettingsAction.FetchMultimodalModelsClicked else SettingsAction.FetchModelsClicked) },
+                        enabled = !isFetchingModels,
                         interactionSource = fetchInteractionSource,
                         modifier = Modifier.scale(fetchScale),
                         shape = RoundedCornerShape(50),
@@ -197,7 +212,7 @@ fun ApiSettingsScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            if (state.isFetchingModels) {
+                            if (isFetchingModels) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(14.dp),
                                     color = MaterialTheme.colorScheme.primary,
@@ -221,15 +236,15 @@ fun ApiSettingsScreen(
                     Column(
                         verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs)
                     ) {
-                        state.modelsList.forEach { model ->
+                        modelsList.forEach { model ->
                             ModelCardItem(
                                 model = model,
-                                isSelected = state.selectedModel == model,
-                                onClick = { onSettingsAction(SettingsAction.SelectModel(model)) },
+                                isSelected = selectedModel == model,
+                                onClick = { onSettingsAction(SettingsAction.SelectModel(model, isMultimodal)) },
                                 compact = compact
                             )
                         }
-                        if (!state.isFetchingModels && state.modelsList.isEmpty()) {
+                        if (!isFetchingModels && modelsList.isEmpty()) {
                             Text(
                                 text = stringResource(Res.string.settings_api_empty_models),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -237,10 +252,18 @@ fun ApiSettingsScreen(
                                 modifier = Modifier.padding(StarRailSpacing.md),
                             )
                         }
+                        if (isMultimodal && !isFetchingModels && modelsList.isNotEmpty()) {
+                            Text(
+                                text = stringResource(Res.string.settings_multimodal_api_tip),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp)
+                            )
+                        }
                     }
                     
                     // Loading Overlay banner
-                    if (state.isFetchingModels && state.modelsList.isEmpty()) {
+                    if (isFetchingModels && modelsList.isEmpty()) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -275,14 +298,14 @@ fun ApiSettingsScreen(
             
             StarRailPrimaryButton(
                 text = stringResource(
-                    if (state.isSaving) {
+                    if (isSaving) {
                         Res.string.settings_saving
                     } else {
                         Res.string.settings_save_config
                     },
                 ),
-                onClick = { onSettingsAction(SettingsAction.SaveApiSettingsClicked) },
-                enabled = !state.isSaving,
+                onClick = { onSettingsAction(if (isMultimodal) SettingsAction.SaveMultimodalApiSettingsClicked else SettingsAction.SaveApiSettingsClicked) },
+                enabled = !isSaving,
             )
         }
     }

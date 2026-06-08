@@ -157,8 +157,7 @@ driver、provider 和日志出口等边界。
   通过各源码集提供的 `PlatformToolExecutor` 接入，公共工具代码不得引用平台类型。
 - API Host、API Key 和所选模型通过 `ModelConfigRepository` 读取和保存。Android、
   iOS 与 Desktop 使用 Room 的 `model_config` 表；JS/WasmJS 当前使用内存实现。
-- 当前设置页维护固定 ID 为 `default` 的默认模型配置记录；后续扩展多模型配置时
-  应继续通过 `ModelConfigRepository`，不要恢复独立的 `ApiSettingsStore`。
+- 当前设置页维护两个独立的模型配置记录：固定 ID 为 `default` 的默认模型配置记录（`supportVision = false`），以及固定 ID 为 `multimodal` 的多模态模型配置记录（`supportVision = true`）。后续扩展多模型配置时应继续通过 `ModelConfigRepository`，不要恢复独立的 `ApiSettingsStore`。
 - API Key 持久化必须使用 `cryptography-kotlin` 的 AES-GCM 加密，`model_config`
   中只保存带版本标识的密文；DataStore 仅保存加密密钥，不得增加明文兼容字段或
   明文回退存储。

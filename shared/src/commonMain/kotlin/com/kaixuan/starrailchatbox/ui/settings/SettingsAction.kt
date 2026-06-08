@@ -3,6 +3,7 @@ package com.kaixuan.starrailchatbox.ui.settings
 enum class SettingsItem {
     PROFILE,
     API_SETTINGS,
+    MULTIMODAL_API_SETTINGS,
     CHECK_UPDATE,
     MESSAGE_NOTIFICATION,
     THEME_STYLE,
@@ -15,14 +16,17 @@ sealed interface SettingsAction {
     data class SettingsItemClicked(val item: SettingsItem) : SettingsAction
     
     // API 设置修改
-    data class ApiHostChanged(val host: String) : SettingsAction
-    data class ApiKeyChanged(val key: String) : SettingsAction
+    data class ApiHostChanged(val host: String, val isMultimodal: Boolean = false) : SettingsAction
+    data class ApiKeyChanged(val key: String, val isMultimodal: Boolean = false) : SettingsAction
     data object ToggleApiKeyVisibility : SettingsAction
+    data object ToggleMultimodalApiKeyVisibility : SettingsAction
     
     // 模型拉取与选择
     data object FetchModelsClicked : SettingsAction
-    data class SelectModel(val model: String) : SettingsAction
+    data object FetchMultimodalModelsClicked : SettingsAction
+    data class SelectModel(val model: String, val isMultimodal: Boolean = false) : SettingsAction
     
     // 点击保存 API 设置
     data object SaveApiSettingsClicked : SettingsAction
+    data object SaveMultimodalApiSettingsClicked : SettingsAction
 }

@@ -21,17 +21,29 @@ interface ModelConfigRepository {
     suspend fun getDefault(): ModelConfig?
 
     suspend fun saveDefault(config: ModelConfig)
+
+    suspend fun getMultimodal(): ModelConfig?
+
+    suspend fun saveMultimodal(config: ModelConfig)
 }
 
 class InMemoryModelConfigRepository(
     initial: ModelConfig? = null,
+    initialMultimodal: ModelConfig? = null,
 ) : ModelConfigRepository {
     private var config = initial
+    private var multimodalConfig = initialMultimodal
 
     override suspend fun getDefault(): ModelConfig? = config
 
     override suspend fun saveDefault(config: ModelConfig) {
         this.config = config
+    }
+
+    override suspend fun getMultimodal(): ModelConfig? = multimodalConfig
+
+    override suspend fun saveMultimodal(config: ModelConfig) {
+        this.multimodalConfig = config
     }
 }
 
@@ -39,6 +51,16 @@ object DefaultModelConfig {
     const val Id = "default"
     const val Provider = "custom"
     const val Name = "默认模型"
+    const val ContextWindow = 128_000
+    const val MaxOutputTokens = 4_096
+    const val Temperature = 0.7
+    const val TopP = 1.0
+}
+
+object MultimodalModelConfig {
+    const val Id = "multimodal"
+    const val Provider = "custom"
+    const val Name = "多模态模型"
     const val ContextWindow = 128_000
     const val MaxOutputTokens = 4_096
     const val Temperature = 0.7

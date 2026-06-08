@@ -409,6 +409,16 @@ fun MainNavigationContainer(
                             onSettingsAction = onSettingsAction,
                         )
                     }
+                    entry<Route.MultimodalApiSettings> {
+                        ApiSettingsScreen(
+                            state = settingsState,
+                            contentPadding = contentPadding,
+                            compact = compact,
+                            onMainAction = onMainAction,
+                            onSettingsAction = onSettingsAction,
+                            isMultimodal = true,
+                        )
+                    }
                     entry<Route.Profile> {
                         ProfileScreen(
                             state = profileState,

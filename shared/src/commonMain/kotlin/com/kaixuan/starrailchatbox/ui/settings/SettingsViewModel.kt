@@ -8,6 +8,7 @@ import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.model.DefaultModelConfig
 import com.kaixuan.starrailchatbox.data.model.ModelConfig
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
+import com.kaixuan.starrailchatbox.data.model.MultimodalModelConfig
 import com.kaixuan.starrailchatbox.data.settings.ApiSettingsDefaults
 import com.kaixuan.starrailchatbox.data.settings.localApiSettingsDefaults
 import kotlinx.coroutines.CancellationException
@@ -34,8 +35,10 @@ class SettingsViewModel(
     init {
         scope().launch {
             val settings = modelConfigRepository.getDefault()
+            val mmSettings = modelConfigRepository.getMultimodal()
             _uiState.update { state ->
                 val selectedModel = settings?.modelName.orEmpty()
+                val mmSelectedModel = mmSettings?.modelName.orEmpty()
                 state.copy(
                     apiHost = settings?.baseUrl
                         ?.takeIf(String::isNotBlank)
@@ -46,6 +49,16 @@ class SettingsViewModel(
                         ?: defaultApiSettings.apiKey,
                     selectedModel = selectedModel,
                     modelsList = listOfNotNull(selectedModel.takeIf(String::isNotBlank)),
+
+                    multimodalApiHost = mmSettings?.baseUrl
+                        ?.takeIf(String::isNotBlank)
+                        ?: defaultApiSettings.apiHost.takeIf(String::isNotBlank)
+                        ?: state.multimodalApiHost,
+                    multimodalApiKey = mmSettings?.apiKey
+                        ?.takeIf(String::isNotBlank)
+                        ?: defaultApiSettings.apiKey,
+                    multimodalSelectedModel = mmSelectedModel,
+                    multimodalModelsList = listOfNotNull(mmSelectedModel.takeIf(String::isNotBlank)),
                 )
             }
         }
@@ -56,27 +69,57 @@ class SettingsViewModel(
             is SettingsAction.SettingsItemClicked -> handleSettingsItemClick(action.item)
             
             is SettingsAction.ApiHostChanged -> {
-                _uiState.update { it.copy(apiHost = action.host) }
+                _uiState.update { state ->
+                    if (action.isMultimodal) {
+                        state.copy(multimodalApiHost = action.host)
+                    } else {
+                        state.copy(apiHost = action.host)
+                    }
+                }
             }
             
             is SettingsAction.ApiKeyChanged -> {
-                _uiState.update { it.copy(apiKey = action.key) }
+                _uiState.update { state ->
+                    if (action.isMultimodal) {
+                        state.copy(multimodalApiKey = action.key)
+                    } else {
+                        state.copy(apiKey = action.key)
+                    }
+                }
             }
             
             SettingsAction.ToggleApiKeyVisibility -> {
                 _uiState.update { it.copy(showApiKey = !it.showApiKey) }
             }
             
+            SettingsAction.ToggleMultimodalApiKeyVisibility -> {
+                _uiState.update { it.copy(multimodalShowApiKey = !it.multimodalShowApiKey) }
+            }
+            
             SettingsAction.FetchModelsClicked -> {
-                fetchModels()
+                fetchModels(isMultimodal = false)
+            }
+            
+            SettingsAction.FetchMultimodalModelsClicked -> {
+                fetchModels(isMultimodal = true)
             }
             
             is SettingsAction.SelectModel -> {
-                _uiState.update { it.copy(selectedModel = action.model) }
+                _uiState.update { state ->
+                    if (action.isMultimodal) {
+                        state.copy(multimodalSelectedModel = action.model)
+                    } else {
+                        state.copy(selectedModel = action.model)
+                    }
+                }
             }
             
             SettingsAction.SaveApiSettingsClicked -> {
-                saveApiSettings()
+                saveApiSettings(isMultimodal = false)
+            }
+            
+            SettingsAction.SaveMultimodalApiSettingsClicked -> {
+                saveApiSettings(isMultimodal = true)
             }
         }
     }
@@ -89,6 +132,9 @@ class SettingsViewModel(
             SettingsItem.API_SETTINGS -> {
                 // 由框架层 MainAction 转发导航压栈
             }
+            SettingsItem.MULTIMODAL_API_SETTINGS -> {
+                // 由框架层 MainAction 转发导航压栈
+            }
             SettingsItem.CHECK_UPDATE -> emitMessage(SettingsEffectMessage.SETTINGS_UPDATE_CHECK)
             SettingsItem.MESSAGE_NOTIFICATION -> emitMessage(SettingsEffectMessage.SETTINGS_NOTICE_NOT_READY)
             SettingsItem.THEME_STYLE -> {
@@ -99,28 +145,45 @@ class SettingsViewModel(
         }
     }
 
-    private fun fetchModels() {
+    private fun fetchModels(isMultimodal: Boolean) {
         val state = _uiState.value
-        if (state.isFetchingModels) return
-        if (!state.hasValidApiSettings()) {
+        val isFetching = if (isMultimodal) state.multimodalIsFetchingModels else state.isFetchingModels
+        if (isFetching) return
+
+        val apiHost = if (isMultimodal) state.multimodalApiHost else state.apiHost
+        val apiKey = if (isMultimodal) state.multimodalApiKey else state.apiKey
+
+        if (!hasValidApiSettings(apiHost, apiKey)) {
             emitMessage(SettingsEffectMessage.SETTINGS_API_INVALID)
             return
         }
 
-        _uiState.update { it.copy(isFetchingModels = true) }
+        _uiState.update {
+            if (isMultimodal) {
+                it.copy(multimodalIsFetchingModels = true)
+            } else {
+                it.copy(isFetchingModels = true)
+            }
+        }
         emitMessage(SettingsEffectMessage.SETTINGS_API_FETCH_START)
 
         scope().launch {
             when (
                 val result = aiRepository.getModels(
-                    apiHost = state.apiHost,
-                    apiKey = state.apiKey,
+                    apiHost = apiHost,
+                    apiKey = apiKey,
                     providerId = OpenAiCompatibleProvider.Id,
                 )
             ) {
-                is ApiResult.Success -> handleModelsLoaded(result.value)
+                is ApiResult.Success -> handleModelsLoaded(result.value, isMultimodal)
                 is ApiResult.HttpError -> {
-                    _uiState.update { it.copy(isFetchingModels = false) }
+                    _uiState.update {
+                        if (isMultimodal) {
+                            it.copy(multimodalIsFetchingModels = false)
+                        } else {
+                            it.copy(isFetchingModels = false)
+                        }
+                    }
                     emitMessage(
                         if (result.statusCode == 401 || result.statusCode == 403) {
                             SettingsEffectMessage.SETTINGS_API_AUTH_FAILED
@@ -132,82 +195,146 @@ class SettingsViewModel(
                 is ApiResult.NetworkError,
                 is ApiResult.UnexpectedError,
                 -> {
-                    _uiState.update { it.copy(isFetchingModels = false) }
+                    _uiState.update {
+                        if (isMultimodal) {
+                            it.copy(multimodalIsFetchingModels = false)
+                        } else {
+                            it.copy(isFetchingModels = false)
+                        }
+                    }
                     emitMessage(SettingsEffectMessage.SETTINGS_API_FETCH_FAILED)
                 }
             }
         }
     }
 
-    private fun handleModelsLoaded(models: List<String>) {
+    private fun handleModelsLoaded(models: List<String>, isMultimodal: Boolean) {
         if (models.isEmpty()) {
-            _uiState.update { it.copy(isFetchingModels = false, modelsList = emptyList()) }
+            _uiState.update {
+                if (isMultimodal) {
+                    it.copy(multimodalIsFetchingModels = false, multimodalModelsList = emptyList())
+                } else {
+                    it.copy(isFetchingModels = false, modelsList = emptyList())
+                }
+            }
             emitMessage(SettingsEffectMessage.SETTINGS_API_NO_MODELS)
             return
         }
 
         _uiState.update { state ->
-            state.copy(
-                isFetchingModels = false,
-                modelsList = models,
-                selectedModel = state.selectedModel.takeIf(models::contains) ?: models.first(),
-            )
+            if (isMultimodal) {
+                state.copy(
+                    multimodalIsFetchingModels = false,
+                    multimodalModelsList = models,
+                    multimodalSelectedModel = state.multimodalSelectedModel.takeIf(models::contains) ?: models.first(),
+                )
+            } else {
+                state.copy(
+                    isFetchingModels = false,
+                    modelsList = models,
+                    selectedModel = state.selectedModel.takeIf(models::contains) ?: models.first(),
+                )
+            }
         }
         emitMessage(SettingsEffectMessage.SETTINGS_API_FETCH_SUCCESS)
     }
 
-    private fun saveApiSettings() {
+    private fun saveApiSettings(isMultimodal: Boolean) {
         val state = _uiState.value
-        if (state.isSaving) return
-        if (!state.hasValidApiSettings() || state.selectedModel.isBlank()) {
+        val isSaving = if (isMultimodal) state.multimodalIsSaving else state.isSaving
+        if (isSaving) return
+
+        val apiHost = if (isMultimodal) state.multimodalApiHost else state.apiHost
+        val apiKey = if (isMultimodal) state.multimodalApiKey else state.apiKey
+        val selectedModel = if (isMultimodal) state.multimodalSelectedModel else state.selectedModel
+
+        if (!hasValidApiSettings(apiHost, apiKey) || selectedModel.isBlank()) {
             emitMessage(SettingsEffectMessage.SETTINGS_API_INVALID)
             return
         }
 
-        _uiState.update { it.copy(isSaving = true) }
+        _uiState.update {
+            if (isMultimodal) {
+                it.copy(multimodalIsSaving = true)
+            } else {
+                it.copy(isSaving = true)
+            }
+        }
         scope().launch {
             try {
                 val supportToolCall = aiRepository.testToolCallSupport(
-                    apiHost = state.apiHost,
-                    apiKey = state.apiKey,
-                    model = state.selectedModel,
+                    apiHost = apiHost,
+                    apiKey = apiKey,
+                    model = selectedModel,
                     providerId = OpenAiCompatibleProvider.Id,
                 )
 
-                modelConfigRepository.saveDefault(
-                    ModelConfig(
-                        id = DefaultModelConfig.Id,
-                        provider = DefaultModelConfig.Provider,
-                        name = DefaultModelConfig.Name,
-                        baseUrl = state.apiHost.trim().trimEnd('/'),
-                        apiKey = state.apiKey.trim(),
-                        modelName = state.selectedModel,
-                        contextWindow = DefaultModelConfig.ContextWindow,
-                        maxOutputTokens = DefaultModelConfig.MaxOutputTokens,
-                        supportVision = false,
-                        supportToolCall = supportToolCall,
-                        supportReasoning = false,
-                        temperature = DefaultModelConfig.Temperature,
-                        topP = DefaultModelConfig.TopP,
-                        enabled = true,
-                    ),
-                )
-                _uiState.update { it.copy(isSaving = false) }
+                if (isMultimodal) {
+                    modelConfigRepository.saveMultimodal(
+                        ModelConfig(
+                            id = MultimodalModelConfig.Id,
+                            provider = MultimodalModelConfig.Provider,
+                            name = MultimodalModelConfig.Name,
+                            baseUrl = apiHost.trim().trimEnd('/'),
+                            apiKey = apiKey.trim(),
+                            modelName = selectedModel,
+                            contextWindow = MultimodalModelConfig.ContextWindow,
+                            maxOutputTokens = MultimodalModelConfig.MaxOutputTokens,
+                            supportVision = true,
+                            supportToolCall = supportToolCall,
+                            supportReasoning = false,
+                            temperature = MultimodalModelConfig.Temperature,
+                            topP = MultimodalModelConfig.TopP,
+                            enabled = true,
+                        ),
+                    )
+                } else {
+                    modelConfigRepository.saveDefault(
+                        ModelConfig(
+                            id = DefaultModelConfig.Id,
+                            provider = DefaultModelConfig.Provider,
+                            name = DefaultModelConfig.Name,
+                            baseUrl = apiHost.trim().trimEnd('/'),
+                            apiKey = apiKey.trim(),
+                            modelName = selectedModel,
+                            contextWindow = DefaultModelConfig.ContextWindow,
+                            maxOutputTokens = DefaultModelConfig.MaxOutputTokens,
+                            supportVision = false,
+                            supportToolCall = supportToolCall,
+                            supportReasoning = false,
+                            temperature = DefaultModelConfig.Temperature,
+                            topP = DefaultModelConfig.TopP,
+                            enabled = true,
+                        ),
+                    )
+                }
+                _uiState.update {
+                    if (isMultimodal) {
+                        it.copy(multimodalIsSaving = false)
+                    } else {
+                        it.copy(isSaving = false)
+                    }
+                }
                 _effects.send(SettingsEffect.ApiSettingsSaved)
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (t: Throwable) {
                 t.printStackTrace()
-                _uiState.update { it.copy(isSaving = false) }
+                _uiState.update {
+                    if (isMultimodal) {
+                        it.copy(multimodalIsSaving = false)
+                    } else {
+                        it.copy(isSaving = false)
+                    }
+                }
                 emitMessage(SettingsEffectMessage.SETTINGS_API_SAVE_FAILED)
             }
         }
     }
 
-    private fun SettingsUiState.hasValidApiSettings(): Boolean {
-        val normalizedHost = apiHost.trim()
-        return apiKey.isNotBlank() &&
-            normalizedHost.startsWith("https://")
+    private fun hasValidApiSettings(host: String, key: String): Boolean {
+        val normalizedHost = host.trim()
+        return key.isNotBlank() && normalizedHost.startsWith("https://")
     }
 
     private fun scope(): CoroutineScope = coroutineScope ?: viewModelScope

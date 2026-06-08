@@ -29,6 +29,7 @@ sealed interface MainAction {
 enum class MainSettingsItem {
     PROFILE,
     API_SETTINGS,
+    MULTIMODAL_API_SETTINGS,
     CHECK_UPDATE,
     MESSAGE_NOTIFICATION,
     THEME_STYLE,

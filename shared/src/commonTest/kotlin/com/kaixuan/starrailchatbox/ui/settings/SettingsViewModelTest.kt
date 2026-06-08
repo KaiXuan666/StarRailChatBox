@@ -8,6 +8,7 @@ import com.kaixuan.starrailchatbox.data.model.DefaultModelConfig
 import com.kaixuan.starrailchatbox.data.model.ModelConfig
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
 import com.kaixuan.starrailchatbox.data.settings.ApiSettingsDefaults
+import com.kaixuan.starrailchatbox.data.model.MultimodalModelConfig
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
@@ -170,6 +171,27 @@ class SettingsViewModelTest {
     }
 
     @Test
+    fun saveMultimodalApiSettingsPersistsValuesAndSetsSupportVisionTrue() = runTest {
+        val repository = FakeModelConfigRepository()
+        val viewModel = createViewModel(modelConfigRepository = repository, scope = this)
+        viewModel.onAction(SettingsAction.ApiKeyChanged("sk-multimodal-test", isMultimodal = true))
+        viewModel.onAction(SettingsAction.SelectModel("model-omni", isMultimodal = true))
+        val effect = async { viewModel.effects.first { it is SettingsEffect.ApiSettingsSaved } }
+
+        viewModel.onAction(SettingsAction.SaveMultimodalApiSettingsClicked)
+        advanceUntilIdle()
+
+        val saved = requireNotNull(repository.savedMultimodal)
+        assertEquals(MultimodalModelConfig.Id, saved.id)
+        assertEquals("https://api.openai.com/v1", saved.baseUrl)
+        assertEquals("sk-multimodal-test", saved.apiKey)
+        assertEquals("model-omni", saved.modelName)
+        assertTrue(saved.supportVision)
+        assertEquals(SettingsEffect.ApiSettingsSaved, effect.await())
+        assertFalse(viewModel.uiState.value.multimodalIsSaving)
+    }
+
+    @Test
     fun toggleKeyVisibilityWorks() = runTest {
         val viewModel = createViewModel(scope = this)
         assertFalse(viewModel.uiState.value.showApiKey)
@@ -300,13 +322,21 @@ private class FakeOpenAiRepository(
 
 private class FakeModelConfigRepository(
     private val initial: ModelConfig? = null,
+    private val initialMultimodal: ModelConfig? = null,
 ) : ModelConfigRepository {
     var saved: ModelConfig? = null
+    var savedMultimodal: ModelConfig? = null
 
     override suspend fun getDefault(): ModelConfig? = initial
 
     override suspend fun saveDefault(config: ModelConfig) {
         saved = config
+    }
+
+    override suspend fun getMultimodal(): ModelConfig? = initialMultimodal
+
+    override suspend fun saveMultimodal(config: ModelConfig) {
+        savedMultimodal = config
     }
 }
 
