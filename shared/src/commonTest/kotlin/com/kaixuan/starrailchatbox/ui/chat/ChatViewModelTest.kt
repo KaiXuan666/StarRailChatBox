@@ -211,6 +211,7 @@ class ChatViewModelTest {
         advanceUntilIdle()
 
         fixture.viewModel.onCharacterAction(CharacterAction.CharacterEditOpened("builtin:流萤"))
+        advanceUntilIdle()
         fixture.viewModel.onCharacterAction(CharacterAction.CharacterNameChanged("  新三月七  "))
         fixture.viewModel.onCharacterAction(CharacterAction.CharacterPromptChanged("updated prompt"))
         fixture.viewModel.onCharacterAction(CharacterAction.CharacterOpeningMessageChanged("updated opening"))
@@ -239,6 +240,7 @@ class ChatViewModelTest {
         advanceUntilIdle()
 
         fixture.viewModel.onCharacterAction(CharacterAction.CharacterEditOpened("builtin:流萤"))
+        advanceUntilIdle()
         fixture.viewModel.onCharacterAction(CharacterAction.CharacterNameChanged("流萤新版"))
         fixture.viewModel.onCharacterAction(CharacterAction.CharacterSaveClicked)
         advanceUntilIdle()
@@ -413,6 +415,8 @@ private object FakeCharacterRepository : CharacterRepository {
         ),
     )
 
+    override suspend fun getCharacter(id: String): Character? = loadCharacters().firstOrNull { it.id == id }
+
     override suspend fun addCharacter(
         name: String,
         prompt: String,
@@ -433,6 +437,8 @@ private object NoOpeningCharacterRepository : CharacterRepository {
     override suspend fun loadCharacters(): List<Character> = listOf(
         Character("builtin:流萤", "流萤", "role prompt", "", "avatar://firefly"),
     )
+
+    override suspend fun getCharacter(id: String): Character? = loadCharacters().firstOrNull { it.id == id }
 
     override suspend fun addCharacter(
         name: String,
@@ -464,6 +470,8 @@ private class EditableCharacterRepository(
     private var characters = initialCharacters
 
     override suspend fun loadCharacters(): List<Character> = characters
+
+    override suspend fun getCharacter(id: String): Character? = characters.firstOrNull { it.id == id }
 
     override suspend fun addCharacter(
         name: String,

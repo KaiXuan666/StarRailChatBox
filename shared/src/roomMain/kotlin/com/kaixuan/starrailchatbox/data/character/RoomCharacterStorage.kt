@@ -40,6 +40,10 @@ class RoomCharacterStorage(
         return dao.findAll().map { entity -> entity.toCharacterFiles() }
     }
 
+    override suspend fun getCharacter(id: String): CharacterFiles? {
+        return dao.findById(id)?.toCharacterFiles()
+    }
+
     override suspend fun saveCharacter(
         character: CharacterFiles,
         avatarSource: CharacterAvatarSource?,

@@ -92,6 +92,12 @@ shared/src/commonMain/kotlin/com/kaixuan/starrailchatbox/
 │   │   ├── ChatAction.kt
 │   │   ├── ChatEffect.kt
 │   │   └── ChatViewModel.kt
+│   ├── character/
+│   │   ├── CharactersScreen.kt
+│   │   ├── CharacterEditScreen.kt
+│   │   ├── CharacterUiState.kt
+│   │   ├── CharacterAction.kt
+│   │   └── CharacterEffect.kt
 │   ├── settings/
 │   │   ├── SettingsScreen.kt
 │   │   ├── ApiSettingsScreen.kt

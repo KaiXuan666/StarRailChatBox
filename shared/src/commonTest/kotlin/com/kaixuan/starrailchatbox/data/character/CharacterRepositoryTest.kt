@@ -4,6 +4,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.test.assertNotNull
 
 class CharacterRepositoryTest {
     @Test
@@ -48,6 +49,26 @@ class CharacterRepositoryTest {
         assertEquals("测试 prompt", character.prompt)
         assertEquals("picked://silver-wolf", character.avatarUri)
         assertEquals(listOf("银狼"), repository.loadCharacters().map(Character::name))
+    }
+
+    @Test
+    fun loadedCharactersHaveTruncatedPromptButGetCharacterReturnsFullPrompt() = runTest {
+        val repository = DefaultCharacterRepository(InMemoryCharacterStorage()) { emptyList() }
+
+        val longPrompt = "12345678901234567890_extra_long_prompt"
+        repository.addCharacter(
+            name = "流萤",
+            prompt = longPrompt,
+            avatarSource = null
+        )
+
+        val loaded = repository.loadCharacters().first { it.name == "流萤" }
+        assertEquals("12345678901234567890", loaded.prompt)
+        assertEquals(20, loaded.prompt.length)
+
+        val full = repository.getCharacter(loaded.id)
+        assertNotNull(full)
+        assertEquals(longPrompt, full.prompt)
     }
 }
 

@@ -61,11 +61,11 @@ private class BrowserCharacterStorage(
             CharacterFiles(
                 id = id,
                 name = name,
-                prompt = if (prompt != null) {
+                prompt = (if (prompt != null) {
                     storedPrompt
                 } else {
                     Base64.decode(storedPrompt).decodeToString()
-                },
+                }).take(20),
                 openingMessage = openingMessage,
                 avatarUri = avatarUri,
                 temperature = temperature,
@@ -74,6 +74,44 @@ private class BrowserCharacterStorage(
                 sortOrder = sortOrder,
             )
         }.sortedWith(compareBy({ it.sortOrder }, { it.createdAt }))
+    }
+
+    override suspend fun getCharacter(id: String): CharacterFiles? {
+        val prompt = localStorage.getItem("$prefix$id.prompt")
+        val legacyPrompt = localStorage.getItem("$prefix$id.md")
+        val storedPrompt = prompt ?: legacyPrompt ?: return null
+        val avatarUri = localStorage.getItem("$prefix$id.avatarUri")
+            ?: localStorage.getItem("$prefix$id.webp")?.let { "data:image/webp;base64,$it" }
+            ?: return null
+        val name = localStorage.getItem("$prefix$id.name") ?: id
+        val openingMessage = localStorage.getItem("$prefix$id.opening").orEmpty()
+        val temperature = localStorage.getItem("$prefix$id.temperature")
+            ?.toDoubleOrNull()
+            ?: 0.85
+        val topP = localStorage.getItem("$prefix$id.topP")
+            ?.toDoubleOrNull()
+            ?: 0.9
+        val createdAt = localStorage.getItem("$prefix$id.createdAt")
+            ?.toLongOrNull()
+            ?: 0L
+        val sortOrder = localStorage.getItem("$prefix$id.sortOrder")
+            ?.toIntOrNull()
+            ?: 0
+        return CharacterFiles(
+            id = id,
+            name = name,
+            prompt = if (prompt != null) {
+                storedPrompt
+            } else {
+                Base64.decode(storedPrompt).decodeToString()
+            },
+            openingMessage = openingMessage,
+            avatarUri = avatarUri,
+            temperature = temperature,
+            topP = topP,
+            createdAt = createdAt,
+            sortOrder = sortOrder,
+        )
     }
 
     override suspend fun saveCharacter(

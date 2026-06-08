@@ -16,10 +16,20 @@ interface AgentRoleDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertIfMissing(roles: List<AgentRoleEntity>)
 
-    @Query("SELECT * FROM agent_role WHERE deleted_at IS NULL ORDER BY sort_order, created_at")
+    @Query("""
+        SELECT id, name, avatar_uri, description, SUBSTR(system_prompt, 1, 20) AS system_prompt, opening_message, temperature, top_p, sort_order, is_builtin, created_at, updated_at, deleted_at 
+        FROM agent_role 
+        WHERE deleted_at IS NULL 
+        ORDER BY sort_order, created_at
+    """)
     suspend fun findAll(): List<AgentRoleEntity>
 
-    @Query("SELECT * FROM agent_role WHERE deleted_at IS NULL ORDER BY sort_order, created_at")
+    @Query("""
+        SELECT id, name, avatar_uri, description, SUBSTR(system_prompt, 1, 20) AS system_prompt, opening_message, temperature, top_p, sort_order, is_builtin, created_at, updated_at, deleted_at 
+        FROM agent_role 
+        WHERE deleted_at IS NULL 
+        ORDER BY sort_order, created_at
+    """)
     fun observeAll(): Flow<List<AgentRoleEntity>>
 
     @Query("SELECT * FROM agent_role WHERE id = :id AND deleted_at IS NULL")

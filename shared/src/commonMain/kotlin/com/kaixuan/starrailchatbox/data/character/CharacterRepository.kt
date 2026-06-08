@@ -47,6 +47,8 @@ interface CharacterStorage {
 
     suspend fun loadCharacters(): List<CharacterFiles>
 
+    suspend fun getCharacter(id: String): CharacterFiles?
+
     suspend fun saveCharacter(
         character: CharacterFiles,
         avatarSource: CharacterAvatarSource?,
@@ -59,6 +61,8 @@ interface CharacterStorage {
 
 interface CharacterRepository {
     suspend fun loadCharacters(): List<Character>
+
+    suspend fun getCharacter(id: String): Character?
 
     suspend fun addCharacter(
         name: String,
@@ -83,6 +87,10 @@ class DefaultCharacterRepository(
     override suspend fun loadCharacters(): List<Character> {
         storage.initializeDefaults(defaultAssets())
         return storage.loadCharacters().map(CharacterFiles::toCharacter)
+    }
+
+    override suspend fun getCharacter(id: String): Character? {
+        return storage.getCharacter(id)?.toCharacter()
     }
 
     override suspend fun addCharacter(

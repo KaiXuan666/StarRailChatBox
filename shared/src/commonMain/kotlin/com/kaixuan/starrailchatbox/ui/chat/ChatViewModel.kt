@@ -316,9 +316,13 @@ class ChatViewModel(
                 )
             }
         } else {
-            val character = characterUiState.value.characters.firstOrNull { it.id == characterId } ?: return
-            _characterUiState.update {
-                it.copy(characterEdit = character.toEditUiState())
+            viewModelScope.launch {
+                val fullCharacter = runCatching {
+                    characterRepository.getCharacter(characterId)
+                }.getOrNull() ?: return@launch
+                _characterUiState.update {
+                    it.copy(characterEdit = fullCharacter.toEditUiState())
+                }
             }
         }
     }
@@ -726,12 +730,13 @@ class ChatViewModel(
             )
         } ?: ChatContextSnapshot(summary = null, messages = emptyList())
         val now = currentTimeMillis()
+        val fullCharacter = characterRepository.getCharacter(character.id) ?: character
         val session = previousSession ?: NewChatSession(
             id = idGenerator("session"),
             title = sessionTitleProvider(),
             agentId = character.id,
             modelConfigId = config?.id,
-            systemPromptSnapshot = character.prompt,
+            systemPromptSnapshot = fullCharacter.prompt,
             maxContextMessageCount = null,
             createdAt = now,
         ).let { newSession ->
@@ -741,7 +746,7 @@ class ChatViewModel(
                 config = config,
                 now = now,
             )
-            val openingMessage = character.openingMessage
+            val openingMessage = fullCharacter.openingMessage
                 .takeIf(String::isNotBlank)
                 ?.let {
                     NewChatMessage(

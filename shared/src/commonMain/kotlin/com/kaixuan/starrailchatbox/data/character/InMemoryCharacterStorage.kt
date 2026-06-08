@@ -24,7 +24,13 @@ class InMemoryCharacterStorage : CharacterStorage {
     }
 
     override suspend fun loadCharacters(): List<CharacterFiles> {
-        return characters.values.sortedWith(compareBy({ it.sortOrder }, { it.createdAt }))
+        return characters.values
+            .sortedWith(compareBy({ it.sortOrder }, { it.createdAt }))
+            .map { it.copy(prompt = it.prompt.take(20)) }
+    }
+
+    override suspend fun getCharacter(id: String): CharacterFiles? {
+        return characters[id]
     }
 
     override suspend fun saveCharacter(

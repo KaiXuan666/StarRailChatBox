@@ -264,6 +264,15 @@ UI --Action--> ViewModel --StateFlow<UiState>--> UI
 - `remember` 只保存纯 UI 的短暂状态；业务状态必须提升到 `UiState`。
 - 在 `HorizontalPager` 中加载包含重度 `LazyColumn` 和复杂图文排版的子页面时，**禁止**开启预载参数（如 `beyondViewportPageCount` 大于 0），必须保持默认的按需懒加载。这可规避因从其他 Bottom Tab 路由切回该界面时一帧内同步渲染组合多个重度页面导致的主线程卡顿（Jank）。
 
+### 模块状态解耦与状态拆分规范
+
+- **状态细粒度拆分**：为防止单个 `UiState` 或 `Action` 过于臃肿导致状态互锁或无效重组，应按照业务模块进行细粒度拆分。例如将角色管理与聊天会话完全解耦。
+- **解耦结构**：
+  - **角色包 (`ui/character`)**：管理 `CharactersUiState`（内含角色列表、加载标志及 `CharacterEditUiState` 编辑状态）和 `CharacterAction`/`CharacterEffect`。
+  - **聊天包 (`ui/chat`)**：管理 `ChatUiState`（仅保留当前聊天角色的缓存 `selectedCharacter`、`selectedCharacterId` 与多角色会话状态 map）和 `ChatAction`/`ChatEffect`。
+- **双状态与双 Action 接收**：在 `ChatViewModel` 等承载复合业务的 ViewModel 中，通过分别公开 `uiState` 与 `characterUiState` 双状态流来独立暴露，并在 ViewModel 内部实现 `onAction(ChatAction)` 与 `onCharacterAction(CharacterAction)` 双入口，从业务逻辑上进行清晰解耦。
+- **主路由与分发**：主路由导航挂载四个绑定节点：角色 (`CharactersRouteBinding`)、会话 (`ChatRouteBinding`)、设置 (`SettingsRouteBinding`) 和个人信息 (`ProfileRouteBinding`)。在路由导航层 (`MainNavigationContainer`) 进行状态和事件回调的解耦分发。
+
 
 ## Kotlin Multiplatform 依赖规则
 

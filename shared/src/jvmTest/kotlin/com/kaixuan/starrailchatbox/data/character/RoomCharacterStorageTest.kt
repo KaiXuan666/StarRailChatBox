@@ -48,6 +48,10 @@ class RoomCharacterStorageTest {
                 storage.loadCharacters().first { it.id == initial.id }.createdAt,
             )
 
+            val retrieved = storage.getCharacter(initial.id)
+            kotlin.test.assertNotNull(retrieved)
+            assertEquals("first", retrieved.prompt)
+
             storage.initializeDefaults(listOf(characterFiles("builtin:流萤", "流萤", "changed")))
 
             assertEquals("first", database.agentRoleDao().findById(initial.id)?.systemPrompt)
