@@ -14,6 +14,7 @@ sealed interface ChatAction {
     data class ComposerActionClicked(val action: ComposerAction) : ChatAction
     data class FileSelected(val uri: String, val name: String) : ChatAction
     data class ImageSelected(val uri: String) : ChatAction
+    data class RemoveAttachment(val attachment: SelectedAttachment) : ChatAction
     data object RestoreMainCharacter : ChatAction
 }
 

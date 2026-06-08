@@ -170,11 +170,32 @@ class ChatViewModel(
             is ChatAction.ComposerActionClicked -> handleComposerAction(action.action)
             is ChatAction.FileSelected -> {
                 Napier.d("File selected: ${action.name} at ${action.uri}")
-                // 暂时仅打印，后续接入附件处理逻辑
+                val characterId = uiState.value.selectedCharacterId ?: return
+                updateCharacterState(characterId) { state ->
+                    state.copy(
+                        selectedAttachments = state.selectedAttachments + SelectedAttachment.File(action.uri, action.name),
+                        isAttachmentPanelVisible = false
+                    )
+                }
             }
             is ChatAction.ImageSelected -> {
                 Napier.d("Image selected at ${action.uri}")
-                // 暂时仅打印，后续接入附件处理逻辑
+                val characterId = uiState.value.selectedCharacterId ?: return
+                val name = action.uri.substringAfterLast('/')
+                updateCharacterState(characterId) { state ->
+                    state.copy(
+                        selectedAttachments = state.selectedAttachments + SelectedAttachment.Image(action.uri, name),
+                        isAttachmentPanelVisible = false
+                    )
+                }
+            }
+            is ChatAction.RemoveAttachment -> {
+                val characterId = uiState.value.selectedCharacterId ?: return
+                updateCharacterState(characterId) { state ->
+                    state.copy(
+                        selectedAttachments = state.selectedAttachments - action.attachment
+                    )
+                }
             }
             ChatAction.RestoreMainCharacter -> {
                 lastActiveMainCharacterId?.let { selectCharacter(it) }
@@ -623,8 +644,9 @@ class ChatViewModel(
         val characterId = character.id
         val characterState = state.characterStates[characterId] ?: CharacterChatState()
         val content = characterState.messageDraft.trim()
+        val attachments = characterState.selectedAttachments
         if (
-            content.isEmpty() ||
+            (content.isEmpty() && attachments.isEmpty()) ||
             characterState.isSending ||
             characterState.isLoadingSession
         ) {
@@ -635,6 +657,7 @@ class ChatViewModel(
             s.copy(
                 characterStates = s.characterStates + (characterId to curState.copy(
                     messageDraft = "",
+                    selectedAttachments = emptyList(),
                     isSending = true
                 ))
             )

@@ -997,16 +997,26 @@ fun ChatSessionBottomBar(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier) {
-        QuickReplies(
-            suggestions = state.suggestions,
-            compact = compact,
-            onReplyClicked = {
-                onAction(ChatAction.QuickReplyClicked(it))
-            },
-        )
+        if (state.selectedAttachments.isNotEmpty()) {
+            SelectedAttachmentsArea(
+                attachments = state.selectedAttachments,
+                compact = compact,
+                onAddClicked = { onAction(ChatAction.ComposerActionClicked(ComposerAction.ATTACH)) },
+                onRemoveClicked = { onAction(ChatAction.RemoveAttachment(it)) },
+            )
+        } else {
+            QuickReplies(
+                suggestions = state.suggestions,
+                compact = compact,
+                onReplyClicked = {
+                    onAction(ChatAction.QuickReplyClicked(it))
+                },
+            )
+        }
         MessageComposer(
             value = state.messageDraft,
             isSending = state.isSending,
+            attachments = state.selectedAttachments,
             compact = compact,
             onValueChange = {
                 onAction(ChatAction.MessageChanged(it))
@@ -1181,9 +1191,110 @@ private fun QuickReplies(
 }
 
 @Composable
+private fun SelectedAttachmentsArea(
+    attachments: List<SelectedAttachment>,
+    compact: Boolean,
+    onAddClicked: () -> Unit,
+    onRemoveClicked: (SelectedAttachment) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(
+                horizontal = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                vertical = StarRailSpacing.xs,
+            ),
+        horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        attachments.forEach { attachment ->
+            AttachmentPreviewItem(
+                attachment = attachment,
+                compact = compact,
+                onRemove = { onRemoveClicked(attachment) }
+            )
+        }
+
+//        Surface(
+//            onClick = onAddClicked,
+//            modifier = Modifier.size(if (compact) 48.dp else 56.dp),
+//            shape = MaterialTheme.shapes.medium,
+//            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+//            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+//        ) {
+//            Box(contentAlignment = Alignment.Center) {
+//                StarRailIcon(
+//                    kind = StarRailIconKind.ADD,
+//                    contentDescription = "继续添加",
+//                    tint = MaterialTheme.colorScheme.onSurface,
+//                    modifier = Modifier.size(if (compact) 24.dp else 28.dp)
+//                )
+//            }
+//        }
+    }
+}
+
+@Composable
+private fun AttachmentPreviewItem(
+    attachment: SelectedAttachment,
+    compact: Boolean,
+    onRemove: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .size(if (compact) 56.dp else 64.dp)
+            .clip(MaterialTheme.shapes.medium)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+    ) {
+        when (attachment) {
+            is SelectedAttachment.Image -> {
+                AvatarImage(
+                    avatarUri = attachment.uri,
+                    contentDescription = null,
+                    placeholderKind = StarRailIconKind.GALLERY,
+                    placeholderSize = 24.dp,
+                )
+            }
+            is SelectedAttachment.File -> {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    StarRailIcon(
+                        kind = StarRailIconKind.FILE,
+                        contentDescription = attachment.name,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+        }
+
+        Surface(
+            onClick = onRemove,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(2.dp)
+                .size(16.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.error,
+            contentColor = MaterialTheme.colorScheme.onError,
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                StarRailIcon(
+                    kind = StarRailIconKind.CLOSE,
+                    contentDescription = "移除",
+                    tint = MaterialTheme.colorScheme.onError,
+                    modifier = Modifier.size(10.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun MessageComposer(
     value: String,
     isSending: Boolean,
+    attachments: List<SelectedAttachment>,
     compact: Boolean,
     onValueChange: (String) -> Unit,
     onSend: () -> Unit,
@@ -1244,7 +1355,7 @@ private fun MessageComposer(
             icon = StarRailIconKind.SEND,
             contentDescription = stringResource(Res.string.send_message),
             compact = compact,
-            enabled = value.isNotBlank() && !isSending,
+            enabled = (value.isNotBlank() || attachments.isNotEmpty()) && !isSending,
             primary = true,
             onClick = onSend,
             loading = isSending,

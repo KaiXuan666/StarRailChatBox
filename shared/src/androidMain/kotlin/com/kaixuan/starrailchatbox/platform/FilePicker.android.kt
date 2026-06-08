@@ -5,6 +5,7 @@ import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.FileProvider
 import java.io.File
@@ -36,9 +37,13 @@ actual fun rememberFilePicker(onFilePicked: (PickedFile?) -> Unit): () -> Unit {
 @Composable
 actual fun rememberCameraLauncher(onImageCaptured: (PickedImage?) -> Unit): () -> Unit {
     val context = LocalContext.current
-    val tempFile = File(context.cacheDir, "temp_camera_image_${System.currentTimeMillis()}.jpg")
-    val authority = "${context.packageName}.fileprovider"
-    val uri = FileProvider.getUriForFile(context, authority, tempFile)
+    
+    // 使用 remember 避免在重组时重复创建文件和生成 URI
+    val uri = remember {
+        val tempFile = File(context.cacheDir, "temp_camera_image_${System.currentTimeMillis()}.jpg")
+        val authority = "${context.packageName}.fileprovider"
+        FileProvider.getUriForFile(context, authority, tempFile)
+    }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()

@@ -33,6 +33,15 @@ sealed interface ChatMessageUiModel {
 }
 
 @Immutable
+sealed interface SelectedAttachment {
+    val uri: String
+    val name: String
+
+    data class File(override val uri: String, override val name: String) : SelectedAttachment
+    data class Image(override val uri: String, override val name: String) : SelectedAttachment
+}
+
+@Immutable
 data class CharacterChatState(
     val activeSessionId: String? = null,
     val sessions: List<ConversationSummaryUiModel> = emptyList(),
@@ -42,6 +51,7 @@ data class CharacterChatState(
     val isSending: Boolean = false,
     val suggestions: List<String> = emptyList(),
     val isAttachmentPanelVisible: Boolean = false,
+    val selectedAttachments: List<SelectedAttachment> = emptyList(),
 )
 
 @Immutable
@@ -83,4 +93,7 @@ data class ChatUiState(
 
     val isAttachmentPanelVisible: Boolean
         get() = characterStates[selectedCharacterId]?.isAttachmentPanelVisible ?: false
+
+    val selectedAttachments: List<SelectedAttachment>
+        get() = characterStates[selectedCharacterId]?.selectedAttachments.orEmpty()
 }

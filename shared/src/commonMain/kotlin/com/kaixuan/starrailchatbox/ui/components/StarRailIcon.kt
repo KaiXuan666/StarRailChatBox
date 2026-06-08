@@ -50,6 +50,7 @@ enum class StarRailIconKind {
     FILE,
     CAMERA,
     GALLERY,
+    CLOSE,
 }
 
 @Composable
@@ -556,6 +557,11 @@ fun StarRailIcon(
                     lineTo(size.width * 0.78f, size.height * 0.72f)
                 }
                 drawPath(path, tint, style = stroke)
+            }
+
+            StarRailIconKind.CLOSE -> {
+                drawLine(tint, point(0.28f, 0.28f), point(0.72f, 0.72f), strokeWidth)
+                drawLine(tint, point(0.72f, 0.28f), point(0.28f, 0.72f), strokeWidth)
             }
         }
     }
