@@ -91,7 +91,7 @@
     <string name="character_edit_save">保存</string>
     <string name="character_edit_delete">删除角色</string>
     <string name="character_edit_delete_confirm_title">删除角色？</string>
-    <string name="character_edit_delete_confirm_message">确定删除“%1$s”吗？关联头像文件会一并删除。</string>
+    <string name="character_edit_delete_confirm_message">确定删除“%1$s”吗？</string>
     <string name="character_edit_delete_confirm_action">删除</string>
     
     <!-- 个人信息界面 -->

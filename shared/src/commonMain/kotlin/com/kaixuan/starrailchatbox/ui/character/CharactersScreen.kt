@@ -383,11 +383,9 @@ private fun SwipeableCharacterCard(
             }
         }
 
-        val combinedModifier = if (offsetX.value == 0f) dragModifier else Modifier
         val draggableState = rememberDraggableState { delta ->
-            val newOffset = (offsetX.value + delta).coerceIn(-deleteButtonWidthPx, 0f)
             scope.launch {
-                offsetX.snapTo(newOffset)
+                offsetX.snapTo((offsetX.value + delta).coerceIn(-deleteButtonWidthPx, 0f))
             }
         }
 
@@ -395,7 +393,6 @@ private fun SwipeableCharacterCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .offset { IntOffset(offsetX.value.roundToInt(), 0) }
-                .then(combinedModifier)
                 .draggable(
                     state = draggableState,
                     orientation = Orientation.Horizontal,
@@ -410,6 +407,7 @@ private fun SwipeableCharacterCard(
                         }
                     }
                 )
+                .then(dragModifier)
         ) {
             CharacterCard(
                 character = character,
