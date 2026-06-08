@@ -271,7 +271,11 @@ fun CharactersScreen(
                                 }
                             },
                             onDeleteClick = {
-                                deleteTargetCharacter = character
+                                if (character.id.startsWith("builtin:")) {
+                                    onAction(CharacterAction.CharacterDeleteBuiltinClicked)
+                                } else {
+                                    deleteTargetCharacter = character
+                                }
                             },
                             dragModifier = dragModifier,
                             isDragging = isDragging,

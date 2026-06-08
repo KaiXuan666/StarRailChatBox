@@ -191,6 +191,7 @@ class ChatViewModel(
                 it.copy(topP = action.topP.coerceIn(0.0, 1.0))
             }
             CharacterAction.CharacterSaveClicked -> saveCharacterEdit()
+            CharacterAction.CharacterDeleteBuiltinClicked -> emitCharacterMessage(CharacterEffectMessage.CHARACTER_DELETE_BUILTIN_RESTRICTED)
             is CharacterAction.CharacterDeleteClicked -> deleteCharacter(action.characterId)
             is CharacterAction.CharacterPromptGenClicked -> {
                 val name = characterUiState.value.characterEdit.name.trim()

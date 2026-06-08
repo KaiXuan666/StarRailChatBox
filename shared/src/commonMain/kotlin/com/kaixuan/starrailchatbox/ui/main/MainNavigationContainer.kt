@@ -44,6 +44,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import starrailchatbox.shared.generated.resources.Res
@@ -76,6 +77,7 @@ import starrailchatbox.shared.generated.resources.chat_request_failed
 import starrailchatbox.shared.generated.resources.chat_empty_response
 import starrailchatbox.shared.generated.resources.character_saved
 import starrailchatbox.shared.generated.resources.character_deleted
+import starrailchatbox.shared.generated.resources.character_delete_builtin_restricted
 import starrailchatbox.shared.generated.resources.character_name_empty
 import starrailchatbox.shared.generated.resources.character_save_failed
 import starrailchatbox.shared.generated.resources.character_edit_prompt_gen_failed
@@ -143,6 +145,7 @@ fun MainRoute(
         CharacterEffectMessage.PROMPT_GEN_FAILED to stringResource(Res.string.character_edit_prompt_gen_failed),
         CharacterEffectMessage.CHARACTER_NAME_REQUIRED to stringResource(Res.string.character_name_required),
         CharacterEffectMessage.MODEL_CONFIG_REQUIRED to stringResource(Res.string.chat_model_config_required),
+        CharacterEffectMessage.CHARACTER_DELETE_BUILTIN_RESTRICTED to stringResource(Res.string.character_delete_builtin_restricted),
     )
     val characterSavedMessage = stringResource(Res.string.character_saved)
     val characterDeletedMessage = stringResource(Res.string.character_deleted)
@@ -182,6 +185,7 @@ fun MainRoute(
     }
 
     LaunchedEffect(characters.effects, characterEffectMessages, characterSavedMessage, characterDeletedMessage) {
+        val scope = this
         characters.effects.collectLatest { effect ->
             when (effect) {
                 is CharacterEffect.ShowMessage -> {
@@ -190,11 +194,11 @@ fun MainRoute(
                     )
                 }
                 CharacterEffect.CharacterSaved -> {
-                    snackbarHostState.showSnackbar(characterSavedMessage)
+                    scope.launch { snackbarHostState.showSnackbar(characterSavedMessage) }
                     main.onAction(MainAction.PopBackStack)
                 }
                 CharacterEffect.CharacterDeleted -> {
-                    snackbarHostState.showSnackbar(characterDeletedMessage)
+                    scope.launch { snackbarHostState.showSnackbar(characterDeletedMessage) }
                     main.onAction(MainAction.PopBackStack)
                 }
             }
@@ -202,6 +206,7 @@ fun MainRoute(
     }
 
     LaunchedEffect(settings.effects, settingsEffectMessages) {
+        val scope = this
         settings.effects.collectLatest { effect ->
             when (effect) {
                 is SettingsEffect.ShowMessage -> {
@@ -210,9 +215,11 @@ fun MainRoute(
                     )
                 }
                 SettingsEffect.ApiSettingsSaved -> {
-                    snackbarHostState.showSnackbar(
-                        settingsEffectMessages.getValue(SettingsEffectMessage.SETTINGS_API_SAVED),
-                    )
+                    scope.launch {
+                        snackbarHostState.showSnackbar(
+                            settingsEffectMessages.getValue(SettingsEffectMessage.SETTINGS_API_SAVED),
+                        )
+                    }
                     main.onAction(MainAction.PopBackStack)
                 }
             }
@@ -220,6 +227,7 @@ fun MainRoute(
     }
 
     LaunchedEffect(profile.effects) {
+        val scope = this
         profile.effects.collectLatest { effect ->
             when (effect) {
                 is ProfileEffect.ShowMessage -> {
@@ -228,6 +236,11 @@ fun MainRoute(
                     )
                 }
                 ProfileEffect.ProfileSaved -> {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(
+                            profileEffectMessages.getValue(ProfileEffectMessage.PROFILE_SAVED),
+                        )
+                    }
                     main.onAction(MainAction.PopBackStack)
                 }
             }
@@ -316,7 +329,12 @@ fun MainNavigationContainer(
                     .widthIn(max = 840.dp),
                 containerColor = Color.Transparent,
                 contentWindowInsets = WindowInsets(0),
-                snackbarHost = { SnackbarHost(snackbarHostState) },
+                snackbarHost = {
+                    SnackbarHost(
+                        hostState = snackbarHostState,
+                        modifier = Modifier.padding(bottom = 60.dp)
+                    )
+                },
                 bottomBar = {
                     MainBottomArea(
                         mainState = mainState,

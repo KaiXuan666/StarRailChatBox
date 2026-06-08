@@ -67,6 +67,7 @@
     <string name="microphone_not_ready">录音功能正在准备中</string>
     <string name="character_saved">角色已保存</string>
     <string name="character_deleted">角色已删除</string>
+    <string name="character_delete_builtin_restricted">预置角色不可删除</string>
     <string name="character_name_empty">角色名称不能为空</string>
     <string name="character_name_required">请先输入角色名称</string>
     <string name="character_save_failed">角色保存失败</string>

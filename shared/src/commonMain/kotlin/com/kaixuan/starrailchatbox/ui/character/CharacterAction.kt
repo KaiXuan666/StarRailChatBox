@@ -14,6 +14,7 @@ sealed interface CharacterAction {
     data class CharacterTopPChanged(val topP: Double) : CharacterAction
     data object CharacterSaveClicked : CharacterAction
     data class CharacterDeleteClicked(val characterId: String) : CharacterAction
+    data object CharacterDeleteBuiltinClicked : CharacterAction
     data class CharacterPromptGenClicked(val defaultPromptRequestText: String) : CharacterAction
     data class CharacterPromptGenInputChanged(val text: String) : CharacterAction
     data object CharacterPromptGenConfirmClicked : CharacterAction
