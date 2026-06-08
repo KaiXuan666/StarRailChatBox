@@ -23,4 +23,14 @@ data class SettingsUiState(
     val multimodalSelectedModel: String = "",
     val multimodalIsFetchingModels: Boolean = false,
     val multimodalIsSaving: Boolean = false,
+
+    // 语音合成 API 设置
+    val voiceApiHost: String = "https://api.openai.com/v1",
+    val voiceApiKey: String = "",
+    val voiceShowApiKey: Boolean = false,
+    val voiceModelsList: List<String> = emptyList(),
+    val voiceSelectedModel: String = "",
+    val voiceIsFetchingModels: Boolean = false,
+    val voiceIsSaving: Boolean = false,
 )
+

@@ -25,14 +25,20 @@ interface ModelConfigRepository {
     suspend fun getMultimodal(): ModelConfig?
 
     suspend fun saveMultimodal(config: ModelConfig)
+
+    suspend fun getVoice(): ModelConfig?
+
+    suspend fun saveVoice(config: ModelConfig)
 }
 
 class InMemoryModelConfigRepository(
     initial: ModelConfig? = null,
     initialMultimodal: ModelConfig? = null,
+    initialVoice: ModelConfig? = null,
 ) : ModelConfigRepository {
     private var config = initial
     private var multimodalConfig = initialMultimodal
+    private var voiceConfig = initialVoice
 
     override suspend fun getDefault(): ModelConfig? = config
 
@@ -44,6 +50,12 @@ class InMemoryModelConfigRepository(
 
     override suspend fun saveMultimodal(config: ModelConfig) {
         this.multimodalConfig = config
+    }
+
+    override suspend fun getVoice(): ModelConfig? = voiceConfig
+
+    override suspend fun saveVoice(config: ModelConfig) {
+        this.voiceConfig = config
     }
 }
 
@@ -66,3 +78,14 @@ object MultimodalModelConfig {
     const val Temperature = 0.7
     const val TopP = 1.0
 }
+
+object VoiceModelConfig {
+    const val Id = "voice"
+    const val Provider = "xiaomimimo"
+    const val Name = "语音合成模型"
+    const val ContextWindow = 128_000
+    const val MaxOutputTokens = 4_096
+    const val Temperature = 0.7
+    const val TopP = 1.0
+}
+

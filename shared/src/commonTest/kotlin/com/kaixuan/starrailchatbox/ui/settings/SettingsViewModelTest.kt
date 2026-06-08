@@ -323,9 +323,11 @@ private class FakeOpenAiRepository(
 private class FakeModelConfigRepository(
     private val initial: ModelConfig? = null,
     private val initialMultimodal: ModelConfig? = null,
+    private val initialVoice: ModelConfig? = null,
 ) : ModelConfigRepository {
     var saved: ModelConfig? = null
     var savedMultimodal: ModelConfig? = null
+    var savedVoice: ModelConfig? = null
 
     override suspend fun getDefault(): ModelConfig? = initial
 
@@ -337,6 +339,12 @@ private class FakeModelConfigRepository(
 
     override suspend fun saveMultimodal(config: ModelConfig) {
         savedMultimodal = config
+    }
+
+    override suspend fun getVoice(): ModelConfig? = initialVoice
+
+    override suspend fun saveVoice(config: ModelConfig) {
+        savedVoice = config
     }
 }
 

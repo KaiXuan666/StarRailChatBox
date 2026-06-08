@@ -143,10 +143,11 @@ class QuickRepliesTool(
         return prepared
     }
 
-    override fun parseFallback(
+    override suspend fun parseFallback(
         content: String,
         context: ToolContext,
     ): ToolResult.Terminal? {
+
         parseJsonResponse(content)?.let { return it }
 
         val quickRepliesMatch = QuickRepliesRegex.find(content)

@@ -1200,9 +1200,27 @@ class ChatViewModel(
             emitMessage(EffectMessage.CHAT_EMPTY_RESPONSE)
             return false
         }
+        val messageId = idGenerator("message")
+        val now = currentTimeMillis()
+        val attachments = if (!result.voiceAttachmentUri.isNullOrEmpty()) {
+            listOf(
+                MessageAttachment(
+                    id = idGenerator("attachment"),
+                    messageId = messageId,
+                    name = "voice.wav",
+                    size = 0,
+                    mimeType = "audio/wav",
+                    uri = result.voiceAttachmentUri,
+                    createdAt = now,
+                    durationMs = result.voiceDurationMs,
+                )
+            )
+        } else {
+            emptyList()
+        }
         chatSessionRepository.appendMessage(
             NewChatMessage(
-                id = idGenerator("message"),
+                id = messageId,
                 sessionId = session.id,
                 role = ChatRole.ASSISTANT,
                 content = response,
@@ -1212,12 +1230,14 @@ class ChatViewModel(
                 promptTokens = result.promptTokens,
                 completionTokens = result.completionTokens,
                 totalTokens = result.totalTokens,
-                createdAt = currentTimeMillis(),
+                createdAt = now,
                 suggestions = result.suggestions,
+                attachments = attachments,
             ),
         )
         return true
     }
+
 
     private suspend fun handleFailure(
         session: ChatSession,

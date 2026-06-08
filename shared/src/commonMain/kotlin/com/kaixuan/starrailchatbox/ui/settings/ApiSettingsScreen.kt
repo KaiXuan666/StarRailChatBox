@@ -60,6 +60,7 @@ import starrailchatbox.shared.generated.resources.settings_api_model_selected
 import starrailchatbox.shared.generated.resources.settings_api_empty_models
 import starrailchatbox.shared.generated.resources.settings_api_title
 import starrailchatbox.shared.generated.resources.settings_multimodal_api_title
+import starrailchatbox.shared.generated.resources.settings_voice_api_title
 import starrailchatbox.shared.generated.resources.settings_multimodal_api_tip
 import starrailchatbox.shared.generated.resources.settings_get
 import starrailchatbox.shared.generated.resources.settings_model_list
@@ -88,16 +89,45 @@ fun ApiSettingsScreen(
     onSettingsAction: (SettingsAction) -> Unit,
     modifier: Modifier = Modifier,
     isMultimodal: Boolean = false,
+    isVoice: Boolean = false,
 ) {
     val colors = MaterialTheme.starRailColors
     
-    val apiHost = if (isMultimodal) state.multimodalApiHost else state.apiHost
-    val apiKey = if (isMultimodal) state.multimodalApiKey else state.apiKey
-    val showApiKey = if (isMultimodal) state.multimodalShowApiKey else state.showApiKey
-    val isFetchingModels = if (isMultimodal) state.multimodalIsFetchingModels else state.isFetchingModels
-    val modelsList = if (isMultimodal) state.multimodalModelsList else state.modelsList
-    val selectedModel = if (isMultimodal) state.multimodalSelectedModel else state.selectedModel
-    val isSaving = if (isMultimodal) state.multimodalIsSaving else state.isSaving
+    val apiHost = when {
+        isVoice -> state.voiceApiHost
+        isMultimodal -> state.multimodalApiHost
+        else -> state.apiHost
+    }
+    val apiKey = when {
+        isVoice -> state.voiceApiKey
+        isMultimodal -> state.multimodalApiKey
+        else -> state.apiKey
+    }
+    val showApiKey = when {
+        isVoice -> state.voiceShowApiKey
+        isMultimodal -> state.multimodalShowApiKey
+        else -> state.showApiKey
+    }
+    val isFetchingModels = when {
+        isVoice -> state.voiceIsFetchingModels
+        isMultimodal -> state.multimodalIsFetchingModels
+        else -> state.isFetchingModels
+    }
+    val modelsList = when {
+        isVoice -> state.voiceModelsList
+        isMultimodal -> state.multimodalModelsList
+        else -> state.modelsList
+    }
+    val selectedModel = when {
+        isVoice -> state.voiceSelectedModel
+        isMultimodal -> state.multimodalSelectedModel
+        else -> state.selectedModel
+    }
+    val isSaving = when {
+        isVoice -> state.voiceIsSaving
+        isMultimodal -> state.multimodalIsSaving
+        else -> state.isSaving
+    }
     
     BackHandler {
         onMainAction(MainAction.PopBackStack)
@@ -120,10 +150,10 @@ fun ApiSettingsScreen(
         }
 
         StarRailPageLayout(
-            title = if (isMultimodal) {
-                stringResource(Res.string.settings_multimodal_api_title)
-            } else {
-                stringResource(Res.string.settings_api_title)
+            title = when {
+                isVoice -> stringResource(Res.string.settings_voice_api_title)
+                isMultimodal -> stringResource(Res.string.settings_multimodal_api_title)
+                else -> stringResource(Res.string.settings_api_title)
             },
             contentPadding = contentPadding,
             compact = compact,
@@ -145,8 +175,8 @@ fun ApiSettingsScreen(
                 
                 ApiInputField(
                     value = apiHost,
-                    onValueChange = { onSettingsAction(SettingsAction.ApiHostChanged(it, isMultimodal)) },
-                    placeholder = "https://api.openai.com/v1",
+                    onValueChange = { onSettingsAction(SettingsAction.ApiHostChanged(it, isMultimodal = isMultimodal, isVoice = isVoice)) },
+                    placeholder = if (isVoice) "https://api.xiaomimimo.com/v1" else "https://api.openai.com/v1",
                     leadingIcon = StarRailIconKind.COMPASS,
                     compact = compact
                 )
@@ -166,12 +196,20 @@ fun ApiSettingsScreen(
                 
                 ApiInputField(
                     value = apiKey,
-                    onValueChange = { onSettingsAction(SettingsAction.ApiKeyChanged(it, isMultimodal)) },
+                    onValueChange = { onSettingsAction(SettingsAction.ApiKeyChanged(it, isMultimodal = isMultimodal, isVoice = isVoice)) },
                     placeholder = "sk-",
                     leadingIcon = StarRailIconKind.KEY,
                     isPasswordField = true,
                     passwordVisible = showApiKey,
-                    onPasswordToggle = { onSettingsAction(if (isMultimodal) SettingsAction.ToggleMultimodalApiKeyVisibility else SettingsAction.ToggleApiKeyVisibility) },
+                    onPasswordToggle = { 
+                        onSettingsAction(
+                            when {
+                                isVoice -> SettingsAction.ToggleVoiceApiKeyVisibility
+                                isMultimodal -> SettingsAction.ToggleMultimodalApiKeyVisibility
+                                else -> SettingsAction.ToggleApiKeyVisibility
+                            }
+                        )
+                    },
                     compact = compact
                 )
             }
@@ -199,7 +237,15 @@ fun ApiSettingsScreen(
                     val fetchScale by animateFloatAsState(if (isFetchPressed) 0.92f else 1f)
                     
                     Surface(
-                        onClick = { onSettingsAction(if (isMultimodal) SettingsAction.FetchMultimodalModelsClicked else SettingsAction.FetchModelsClicked) },
+                        onClick = { 
+                            onSettingsAction(
+                                when {
+                                    isVoice -> SettingsAction.FetchVoiceModelsClicked
+                                    isMultimodal -> SettingsAction.FetchMultimodalModelsClicked
+                                    else -> SettingsAction.FetchModelsClicked
+                                }
+                            )
+                        },
                         enabled = !isFetchingModels,
                         interactionSource = fetchInteractionSource,
                         modifier = Modifier.scale(fetchScale),
@@ -217,7 +263,7 @@ fun ApiSettingsScreen(
                                     modifier = Modifier.size(14.dp),
                                     color = MaterialTheme.colorScheme.primary,
                                     strokeWidth = 1.5.dp
-                                )
+                               )
                             }
                             Text(
                                 text = stringResource(Res.string.settings_get),
@@ -249,7 +295,7 @@ fun ApiSettingsScreen(
                             ModelCardItem(
                                 model = model,
                                 isSelected = selectedModel == model,
-                                onClick = { onSettingsAction(SettingsAction.SelectModel(model, isMultimodal)) },
+                                onClick = { onSettingsAction(SettingsAction.SelectModel(model, isMultimodal = isMultimodal, isVoice = isVoice)) },
                                 compact = compact
                             )
                         }
@@ -305,7 +351,15 @@ fun ApiSettingsScreen(
                         Res.string.settings_save_config
                     },
                 ),
-                onClick = { onSettingsAction(if (isMultimodal) SettingsAction.SaveMultimodalApiSettingsClicked else SettingsAction.SaveApiSettingsClicked) },
+                onClick = { 
+                    onSettingsAction(
+                        when {
+                            isVoice -> SettingsAction.SaveVoiceApiSettingsClicked
+                            isMultimodal -> SettingsAction.SaveMultimodalApiSettingsClicked
+                            else -> SettingsAction.SaveApiSettingsClicked
+                        }
+                    )
+                },
                 enabled = !isSaving,
             )
         }

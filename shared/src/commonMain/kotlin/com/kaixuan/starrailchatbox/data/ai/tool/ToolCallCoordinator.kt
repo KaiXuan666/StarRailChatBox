@@ -18,6 +18,8 @@ data class CoordinatedCompletion(
     val suggestions: List<String>,
     val finishReason: String?,
     val usage: AiUsage,
+    val voiceAttachmentUri: String? = null,
+    val voiceDurationMs: Long? = null,
 )
 
 /**
@@ -110,6 +112,8 @@ class ToolCallCoordinator(
                                 suggestions = result.suggestions,
                                 finishReason = completion.finishReason,
                                 usage = usage,
+                                voiceAttachmentUri = result.voiceAttachmentUri,
+                                voiceDurationMs = result.voiceDurationMs,
                             ),
                         )
                     }
@@ -219,7 +223,14 @@ class ToolCallCoordinator(
             is ApiResult.Success -> {
                 val completion = result.value
                 val content = completion.message.content.orEmpty()
-                val terminal = tools.firstNotNullOfOrNull { it.parseFallback(content, context) }
+                var terminal: ToolResult.Terminal? = null
+                for (tool in tools) {
+                    val res = tool.parseFallback(content, context)
+                    if (res != null) {
+                        terminal = res
+                        break
+                    }
+                }
                 if (terminal != null) {
                     ApiResult.Success(
                         CoordinatedCompletion(
@@ -227,6 +238,8 @@ class ToolCallCoordinator(
                             suggestions = terminal.suggestions,
                             finishReason = completion.finishReason,
                             usage = completion.usage,
+                            voiceAttachmentUri = terminal.voiceAttachmentUri,
+                            voiceDurationMs = terminal.voiceDurationMs,
                         ),
                     )
                 } else {

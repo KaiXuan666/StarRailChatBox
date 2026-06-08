@@ -57,6 +57,8 @@ data class ChatCompletionResult(
     val completionTokens: Int,
     val totalTokens: Int,
     val suggestions: List<String> = emptyList(),
+    val voiceAttachmentUri: String? = null,
+    val voiceDurationMs: Long? = null,
 )
 
 /**
@@ -118,6 +120,8 @@ class DefaultAiRepository(
                         completionTokens = completion.usage.completionTokens,
                         totalTokens = completion.usage.totalTokens,
                         suggestions = completion.suggestions,
+                        voiceAttachmentUri = completion.voiceAttachmentUri,
+                        voiceDurationMs = completion.voiceDurationMs,
                     ),
                 )
             }

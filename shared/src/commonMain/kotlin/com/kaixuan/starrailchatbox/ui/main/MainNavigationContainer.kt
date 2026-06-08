@@ -459,6 +459,16 @@ fun MainNavigationContainer(
                             isMultimodal = true,
                         )
                     }
+                    entry<Route.VoiceApiSettings> {
+                        ApiSettingsScreen(
+                            state = settingsState,
+                            contentPadding = contentPadding,
+                            compact = compact,
+                            onMainAction = onMainAction,
+                            onSettingsAction = onSettingsAction,
+                            isVoice = true,
+                        )
+                    }
                     entry<Route.Profile> {
                         ProfileScreen(
                             state = profileState,
@@ -577,7 +587,7 @@ private fun MainNavigationBar(
     ) {
         navigationItems.forEach { item ->
             val selected = when (item.route) {
-                Route.Settings -> currentRoute == Route.Settings || currentRoute == Route.ApiSettings
+                Route.Settings -> currentRoute == Route.Settings || currentRoute == Route.ApiSettings || currentRoute == Route.MultimodalApiSettings || currentRoute == Route.VoiceApiSettings
                 else -> item.route == currentRoute
             }
             val label = stringResource(item.label)
@@ -614,7 +624,7 @@ private fun MainNavigationRail(
         Spacer(Modifier.height(StarRailSpacing.lg))
         navigationItems.forEach { item ->
             val selected = when (item.route) {
-                Route.Settings -> currentRoute == Route.Settings || currentRoute == Route.ApiSettings
+                Route.Settings -> currentRoute == Route.Settings || currentRoute == Route.ApiSettings || currentRoute == Route.MultimodalApiSettings || currentRoute == Route.VoiceApiSettings
                 else -> item.route == currentRoute
             }
             val label = stringResource(item.label)

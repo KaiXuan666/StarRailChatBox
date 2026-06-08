@@ -66,7 +66,7 @@ class QuickRepliesToolTest {
     }
 
     @Test
-    fun fallbackFormattingAndParsingAreOwnedByTool() {
+    fun fallbackFormattingAndParsingAreOwnedByTool() = runTest {
         val messages = tool.prepareFallbackMessages(
             listOf(
                 AiMessage("system", "保持人设"),
@@ -98,7 +98,7 @@ class QuickRepliesToolTest {
     }
 
     @Test
-    fun parsesPreferredJsonMetadataBlock() {
+    fun parsesPreferredJsonMetadataBlock() = runTest {
         val parsed = requireNotNull(
             tool.parseFallback(
                 """
@@ -114,7 +114,7 @@ class QuickRepliesToolTest {
     }
 
     @Test
-    fun parsesToolStyleJsonWrappedInMarkdownFence() {
+    fun parsesToolStyleJsonWrappedInMarkdownFence() = runTest {
         val parsed = requireNotNull(
             tool.parseFallback(
                 """
@@ -134,7 +134,7 @@ class QuickRepliesToolTest {
     }
 
     @Test
-    fun parsesLegacyTagsCaseInsensitivelyAndNormalizesLists() {
+    fun parsesLegacyTagsCaseInsensitivelyAndNormalizesLists() = runTest {
         val parsed = requireNotNull(
             tool.parseFallback(
                 """
@@ -158,7 +158,7 @@ class QuickRepliesToolTest {
     }
 
     @Test
-    fun recoversSuggestionsFromUnclosedMetadataBlock() {
+    fun recoversSuggestionsFromUnclosedMetadataBlock() = runTest {
         val parsed = requireNotNull(
             tool.parseFallback(
                 """

@@ -60,6 +60,11 @@ class MainViewModel : ViewModel() {
                             state.copy(backStack = state.backStack + Route.MultimodalApiSettings)
                         }
                     }
+                    MainSettingsItem.VOICE_API_SETTINGS -> {
+                        _uiState.update { state ->
+                            state.copy(backStack = state.backStack + Route.VoiceApiSettings)
+                        }
+                    }
                     MainSettingsItem.THEME_STYLE -> {
                         _uiState.update { it.copy(showThemeDialog = true) }
                     }

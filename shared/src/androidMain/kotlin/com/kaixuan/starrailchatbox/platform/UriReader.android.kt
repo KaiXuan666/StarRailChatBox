@@ -18,3 +18,16 @@ actual suspend fun readUriAsBytes(uri: String): ByteArray {
         ByteArray(0)
     }
 }
+
+actual fun writeAudioBytesToCache(bytes: ByteArray, fileName: String): String {
+    val context = AndroidContextHolder.context ?: return ""
+    return try {
+        val cacheDir = context.cacheDir
+        val file = java.io.File(cacheDir, fileName)
+        file.writeBytes(bytes)
+        file.absolutePath
+    } catch (e: Exception) {
+        ""
+    }
+}
+

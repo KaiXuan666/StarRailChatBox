@@ -25,6 +25,14 @@ class RoomModelConfigRepository(
         saveConfig(MultimodalModelConfig.Id, config)
     }
 
+    override suspend fun getVoice(): ModelConfig? {
+        return dao.findById(VoiceModelConfig.Id)?.toModelConfig()
+    }
+
+    override suspend fun saveVoice(config: ModelConfig) {
+        saveConfig(VoiceModelConfig.Id, config)
+    }
+
     private suspend fun saveConfig(id: String, config: ModelConfig) {
         val existing = dao.findById(id)
         val now = currentTimeMillis()

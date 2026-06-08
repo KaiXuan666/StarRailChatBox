@@ -38,7 +38,10 @@ sealed interface ToolResult {
     data class Terminal(
         val content: String,
         val suggestions: List<String> = emptyList(),
+        val voiceAttachmentUri: String? = null,
+        val voiceDurationMs: Long? = null,
     ) : ToolResult
+
 
     data class Continue(val content: String) : ToolResult
 
@@ -73,10 +76,11 @@ interface AiTool {
         context: ToolContext,
     ): List<AiMessage> = messages
 
-    fun parseFallback(
+    suspend fun parseFallback(
         content: String,
         context: ToolContext,
     ): ToolResult.Terminal? = null
+
 
     fun prepareStructuredFallback(
         messages: List<AiMessage>,

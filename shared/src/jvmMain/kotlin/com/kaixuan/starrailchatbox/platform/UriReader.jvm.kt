@@ -14,3 +14,15 @@ actual suspend fun readUriAsBytes(uri: String): ByteArray {
         ByteArray(0)
     }
 }
+
+actual fun writeAudioBytesToCache(bytes: ByteArray, fileName: String): String {
+    return try {
+        val tempDir = System.getProperty("java.io.tmpdir")
+        val file = File(tempDir, fileName)
+        file.writeBytes(bytes)
+        file.absolutePath
+    } catch (e: Exception) {
+        ""
+    }
+}
+
