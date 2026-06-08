@@ -30,3 +30,10 @@ actual fun formatHeaderDate(epochMilliseconds: Long): String {
         SimpleDateFormat("yyyy年M月d日 HH:mm", Locale.getDefault()).format(date)
     }
 }
+
+actual fun isSameDay(time1: Long, time2: Long): Boolean {
+    val cal1 = Calendar.getInstance().apply { timeInMillis = time1 }
+    val cal2 = Calendar.getInstance().apply { timeInMillis = time2 }
+    return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
+        cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
+}

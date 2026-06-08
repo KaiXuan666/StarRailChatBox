@@ -310,16 +310,12 @@ fun ChatSessionScreen(
                     }
                     
                     pageMessages.forEachIndexed { index, message ->
-                        val showDivider = if (index == 0) {
-                            true
-                        } else {
+                        val showDivider = if (index > 0) {
                             val prevMessage = pageMessages[index - 1]
-                            // 如果两条消息间隔超过 10 分钟，或者日期不同，显示时间分割
-                            // 这里简单判断日期字符串是否一致，因为 formatHeaderDate 在同一天返回相同字符串（或“今天”）
-                            // 为了更精确，建议在 commonMain 实现日期逻辑，但目前先用 formatHeaderDate
-                            val currentDay = com.kaixuan.starrailchatbox.platform.formatHeaderDate(message.createdAt)
-                            val prevDay = com.kaixuan.starrailchatbox.platform.formatHeaderDate(prevMessage.createdAt)
-                            currentDay != prevDay || (message.createdAt - prevMessage.createdAt > 10 * 60 * 1000)
+                            // 只有当两条消息跨越天数时，才显示分割线
+                            !com.kaixuan.starrailchatbox.platform.isSameDay(message.createdAt, prevMessage.createdAt)
+                        } else {
+                            false
                         }
 
                         if (showDivider) {

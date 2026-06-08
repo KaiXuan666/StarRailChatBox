@@ -63,7 +63,9 @@ import starrailchatbox.shared.generated.resources.character_list_edit_desc
 import starrailchatbox.shared.generated.resources.character_list_empty
 import androidx.compose.foundation.layout.offset
 import androidx.compose.animation.core.Animatable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.clickable
@@ -330,6 +332,8 @@ private fun SwipeableCharacterCard(
         }
     }
 
+    val progress = if (deleteButtonWidthPx > 0f) (-offsetX.value / deleteButtonWidthPx).coerceIn(0f, 1f) else 0f
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -338,6 +342,9 @@ private fun SwipeableCharacterCard(
         Box(
             modifier = Modifier
                 .matchParentSize()
+                .graphicsLayer {
+                    alpha = progress
+                }
         ) {
             Surface(
                 onClick = {
@@ -377,37 +384,32 @@ private fun SwipeableCharacterCard(
         }
 
         val combinedModifier = if (offsetX.value == 0f) dragModifier else Modifier
+        val draggableState = rememberDraggableState { delta ->
+            val newOffset = (offsetX.value + delta).coerceIn(-deleteButtonWidthPx, 0f)
+            scope.launch {
+                offsetX.snapTo(newOffset)
+            }
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .offset { IntOffset(offsetX.value.roundToInt(), 0) }
                 .then(combinedModifier)
-                .pointerInput(character.id, isAnyDragging) {
-                    if (isAnyDragging) return@pointerInput
-                    detectHorizontalDragGestures(
-                        onHorizontalDrag = { change, dragAmount ->
-                            change.consume()
-                            val newOffset = (offsetX.value + dragAmount).coerceIn(-deleteButtonWidthPx, 0f)
-                            scope.launch {
-                                offsetX.snapTo(newOffset)
-                            }
-                        },
-                        onDragEnd = {
-                            scope.launch {
-                                if (offsetX.value < -deleteButtonWidthPx / 2f) {
-                                    offsetX.animateTo(-deleteButtonWidthPx)
-                                } else {
-                                    offsetX.animateTo(0f)
-                                }
-                            }
-                        },
-                        onDragCancel = {
-                            scope.launch {
+                .draggable(
+                    state = draggableState,
+                    orientation = Orientation.Horizontal,
+                    enabled = !isAnyDragging,
+                    onDragStopped = {
+                        scope.launch {
+                            if (offsetX.value < -deleteButtonWidthPx / 2f) {
+                                offsetX.animateTo(-deleteButtonWidthPx)
+                            } else {
                                 offsetX.animateTo(0f)
                             }
                         }
-                    )
-                }
+                    }
+                )
         ) {
             CharacterCard(
                 character = character,

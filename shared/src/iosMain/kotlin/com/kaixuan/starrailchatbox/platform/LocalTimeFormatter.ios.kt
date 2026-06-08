@@ -37,3 +37,9 @@ actual fun formatHeaderDate(epochMilliseconds: Long): String {
     }
     return formatter.stringFromDate(date)
 }
+
+actual fun isSameDay(time1: Long, time2: Long): Boolean {
+    val date1 = NSDate.dateWithTimeIntervalSince1970(time1 / 1_000.0)
+    val date2 = NSDate.dateWithTimeIntervalSince1970(time2 / 1_000.0)
+    return NSCalendar.currentCalendar.isDate(date1, inSameDayAsDate = date2)
+}
