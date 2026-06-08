@@ -33,6 +33,8 @@ data class MessageAttachmentEntity(
     val uri: String,
     @ColumnInfo(name = "created_at")
     val createdAt: Long,
+    @ColumnInfo(name = "duration_ms")
+    val durationMs: Long? = null,
 )
 
 fun MessageAttachmentEntity.toDomain() = MessageAttachment(
@@ -43,6 +45,7 @@ fun MessageAttachmentEntity.toDomain() = MessageAttachment(
     mimeType = mimeType,
     uri = uri,
     createdAt = createdAt,
+    durationMs = durationMs,
 )
 
 fun MessageAttachment.toEntity() = MessageAttachmentEntity(
@@ -53,4 +56,5 @@ fun MessageAttachment.toEntity() = MessageAttachmentEntity(
     mimeType = mimeType,
     uri = uri,
     createdAt = createdAt,
+    durationMs = durationMs,
 )

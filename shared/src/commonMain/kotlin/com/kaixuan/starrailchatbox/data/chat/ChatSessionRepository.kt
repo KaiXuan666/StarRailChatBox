@@ -57,6 +57,7 @@ data class MessageAttachment(
     val mimeType: String,
     val uri: String,
     val createdAt: Long,
+    val durationMs: Long? = null,
 )
 
 data class ChatSummary(

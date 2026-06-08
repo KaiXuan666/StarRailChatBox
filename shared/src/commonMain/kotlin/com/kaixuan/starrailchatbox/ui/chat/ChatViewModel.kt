@@ -935,8 +935,8 @@ class ChatViewModel(
                 is SelectedAttachment.Voice -> {
                     val bytes = runCatching { readUriAsBytes(attachment.uri) }.getOrDefault(ByteArray(0))
                     if (bytes.isNotEmpty()) {
-                        val base64Url = "data:audio/wav;base64,${kotlin.io.encoding.Base64.encode(bytes)}"
-                        contentParts.add(AiContentPart.FileUrl(base64Url, "audio/wav"))
+                        val base64Url = "data:audio/m4a;base64,${kotlin.io.encoding.Base64.encode(bytes)}"
+                        contentParts.add(AiContentPart.FileUrl(base64Url, "audio/m4a"))
                     }
                 }
             }
@@ -1263,7 +1263,7 @@ class ChatViewModel(
                 "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 else -> "application/octet-stream"
             }
-            is SelectedAttachment.Voice -> "audio/wav"
+            is SelectedAttachment.Voice -> "audio/m4a"
         }
         return MessageAttachment(
             id = idGenerator("attachment"),
@@ -1273,6 +1273,7 @@ class ChatViewModel(
             mimeType = mimeType,
             uri = uri,
             createdAt = now,
+            durationMs = if (this is SelectedAttachment.Voice) durationMs else null,
         )
     }
 

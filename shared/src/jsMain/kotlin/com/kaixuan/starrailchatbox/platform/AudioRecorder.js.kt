@@ -20,7 +20,7 @@ class JsAudioRecorder : AudioRecorder {
         val duration = System.currentTimeMillis() - startTime
         if (cancel || duration < 800) return null
         return RecordResult(
-            uri = "builtin:voice_sample.wav",
+            uri = "builtin:voice_sample.m4a",
             durationMs = duration
         )
     }

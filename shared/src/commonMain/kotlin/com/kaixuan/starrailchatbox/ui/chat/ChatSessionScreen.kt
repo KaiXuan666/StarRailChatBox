@@ -56,6 +56,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -1004,32 +1005,42 @@ private fun ReceivedMessage(
                 modifier = Modifier.widthIn(max = bubbleMaxWidth),
                 verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
             ) {
-                Surface(
-                    shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    border = BorderStroke(
-                        1.dp,
-                        MaterialTheme.starRailColors.receivedBubbleBorder,
-                    ),
-                    shadowElevation = 1.dp,
-                ) {
-                    Column {
-                        if (text.isNotBlank()) {
-                            Text(
-                                text = text,
-                                modifier = Modifier.padding(
-                                    horizontal = if (compact) 12.dp else StarRailSpacing.md,
-                                    vertical = if (compact) 8.dp else StarRailSpacing.sm,
-                                ),
-                                color = MaterialTheme.colorScheme.onSurface,
-                                style = MaterialTheme.typography.bodyLarge,
+                val isVoiceOnly = text.isBlank() && message.attachments.size == 1 && message.attachments.first().mimeType.startsWith("audio/")
+                if (isVoiceOnly) {
+                    VoiceMessageBubble(
+                        durationMs = message.attachments.first().durationMs ?: 0L,
+                        compact = compact,
+                        isSent = false,
+                        onClick = { onOpenAttachment(message.attachments.first()) }
+                    )
+                } else {
+                    Surface(
+                        shape = MaterialTheme.shapes.large,
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.starRailColors.receivedBubbleBorder,
+                        ),
+                        shadowElevation = 1.dp,
+                    ) {
+                        Column {
+                            if (text.isNotBlank()) {
+                                Text(
+                                    text = text,
+                                    modifier = Modifier.padding(
+                                        horizontal = if (compact) 12.dp else StarRailSpacing.md,
+                                        vertical = if (compact) 8.dp else StarRailSpacing.sm,
+                                    ),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                )
+                            }
+                            MessageAttachments(
+                                attachments = message.attachments,
+                                onOpenAttachment = onOpenAttachment,
+                                compact = compact,
                             )
                         }
-                        MessageAttachments(
-                            attachments = message.attachments,
-                            onOpenAttachment = onOpenAttachment,
-                            compact = compact,
-                        )
                     }
                 }
                 Row(
@@ -1088,32 +1099,42 @@ private fun SentMessage(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
             ) {
-                Surface(
-                    shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    border = BorderStroke(
-                        1.dp,
-                        MaterialTheme.starRailColors.sentBubbleBorder,
-                    ),
-                    shadowElevation = 1.dp,
-                ) {
-                    Column(horizontalAlignment = Alignment.End) {
-                        if (text.isNotBlank()) {
-                            Text(
-                                text = text,
-                                modifier = Modifier.padding(
-                                    horizontal = if (compact) 12.dp else StarRailSpacing.md,
-                                    vertical = if (compact) 8.dp else StarRailSpacing.sm,
-                                ),
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                style = MaterialTheme.typography.bodyLarge,
+                val isVoiceOnly = text.isBlank() && message.attachments.size == 1 && message.attachments.first().mimeType.startsWith("audio/")
+                if (isVoiceOnly) {
+                    VoiceMessageBubble(
+                        durationMs = message.attachments.first().durationMs ?: 0L,
+                        compact = compact,
+                        isSent = true,
+                        onClick = { onOpenAttachment(message.attachments.first()) }
+                    )
+                } else {
+                    Surface(
+                        shape = MaterialTheme.shapes.large,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.starRailColors.sentBubbleBorder,
+                        ),
+                        shadowElevation = 1.dp,
+                    ) {
+                        Column(horizontalAlignment = Alignment.End) {
+                            if (text.isNotBlank()) {
+                                Text(
+                                    text = text,
+                                    modifier = Modifier.padding(
+                                        horizontal = if (compact) 12.dp else StarRailSpacing.md,
+                                        vertical = if (compact) 8.dp else StarRailSpacing.sm,
+                                    ),
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                )
+                            }
+                            MessageAttachments(
+                                attachments = message.attachments,
+                                onOpenAttachment = onOpenAttachment,
+                                compact = compact,
                             )
                         }
-                        MessageAttachments(
-                            attachments = message.attachments,
-                            onOpenAttachment = onOpenAttachment,
-                            compact = compact,
-                        )
                     }
                 }
                 Row(
@@ -1196,6 +1217,87 @@ private fun MessageAttachments(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
             )
+        }
+    }
+}
+
+@Composable
+private fun VoiceMessageBubble(
+    durationMs: Long,
+    compact: Boolean,
+    isSent: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val durationSec = (durationMs / 1000).coerceAtLeast(1)
+    // 根据时长调整气泡宽度，模仿语音气泡效果
+    val minWidth = if (compact) 80.dp else 100.dp
+    val maxWidth = if (compact) 160.dp else 200.dp
+    val bubbleWidth = (minWidth + (maxWidth - minWidth) * (durationSec.toFloat() / 60f).coerceAtMost(1f))
+
+    val backgroundColor = if (isSent) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerHigh
+    }
+
+    val contentColor = if (isSent) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
+    val borderColor = if (isSent) {
+        MaterialTheme.starRailColors.sentBubbleBorder
+    } else {
+        MaterialTheme.starRailColors.receivedBubbleBorder
+    }
+
+    Surface(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.large,
+        color = backgroundColor,
+        border = BorderStroke(1.dp, borderColor),
+        shadowElevation = 1.dp,
+        modifier = modifier.width(bubbleWidth)
+    ) {
+        Row(
+            modifier = Modifier.padding(
+                horizontal = if (compact) 12.dp else StarRailSpacing.md,
+                vertical = if (compact) 8.dp else StarRailSpacing.sm,
+            ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = if (isSent) Arrangement.End else Arrangement.Start
+        ) {
+            if (isSent) {
+                Text(
+                    text = "${durationSec}\"",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = contentColor
+                )
+                Spacer(Modifier.width(StarRailSpacing.xs))
+                StarRailIcon(
+                    kind = StarRailIconKind.VOICE_WAVE,
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier
+                        .size(if (compact) 18.dp else 22.dp)
+                        .graphicsLayer { rotationY = 180f }
+                )
+            } else {
+                StarRailIcon(
+                    kind = StarRailIconKind.VOICE_WAVE,
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(if (compact) 18.dp else 22.dp)
+                )
+                Spacer(Modifier.width(StarRailSpacing.xs))
+                Text(
+                    text = "${durationSec}\"",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = contentColor
+                )
+            }
         }
     }
 }
@@ -1924,6 +2026,25 @@ private val chatPreviewState = ChatUiState(
                         "那就先放松一下吧。你已经很努力了，剩下的时间留给自己。",
                     ),
                     senderId = "builtin:流萤",
+                ),
+                ChatMessageUiModel.Sent(
+                    id = "preview-user-voice",
+                    timestamp = "10:26",
+                    createdAt = 1715832360000L,
+                    content = MessageContent.Custom(""),
+                    isRead = true,
+                    attachments = listOf(
+                        MessageAttachment(
+                            id = "voice-1",
+                            messageId = "preview-user-voice",
+                            name = "voice.m4a",
+                            size = 0,
+                            mimeType = "audio/m4a",
+                            uri = "",
+                            createdAt = 1715832360000L,
+                            durationMs = 2000L
+                        )
+                    )
                 ),
             ),
             messageDraft = "想听你讲一个星空下的故事",

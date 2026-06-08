@@ -52,6 +52,7 @@ enum class StarRailIconKind {
     GALLERY,
     CLOSE,
     KEYBOARD,
+    VOICE_WAVE,
 }
 
 @Composable
@@ -96,6 +97,35 @@ fun StarRailIcon(
                         cap = StrokeCap.Round,
                     )
                 }
+            }
+
+            StarRailIconKind.VOICE_WAVE -> {
+                // Dot
+                drawCircle(
+                    color = tint,
+                    radius = side * 0.06f,
+                    center = point(0.3f, 0.5f)
+                )
+                // First wave
+                drawArc(
+                    color = tint,
+                    startAngle = -60f,
+                    sweepAngle = 120f,
+                    useCenter = false,
+                    topLeft = point(0.1f, 0.3f),
+                    size = Size(side * 0.4f, side * 0.4f),
+                    style = stroke
+                )
+                // Second wave
+                drawArc(
+                    color = tint,
+                    startAngle = -60f,
+                    sweepAngle = 120f,
+                    useCenter = false,
+                    topLeft = point(-0.1f, 0.1f),
+                    size = Size(side * 0.8f, side * 0.8f),
+                    style = stroke
+                )
             }
 
             StarRailIconKind.PROFILE -> {
