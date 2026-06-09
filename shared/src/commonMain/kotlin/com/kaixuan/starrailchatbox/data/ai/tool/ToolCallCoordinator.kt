@@ -302,7 +302,8 @@ class ToolCallCoordinator(
     companion object {
         private val CommonFallbackInstruction = """
             <metadata_block_contract>
-            你需要在回复的正文结束后另起一行，输出且只输出一个或多个特定工具的元数据块。
+            你需要在回复的正文结束后另起一行，输出一个或多个特定工具的元数据块。
+            你可以同时输出多个工具的元数据块。
 
             通用强制规则：
             - 每个元数据块必须是整条回复的最后一部分，不能省略、改名或放进 Markdown 代码块。
