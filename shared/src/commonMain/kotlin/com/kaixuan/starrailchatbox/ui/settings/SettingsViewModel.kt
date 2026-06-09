@@ -13,6 +13,7 @@ import com.kaixuan.starrailchatbox.data.model.VoiceCloneModelConfig
 import com.kaixuan.starrailchatbox.data.model.VoiceModelConfig
 import com.kaixuan.starrailchatbox.data.settings.ApiSettingsDefaults
 import com.kaixuan.starrailchatbox.data.settings.localApiSettingsDefaults
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
@@ -40,46 +41,52 @@ class SettingsViewModel(
             val mmSettings = modelConfigRepository.getMultimodal()
             val voiceSettings = modelConfigRepository.getVoice()
             val voiceCloneSettings = modelConfigRepository.getVoiceClone()
+            Napier.d { "settings=$settings" }
+            Napier.d { "mmSettings=$mmSettings" }
             _uiState.update { state ->
-                val selectedModel = settings?.modelName.orEmpty()
-                val mmSelectedModel = mmSettings?.modelName.orEmpty()
-                val voiceSelectedModel = voiceSettings?.modelName.orEmpty()
-                val voiceSelectedCloneModel = voiceCloneSettings?.modelName.orEmpty()
+                // 1. 统一空状态判定标准（顺便修复上一轮提到的 Blank/Empty 潜在 Bug）
+                val isConfigured = !settings?.baseUrl.isNullOrBlank()
+
+                // 2. 提取 Host 提取逻辑
+                fun String?.resolveHost(fallbackHost: String) =
+                    this?.takeIf(String::isNotBlank)
+                        ?: defaultApiSettings.apiHost.takeIf { !isConfigured }
+                        ?: fallbackHost
+
+                // 3. 提取 Key 提取逻辑
+                fun String?.resolveKey() =
+                    this?.takeIf(String::isNotBlank)
+                        ?: defaultApiSettings.apiKey.takeIf { !isConfigured }
+                        ?: ""
+
+                // 4. 提取 Model 列表过滤逻辑
+                fun createModelList(vararg models: String?) =
+                    models.mapNotNull { it?.takeIf(String::isNotBlank) }.distinct()
+
+                val model = settings?.modelName.orEmpty()
+                val mmModel = mmSettings?.modelName.orEmpty()
+                val voiceModel = voiceSettings?.modelName.orEmpty()
+                val voiceCloneModel = voiceCloneSettings?.modelName.orEmpty()
 
                 state.copy(
-                    apiHost = settings?.baseUrl
-                        ?.takeIf(String::isNotBlank)
-                        ?: defaultApiSettings.apiHost.takeIf(String::isNotBlank)
-                        ?: state.apiHost,
-                    apiKey = settings?.apiKey
-                        ?.takeIf(String::isNotBlank)
-                        ?: defaultApiSettings.apiKey,
-                    selectedModel = selectedModel,
-                    modelsList = listOfNotNull(selectedModel.takeIf(String::isNotBlank)),
+                    // 标准模型配置
+                    apiHost = settings?.baseUrl.resolveHost(state.apiHost),
+                    apiKey = settings?.apiKey.resolveKey(),
+                    selectedModel = model,
+                    modelsList = createModelList(model),
 
-                    multimodalApiHost = mmSettings?.baseUrl
-                        ?.takeIf(String::isNotBlank)
-                        ?: defaultApiSettings.apiHost.takeIf(String::isNotBlank)
-                        ?: state.multimodalApiHost,
-                    multimodalApiKey = mmSettings?.apiKey
-                        ?.takeIf(String::isNotBlank)
-                        ?: defaultApiSettings.apiKey,
-                    multimodalSelectedModel = mmSelectedModel,
-                    multimodalModelsList = listOfNotNull(mmSelectedModel.takeIf(String::isNotBlank)),
+                    // 多模态模型配置
+                    multimodalApiHost = mmSettings?.baseUrl.resolveHost(state.multimodalApiHost),
+                    multimodalApiKey = mmSettings?.apiKey.resolveKey(),
+                    multimodalSelectedModel = mmModel,
+                    multimodalModelsList = createModelList(mmModel),
 
-                    voiceApiHost = voiceSettings?.baseUrl
-                        ?.takeIf(String::isNotBlank)
-                        ?: defaultApiSettings.apiHost.takeIf(String::isNotBlank)
-                        ?: state.voiceApiHost,
-                    voiceApiKey = voiceSettings?.apiKey
-                        ?.takeIf(String::isNotBlank)
-                        ?: defaultApiSettings.apiKey,
-                    voiceSelectedModel = voiceSelectedModel,
-                    voiceSelectedCloneModel = voiceSelectedCloneModel,
-                    voiceModelsList = listOfNotNull(
-                        voiceSelectedModel.takeIf(String::isNotBlank),
-                        voiceSelectedCloneModel.takeIf(String::isNotBlank)
-                    ).distinct(),
+                    // 语音模型配置
+                    voiceApiHost = voiceSettings?.baseUrl.resolveHost(state.voiceApiHost),
+                    voiceApiKey = voiceSettings?.apiKey.resolveKey(),
+                    voiceSelectedModel = voiceModel,
+                    voiceSelectedCloneModel = voiceCloneModel,
+                    voiceModelsList = createModelList(voiceModel, voiceCloneModel)
                 )
             }
         }

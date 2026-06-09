@@ -4,6 +4,7 @@ package com.kaixuan.starrailchatbox.data.settings
 
 import dev.whyoleg.cryptography.CryptographyProvider
 import dev.whyoleg.cryptography.algorithms.AES
+import io.github.aakira.napier.Napier
 import kotlin.io.encoding.Base64
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -31,26 +32,33 @@ class ApiKeyCipher(
 
     suspend fun decrypt(value: String): String {
         if (value.isEmpty()) return ""
-        val encodedCiphertext = value.substringAfter(
-            delimiter = "$CiphertextVersion:",
-            missingDelimiterValue = "",
-        )
-        require(encodedCiphertext.isNotEmpty()) {
-            "Unsupported encrypted API key format"
-        }
+        try {
+            val encodedCiphertext = value.substringAfter(
+                delimiter = "$CiphertextVersion:",
+                missingDelimiterValue = "",
+            )
+            require(encodedCiphertext.isNotEmpty()) {
+                "Unsupported encrypted API key format"
+            }
 
-        val rawKey = requireNotNull(keyStore.load()) {
-            "API key encryption key is unavailable"
+            val rawKey = requireNotNull(keyStore.load()) {
+                "API key encryption key is unavailable"
+            }
+            val key = CryptographyProvider.Default
+                .get(AES.GCM)
+                .keyDecoder()
+                .decodeFromByteArray(AES.Key.Format.RAW, rawKey)
+            val plaintext = key.cipher().decrypt(
+                ciphertext = Base64.decode(encodedCiphertext),
+                associatedData = AssociatedData,
+            )
+            Napier.e { "ApiKeyCipher plaintext=${plaintext} decodeToString=${plaintext.decodeToString()}" }
+            return plaintext.decodeToString()
+        } catch (e: Exception) {
+            Napier.e { "ApiKeyCipher e=${e.message}" }
+            e.printStackTrace()
         }
-        val key = CryptographyProvider.Default
-            .get(AES.GCM)
-            .keyDecoder()
-            .decodeFromByteArray(AES.Key.Format.RAW, rawKey)
-        val plaintext = key.cipher().decrypt(
-            ciphertext = Base64.decode(encodedCiphertext),
-            associatedData = AssociatedData,
-        )
-        return plaintext.decodeToString()
+        return ""
     }
 
     private suspend fun loadOrCreateKey(): AES.GCM.Key = keyMutex.withLock {

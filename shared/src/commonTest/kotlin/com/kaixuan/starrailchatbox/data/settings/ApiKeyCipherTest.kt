@@ -35,18 +35,18 @@ class ApiKeyCipherTest {
         val otherCipher = ApiKeyCipher(InMemoryEncryptionKeyStore())
         otherCipher.encrypt("initialize-different-key")
 
-        assertEquals("请重新配置API", otherCipher.decrypt(encrypted))
+        assertEquals("", otherCipher.decrypt(encrypted))
     }
 
     @Test
-    fun returnsPromptWhenDecryptionFails() = runTest {
+    fun returnsEmptyWhenDecryptionFails() = runTest {
         val cipher = ApiKeyCipher(InMemoryEncryptionKeyStore())
         // Invalid format
-        assertEquals("请重新配置API", cipher.decrypt("v1:"))
+        assertEquals("", cipher.decrypt("v1:"))
         // Invalid version
-        assertEquals("请重新配置API", cipher.decrypt("v2:some-data"))
+        assertEquals("", cipher.decrypt("v2:some-data"))
         // Invalid base64
-        assertEquals("请重新配置API", cipher.decrypt("v1:???"))
+        assertEquals("", cipher.decrypt("v1:???"))
     }
 
     @Test
