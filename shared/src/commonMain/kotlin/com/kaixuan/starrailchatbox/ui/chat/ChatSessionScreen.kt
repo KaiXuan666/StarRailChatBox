@@ -306,7 +306,7 @@ fun ChatSessionScreen(
                             }
                         }
                     }
-                },
+                }
             )
         }
 
@@ -395,6 +395,9 @@ fun ChatSessionScreen(
                                         } else {
                                             uriHandler.openUri(attachment.uri)
                                         }
+                                    },
+                                    onAvatarClick = {
+                                        onMainAction(MainAction.NavigateTo(Route.ConversationManagement))
                                     }
                                 )
                             }
@@ -431,10 +434,10 @@ fun ChatSessionScreen(
                                 coroutineScope.launch {
                                     if (isAtTop) {
                                         // 如果在顶部，点击滚动到底部 (index 0)
-                                        pageListState.animateScrollToItem(0)
+                                        pageListState.scrollToItem(0)
                                     } else {
                                         // 否则滚动到顶部 (最后一个 item)
-                                        pageListState.animateScrollToItem(pageListState.layoutInfo.totalItemsCount - 1)
+                                        pageListState.scrollToItem(pageListState.layoutInfo.totalItemsCount - 1)
                                     }
                                 }
                             },
@@ -586,6 +589,9 @@ private fun ChatHeader(
             character = selectedCharacter,
             modifier = Modifier.weight(1f),
             compact = compact,
+            onAvatarClick = {
+                onMainAction(MainAction.NavigateTo(Route.ConversationManagement))
+            }
         )
         HeaderActions(
             characterId = selectedCharacter.id,
@@ -601,6 +607,7 @@ private fun ChatHeader(
 private fun CharacterSummary(
     character: Character,
     compact: Boolean,
+    onAvatarClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val name = character.name
@@ -609,12 +616,14 @@ private fun CharacterSummary(
         horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CharacterAvatar(
-            character = character,
-            size = if (compact) 72.dp else 88.dp,
-            selected = true,
-            contentDescription = name,
-        )
+        Box(modifier = Modifier.clickable { onAvatarClick() }) {
+            CharacterAvatar(
+                character = character,
+                size = if (compact) 72.dp else 88.dp,
+                selected = true,
+                contentDescription = name,
+            )
+        }
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
@@ -963,6 +972,7 @@ private fun MessageItem(
     playingAudioUri: String?,
     onViewAttachments: (List<MessageAttachment>) -> Unit,
     onOpenAttachment: (MessageAttachment) -> Unit,
+    onAvatarClick: () -> Unit,
 ) {
     when (message) {
         is ChatMessageUiModel.Received -> ReceivedMessage(
@@ -972,6 +982,7 @@ private fun MessageItem(
             playingAudioUri = playingAudioUri,
             onViewAttachments = onViewAttachments,
             onOpenAttachment = onOpenAttachment,
+            onAvatarClick = onAvatarClick,
         )
         is ChatMessageUiModel.Sent -> SentMessage(
             message = message,
@@ -992,6 +1003,7 @@ private fun ReceivedMessage(
     playingAudioUri: String?,
     onViewAttachments: (List<MessageAttachment>) -> Unit,
     onOpenAttachment: (MessageAttachment) -> Unit,
+    onAvatarClick: () -> Unit,
 ) {
     val text = message.content.resolve()
     val senderName = sender?.name ?: message.senderId
@@ -1021,12 +1033,14 @@ private fun ReceivedMessage(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (sender != null) {
-                        CharacterAvatar(
-                            character = sender,
-                            size = if (compact) 40.dp else 44.dp,
-                            selected = true,
-                            contentDescription = null,
-                        )
+                        Box(modifier = Modifier.clickable { onAvatarClick() }) {
+                            CharacterAvatar(
+                                character = sender,
+                                size = if (compact) 40.dp else 44.dp,
+                                selected = true,
+                                contentDescription = null,
+                            )
+                        }
                     }
                     VoiceMessageBubble(
                         durationMs = voiceAttachment.durationMs ?: 0L,
@@ -1058,12 +1072,14 @@ private fun ReceivedMessage(
                 verticalAlignment = Alignment.Top,
             ) {
                 if (sender != null) {
-                    CharacterAvatar(
-                        character = sender,
-                        size = if (compact) 40.dp else 44.dp,
-                        selected = true,
-                        contentDescription = null,
-                    )
+                    Box(modifier = Modifier.clickable { onAvatarClick() }) {
+                        CharacterAvatar(
+                            character = sender,
+                            size = if (compact) 40.dp else 44.dp,
+                            selected = true,
+                            contentDescription = null,
+                        )
+                    }
                 }
                 Column(
                     modifier = Modifier.widthIn(max = bubbleMaxWidth),
@@ -2253,6 +2269,8 @@ fun CharacterChatScreen(
     val character = remember(charactersState.characters, characterId) {
         charactersState.characters.firstOrNull { it.id == characterId }
     } ?: return
+    
+    // ... (保持现有逻辑)
 
     val pageState = state.characterStates[characterId] ?: CharacterChatState()
 
@@ -2424,6 +2442,9 @@ fun CharacterChatScreen(
                                             } else {
                                                 uriHandler.openUri(attachment.uri)
                                             }
+                                        },
+                                        onAvatarClick = {
+                                            onMainAction(MainAction.NavigateTo(Route.ConversationManagement))
                                         }
                                     )
                                 }
@@ -2448,9 +2469,9 @@ fun CharacterChatScreen(
                                 onClick = {
                                     coroutineScope.launch {
                                         if (isAtTop) {
-                                            pageListState.animateScrollToItem(0)
+                                            pageListState.scrollToItem(0)
                                         } else {
-                                            pageListState.animateScrollToItem(pageListState.layoutInfo.totalItemsCount - 1)
+                                            pageListState.scrollToItem(pageListState.layoutInfo.totalItemsCount - 1)
                                         }
                                     }
                                 },
@@ -2549,6 +2570,9 @@ private fun CharacterChatHeader(
                 character = selectedCharacter,
                 modifier = Modifier.weight(1f),
                 compact = compact,
+                onAvatarClick = {
+                    onMainAction(MainAction.NavigateTo(Route.ConversationManagement))
+                }
             )
             HeaderActions(
                 characterId = selectedCharacter.id,
