@@ -153,6 +153,10 @@ class RoomChatSessionRepository(
         val now = Clock.System.now().toEpochMilliseconds()
         sessionDao.updateTitle(sessionId, title, now)
     }
+
+    override suspend fun deleteFailedMessages(sessionId: String) {
+        messageDao.deleteFailedMessages(sessionId)
+    }
 }
 
 private fun NewChatSession.toEntity(message: NewChatMessage) = ChatSessionEntity(

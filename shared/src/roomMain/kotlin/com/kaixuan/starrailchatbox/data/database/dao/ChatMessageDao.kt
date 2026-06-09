@@ -35,4 +35,7 @@ interface ChatMessageDao {
 
     @Query("UPDATE chat_message SET deleted_at = :deletedAt, updated_at = :deletedAt WHERE id = :id")
     suspend fun softDelete(id: String, deletedAt: Long): Int
+
+    @Query("DELETE FROM chat_message WHERE session_id = :sessionId AND status = 'failed'")
+    suspend fun deleteFailedMessages(sessionId: String): Int
 }

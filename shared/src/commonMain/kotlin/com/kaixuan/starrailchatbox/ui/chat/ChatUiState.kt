@@ -9,6 +9,10 @@ sealed interface MessageContent {
     data class Custom(val text: String) : MessageContent
 }
 
+enum class MessageStatus {
+    SENDING, SENT, FAILED
+}
+
 @Immutable
 sealed interface ChatMessageUiModel {
     val id: String
@@ -32,6 +36,7 @@ sealed interface ChatMessageUiModel {
         override val createdAt: Long,
         override val content: MessageContent,
         val isRead: Boolean,
+        val status: MessageStatus = MessageStatus.SENT,
         override val attachments: List<MessageAttachment> = emptyList(),
     ) : ChatMessageUiModel
 }

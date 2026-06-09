@@ -225,6 +225,36 @@ class ChatViewModel(
             is ChatAction.OpenAttachment -> {
                 // 已经在 UI 层通过 LocalUriHandler 处理了，ViewModel 暂时不需要处理
             }
+            is ChatAction.RetrySendMessage -> retrySendMessage(action.messageId)
+        }
+    }
+
+    private fun retrySendMessage(messageId: String) {
+        val state = uiState.value
+        val characterId = state.selectedCharacterId ?: return
+        val characterState = state.characterStates[characterId] ?: return
+        val character = state.selectedCharacter ?: return
+        if (characterState.isSending) return
+
+        val messageToRetry = characterState.messages.find { it.id == messageId } as? ChatMessageUiModel.Sent ?: return
+
+        viewModelScope.launch {
+            val sessionId = characterState.activeSessionId ?: return@launch
+            chatSessionRepository.deleteFailedMessages(sessionId)
+
+            val session = chatSessionRepository.findSession(sessionId) ?: return@launch
+
+            updateCharacterState(characterId) { it.copy(isSending = true) }
+            try {
+                performChatRequest(character, session)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (e: Throwable) {
+                Napier.e("Retry message failed", e)
+                emitMessage(EffectMessage.CHAT_REQUEST_FAILED)
+            } finally {
+                updateCharacterState(characterId) { it.copy(isSending = false) }
+            }
         }
     }
 
@@ -674,7 +704,11 @@ class ChatViewModel(
                 )
             }
             chatSessionRepository.observeMessages(session.id).collect { messages ->
-                val uiModels = messages.toUiModels(characterId, timeFormatter)
+                val uiModels = messages.toUiModels(
+                    characterId = characterId,
+                    timeFormatter = timeFormatter,
+                    isSending = uiState.value.characterStates[characterId]?.isSending ?: false
+                )
                 val lastMsg = messages.lastOrNull()
                 val suggestions = if (lastMsg != null && lastMsg.role == ChatRole.ASSISTANT && lastMsg.status == ChatMessageStatus.COMPLETED) {
                     lastMsg.suggestions
@@ -845,17 +879,94 @@ class ChatViewModel(
         attachments: List<SelectedAttachment> = emptyList(),
     ) {
         val previousSession = activeSession
-        var context = previousSession?.let {
-            chatSessionRepository.findContext(
-                sessionId = it.id,
-                maxHistoryMessageCount = null,
-            )
-        } ?: ChatContextSnapshot(summary = null, messages = emptyList())
+        val now = currentTimeMillis()
 
-        val hasCurrentMultimodalAttachment = attachments.any {
-            it is SelectedAttachment.Image || it is SelectedAttachment.Voice || (!enableFileAppend && it is SelectedAttachment.File)
+        val fullCharacter = characterRepository.getCharacter(character.id) ?: character
+        val session = previousSession ?: NewChatSession(
+            id = idGenerator("session"),
+            title = sessionTitleProvider(),
+            agentId = character.id,
+            modelConfigId = null, // Will be updated if config is known
+            systemPromptSnapshot = fullCharacter.prompt,
+            maxContextMessageCount = null,
+            createdAt = now,
+        ).let { newSession ->
+            val userMessageId = idGenerator("message")
+            val domainAttachments = attachments.map {
+                it.toMessageAttachment(userMessageId, now)
+            }
+            val userMessage = NewChatMessage(
+                id = userMessageId,
+                sessionId = newSession.id,
+                role = ChatRole.USER,
+                content = content,
+                status = ChatMessageStatus.COMPLETED,
+                modelConfigId = null,
+                modelNameSnapshot = null,
+                createdAt = now,
+                attachments = domainAttachments,
+            )
+            val openingMessage = fullCharacter.openingMessage
+                .takeIf(String::isNotBlank)
+                ?.let {
+                    NewChatMessage(
+                        id = idGenerator("message"),
+                        sessionId = newSession.id,
+                        role = ChatRole.ASSISTANT,
+                        content = it,
+                        status = ChatMessageStatus.COMPLETED,
+                        modelConfigId = null,
+                        modelNameSnapshot = null,
+                        createdAt = now,
+                    )
+                }
+            val initialMessages = listOfNotNull(openingMessage, userMessage)
+            chatSessionRepository.createSessionWithMessages(newSession, initialMessages)
+            newSession.toDomain(lastMessageAt = now).also {
+                activeSession = it
+                observeCreatedSession(it, character.id)
+            }
         }
-        val hasHistoryMultimodalAttachment = context.messages.any { msg ->
+
+        if (previousSession != null) {
+            val userMessageId = idGenerator("message")
+            val domainAttachments = attachments.map {
+                it.toMessageAttachment(userMessageId, now)
+            }
+            chatSessionRepository.appendMessage(
+                NewChatMessage(
+                    id = userMessageId,
+                    sessionId = session.id,
+                    role = ChatRole.USER,
+                    content = content,
+                    status = ChatMessageStatus.COMPLETED,
+                    modelConfigId = null,
+                    modelNameSnapshot = null,
+                    createdAt = now,
+                    attachments = domainAttachments,
+                ),
+            )
+        }
+
+        performChatRequest(character, session)
+    }
+
+    private suspend fun performChatRequest(
+        character: Character,
+        session: ChatSession,
+    ) {
+        val context = chatSessionRepository.findContext(
+            sessionId = session.id,
+            maxHistoryMessageCount = null,
+        )
+
+        val lastUserMessage = context.messages.lastOrNull { it.role == ChatRole.USER } ?: return
+        val history = context.messages.filter { it.seq < lastUserMessage.seq }
+
+        val hasCurrentMultimodalAttachment = lastUserMessage.attachments.any {
+            it.mimeType.startsWith("image/") || it.mimeType.startsWith("audio/") || !enableFileAppend
+        }
+        val hasHistoryMultimodalAttachment = history.any { msg ->
             msg.attachments.any { att ->
                 val isAiVoice = msg.role == ChatRole.ASSISTANT && att.mimeType.startsWith("audio/")
                 !isAiVoice && (att.mimeType.startsWith("image/") || att.mimeType.startsWith("audio/") || !enableFileAppend)
@@ -869,86 +980,28 @@ class ChatViewModel(
         } else {
             modelConfigRepository.getDefault()?.takeIf(ModelConfig::isUsable)
         }
-        val now = currentTimeMillis()
 
-        var userText = content
+        if (config == null) {
+            appendFailedAssistant(
+                session = session,
+                config = null,
+                errorCode = "model_config_required",
+                errorMessage = "A usable model configuration is required.",
+            )
+            emitMessage(EffectMessage.MODEL_CONFIG_REQUIRED)
+            return
+        }
+
+        val userText = lastUserMessage.content
         val contentParts = mutableListOf<AiContentPart>()
 
-        attachments.forEach { attachment ->
-            when (attachment) {
-                is SelectedAttachment.Image -> {
-                    val base64Url = if (attachment.uri.startsWith("data:")) {
-                        attachment.uri
-                    } else {
-                        val bytes = runCatching { readUriAsBytes(attachment.uri) }.getOrDefault(ByteArray(0))
-                        if (bytes.isNotEmpty()) {
-                            val ext = attachment.uri.substringAfterLast('.', "jpg").lowercase()
-                            val mimeType = when (ext) {
-                                "png" -> "image/png"
-                                "gif" -> "image/gif"
-                                "webp" -> "image/webp"
-                                else -> "image/jpeg"
-                            }
-                            "data:$mimeType;base64,${kotlin.io.encoding.Base64.encode(bytes)}"
-                        } else {
-                            null
-                        }
-                    }
-                    if (base64Url != null) {
-                        contentParts.add(AiContentPart.ImageUrl(base64Url))
-                    }
-                }
-                is SelectedAttachment.File -> {
-                    if (enableFileAppend) {
-                        val bytes = runCatching { readUriAsBytes(attachment.uri) }.getOrDefault(ByteArray(0))
-                        val fileText = if (bytes.isNotEmpty()) {
-                            try {
-                                bytes.decodeToString()
-                            } catch (_: Exception) {
-                                "[Binary File: ${attachment.name}]"
-                            }
-                        } else {
-                            "[Empty File: ${attachment.name}]"
-                        }
-                        userText += "\n\n[File: ${attachment.name}]\n$fileText\n[End File]"
-                    } else {
-                        val ext = attachment.name.substringAfterLast('.', "").lowercase()
-                        val mimeType = when (ext) {
-                            "txt" -> "text/plain"
-                            "kt" -> "text/plain"
-                            "java" -> "text/plain"
-                            "py" -> "text/plain"
-                            "js" -> "text/plain"
-                            "ts" -> "text/plain"
-                            "json" -> "application/json"
-                            "pdf" -> "application/pdf"
-                            "doc" -> "application/msword"
-                            "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                            "xls" -> "application/vnd.ms-excel"
-                            "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                            else -> "application/octet-stream"
-                        }
-                        val base64Url = if (attachment.uri.startsWith("data:")) {
-                            attachment.uri
-                        } else {
-                            val bytes = runCatching { readUriAsBytes(attachment.uri) }.getOrDefault(ByteArray(0))
-                            if (bytes.isNotEmpty()) {
-                                "data:$mimeType;base64,${kotlin.io.encoding.Base64.encode(bytes)}"
-                            } else {
-                                null
-                            }
-                        }
-                        if (base64Url != null) {
-                            contentParts.add(AiContentPart.FileUrl(base64Url, mimeType))
-                        }
-                    }
-                }
-                is SelectedAttachment.Voice -> {
-                    val bytes = runCatching { readUriAsBytes(attachment.uri) }.getOrDefault(ByteArray(0))
-                    if (bytes.isNotEmpty()) {
-                        val base64Url = "data:audio/m4a;base64,${kotlin.io.encoding.Base64.encode(bytes)}"
-                        contentParts.add(AiContentPart.FileUrl(base64Url, "audio/m4a"))
-                    }
+        lastUserMessage.attachments.forEach { attachment ->
+            if (enableFileAppend && (attachment.mimeType == "text/plain" || attachment.mimeType == "application/json")) {
+                // 文件内容已在发送时被拼接到 content 中，此处无需重复处理
+            } else {
+                val part = readAttachmentAsAiContentPart(attachment)
+                if (part != null) {
+                    contentParts.add(part)
                 }
             }
         }
@@ -964,133 +1017,29 @@ class ChatViewModel(
             null
         }
 
-        val fullCharacter = characterRepository.getCharacter(character.id) ?: character
-        val session = previousSession ?: NewChatSession(
-            id = idGenerator("session"),
-            title = sessionTitleProvider(),
-            agentId = character.id,
-            modelConfigId = config?.id,
-            systemPromptSnapshot = fullCharacter.prompt,
-            maxContextMessageCount = null,
-            createdAt = now,
-        ).let { newSession ->
-            val userMessageId = idGenerator("message")
-            val domainAttachments = attachments.map {
-                it.toMessageAttachment(userMessageId, now)
-            }
-            val userMessage = NewChatMessage(
-                id = userMessageId,
-                sessionId = newSession.id,
-                role = ChatRole.USER,
-                content = userText,
-                status = ChatMessageStatus.COMPLETED,
-                modelConfigId = config?.id,
-                modelNameSnapshot = config?.modelName,
-                createdAt = now,
-                attachments = domainAttachments,
-            )
-            val openingMessage = fullCharacter.openingMessage
-                .takeIf(String::isNotBlank)
-                ?.let {
-                    NewChatMessage(
-                        id = idGenerator("message"),
-                        sessionId = newSession.id,
-                        role = ChatRole.ASSISTANT,
-                        content = it,
-                        status = ChatMessageStatus.COMPLETED,
-                        modelConfigId = config?.id,
-                        modelNameSnapshot = config?.modelName,
-                        createdAt = now,
-                    )
-                }
-            val initialMessages = listOfNotNull(openingMessage, userMessage)
-            chatSessionRepository.createSessionWithMessages(newSession, initialMessages)
-            context = ChatContextSnapshot(
-                summary = null,
-                messages = openingMessage?.let {
-                    listOf(it.toStored(seq = 1))
-                }.orEmpty(),
-            )
-            newSession.toDomain(lastMessageAt = now).also {
-                activeSession = it
-                observeCreatedSession(it, character.id)
-            }
-        }
-        if (previousSession != null) {
-            val userMessageId = idGenerator("message")
-            val domainAttachments = attachments.map {
-                it.toMessageAttachment(userMessageId, now)
-            }
-            chatSessionRepository.appendMessage(
-                NewChatMessage(
-                    id = userMessageId,
-                    sessionId = session.id,
-                    role = ChatRole.USER,
-                    content = userText,
-                    status = ChatMessageStatus.COMPLETED,
-                    modelConfigId = config?.id,
-                    modelNameSnapshot = config?.modelName,
-                    createdAt = now,
-                    attachments = domainAttachments,
-                ),
-            )
-        }
-
-        if (config == null) {
-            appendFailedAssistant(
-                session = session,
-                config = null,
-                errorCode = "model_config_required",
-                errorMessage = "A usable model configuration is required.",
-            )
-            emitMessage(EffectMessage.MODEL_CONFIG_REQUIRED)
-            return
-        }
-
         val prompt = session.customSystemPrompt
             ?.takeIf(String::isNotBlank)
             ?: session.systemPromptSnapshot
 
-        val historyMessageParts = context.messages.associate { msg ->
+        val historyMessageParts = history.associate { msg ->
             msg.id to msg.attachments.mapNotNull { attachment ->
-                // 去掉 AI 发送的语音附件，保留文本 (文本在 buildChatContext 中处理)
                 if (msg.role == ChatRole.ASSISTANT && attachment.mimeType.startsWith("audio/")) {
                     return@mapNotNull null
                 }
-                if (attachment.uri.startsWith("data:")) {
-                    if (attachment.mimeType.startsWith("image/")) {
-                        AiContentPart.ImageUrl(attachment.uri)
-                    } else {
-                        AiContentPart.FileUrl(attachment.uri, attachment.mimeType)
-                    }
-                } else {
-                    val bytes = runCatching { readUriAsBytes(attachment.uri) }.getOrNull()
-                    if (bytes != null && bytes.isNotEmpty()) {
-                        val base64 = "data:${attachment.mimeType};base64,${kotlin.io.encoding.Base64.encode(bytes)}"
-                        if (attachment.mimeType.startsWith("image/")) {
-                            AiContentPart.ImageUrl(base64)
-                        } else {
-                            AiContentPart.FileUrl(base64, attachment.mimeType)
-                        }
-                    } else null
-                }
+                readAttachmentAsAiContentPart(attachment)
             }
         }.filterValues { it.isNotEmpty() }
 
         val requestMessages = buildChatContext(
             systemPrompt = prompt,
             summary = context.summary,
-            history = context.messages,
+            history = history,
             currentUserMessage = userText,
             maxHistoryMessageCount = session.maxContextMessageCount,
             currentUserMessageParts = messageParts,
             historyMessageParts = historyMessageParts,
         )
 
-        Napier.d("maxContextMessageCount: ${session.maxContextMessageCount}, summary: ${context.summary} content: $content, history size: ${context.messages.size}", tag = "sendMessage")
-        context.messages.forEach {
-            Napier.d(tag = "sendMessage") { "messages item=${it}" }
-        }
         when (val result = aiRepository.createChatCompletion(config, requestMessages, character.name, character.voiceSampleUri)) {
             is ApiResult.Success -> {
                 if (handleSuccess(session, config, result.value)) {
@@ -1100,7 +1049,6 @@ class ChatViewModel(
                         } catch (cancellation: CancellationException) {
                             throw cancellation
                         } catch (_: Throwable) {
-                            // Summary generation is best-effort and must not fail the chat request.
                         }
                     }
                     viewModelScope.launch {
@@ -1113,30 +1061,35 @@ class ChatViewModel(
                         } catch (cancellation: CancellationException) {
                             throw cancellation
                         } catch (_: Throwable) {
-                            // Title generation is best-effort and must not fail the chat request.
                         }
                     }
                 }
             }
-            is ApiResult.HttpError -> handleFailure(
-                session,
-                config,
-                "http_${result.statusCode}",
-                result.message,
-            )
-            is ApiResult.NetworkError -> handleFailure(
-                session,
-                config,
-                "network_error",
-                result.message,
-            )
-            is ApiResult.UnexpectedError -> handleFailure(
-                session,
-                config,
-                "unexpected_error",
-                result.message,
-            )
+            is ApiResult.HttpError -> handleFailure(session, config, "http_${result.statusCode}", result.message)
+            is ApiResult.NetworkError -> handleFailure(session, config, "network_error", result.message)
+            is ApiResult.UnexpectedError -> handleFailure(session, config, "unexpected_error", result.message)
         }
+    }
+
+    private suspend fun readAttachmentAsAiContentPart(attachment: MessageAttachment): AiContentPart? {
+        if (attachment.uri.startsWith("data:")) {
+            return if (attachment.mimeType.startsWith("image/")) {
+                AiContentPart.ImageUrl(attachment.uri)
+            } else {
+                AiContentPart.FileUrl(attachment.uri, attachment.mimeType)
+            }
+        } else {
+            val bytes = runCatching { readUriAsBytes(attachment.uri) }.getOrNull()
+            if (bytes != null && bytes.isNotEmpty()) {
+                val base64 = "data:${attachment.mimeType};base64,${kotlin.io.encoding.Base64.encode(bytes)}"
+                return if (attachment.mimeType.startsWith("image/")) {
+                    AiContentPart.ImageUrl(base64)
+                } else {
+                    AiContentPart.FileUrl(base64, attachment.mimeType)
+                }
+            }
+        }
+        return null
     }
 
     private fun observeCreatedSession(session: ChatSession, characterId: String) {
@@ -1167,9 +1120,9 @@ class ChatViewModel(
             } else {
                 emptyList()
             }
-            updateCharacterState(characterId) {
-                it.copy(
-                    messages = messages.toUiModels(characterId, timeFormatter),
+            updateCharacterState(characterId) { state ->
+                state.copy(
+                    messages = messages.toUiModels(characterId, timeFormatter, state.isSending),
                     suggestions = suggestions,
                     isLoadingSession = false,
                 )
@@ -1392,27 +1345,52 @@ private fun emptyGreeting(
 private fun List<StoredChatMessage>.toUiModels(
     characterId: String,
     timeFormatter: (Long) -> String,
+    isSending: Boolean = false,
 ): List<ChatMessageUiModel> {
-    return filter { it.status == ChatMessageStatus.COMPLETED }.map { message ->
+    val results = mutableListOf<ChatMessageUiModel>()
+
+    this.forEach { message ->
+        if (message.status == ChatMessageStatus.FAILED && message.role == ChatRole.ASSISTANT) {
+            // If this is a failed assistant message, mark the previous user message as failed
+            val last = results.lastOrNull()
+            if (last is ChatMessageUiModel.Sent) {
+                results[results.size - 1] = last.copy(status = MessageStatus.FAILED)
+            }
+            // We don't add the failed assistant message itself to UI
+            return@forEach
+        }
+
         when (message.role) {
-            ChatRole.USER -> ChatMessageUiModel.Sent(
-                id = message.id,
-                timestamp = timeFormatter(message.createdAt),
-                createdAt = message.createdAt,
-                content = MessageContent.Custom(message.content),
-                isRead = true,
-                attachments = message.attachments,
+            ChatRole.USER -> results.add(
+                ChatMessageUiModel.Sent(
+                    id = message.id,
+                    timestamp = timeFormatter(message.createdAt),
+                    createdAt = message.createdAt,
+                    content = MessageContent.Custom(message.content),
+                    isRead = true,
+                    status = MessageStatus.SENT,
+                    attachments = message.attachments,
+                )
             )
-            ChatRole.ASSISTANT -> ChatMessageUiModel.Received(
-                id = message.id,
-                timestamp = timeFormatter(message.createdAt),
-                createdAt = message.createdAt,
-                content = MessageContent.Custom(message.content),
-                senderId = characterId,
-                attachments = message.attachments,
+            ChatRole.ASSISTANT -> results.add(
+                ChatMessageUiModel.Received(
+                    id = message.id,
+                    timestamp = timeFormatter(message.createdAt),
+                    createdAt = message.createdAt,
+                    content = MessageContent.Custom(message.content),
+                    senderId = characterId,
+                    attachments = message.attachments,
+                )
             )
         }
     }
+
+    if (isSending && results.isNotEmpty() && results.last() is ChatMessageUiModel.Sent) {
+        val lastSent = results.last() as ChatMessageUiModel.Sent
+        results[results.size - 1] = lastSent.copy(status = MessageStatus.SENDING)
+    }
+
+    return results
 }
 
 private fun NewChatMessage.toStored(seq: Long) = StoredChatMessage(

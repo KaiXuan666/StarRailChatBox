@@ -164,6 +164,8 @@ interface ChatSessionRepository {
     suspend fun deleteSession(sessionId: String, deletedAt: Long)
 
     suspend fun updateSessionTitle(sessionId: String, title: String)
+
+    suspend fun deleteFailedMessages(sessionId: String)
 }
 
 class InMemoryChatSessionRepository : ChatSessionRepository {
@@ -295,6 +297,12 @@ class InMemoryChatSessionRepository : ChatSessionRepository {
                     it
                 }
             }
+        }
+    }
+
+    override suspend fun deleteFailedMessages(sessionId: String) {
+        messages.update { stored ->
+            stored.filterNot { it.sessionId == sessionId && it.status == ChatMessageStatus.FAILED }
         }
     }
 }

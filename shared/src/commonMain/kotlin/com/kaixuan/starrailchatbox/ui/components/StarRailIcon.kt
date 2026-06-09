@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
@@ -53,6 +54,7 @@ enum class StarRailIconKind {
     CLOSE,
     KEYBOARD,
     VOICE_WAVE,
+    RETRY,
 }
 
 @Composable
@@ -629,6 +631,65 @@ fun StarRailIcon(
                     }
                 }
                 drawLine(tint, point(0.35f, 0.75f), point(0.65f, 0.75f), strokeWidth)
+            }
+
+            StarRailIconKind.RETRY -> {
+                val path = Path()
+
+                val rect = androidx.compose.ui.geometry.Rect(
+                    left = size.width * 0.22f,
+                    top = size.height * 0.22f,
+                    right = size.width * 0.78f,
+                    bottom = size.height * 0.78f
+                )
+
+                val center = Offset(size.width * 0.5f, size.height * 0.5f)
+                val radius = rect.width / 2f
+
+                val startAngle = 35f
+                val sweepAngle = 285f
+                val endAngle = startAngle + sweepAngle
+
+                path.addArc(
+                    oval = rect,
+                    startAngleDegrees = startAngle,
+                    sweepAngleDegrees = sweepAngle
+                )
+
+                drawPath(path, tint, style = stroke)
+
+                fun pointOnCircle(angleDegrees: Float): Offset {
+                    val rad = angleDegrees * PI / 180.0
+                    return Offset(
+                        x = center.x + cos(rad).toFloat() * radius,
+                        y = center.y + sin(rad).toFloat() * radius
+                    )
+                }
+
+                val arrowTip = pointOnCircle(endAngle)
+
+                val tangentAngle = endAngle + 90f
+                val arrowLength = size.minDimension * 0.16f
+                val arrowSpread = 34f
+
+                fun arrowBackPoint(angleDegrees: Float): Offset {
+                    val rad = angleDegrees * PI / 180.0
+                    return Offset(
+                        x = arrowTip.x - cos(rad).toFloat() * arrowLength,
+                        y = arrowTip.y - sin(rad).toFloat() * arrowLength
+                    )
+                }
+
+                val arrowLeft = arrowBackPoint(tangentAngle - arrowSpread)
+                val arrowRight = arrowBackPoint(tangentAngle + arrowSpread)
+
+                path.reset()
+                path.moveTo(arrowTip.x, arrowTip.y)
+                path.lineTo(arrowLeft.x, arrowLeft.y)
+                path.moveTo(arrowTip.x, arrowTip.y)
+                path.lineTo(arrowRight.x, arrowRight.y)
+
+                drawPath(path, tint, style = stroke)
             }
         }
     }

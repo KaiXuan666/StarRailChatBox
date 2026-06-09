@@ -21,6 +21,7 @@ sealed interface ChatAction {
     data object VoiceRecordingStarted : ChatAction
     data class VoiceRecordingFinished(val uri: String, val durationMs: Long) : ChatAction
     data object VoiceRecordingCancelled : ChatAction
+    data class RetrySendMessage(val messageId: String) : ChatAction
 }
 
 enum class HeaderAction {

@@ -132,6 +132,7 @@ import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import starrailchatbox.shared.generated.resources.hold_to_speak
 import starrailchatbox.shared.generated.resources.release_to_send
 import starrailchatbox.shared.generated.resources.release_to_cancel
+import starrailchatbox.shared.generated.resources.retry
 
 import androidx.compose.runtime.DisposableEffect
 import com.kaixuan.starrailchatbox.platform.rememberAudioPlayer
@@ -398,7 +399,8 @@ fun ChatSessionScreen(
                                     },
                                     onAvatarClick = {
                                         onMainAction(MainAction.NavigateTo(Route.ConversationManagement))
-                                    }
+                                    },
+                                    onAction = onAction
                                 )
                             }
 
@@ -973,6 +975,7 @@ private fun MessageItem(
     onViewAttachments: (List<MessageAttachment>) -> Unit,
     onOpenAttachment: (MessageAttachment) -> Unit,
     onAvatarClick: () -> Unit,
+    onAction: (ChatAction) -> Unit,
 ) {
     when (message) {
         is ChatMessageUiModel.Received -> ReceivedMessage(
@@ -991,6 +994,7 @@ private fun MessageItem(
             playingAudioUri = playingAudioUri,
             onViewAttachments = onViewAttachments,
             onOpenAttachment = onOpenAttachment,
+            onAction = onAction,
         )
     }
 }
@@ -1148,6 +1152,7 @@ private fun SentMessage(
     playingAudioUri: String?,
     onViewAttachments: (List<MessageAttachment>) -> Unit,
     onOpenAttachment: (MessageAttachment) -> Unit,
+    onAction: (ChatAction) -> Unit,
 ) {
     val text = message.content.resolve()
     val semanticDescription = stringResource(
@@ -1214,14 +1219,12 @@ private fun SentMessage(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall,
                     )
-                    if (message.isRead) {
-                        StarRailIcon(
-                            kind = StarRailIconKind.CHECK,
-                            contentDescription = stringResource(Res.string.read_status),
-                            tint = MaterialTheme.starRailColors.successCheck,
-                            modifier = Modifier.size(16.dp),
-                        )
-                    }
+                    MessageStatusIcon(
+                        status = message.status,
+                        isRead = message.isRead,
+                        onRetry = { onAction(ChatAction.RetrySendMessage(message.id)) },
+                        modifier = Modifier.size(16.dp)
+                    )
                 }
             }
         } else {
@@ -1283,14 +1286,12 @@ private fun SentMessage(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodySmall,
                         )
-                        if (message.isRead) {
-                            StarRailIcon(
-                                kind = StarRailIconKind.CHECK,
-                                contentDescription = stringResource(Res.string.read_status),
-                                tint = MaterialTheme.starRailColors.successCheck,
-                                modifier = Modifier.size(16.dp),
-                            )
-                        }
+                        MessageStatusIcon(
+                            status = message.status,
+                            isRead = message.isRead,
+                            onRetry = { onAction(ChatAction.RetrySendMessage(message.id)) },
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
                 }
                 Spacer(Modifier.width(StarRailSpacing.sm))
@@ -2088,6 +2089,49 @@ private fun ComposerIconButton(
 }
 
 @Composable
+private fun MessageStatusIcon(
+    status: MessageStatus,
+    isRead: Boolean,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    when (status) {
+        MessageStatus.SENDING -> {
+            CircularProgressIndicator(
+                modifier = modifier.size(14.dp),
+                color = MaterialTheme.colorScheme.primary,
+                strokeWidth = 2.dp,
+            )
+        }
+        MessageStatus.FAILED -> {
+            Box(
+                modifier = modifier
+                    .size(16.dp)
+                    .clickable { onRetry() },
+                contentAlignment = Alignment.Center
+            ) {
+                StarRailIcon(
+                    kind = StarRailIconKind.RETRY,
+                    contentDescription = stringResource(Res.string.retry),
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(14.dp),
+                )
+            }
+        }
+        MessageStatus.SENT -> {
+            if (isRead) {
+                StarRailIcon(
+                    kind = StarRailIconKind.CHECK,
+                    contentDescription = stringResource(Res.string.read_status),
+                    tint = MaterialTheme.starRailColors.successCheck,
+                    modifier = modifier.size(16.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun MessageContent.resolve(): String = when (this) {
     is MessageContent.Custom -> text
 }
@@ -2445,7 +2489,8 @@ fun CharacterChatScreen(
                                         },
                                         onAvatarClick = {
                                             onMainAction(MainAction.NavigateTo(Route.ConversationManagement))
-                                        }
+                                        },
+                                        onAction = onAction
                                     )
                                 }
 
