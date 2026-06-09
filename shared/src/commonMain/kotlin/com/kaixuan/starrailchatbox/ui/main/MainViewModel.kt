@@ -81,6 +81,11 @@ class MainViewModel(private val settingsStore: AppSettingsStore) : ViewModel() {
                     MainSettingsItem.THEME_STYLE -> {
                         _uiState.update { it.copy(showThemeDialog = true) }
                     }
+                    MainSettingsItem.ABOUT_US -> {
+                        _uiState.update { state ->
+                            state.copy(backStack = state.backStack + Route.About)
+                        }
+                    }
                     else -> {
                         // 其它非核心主逻辑（更新检查、通知等）由 SettingsViewModel 处理
                     }

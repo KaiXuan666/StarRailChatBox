@@ -73,8 +73,6 @@ import starrailchatbox.shared.generated.resources.settings_voice_api_title
 import starrailchatbox.shared.generated.resources.settings_voice_api_desc
 import starrailchatbox.shared.generated.resources.settings_profile_desc
 import starrailchatbox.shared.generated.resources.settings_profile_title
-import starrailchatbox.shared.generated.resources.settings_notice_desc
-import starrailchatbox.shared.generated.resources.settings_notice_title
 import starrailchatbox.shared.generated.resources.settings_privacy_desc
 import starrailchatbox.shared.generated.resources.settings_privacy_title
 import starrailchatbox.shared.generated.resources.settings_theme_desc
@@ -164,15 +162,6 @@ fun SettingsScreen(
             }
         ),
         SettingsItemUiData(
-            item = SettingsItem.MESSAGE_NOTIFICATION,
-            iconKind = StarRailIconKind.BELL,
-            titleRes = Res.string.settings_notice_title,
-            descRes = Res.string.settings_notice_desc,
-            getColors = {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f) to MaterialTheme.colorScheme.primary
-            }
-        ),
-        SettingsItemUiData(
             item = SettingsItem.THEME_STYLE,
             iconKind = StarRailIconKind.PALETTE,
             titleRes = Res.string.settings_theme_title,
@@ -238,7 +227,12 @@ fun SettingsScreen(
                     SettingsItemRow(
                         data = itemData,
                         onClick = {
-                            if (itemData.item == SettingsItem.PROFILE || itemData.item == SettingsItem.API_SETTINGS || itemData.item == SettingsItem.MULTIMODAL_API_SETTINGS || itemData.item == SettingsItem.VOICE_API_SETTINGS || itemData.item == SettingsItem.THEME_STYLE) {
+                            if (itemData.item == SettingsItem.PROFILE || 
+                                itemData.item == SettingsItem.API_SETTINGS || 
+                                itemData.item == SettingsItem.MULTIMODAL_API_SETTINGS || 
+                                itemData.item == SettingsItem.VOICE_API_SETTINGS || 
+                                itemData.item == SettingsItem.THEME_STYLE ||
+                                itemData.item == SettingsItem.ABOUT_US) {
                                 onMainAction(MainAction.SettingsItemClicked(MainSettingsItem.valueOf(itemData.item.name)))
                             } else {
                                 onSettingsAction(SettingsAction.SettingsItemClicked(itemData.item))

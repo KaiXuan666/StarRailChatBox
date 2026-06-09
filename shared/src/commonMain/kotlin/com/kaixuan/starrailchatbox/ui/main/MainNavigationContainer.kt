@@ -131,6 +131,7 @@ import com.kaixuan.starrailchatbox.ui.navigation.Route
 import com.kaixuan.starrailchatbox.ui.navigation.entryProvider
 import com.kaixuan.starrailchatbox.ui.settings.ApiSettingsScreen
 import com.kaixuan.starrailchatbox.ui.settings.SettingsScreen
+import com.kaixuan.starrailchatbox.ui.settings.AboutScreen
 import com.kaixuan.starrailchatbox.ui.settings.SettingsAction
 import com.kaixuan.starrailchatbox.ui.settings.SettingsEffect
 import com.kaixuan.starrailchatbox.ui.settings.SettingsEffectMessage
@@ -507,6 +508,13 @@ fun MainNavigationContainer(
                             onAction = onProfileAction,
                         )
                     }
+                    entry<Route.About> {
+                        AboutScreen(
+                            contentPadding = contentPadding,
+                            compact = compact,
+                            onMainAction = onMainAction,
+                        )
+                    }
                     entry<Route.CharacterChat> { entry ->
                         CharacterChatScreen(
                             characterId = entry.characterId,
@@ -616,7 +624,7 @@ private fun MainNavigationBar(
     ) {
         navigationItems.forEach { item ->
             val selected = when (item.route) {
-                Route.Settings -> currentRoute == Route.Settings || currentRoute == Route.ApiSettings || currentRoute == Route.MultimodalApiSettings || currentRoute == Route.VoiceApiSettings
+                Route.Settings -> currentRoute == Route.Settings || currentRoute == Route.ApiSettings || currentRoute == Route.MultimodalApiSettings || currentRoute == Route.VoiceApiSettings || currentRoute == Route.About || currentRoute == Route.Profile
                 else -> item.route == currentRoute
             }
             val label = stringResource(item.label)
@@ -653,7 +661,7 @@ private fun MainNavigationRail(
         Spacer(Modifier.height(StarRailSpacing.lg))
         navigationItems.forEach { item ->
             val selected = when (item.route) {
-                Route.Settings -> currentRoute == Route.Settings || currentRoute == Route.ApiSettings || currentRoute == Route.MultimodalApiSettings || currentRoute == Route.VoiceApiSettings
+                Route.Settings -> currentRoute == Route.Settings || currentRoute == Route.ApiSettings || currentRoute == Route.MultimodalApiSettings || currentRoute == Route.VoiceApiSettings || currentRoute == Route.About || currentRoute == Route.Profile
                 else -> item.route == currentRoute
             }
             val label = stringResource(item.label)

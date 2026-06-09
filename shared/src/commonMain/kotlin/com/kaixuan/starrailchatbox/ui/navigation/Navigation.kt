@@ -37,6 +37,9 @@ sealed interface Route {
     // 个人信息二级界面 (挂载在“我的”页面之下)
     data object Profile : Route
 
+    // 关于界面 (挂载在“我的”页面之下)
+    data object About : Route
+
     // 某个特定角色的二级对话界面
     data class CharacterChat(val characterId: String) : Route
 }

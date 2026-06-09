@@ -129,8 +129,19 @@
     <string name="settings_notice_desc">管理消息提醒与通知方式</string>
     <string name="settings_theme_title">主题风格</string>
     <string name="settings_theme_desc">选择你喜欢的界面主题与风格</string>
-    <string name="settings_about_title">关于我们</string>
-    <string name="settings_about_desc">了解崩铁Chat Box与开发团队</string>
+    <string name="settings_about_title">关于</string>
+    <string name="settings_about_desc">了解崩铁Chat Box</string>
+    <string name="about_app_name">崩铁ChatBox</string>
+    <string name="about_description">基于 Kotlin Multiplatform + Compose Multiplatform 跨平台的崩铁角色 AI 聊天App，支持角色管理、多会话管理、上下文编排、自动总结、多模态支持、语音合成、音色模拟、快速回复等功能。</string>
+    <string name="about_disclaimer_title">免责声明</string>
+    <string name="about_disclaimer_content">本应用（崩铁ChatBox）是一款由玩家独立开发的同人/工具类应用程序。本应用与米哈游（miHoYo）或《崩坏：星穹铁道》（Honkai: Star Rail）官方团队无任何官方关联、赞助、授权或合作关系。\n应用中所涉及的游戏角色、文本、美术资产及相关知识产权，其版权均归属于米哈游或其权利人所有。本应用仅供粉丝交流与娱乐使用，请勿用于任何商业用途。</string>
+    <string name="about_donate_title">请作者喝杯咖啡</string>
+    <string name="about_donate_subtitle">如果这个项目对你有帮助，欢迎扫码支持。</string>
+    <string name="about_alipay">支付宝</string>
+    <string name="about_wechat_pay">微信支付</string>
+    <string name="about_alipay_tip">打开支付宝扫一扫</string>
+    <string name="about_wechat_pay_tip">打开微信扫一扫</string>
+    <string name="about_donate_footer">所有支付均为自愿支持，感谢你的鼓励与认可！</string>
     <string name="settings_privacy_title">隐私与安全</string>
     <string name="settings_privacy_desc">查看隐私政策与数据安全说明</string>
     
