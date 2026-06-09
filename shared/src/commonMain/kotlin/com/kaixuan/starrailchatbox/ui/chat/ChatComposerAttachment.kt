@@ -3,6 +3,7 @@ package com.kaixuan.starrailchatbox.ui.chat
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -22,9 +23,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
-import com.kaixuan.starrailchatbox.ui.components.AvatarImage
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import org.jetbrains.compose.resources.stringResource
@@ -125,8 +127,10 @@ fun SelectedAttachmentsArea(
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
             .padding(
-                horizontal = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                vertical = StarRailSpacing.xs,
+                start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                top = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                bottom = StarRailSpacing.xs,
             ),
         horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
         verticalAlignment = Alignment.CenterVertically,
@@ -149,36 +153,58 @@ fun AttachmentPreviewItem(
 ) {
     Box(
         modifier = Modifier
-            .size(if (compact) 56.dp else 64.dp)
+            .size(if (compact) 72.dp else 84.dp)
             .clip(MaterialTheme.shapes.medium)
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
     ) {
         when (attachment) {
             is SelectedAttachment.Image -> {
-                AvatarImage(
-                    avatarUri = attachment.uri,
+                AsyncImage(
+                    model = attachment.uri,
                     contentDescription = null,
-                    placeholderKind = StarRailIconKind.GALLERY,
-                    placeholderSize = 24.dp,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
                 )
             }
             is SelectedAttachment.File -> {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(StarRailSpacing.xs),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
                     StarRailIcon(
                         kind = StarRailIconKind.FILE,
                         contentDescription = attachment.name,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(if (compact) 28.dp else 32.dp)
+                    )
+                    Text(
+                        text = attachment.name,
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.basicMarquee()
                     )
                 }
             }
             is SelectedAttachment.Voice -> {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(StarRailSpacing.xs),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
                     StarRailIcon(
                         kind = StarRailIconKind.MICROPHONE,
                         contentDescription = attachment.name,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(if (compact) 28.dp else 32.dp)
+                    )
+                    Text(
+                        text = attachment.name,
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.basicMarquee()
                     )
                 }
             }
@@ -188,8 +214,8 @@ fun AttachmentPreviewItem(
             onClick = onRemove,
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(2.dp)
-                .size(16.dp),
+                .padding(4.dp)
+                .size(if (compact) 18.dp else 20.dp),
             shape = CircleShape,
             color = MaterialTheme.colorScheme.error,
             contentColor = MaterialTheme.colorScheme.onError,
@@ -199,7 +225,7 @@ fun AttachmentPreviewItem(
                     kind = StarRailIconKind.CLOSE,
                     contentDescription = "移除",
                     tint = MaterialTheme.colorScheme.onError,
-                    modifier = Modifier.size(10.dp)
+                    modifier = Modifier.size(if (compact) 12.dp else 14.dp)
                 )
             }
         }
