@@ -1,177 +1,64 @@
 package com.kaixuan.starrailchatbox.data.character
 
-import kotlin.io.encoding.Base64
-import kotlin.io.encoding.ExperimentalEncodingApi
-import kotlinx.browser.localStorage
+import io.github.xxfast.kstore.storage.storeOf
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
-fun createCharacterStorage(directoryPath: String? = null): CharacterStorage {
-    return BrowserCharacterStorage(directoryPath ?: "characters")
-}
-
-@OptIn(ExperimentalEncodingApi::class)
-private class BrowserCharacterStorage(
-    directoryName: String,
-) : CharacterStorage {
-    private val prefix = "starrailchatbox/$directoryName/"
-    private val initializedKey = "${prefix}.initialized"
-    private val namesKey = "${prefix}.names"
+class JsCharacterStorage : CharacterStorage {
+    private val kStore = storeOf<List<CharacterFiles>>(key = "characters")
 
     override suspend fun initializeDefaults(defaults: List<DefaultCharacterAsset>) {
-        if (localStorage.getItem(initializedKey) != null) return
-        defaults.forEachIndexed { index, it ->
-            val voiceSampleUri = it.voiceSampleContent?.let { bytes ->
-                "data:audio/mpeg;base64,${Base64.encode(bytes)}"
-            }
-            saveCharacter(
+        val current = kStore.get() ?: emptyList()
+        val missing = defaults.filter { d -> current.none { it.id == d.id } }
+        if (missing.isNotEmpty()) {
+            val newDefaults = missing.mapIndexed { index, d ->
                 CharacterFiles(
-                    id = it.id,
-                    name = it.name,
-                    prompt = it.prompt,
-                    openingMessage = it.openingMessage,
-                    avatarUri = "data:image/webp;base64,${Base64.encode(it.avatarContent)}",
-                    voiceSampleUri = voiceSampleUri,
-                    temperature = it.temperature,
-                    topP = it.topP,
-                    sortOrder = index,
-                ),
-                avatarSource = null,
-            )
+                    id = d.id,
+                    name = d.name,
+                    prompt = d.prompt,
+                    openingMessage = d.openingMessage,
+                    avatarUri = "data:image/webp;base64," + com.kaixuan.starrailchatbox.data.settings.encodeBase64(d.avatarContent),
+                    temperature = d.temperature,
+                    topP = d.topP,
+                    sortOrder = current.size + index
+                )
+            }
+            kStore.set(current + newDefaults)
         }
-        localStorage.setItem(initializedKey, "1")
     }
 
-    override suspend fun loadCharacters(): List<CharacterFiles> {
-        return loadNames().mapNotNull { id ->
-            val prompt = localStorage.getItem("$prefix$id.prompt")
-            val legacyPrompt = localStorage.getItem("$prefix$id.md")
-            val storedPrompt = prompt ?: legacyPrompt ?: return@mapNotNull null
-            val avatarUri = localStorage.getItem("$prefix$id.avatarUri")
-                ?: localStorage.getItem("$prefix$id.webp")?.let { "data:image/webp;base64,$it" }
-                ?: return@mapNotNull null
-            val name = localStorage.getItem("$prefix$id.name") ?: id
-            val openingMessage = localStorage.getItem("$prefix$id.opening").orEmpty()
-            val temperature = localStorage.getItem("$prefix$id.temperature")
-                ?.toDoubleOrNull()
-                ?: 0.85
-            val topP = localStorage.getItem("$prefix$id.topP")
-                ?.toDoubleOrNull()
-                ?: 0.9
-            val createdAt = localStorage.getItem("$prefix$id.createdAt")
-                ?.toLongOrNull()
-                ?: 0L
-            val sortOrder = localStorage.getItem("$prefix$id.sortOrder")
-                ?.toIntOrNull()
-                ?: 0
-            val voiceSampleUri = localStorage.getItem("$prefix$id.voiceSampleUri")
-            CharacterFiles(
-                id = id,
-                name = name,
-                prompt = (if (prompt != null) {
-                    storedPrompt
-                } else {
-                    Base64.decode(storedPrompt).decodeToString()
-                }).take(20),
-                openingMessage = openingMessage,
-                avatarUri = avatarUri,
-                voiceSampleUri = voiceSampleUri,
-                temperature = temperature,
-                topP = topP,
-                createdAt = createdAt,
-                sortOrder = sortOrder,
-            )
-        }.sortedWith(compareBy({ it.sortOrder }, { it.createdAt }))
-    }
+    override suspend fun loadCharacters(): List<CharacterFiles> = kStore.get() ?: emptyList()
 
-    override suspend fun getCharacter(id: String): CharacterFiles? {
-        val prompt = localStorage.getItem("$prefix$id.prompt")
-        val legacyPrompt = localStorage.getItem("$prefix$id.md")
-        val storedPrompt = prompt ?: legacyPrompt ?: return null
-        val avatarUri = localStorage.getItem("$prefix$id.avatarUri")
-            ?: localStorage.getItem("$prefix$id.webp")?.let { "data:image/webp;base64,$it" }
-            ?: return null
-        val name = localStorage.getItem("$prefix$id.name") ?: id
-        val openingMessage = localStorage.getItem("$prefix$id.opening").orEmpty()
-        val temperature = localStorage.getItem("$prefix$id.temperature")
-            ?.toDoubleOrNull()
-            ?: 0.85
-        val topP = localStorage.getItem("$prefix$id.topP")
-            ?.toDoubleOrNull()
-            ?: 0.9
-        val createdAt = localStorage.getItem("$prefix$id.createdAt")
-            ?.toLongOrNull()
-            ?: 0L
-        val sortOrder = localStorage.getItem("$prefix$id.sortOrder")
-            ?.toIntOrNull()
-            ?: 0
-        val voiceSampleUri = localStorage.getItem("$prefix$id.voiceSampleUri")
-        return CharacterFiles(
-            id = id,
-            name = name,
-            prompt = if (prompt != null) {
-                storedPrompt
-            } else {
-                Base64.decode(storedPrompt).decodeToString()
-            },
-            openingMessage = openingMessage,
-            avatarUri = avatarUri,
-            voiceSampleUri = voiceSampleUri,
-            temperature = temperature,
-            topP = topP,
-            createdAt = createdAt,
-            sortOrder = sortOrder,
-        )
-    }
+    override suspend fun getCharacter(id: String): CharacterFiles? = loadCharacters().find { it.id == id }
 
     override suspend fun saveCharacter(
         character: CharacterFiles,
-        avatarSource: CharacterAvatarSource?,
+        avatarSource: CharacterAvatarSource?
     ): CharacterFiles {
-        val existingSortOrder = localStorage.getItem("$prefix${character.id}.sortOrder")?.toIntOrNull()
-        val sortOrder = if (existingSortOrder != null) {
-            existingSortOrder
-        } else {
-            val maxSortOrder = loadCharacters().maxOfOrNull { it.sortOrder } ?: -1
-            maxSortOrder + 1
+        val avatarUri = avatarSource?.uri ?: character.avatarUri
+        val finalCharacter = character.copy(avatarUri = avatarUri)
+        kStore.update { current ->
+            val list = current?.toMutableList() ?: mutableListOf()
+            val index = list.indexOfFirst { it.id == character.id }
+            if (index >= 0) {
+                list[index] = finalCharacter
+            } else {
+                list.add(finalCharacter)
+            }
+            list
         }
-        val saved = character.copy(
-            avatarUri = avatarSource?.uri ?: character.avatarUri,
-            sortOrder = sortOrder,
-        )
-        localStorage.setItem("$prefix${character.id}.name", character.name)
-        localStorage.setItem("$prefix${character.id}.prompt", character.prompt)
-        localStorage.setItem("$prefix${character.id}.opening", character.openingMessage)
-        localStorage.setItem("$prefix${character.id}.avatarUri", saved.avatarUri)
-        localStorage.setItem("$prefix${character.id}.temperature", character.temperature.toString())
-        localStorage.setItem("$prefix${character.id}.topP", character.topP.toString())
-        localStorage.setItem("$prefix${character.id}.createdAt", character.createdAt.toString())
-        localStorage.setItem("$prefix${character.id}.sortOrder", sortOrder.toString())
-        if (saved.voiceSampleUri != null) {
-            localStorage.setItem("$prefix${character.id}.voiceSampleUri", saved.voiceSampleUri)
-        }
-        val names = (loadNames() + character.id).distinct().sorted()
-        localStorage.setItem(namesKey, names.joinToString("\n"))
-        return saved
+        return finalCharacter
     }
 
     override suspend fun updateSortOrder(id: String, sortOrder: Int) {
-        if (localStorage.getItem("$prefix$id.name") == null) {
-            throw IllegalArgumentException("Character does not exist: $id")
+        kStore.update { current ->
+            current?.map { if (it.id == id) it.copy(sortOrder = sortOrder) else it }
         }
-        localStorage.setItem("$prefix$id.sortOrder", sortOrder.toString())
     }
 
     override suspend fun deleteCharacter(id: String, deletedAt: Long) {
-        listOf("name", "md", "prompt", "opening", "webp", "avatarUri", "voiceSampleUri", "temperature", "topP", "createdAt", "sortOrder").forEach { suffix ->
-            localStorage.removeItem("$prefix$id.$suffix")
+        kStore.update { current ->
+            current?.filterNot { it.id == id }
         }
-        localStorage.setItem(namesKey, loadNames().filterNot { it == id }.joinToString("\n"))
-    }
-
-    private fun loadNames(): List<String> {
-        return localStorage.getItem(namesKey)
-            ?.lineSequence()
-            ?.filter(String::isNotBlank)
-            ?.toList()
-            .orEmpty()
     }
 }

@@ -2,6 +2,7 @@ package com.kaixuan.starrailchatbox.data.database.dao
 
 import androidx.room.Dao
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Upsert
 import com.kaixuan.starrailchatbox.data.database.entity.ChatMessageEntity
 import com.kaixuan.starrailchatbox.data.database.entity.ChatMessageWithAttachments
@@ -12,12 +13,14 @@ interface ChatMessageDao {
     @Upsert
     suspend fun upsert(message: ChatMessageEntity)
 
+    @Transaction
     @Query(
         "SELECT * FROM chat_message " +
             "WHERE session_id = :sessionId AND deleted_at IS NULL ORDER BY seq",
     )
     fun observeBySession(sessionId: String): Flow<List<ChatMessageWithAttachments>>
 
+    @Transaction
     @Query(
         "SELECT * FROM chat_message " +
             "WHERE session_id = :sessionId AND is_context_excluded = 0 " +

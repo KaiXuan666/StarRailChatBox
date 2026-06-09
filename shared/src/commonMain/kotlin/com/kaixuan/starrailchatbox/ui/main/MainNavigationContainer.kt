@@ -64,8 +64,7 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import com.kaixuan.starrailchatbox.platform.rememberCameraLauncher
-import com.kaixuan.starrailchatbox.platform.rememberFilePicker
-import com.kaixuan.starrailchatbox.platform.rememberImagePicker
+import io.github.vinceglb.filekit.dialogs.FileKitType
 import starrailchatbox.shared.generated.resources.Res
 import starrailchatbox.shared.generated.resources.attach_not_ready
 import starrailchatbox.shared.generated.resources.emoji_not_ready
@@ -141,6 +140,9 @@ import com.kaixuan.starrailchatbox.ui.profile.ProfileAction
 import com.kaixuan.starrailchatbox.ui.profile.ProfileEffect
 import com.kaixuan.starrailchatbox.ui.profile.ProfileUiState
 import com.kaixuan.starrailchatbox.ui.profile.ProfileEffectMessage
+import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
+import io.github.vinceglb.filekit.name
+import io.github.vinceglb.filekit.path
 import starrailchatbox.shared.generated.resources.settings_copied_success
 
 @Composable
@@ -152,16 +154,16 @@ fun MainRoute(
     profile: ProfileRouteBinding,
 ) {
     val coroutineScope = rememberCoroutineScope()
-    val imagePicker = rememberImagePicker { picked ->
+    val imagePicker = rememberFilePickerLauncher(type = FileKitType.Image) { picked ->
         picked?.let { 
             coroutineScope.launch {
-                val compressedUri = compressImageIfPossible(it.uri)
+                val compressedUri = compressImageIfPossible(it.path ?: "")
                 chat.onAction(ChatAction.ImageSelected(compressedUri, it.name))
             }
         }
     }
-    val filePicker = rememberFilePicker { picked ->
-        picked?.let { chat.onAction(ChatAction.FileSelected(it.uri, it.name)) }
+    val filePicker = rememberFilePickerLauncher(type = FileKitType.File()) { picked ->
+        picked?.let { chat.onAction(ChatAction.FileSelected(it.path ?: "", it.name)) }
     }
     val cameraLauncher = rememberCameraLauncher { captured ->
         captured?.let { 
@@ -176,8 +178,8 @@ fun MainRoute(
         when (action) {
             is ChatAction.ComposerActionClicked -> {
                 when (action.action) {
-                    com.kaixuan.starrailchatbox.ui.chat.ComposerAction.PICK_IMAGE -> imagePicker()
-                    com.kaixuan.starrailchatbox.ui.chat.ComposerAction.PICK_FILE -> filePicker()
+                    com.kaixuan.starrailchatbox.ui.chat.ComposerAction.PICK_IMAGE -> imagePicker.launch()
+                    com.kaixuan.starrailchatbox.ui.chat.ComposerAction.PICK_FILE -> filePicker.launch()
                     com.kaixuan.starrailchatbox.ui.chat.ComposerAction.TAKE_PHOTO -> cameraLauncher()
                     else -> chat.onAction(action)
                 }

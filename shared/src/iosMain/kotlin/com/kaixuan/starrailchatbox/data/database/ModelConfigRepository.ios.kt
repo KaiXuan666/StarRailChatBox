@@ -3,6 +3,7 @@
 package com.kaixuan.starrailchatbox.data.database
 
 import androidx.room.Room
+import androidx.room.RoomDatabaseConstructor
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.kaixuan.starrailchatbox.data.character.DefaultCharacterRepository
 import com.kaixuan.starrailchatbox.data.character.FileCharacterAvatarStorage

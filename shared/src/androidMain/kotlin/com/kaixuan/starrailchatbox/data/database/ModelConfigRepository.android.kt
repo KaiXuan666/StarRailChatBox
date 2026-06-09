@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.ui.platform.isDebugInspectorInfoEnabled
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.RoomDatabaseConstructor
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.kaixuan.starrailchatbox.data.character.DefaultCharacterRepository
 import com.kaixuan.starrailchatbox.data.character.FileCharacterAvatarStorage

@@ -57,7 +57,9 @@ import com.kaixuan.starrailchatbox.ui.components.BackHandler
 import com.kaixuan.starrailchatbox.ui.components.AvatarImage
 import com.kaixuan.starrailchatbox.ui.components.StarRailDialog
 import com.kaixuan.starrailchatbox.ui.main.MainAction
-import com.kaixuan.starrailchatbox.platform.rememberImagePicker
+import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
+import io.github.vinceglb.filekit.dialogs.FileKitType
+import io.github.vinceglb.filekit.path
 import kotlin.io.encoding.Base64
 
 @Composable
@@ -70,9 +72,11 @@ fun ProfileScreen(
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.starRailColors
-    val imagePicker = rememberImagePicker { image ->
+    val imagePicker = rememberFilePickerLauncher(
+        type = FileKitType.Image,
+    ) { image ->
         if (image != null) {
-            onAction(ProfileAction.AvatarChanged(image.uri))
+            onAction(ProfileAction.AvatarChanged(image.path ?: ""))
         }
     }
 
@@ -145,7 +149,7 @@ fun ProfileScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Surface(
-                        onClick = { imagePicker() },
+                        onClick = { imagePicker.launch() },
                         shape = RoundedCornerShape(50),
                         color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.6f),
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)

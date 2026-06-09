@@ -45,4 +45,6 @@ abstract class StarRailDatabase : RoomDatabase() {
 }
 
 @Suppress("KotlinNoActualForExpect")
-expect object StarRailDatabaseConstructor : RoomDatabaseConstructor<StarRailDatabase>
+expect object StarRailDatabaseConstructor : RoomDatabaseConstructor<StarRailDatabase> {
+    override fun initialize(): StarRailDatabase
+}

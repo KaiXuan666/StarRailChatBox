@@ -2,13 +2,10 @@ package com.kaixuan.starrailchatbox.platform
 
 import androidx.compose.runtime.Composable
 
-data class PickedFile(
+data class PickedImage(
     val uri: String,
-    val name: String,
+    val name: String? = null,
 )
-
-@Composable
-expect fun rememberFilePicker(onFilePicked: (PickedFile?) -> Unit): () -> Unit
 
 @Composable
 expect fun rememberCameraLauncher(onImageCaptured: (PickedImage?) -> Unit): () -> Unit

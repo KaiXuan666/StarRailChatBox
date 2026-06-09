@@ -42,7 +42,7 @@ import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
-import com.kaixuan.starrailchatbox.platform.rememberImagePicker
+import com.kaixuan.starrailchatbox.ui.character.CharacterAction.CharacterAvatarChanged
 import com.kaixuan.starrailchatbox.ui.components.BackHandler
 import com.kaixuan.starrailchatbox.ui.components.AvatarImage
 import com.kaixuan.starrailchatbox.ui.components.StarRailDialog
@@ -51,6 +51,9 @@ import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
 import com.kaixuan.starrailchatbox.ui.components.StarRailPrimaryButton
 import com.kaixuan.starrailchatbox.ui.main.MainAction
+import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
+import io.github.vinceglb.filekit.dialogs.FileKitType
+import io.github.vinceglb.filekit.path
 import org.jetbrains.compose.resources.stringResource
 import starrailchatbox.shared.generated.resources.Res
 import starrailchatbox.shared.generated.resources.character_edit_avatar
@@ -101,9 +104,11 @@ fun CharacterEditScreen(
     }
 
     val editState = state.characterEdit
-    val imagePicker = rememberImagePicker { image ->
+    val imagePicker = rememberFilePickerLauncher(
+        type = FileKitType.Image,
+    ) { image ->
         if (image != null) {
-            onAction(CharacterAction.CharacterAvatarChanged(CharacterAvatarSource(image.uri)))
+            onAction(CharacterAvatarChanged(CharacterAvatarSource(image.path ?: "")))
         }
     }
 
@@ -119,7 +124,7 @@ fun CharacterEditScreen(
         CharacterIdentityCard(
             state = editState,
             compact = compact,
-            onPickAvatar = imagePicker,
+            onPickAvatar = { imagePicker.launch() },
             onNameChanged = { name ->
                 onAction(CharacterAction.CharacterNameChanged(name.take(MaxCharacterNameLength)))
             },

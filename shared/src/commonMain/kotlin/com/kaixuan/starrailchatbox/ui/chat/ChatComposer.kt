@@ -35,8 +35,8 @@ import androidx.compose.ui.unit.dp
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.platform.rememberAudioRecorder
 import com.kaixuan.starrailchatbox.platform.rememberCameraLauncher
-import com.kaixuan.starrailchatbox.platform.rememberFilePicker
-import com.kaixuan.starrailchatbox.platform.rememberImagePicker
+import io.github.vinceglb.filekit.dialogs.FileKitType
+import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import kotlinx.coroutines.launch
@@ -49,6 +49,8 @@ import starrailchatbox.shared.generated.resources.nav_chat
 import starrailchatbox.shared.generated.resources.record_voice
 import starrailchatbox.shared.generated.resources.send_message
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import io.github.vinceglb.filekit.name
+import io.github.vinceglb.filekit.path
 
 @Composable
 fun ChatSessionBottomBar(
@@ -62,22 +64,22 @@ fun ChatSessionBottomBar(
     val isVoiceMode = characterId?.let { state.characterStates[it]?.isVoiceMode } ?: false
     val coroutineScope = rememberCoroutineScope()
 
-    val imagePicker = rememberImagePicker { picked ->
+    val imagePicker = rememberFilePickerLauncher(type = FileKitType.Image) { picked ->
         picked?.let { 
             coroutineScope.launch {
-                val compressedUri = com.kaixuan.starrailchatbox.platform.compressImageIfPossible(it.uri)
+                val compressedUri = com.kaixuan.starrailchatbox.platform.compressImageIfPossible(it.path ?: "")
                 onAction(ChatAction.ImageSelected(compressedUri, it.name))
             }
         }
     }
-    val filePicker = rememberFilePicker { picked ->
-        picked?.let { onAction(ChatAction.FileSelected(it.uri, it.name)) }
+    val filePicker = rememberFilePickerLauncher(type = FileKitType.File()) { picked ->
+        picked?.let { onAction(ChatAction.FileSelected(it.path ?: "", it.name)) }
     }
     val cameraLauncher = rememberCameraLauncher { picked ->
         picked?.let { 
             coroutineScope.launch {
-                val compressedUri = com.kaixuan.starrailchatbox.platform.compressImageIfPossible(it.uri)
-                onAction(ChatAction.ImageSelected(compressedUri, it.name))
+                val compressedUri = com.kaixuan.starrailchatbox.platform.compressImageIfPossible(picked.uri)
+                onAction(ChatAction.ImageSelected(compressedUri, picked.name))
             }
         }
     }
@@ -85,8 +87,8 @@ fun ChatSessionBottomBar(
     val interceptedOnAction: (ChatAction) -> Unit = { action ->
         if (action is ChatAction.ComposerActionClicked) {
             when (action.action) {
-                ComposerAction.PICK_IMAGE -> imagePicker()
-                ComposerAction.PICK_FILE -> filePicker()
+                ComposerAction.PICK_IMAGE -> imagePicker.launch()
+                ComposerAction.PICK_FILE -> filePicker.launch()
                 ComposerAction.TAKE_PHOTO -> cameraLauncher()
                 else -> onAction(action)
             }
