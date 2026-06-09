@@ -111,16 +111,13 @@ class VoiceSynthesisTool(
         Napier.d { "VoiceSynthesisTool prepareFallbackMessages" }
         val format = """
             <voice_output_contract>
-            如果用户要求你说话、发语音、听声音，或用户自身发送了语音消息（或者任何你想对用户表达声音/配音的场景），你必须在回复的最后另起一行，输出且只输出一个语音合成元数据块，指定你要说的话（正文）以及你想呈现的配音音色与语境设计。
-            格式为：
-            <voice_synthesis>{"voice_design":"角色的人设（如开朗少女）、说话风格（如温柔地）和场景描写（如安静的房间）","ai_response":"待合成配音的纯文本回复内容，内容直接是你要说的话，不要有任何旁白或动作描写"}</voice_synthesis>
+            语音合成元数据块格式：
+            <voice_synthesis>{"voice_design":"角色的人设（如开朗少女）、说话风格（如温柔地）和场景描写（如安静的房间）","ai_response":"待合成配音的纯文本回复内容"}</voice_synthesis>
 
-            强制规则：
-            - 元数据块必须是整条回复的最后一部分，不能省略、改名或放进 Markdown 代码块。
-            - 标签内部必须是合法 JSON；只能包含 voice_design 和 ai_response 字段。
-            - ai_response 内只包含你要说的话，不要有括号神态或旁白，正文部分和元数据块内的 ai_response 保持一致。
-            - 正文中不要提及语音合成、格式要求、JSON 或标签本身。
-            
+            特定规则：
+            - 如果用户要求你说话、发语音、听声音，或你想对用户表达声音时，必须在回复末尾附带此元数据块。
+            - ai_response 内只包含你要说的话，不要有括号神态或旁白，且必须与回复正文保持一致。
+
             正确示例：
             既然你这么想听，那我就说给你听吧。
             <voice_synthesis>{"voice_design":"傲娇的少女，略带害羞地，在安静的走廊上","ai_response":"既然你这么想听，那我就说给你听吧"}</voice_synthesis>
@@ -129,7 +126,7 @@ class VoiceSynthesisTool(
 
         return messages.injectFallbackInstructions(
             systemFormat = format,
-            controlSignal = "如果本次回复需要发声/发语音，请遵守 system 消息中的 <voice_output_contract>，并以完整的 <voice_synthesis> JSON 元数据块结束回复。"
+            controlSignal = "如果需要发声，请遵守 <voice_output_contract>，并以完整的 <voice_synthesis> 元数据块结束回复。"
         )
     }
 

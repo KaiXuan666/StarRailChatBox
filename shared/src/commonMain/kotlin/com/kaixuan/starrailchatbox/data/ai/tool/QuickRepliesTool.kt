@@ -95,27 +95,22 @@ class QuickRepliesTool(
         Napier.d { "QuickRepliesTool prepareFallbackMessages" }
         val format = """
             <quick_replies_output_contract>
-            你需要在回复的最后另起一行，输出且只输出一个快捷回复元数据块：
+            快捷回复元数据块：
             <quick_replies>{"suggestions":["🌸 选项一","🍃 选项二","✨ 选项三","🌙 选项四"]}</quick_replies>
 
-            强制规则：
-            - 元数据块必须是整条回复的最后一部分，不能省略、改名或放进 Markdown 代码块。
-            - 标签内部必须是合法 JSON；只能包含 suggestions 字段，且必须恰好有 4 个字符串。
+            特定规则：
+            - 只能包含 suggestions 字段，且必须恰好有 4 个字符串。
             - 每个选项代表用户下一句可能发送的话，以符合语境的 Emoji 开头，简短、不重复。
-            - 正文中不要提及快捷回复、格式要求、JSON 或标签。
-            - 输出前自行检查：正文非空、标签完整、JSON 合法、选项数量为 4。
 
             正确示例：
             当然，我会陪你一起去看看。
             <quick_replies>{"suggestions":["🌸 那就出发吧","🍃 先准备一下","✨ 你来带路","🌙 改天再去"]}</quick_replies>
-
-            错误示例：使用项目符号、代码围栏、缺少闭合标签、把选项写在标签外。
             </quick_replies_output_contract>
         """.trimIndent()
 
         return messages.injectFallbackInstructions(
             systemFormat = format,
-            controlSignal = "请遵守 system 消息中的 <quick_replies_output_contract>，并以完整的 <quick_replies> JSON 元数据块结束回复。"
+            controlSignal = "请遵守 system 消息中的 <quick_replies_output_contract>，并以完整的 <quick_replies> 元数据块结束回复。"
         )
     }
 

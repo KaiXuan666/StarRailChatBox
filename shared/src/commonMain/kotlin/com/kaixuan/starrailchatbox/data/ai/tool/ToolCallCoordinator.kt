@@ -230,8 +230,15 @@ class ToolCallCoordinator(
         tools: List<AiTool>,
         context: ToolContext,
     ): ApiResult<CoordinatedCompletion> {
-        val messages = tools.fold(request.messages) { current, tool ->
-            tool.prepareFallbackMessages(current, context)
+        var messages = request.messages
+        if (tools.isNotEmpty()) {
+            val baseMessages = request.messages.injectFallbackInstructions(
+                systemFormat = CommonFallbackInstruction,
+                controlSignal = "请遵守 system 消息中的 <metadata_block_contract>，并按需以完整的元数据块结束回复。"
+            )
+            messages = tools.fold(baseMessages) { current, tool ->
+                tool.prepareFallbackMessages(current, context)
+            }
         }
         return when (
             val result = provider.complete(
@@ -291,4 +298,18 @@ class ToolCallCoordinator(
             usage = totalUsage,
         ),
     )
+
+    companion object {
+        private val CommonFallbackInstruction = """
+            <metadata_block_contract>
+            你需要在回复的正文结束后另起一行，输出且只输出一个或多个特定工具的元数据块。
+
+            通用强制规则：
+            - 每个元数据块必须是整条回复的最后一部分，不能省略、改名或放进 Markdown 代码块。
+            - 标签内部必须是合法 JSON；格式必须完全符合工具要求的 schema。
+            - 正文中不要提及元数据块、格式要求、JSON 或标签本身。
+            - 输出前自行检查：正文非空、标签完整、JSON 合法。
+            </metadata_block_contract>
+        """.trimIndent()
+    }
 }
