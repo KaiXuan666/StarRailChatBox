@@ -347,13 +347,17 @@ fun ChatSessionScreen(
                 val latestMessageId = pageMessages.lastOrNull()?.id
 
                 LaunchedEffect(pageCharacter.id, latestMessageId) {
-                    if (
-                        latestMessageId != null &&
-                        pageCharacter.id !in initiallyPositionedCharacterIds
-                    ) {
-                        withFrameNanos {}
-                        pageListState.scrollToItem(0)
-                        initiallyPositionedCharacterIds += pageCharacter.id
+                    if (latestMessageId != null) {
+                        if (pageCharacter.id !in initiallyPositionedCharacterIds) {
+                            withFrameNanos {}
+                            pageListState.scrollToItem(0)
+                            initiallyPositionedCharacterIds += pageCharacter.id
+                        } else {
+                            // 已经处于最底部时，发送或收到消息，自动滚回底部
+                            if (pageListState.firstVisibleItemIndex <= 1) {
+                                pageListState.animateScrollToItem(0)
+                            }
+                        }
                     }
                 }
 
@@ -2424,6 +2428,7 @@ fun CharacterChatScreen(
     }
     val pageListState = rememberLazyListState()
     val pageMessages = pageState.messages
+    val latestMessageId = remember(pageMessages) { pageMessages.lastOrNull()?.id }
     val charactersById = remember(charactersState.characters) {
         charactersState.characters.associateBy(Character::id)
     }
@@ -2450,6 +2455,15 @@ fun CharacterChatScreen(
 
     LaunchedEffect(characterId) {
         // 在 reverseLayout 下，切换角色默认就在底部
+    }
+
+    LaunchedEffect(latestMessageId) {
+        if (latestMessageId != null) {
+            // 已经处于最底部时，发送或收到消息，自动滚回底部
+            if (pageListState.firstVisibleItemIndex <= 1) {
+                pageListState.animateScrollToItem(0)
+            }
+        }
     }
 
     val isAtBottom by remember {
