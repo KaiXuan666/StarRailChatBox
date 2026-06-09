@@ -76,6 +76,7 @@ private class SummaryAiRepository : AiRepository {
         config: ModelConfig,
         messages: List<AiMessage>,
         characterName: String,
+        voiceSampleUri: String?,
     ): ApiResult<ChatCompletionResult> = ApiResult.UnexpectedError("Not used.")
 
     override suspend fun createConversationSummary(

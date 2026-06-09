@@ -19,6 +19,9 @@ private class BrowserCharacterStorage(
     override suspend fun initializeDefaults(defaults: List<DefaultCharacterAsset>) {
         if (localStorage.getItem(initializedKey) != null) return
         defaults.forEachIndexed { index, it ->
+            val voiceSampleUri = it.voiceSampleContent?.let { bytes ->
+                "data:audio/mpeg;base64,${Base64.encode(bytes)}"
+            }
             saveCharacter(
                 CharacterFiles(
                     id = it.id,
@@ -26,6 +29,7 @@ private class BrowserCharacterStorage(
                     prompt = it.prompt,
                     openingMessage = it.openingMessage,
                     avatarUri = "data:image/webp;base64,${Base64.encode(it.avatarContent)}",
+                    voiceSampleUri = voiceSampleUri,
                     temperature = it.temperature,
                     topP = it.topP,
                     sortOrder = index,
@@ -58,6 +62,7 @@ private class BrowserCharacterStorage(
             val sortOrder = localStorage.getItem("$prefix$id.sortOrder")
                 ?.toIntOrNull()
                 ?: 0
+            val voiceSampleUri = localStorage.getItem("$prefix$id.voiceSampleUri")
             CharacterFiles(
                 id = id,
                 name = name,
@@ -68,6 +73,7 @@ private class BrowserCharacterStorage(
                 }).take(20),
                 openingMessage = openingMessage,
                 avatarUri = avatarUri,
+                voiceSampleUri = voiceSampleUri,
                 temperature = temperature,
                 topP = topP,
                 createdAt = createdAt,
@@ -97,6 +103,7 @@ private class BrowserCharacterStorage(
         val sortOrder = localStorage.getItem("$prefix$id.sortOrder")
             ?.toIntOrNull()
             ?: 0
+        val voiceSampleUri = localStorage.getItem("$prefix$id.voiceSampleUri")
         return CharacterFiles(
             id = id,
             name = name,
@@ -107,6 +114,7 @@ private class BrowserCharacterStorage(
             },
             openingMessage = openingMessage,
             avatarUri = avatarUri,
+            voiceSampleUri = voiceSampleUri,
             temperature = temperature,
             topP = topP,
             createdAt = createdAt,
@@ -137,6 +145,9 @@ private class BrowserCharacterStorage(
         localStorage.setItem("$prefix${character.id}.topP", character.topP.toString())
         localStorage.setItem("$prefix${character.id}.createdAt", character.createdAt.toString())
         localStorage.setItem("$prefix${character.id}.sortOrder", sortOrder.toString())
+        if (saved.voiceSampleUri != null) {
+            localStorage.setItem("$prefix${character.id}.voiceSampleUri", saved.voiceSampleUri)
+        }
         val names = (loadNames() + character.id).distinct().sorted()
         localStorage.setItem(namesKey, names.joinToString("\n"))
         return saved
@@ -150,7 +161,7 @@ private class BrowserCharacterStorage(
     }
 
     override suspend fun deleteCharacter(id: String, deletedAt: Long) {
-        listOf("name", "md", "prompt", "opening", "webp", "avatarUri", "temperature", "topP", "createdAt", "sortOrder").forEach { suffix ->
+        listOf("name", "md", "prompt", "opening", "webp", "avatarUri", "voiceSampleUri", "temperature", "topP", "createdAt", "sortOrder").forEach { suffix ->
             localStorage.removeItem("$prefix$id.$suffix")
         }
         localStorage.setItem(namesKey, loadNames().filterNot { it == id }.joinToString("\n"))

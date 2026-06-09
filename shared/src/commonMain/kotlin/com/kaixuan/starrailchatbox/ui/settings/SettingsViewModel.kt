@@ -230,57 +230,39 @@ class SettingsViewModel(
             ) {
                 is ApiResult.Success -> handleModelsLoaded(result.value, isMultimodal, isVoice)
                 is ApiResult.HttpError -> {
-                    if (isVoice) {
-                        handleModelsLoaded(listOf("mimo-v2.5-tts-voicedesign"), isMultimodal = false, isVoice = true)
-                    } else {
-                        _uiState.update {
-                            if (isMultimodal) {
-                                it.copy(multimodalIsFetchingModels = false)
-                            } else {
-                                it.copy(isFetchingModels = false)
-                            }
+                    _uiState.update {
+                        when {
+                            isVoice -> it.copy(voiceIsFetchingModels = false)
+                            isMultimodal -> it.copy(multimodalIsFetchingModels = false)
+                            else -> it.copy(isFetchingModels = false)
                         }
-                        emitMessage(
-                            if (result.statusCode == 401 || result.statusCode == 403) {
-                                SettingsEffectMessage.SETTINGS_API_AUTH_FAILED
-                            } else {
-                                SettingsEffectMessage.SETTINGS_API_FETCH_FAILED
-                            },
-                        )
                     }
+                    emitMessage(
+                        if (result.statusCode == 401 || result.statusCode == 403) {
+                            SettingsEffectMessage.SETTINGS_API_AUTH_FAILED
+                        } else {
+                            SettingsEffectMessage.SETTINGS_API_FETCH_FAILED
+                        },
+                    )
                 }
                 is ApiResult.NetworkError,
                 is ApiResult.UnexpectedError,
                 -> {
-                    if (isVoice) {
-                        handleModelsLoaded(listOf("mimo-v2.5-tts-voicedesign"), isMultimodal = false, isVoice = true)
-                    } else {
-                        _uiState.update {
-                            if (isMultimodal) {
-                                it.copy(multimodalIsFetchingModels = false)
-                            } else {
-                                it.copy(isFetchingModels = false)
-                            }
+                    _uiState.update {
+                        when {
+                            isVoice -> it.copy(voiceIsFetchingModels = false)
+                            isMultimodal -> it.copy(multimodalIsFetchingModels = false)
+                            else -> it.copy(isFetchingModels = false)
                         }
-                        emitMessage(SettingsEffectMessage.SETTINGS_API_FETCH_FAILED)
                     }
+                    emitMessage(SettingsEffectMessage.SETTINGS_API_FETCH_FAILED)
                 }
             }
         }
     }
 
     private fun handleModelsLoaded(models: List<String>, isMultimodal: Boolean, isVoice: Boolean = false) {
-        val processedModels = if (isVoice) {
-            if (!models.contains("mimo-v2.5-tts-voicedesign")) {
-                models + "mimo-v2.5-tts-voicedesign"
-            } else {
-                models
-            }
-        } else {
-            models
-        }
-
-        if (processedModels.isEmpty()) {
+        if (models.isEmpty()) {
             _uiState.update {
                 when {
                     isVoice -> it.copy(voiceIsFetchingModels = false, voiceModelsList = emptyList())
@@ -297,25 +279,25 @@ class SettingsViewModel(
                 isVoice -> {
                     state.copy(
                         voiceIsFetchingModels = false,
-                        voiceModelsList = processedModels,
-                        voiceSelectedModel = state.voiceSelectedModel.takeIf(processedModels::contains) 
-                            ?: processedModels.firstOrNull { !it.contains("clone") && !it.contains("design") } 
-                            ?: processedModels.first(),
-                        voiceSelectedCloneModel = state.voiceSelectedCloneModel.takeIf(processedModels::contains) ?: "",
+                        voiceModelsList = models,
+                        voiceSelectedModel = state.voiceSelectedModel.takeIf(models::contains) 
+                            ?: models.firstOrNull { !it.contains("clone") && !it.contains("design") } 
+                            ?: models.first(),
+                        voiceSelectedCloneModel = state.voiceSelectedCloneModel.takeIf(models::contains) ?: "",
                     )
                 }
                 isMultimodal -> {
                     state.copy(
                         multimodalIsFetchingModels = false,
-                        multimodalModelsList = processedModels,
-                        multimodalSelectedModel = state.multimodalSelectedModel.takeIf(processedModels::contains) ?: processedModels.first(),
+                        multimodalModelsList = models,
+                        multimodalSelectedModel = state.multimodalSelectedModel.takeIf(models::contains) ?: models.first(),
                     )
                 }
                 else -> {
                     state.copy(
                         isFetchingModels = false,
-                        modelsList = processedModels,
-                        selectedModel = state.selectedModel.takeIf(processedModels::contains) ?: processedModels.first(),
+                        modelsList = models,
+                        selectedModel = state.selectedModel.takeIf(models::contains) ?: models.first(),
                     )
                 }
             }

@@ -755,6 +755,7 @@ private open class FakeOpenAiRepository : AiRepository {
         config: ModelConfig,
         messages: List<AiMessage>,
         characterName: String,
+        voiceSampleUri: String?,
     ): ApiResult<ChatCompletionResult> {
         requests += messages
         configs += config

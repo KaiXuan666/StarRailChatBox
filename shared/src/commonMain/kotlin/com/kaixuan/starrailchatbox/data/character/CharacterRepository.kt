@@ -10,6 +10,7 @@ data class Character(
     val prompt: String,
     val openingMessage: String,
     val avatarUri: String,
+    val voiceSampleUri: String? = null,
     val temperature: Double = 0.85,
     val topP: Double = 0.9,
     val createdAt: Long = 0L,
@@ -22,6 +23,7 @@ data class CharacterFiles(
     val prompt: String,
     val openingMessage: String,
     val avatarUri: String,
+    val voiceSampleUri: String? = null,
     val temperature: Double = 0.85,
     val topP: Double = 0.9,
     val createdAt: Long = Clock.System.now().toEpochMilliseconds(),
@@ -38,6 +40,7 @@ data class DefaultCharacterAsset(
     val prompt: String,
     val openingMessage: String,
     val avatarContent: ByteArray,
+    val voiceSampleContent: ByteArray? = null,
     val temperature: Double = 0.85,
     val topP: Double = 0.9,
 )
@@ -128,6 +131,7 @@ class DefaultCharacterRepository(
             prompt = character.prompt,
             openingMessage = character.openingMessage,
             avatarUri = character.avatarUri,
+            voiceSampleUri = character.voiceSampleUri,
             temperature = character.temperature.coerceIn(0.0, 2.0),
             topP = character.topP.coerceIn(0.0, 1.0),
             createdAt = character.createdAt,
@@ -151,6 +155,7 @@ private fun CharacterFiles.toCharacter() = Character(
     prompt = prompt,
     openingMessage = openingMessage,
     avatarUri = avatarUri,
+    voiceSampleUri = voiceSampleUri,
     temperature = temperature,
     topP = topP,
     createdAt = createdAt,
@@ -163,12 +168,18 @@ private suspend fun loadDefaultCharacterAssets(): List<DefaultCharacterAsset> {
         .decodeToString()
         .trim()
     return DefaultCharacterNames.map { name ->
+        val voiceSampleContent = try {
+            Res.readBytes("files/characters/$name.mp3")
+        } catch (_: Exception) {
+            null
+        }
         DefaultCharacterAsset(
             id = "builtin:$name",
             name = name,
             prompt = Res.readBytes("files/characters/$name.md").decodeToString(),
             openingMessage = openingMessage,
             avatarContent = Res.readBytes("files/characters/$name.webp"),
+            voiceSampleContent = voiceSampleContent,
         )
     }
 }

@@ -40,10 +40,12 @@ internal fun HttpClientConfig<*>.configureOpenAiClient() {
                     Napier.d(message, tag = "OpenAiHttp")
                 } else {
                     var start = 0
-                    while (start < message.length) {
+                    var count = 0
+                    while (start < message.length && count < 5) {
                         val end = if (start + maxLogLength < message.length) start + maxLogLength else message.length
                         Napier.d(message.substring(start, end), tag = "OpenAiHttp")
                         start = end
+                        count ++
                     }
                 }
                 saveNetworkLog(message)

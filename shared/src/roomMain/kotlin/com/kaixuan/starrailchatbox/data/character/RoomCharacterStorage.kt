@@ -6,6 +6,7 @@ import com.kaixuan.starrailchatbox.data.database.entity.AgentRoleEntity
 class RoomCharacterStorage(
     private val dao: AgentRoleDao,
     private val avatarStorage: CharacterAvatarStorage,
+    private val voiceSampleStorage: CharacterVoiceSampleStorage,
     private val currentTimeMillis: () -> Long = { kotlin.time.Clock.System.now().toEpochMilliseconds() },
 ) : CharacterStorage {
     override suspend fun initializeDefaults(defaults: List<DefaultCharacterAsset>) {
@@ -15,6 +16,9 @@ class RoomCharacterStorage(
                 null
             } else {
                 val avatarUri = avatarStorage.saveBytes(character.id, character.avatarContent)
+                val voiceSampleUri = character.voiceSampleContent?.let { bytes ->
+                    voiceSampleStorage.saveBytes(character.id, bytes)
+                }
                 AgentRoleEntity(
                     id = character.id,
                     name = character.name,
@@ -28,6 +32,7 @@ class RoomCharacterStorage(
                     isBuiltin = true,
                     createdAt = now,
                     updatedAt = now,
+                    voiceSampleUri = voiceSampleUri,
                 )
             }
         }
@@ -73,7 +78,7 @@ class RoomCharacterStorage(
         if (avatarSource != null && oldAvatarUri != null && oldAvatarUri != avatarUri) {
             avatarStorage.delete(oldAvatarUri)
         }
-        return character.copy(avatarUri = avatarUri, sortOrder = sortOrder)
+        return character.copy(avatarUri = avatarUri, voiceSampleUri = character.voiceSampleUri, sortOrder = sortOrder)
     }
 
     override suspend fun updateSortOrder(id: String, sortOrder: Int) {
@@ -89,6 +94,7 @@ class RoomCharacterStorage(
             "Character does not exist: $id"
         }
         avatarStorage.delete(existing.avatarUri)
+        existing.voiceSampleUri?.let { voiceSampleStorage.delete(it) }
     }
 
     private fun CharacterFiles.toEntity(
@@ -110,6 +116,7 @@ class RoomCharacterStorage(
         isBuiltin = isBuiltin,
         createdAt = createdAt,
         updatedAt = updatedAt,
+        voiceSampleUri = voiceSampleUri,
     )
 
     private fun AgentRoleEntity.toCharacterFiles() = CharacterFiles(
@@ -118,6 +125,7 @@ class RoomCharacterStorage(
         prompt = systemPrompt,
         openingMessage = openingMessage,
         avatarUri = avatarUri,
+        voiceSampleUri = voiceSampleUri,
         temperature = temperature,
         topP = topP,
         createdAt = createdAt,

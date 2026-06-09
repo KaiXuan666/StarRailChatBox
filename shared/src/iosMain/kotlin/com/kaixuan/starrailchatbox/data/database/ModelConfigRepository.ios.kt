@@ -6,6 +6,7 @@ import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.kaixuan.starrailchatbox.data.character.DefaultCharacterRepository
 import com.kaixuan.starrailchatbox.data.character.FileCharacterAvatarStorage
+import com.kaixuan.starrailchatbox.data.character.FileCharacterVoiceSampleStorage
 import com.kaixuan.starrailchatbox.data.character.RoomCharacterStorage
 import com.kaixuan.starrailchatbox.data.chat.RoomChatSessionRepository
 import com.kaixuan.starrailchatbox.data.model.RoomModelConfigRepository
@@ -28,7 +29,7 @@ fun createPersistentRepositories(): PersistentRepositories {
         factory = StarRailDatabaseConstructor::initialize,
     )
         .setDriver(BundledSQLiteDriver())
-        .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
         .build()
     return PersistentRepositories(
         modelConfigRepository = RoomModelConfigRepository(
@@ -40,6 +41,9 @@ fun createPersistentRepositories(): PersistentRepositories {
                 dao = database.agentRoleDao(),
                 avatarStorage = FileCharacterAvatarStorage(
                     "$directoryPath/character_avatars".toPath(),
+                ),
+                voiceSampleStorage = FileCharacterVoiceSampleStorage(
+                    "$directoryPath/character_voice_samples".toPath(),
                 ),
             ),
         ),

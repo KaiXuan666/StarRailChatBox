@@ -1084,7 +1084,7 @@ class ChatViewModel(
         context.messages.forEach {
             Napier.d(tag = "sendMessage") { "messages item=${it}" }
         }
-        when (val result = aiRepository.createChatCompletion(config, requestMessages, character.name)) {
+        when (val result = aiRepository.createChatCompletion(config, requestMessages, character.name, character.voiceSampleUri)) {
             is ApiResult.Success -> {
                 if (handleSuccess(session, config, result.value)) {
                     viewModelScope.launch {

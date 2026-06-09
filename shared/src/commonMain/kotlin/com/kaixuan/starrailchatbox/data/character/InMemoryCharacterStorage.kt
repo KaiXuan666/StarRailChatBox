@@ -14,6 +14,7 @@ class InMemoryCharacterStorage : CharacterStorage {
                     prompt = it.prompt,
                     openingMessage = it.openingMessage,
                     avatarUri = "memory:${it.id}",
+                    voiceSampleUri = it.voiceSampleContent?.let { _ -> "memory:voice:${it.id}" },
                     temperature = it.temperature,
                     topP = it.topP,
                     sortOrder = index,

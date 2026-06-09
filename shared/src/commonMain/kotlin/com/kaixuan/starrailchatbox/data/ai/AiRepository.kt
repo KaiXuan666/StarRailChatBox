@@ -23,6 +23,7 @@ interface AiRepository {
         config: ModelConfig,
         messages: List<AiMessage>,
         characterName: String,
+        voiceSampleUri: String? = null,
     ): ApiResult<ChatCompletionResult>
 
     fun createPromptCompletion(
@@ -91,6 +92,7 @@ class DefaultAiRepository(
         config: ModelConfig,
         messages: List<AiMessage>,
         characterName: String,
+        voiceSampleUri: String?,
     ): ApiResult<ChatCompletionResult> {
         val provider = providerRegistry.find(config.provider)
             ?: return ApiResult.UnexpectedError("Unknown AI provider: ${config.provider}")
@@ -106,7 +108,7 @@ class DefaultAiRepository(
                 provider = provider,
                 providerConfig = config.toProviderConfig(),
                 request = request,
-                context = ToolContext(characterName),
+                context = ToolContext(characterName, voiceSampleUri),
                 supportsToolCalls = config.supportToolCall,
             )
         ) {

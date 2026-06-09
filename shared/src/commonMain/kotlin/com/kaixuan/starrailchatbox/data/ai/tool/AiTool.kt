@@ -24,6 +24,7 @@ enum class ToolRisk {
 
 data class ToolContext(
     val characterName: String,
+    val voiceSampleUri: String? = null,
 )
 
 data class StructuredToolFallbackRequest(

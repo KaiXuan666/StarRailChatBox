@@ -35,6 +35,8 @@ data class AgentRoleEntity(
     val createdAt: Long,
     @ColumnInfo(name = "updated_at")
     val updatedAt: Long,
+    @ColumnInfo(name = "voice_sample_uri")
+    val voiceSampleUri: String? = null,
     @ColumnInfo(name = "deleted_at")
     val deletedAt: Long? = null,
 )

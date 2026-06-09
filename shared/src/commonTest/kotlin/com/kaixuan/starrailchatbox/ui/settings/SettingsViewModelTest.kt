@@ -289,6 +289,7 @@ private class FakeOpenAiRepository(
         config: ModelConfig,
         messages: List<AiMessage>,
         characterName: String,
+        voiceSampleUri: String?,
     ): ApiResult<ChatCompletionResult> {
         return ApiResult.UnexpectedError("Not used by settings tests.")
     }

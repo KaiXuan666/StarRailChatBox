@@ -4,6 +4,8 @@ import com.kaixuan.starrailchatbox.data.ai.AiMessage
 import com.kaixuan.starrailchatbox.data.ai.AiToolCall
 import com.kaixuan.starrailchatbox.data.ai.AiToolDefinition
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
+import com.kaixuan.starrailchatbox.platform.readUriAsBytes
+import io.github.aakira.napier.Napier
 import io.ktor.client.HttpClient
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -50,7 +52,9 @@ class VoiceSynthesisTool(
             while (isActive) {
                 try {
                     val voiceConfig = modelConfigRepository.getVoice()
-                    cachedIsAvailable = voiceConfig != null && voiceConfig.baseUrl.isNotBlank() && voiceConfig.apiKey.isNotBlank()
+                    val voiceCloneConfig = modelConfigRepository.getVoiceClone()
+                    cachedIsAvailable = (voiceConfig != null && voiceConfig.baseUrl.isNotBlank() && voiceConfig.apiKey.isNotBlank()) ||
+                            (voiceCloneConfig != null && voiceCloneConfig.baseUrl.isNotBlank() && voiceCloneConfig.apiKey.isNotBlank())
                 } catch (t: Throwable) {
                     cachedIsAvailable = false
                 }
@@ -93,7 +97,7 @@ class VoiceSynthesisTool(
             val voiceDesign = arguments["voice_design"]?.jsonPrimitive?.content.orEmpty()
             val aiResponse = arguments["ai_response"]?.jsonPrimitive?.content.orEmpty()
             
-            synthesizeVoice(voiceDesign, aiResponse)
+            synthesizeVoice(voiceDesign, aiResponse, context)
         } catch (t: Throwable) {
             t.printStackTrace()
             ToolResult.Error("invalid_tool_arguments", "Failed to parse arguments: ${t.message}")
@@ -168,7 +172,7 @@ class VoiceSynthesisTool(
             if (aiResponse.isBlank()) {
                 ToolResult.Terminal(content = plainText)
             } else {
-                synthesizeVoice(voiceDesign, aiResponse)
+                synthesizeVoice(voiceDesign, aiResponse, context)
             }
         } catch (t: Throwable) {
             t.printStackTrace()
@@ -176,19 +180,58 @@ class VoiceSynthesisTool(
         }
     }
 
-    private suspend fun synthesizeVoice(voiceDesign: String, aiResponse: String): ToolResult.Terminal {
-        val voiceConfig = modelConfigRepository.getVoice()
-            ?: return ToolResult.Terminal(content = aiResponse)
+    private suspend fun synthesizeVoice(
+        voiceDesign: String,
+        aiResponse: String,
+        context: ToolContext
+    ): ToolResult.Terminal {
+        val voiceCloneConfig = modelConfigRepository.getVoiceClone()
+        val voiceSampleUri = context.voiceSampleUri
+
+        Napier.d { "synthesizeVoice voiceSampleUri=$voiceSampleUri, voiceCloneConfig=$voiceCloneConfig" }
+
+        val (voiceConfig, isClone) = if (voiceCloneConfig != null && !voiceSampleUri.isNullOrBlank()) {
+            voiceCloneConfig to true
+        } else {
+            (modelConfigRepository.getVoice() ?: return ToolResult.Terminal(content = aiResponse)) to false
+        }
+
         if (voiceConfig.baseUrl.isBlank() || voiceConfig.apiKey.isBlank()) {
             return ToolResult.Terminal(content = aiResponse)
         }
 
         return try {
-            val response = httpClient.post("${voiceConfig.baseUrl.trimEnd('/')}/chat/completions") {
-                header(HttpHeaders.Authorization, "Bearer ${voiceConfig.apiKey.trim()}")
-                header("api-key", voiceConfig.apiKey.trim())
-                contentType(ContentType.Application.Json)
-                setBody(buildJsonObject {
+            val requestBody = if (isClone && !voiceSampleUri.isNullOrBlank()) {
+                val audioBytes = readUriAsBytes(voiceSampleUri)
+                @OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
+                val audioBase64 = kotlin.io.encoding.Base64.Default.encode(audioBytes)
+                val mimeType = when {
+                    voiceSampleUri.endsWith(".wav", ignoreCase = true) -> "audio/wav"
+                    voiceSampleUri.endsWith(".mp3", ignoreCase = true) -> "audio/mpeg"
+                    voiceSampleUri.endsWith(".m4a", ignoreCase = true) -> "audio/mp4"
+                    voiceSampleUri.endsWith(".ogg", ignoreCase = true) -> "audio/ogg"
+                    else -> "audio/wav" // 默认 wav
+                }
+
+                buildJsonObject {
+                    put("model", voiceConfig.modelName.takeIf(String::isNotBlank) ?: "mimo-v2.5-tts-voiceclone")
+                    putJsonArray("messages") {
+                        add(buildJsonObject {
+                            put("role", "user")
+                            put("content", "")
+                        })
+                        add(buildJsonObject {
+                            put("role", "assistant")
+                            put("content", aiResponse)
+                        })
+                    }
+                    putJsonObject("audio") {
+                        put("format", "wav")
+                        put("voice", "data:$mimeType;base64,$audioBase64")
+                    }
+                }
+            } else {
+                buildJsonObject {
                     put("model", voiceConfig.modelName.takeIf(String::isNotBlank) ?: "mimo-v2.5-tts-voicedesign")
                     putJsonArray("messages") {
                         add(buildJsonObject {
@@ -200,7 +243,14 @@ class VoiceSynthesisTool(
                             put("content", aiResponse)
                         })
                     }
-                })
+                }
+            }
+
+            val response = httpClient.post("${voiceConfig.baseUrl.trimEnd('/')}/chat/completions") {
+                header(HttpHeaders.Authorization, "Bearer ${voiceConfig.apiKey.trim()}")
+                header("api-key", voiceConfig.apiKey.trim())
+                contentType(ContentType.Application.Json)
+                setBody(requestBody)
             }
 
             val responseText = response.bodyAsText()
