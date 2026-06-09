@@ -20,6 +20,9 @@ interface ModelConfigDao {
     @Query("SELECT * FROM model_config WHERE id = :id AND deleted_at IS NULL")
     suspend fun findById(id: String): ModelConfigEntity?
 
+    @Query("SELECT * FROM model_config WHERE id = :id AND deleted_at IS NULL")
+    fun observeById(id: String): Flow<ModelConfigEntity?>
+
     @Query("UPDATE model_config SET deleted_at = :deletedAt, updated_at = :deletedAt WHERE id = :id")
     suspend fun softDelete(id: String, deletedAt: Long): Int
 

@@ -131,7 +131,7 @@ fun SettingsScreen(
             iconKind = StarRailIconKind.CUBE,
             titleRes = Res.string.settings_api_title,
             descRes = Res.string.settings_api_desc,
-            isConfigured = settingsState.apiKey.isNotBlank() && settingsState.selectedModel.isNotBlank(),
+            isConfigured = settingsState.isDefaultConfigured,
             getColors = {
                 MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f) to MaterialTheme.colorScheme.secondary
             }
@@ -141,7 +141,7 @@ fun SettingsScreen(
             iconKind = StarRailIconKind.SPARKLE,
             titleRes = Res.string.settings_multimodal_api_title,
             descRes = Res.string.settings_multimodal_api_desc,
-            isConfigured = settingsState.multimodalApiKey.isNotBlank() && settingsState.multimodalSelectedModel.isNotBlank(),
+            isConfigured = settingsState.isMultimodalConfigured,
             getColors = {
                 MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.55f) to MaterialTheme.colorScheme.tertiary
             }
@@ -151,7 +151,7 @@ fun SettingsScreen(
             iconKind = StarRailIconKind.VOICE,
             titleRes = Res.string.settings_voice_api_title,
             descRes = Res.string.settings_voice_api_desc,
-            isConfigured = settingsState.voiceApiKey.isNotBlank() && (settingsState.voiceSelectedModel.isNotBlank() || settingsState.voiceSelectedCloneModel.isNotBlank()),
+            isConfigured = settingsState.isVoiceConfigured,
             getColors = {
                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f) to MaterialTheme.colorScheme.primary
             }

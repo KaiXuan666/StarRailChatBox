@@ -12,9 +12,8 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
 import com.kaixuan.starrailchatbox.platform.compressImageIfPossible
+import com.kaixuan.starrailchatbox.platform.restartApp
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -142,6 +141,8 @@ import com.kaixuan.starrailchatbox.ui.profile.ProfileEffectMessage
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.name
 import io.github.vinceglb.filekit.path
+import starrailchatbox.shared.generated.resources.profile_export_success
+import starrailchatbox.shared.generated.resources.profile_import_success
 import starrailchatbox.shared.generated.resources.settings_copied_success
 
 @Composable
@@ -226,6 +227,8 @@ fun MainRoute(
     )
     val profileEffectMessages = mapOf(
         ProfileEffectMessage.PROFILE_SAVED to stringResource(Res.string.profile_saved),
+        ProfileEffectMessage.EXPORT_SUCCESS to stringResource(Res.string.profile_export_success),
+        ProfileEffectMessage.IMPORT_SUCCESS to stringResource(Res.string.profile_import_success),
     )
     val mainEffectMessages = mapOf(
         MainEffectMessage.THEME_CHANGED to stringResource(Res.string.theme_changed),
@@ -288,7 +291,7 @@ fun MainRoute(
         }
     }
 
-    LaunchedEffect(profile.effects) {
+    LaunchedEffect(profile.effects, profileEffectMessages) {
         val scope = this
         profile.effects.collectLatest { effect ->
             when (effect) {
@@ -307,6 +310,18 @@ fun MainRoute(
                 }
                 ProfileEffect.NavigateBack -> {
                     main.onAction(MainAction.PopBackStack)
+                }
+                ProfileEffect.RestartApp -> {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(
+                            profileEffectMessages.getValue(ProfileEffectMessage.IMPORT_SUCCESS),
+                        )
+                        // Give some time for the snackbar to be seen if possible, 
+                        // but restartApp might be immediate.
+                        // Actually, importing is usually followed by a restart.
+                        kotlinx.coroutines.delay(1500)
+                        restartApp()
+                    }
                 }
             }
         }

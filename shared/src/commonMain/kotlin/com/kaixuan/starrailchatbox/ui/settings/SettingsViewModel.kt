@@ -19,6 +19,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -36,6 +38,25 @@ class SettingsViewModel(
     val effects = _effects.receiveAsFlow()
 
     init {
+        // 观察配置变化，更新主页面的配置状态标记
+        modelConfigRepository.observeDefault().onEach { config ->
+            _uiState.update { it.copy(isDefaultConfigured = config?.apiKey?.isNotBlank() == true) }
+        }.launchIn(scope())
+
+        modelConfigRepository.observeMultimodal().onEach { config ->
+            _uiState.update { it.copy(isMultimodalConfigured = config?.apiKey?.isNotBlank() == true) }
+        }.launchIn(scope())
+
+        modelConfigRepository.observeVoice().onEach { config ->
+            val voiceCloneConfig = modelConfigRepository.getVoiceClone()
+            _uiState.update { it.copy(isVoiceConfigured = config?.apiKey?.isNotBlank() == true || voiceCloneConfig?.apiKey?.isNotBlank() == true) }
+        }.launchIn(scope())
+
+        modelConfigRepository.observeVoiceClone().onEach { config ->
+            val voiceConfig = modelConfigRepository.getVoice()
+            _uiState.update { it.copy(isVoiceConfigured = config?.apiKey?.isNotBlank() == true || voiceConfig?.apiKey?.isNotBlank() == true) }
+        }.launchIn(scope())
+
         scope().launch {
             val settings = modelConfigRepository.getDefault()
             val mmSettings = modelConfigRepository.getMultimodal()

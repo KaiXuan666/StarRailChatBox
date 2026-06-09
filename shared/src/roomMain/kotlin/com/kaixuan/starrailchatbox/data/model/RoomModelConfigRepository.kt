@@ -3,6 +3,9 @@ package com.kaixuan.starrailchatbox.data.model
 import com.kaixuan.starrailchatbox.data.database.dao.ModelConfigDao
 import com.kaixuan.starrailchatbox.data.database.entity.ModelConfigEntity
 import com.kaixuan.starrailchatbox.data.settings.ApiKeyCipher
+import io.github.aakira.napier.Napier
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 class RoomModelConfigRepository(
     private val dao: ModelConfigDao,
@@ -13,12 +16,22 @@ class RoomModelConfigRepository(
         return dao.findById(DefaultModelConfig.Id)?.toModelConfig()
     }
 
+    override fun observeDefault(): Flow<ModelConfig?> {
+        return dao.observeById(DefaultModelConfig.Id).map {
+            it?.toModelConfig()
+        }
+    }
+
     override suspend fun saveDefault(config: ModelConfig) {
         saveConfig(DefaultModelConfig.Id, config)
     }
 
     override suspend fun getMultimodal(): ModelConfig? {
         return dao.findById(MultimodalModelConfig.Id)?.toModelConfig()
+    }
+
+    override fun observeMultimodal(): Flow<ModelConfig?> {
+        return dao.observeById(MultimodalModelConfig.Id).map { it?.toModelConfig() }
     }
 
     override suspend fun saveMultimodal(config: ModelConfig) {
@@ -29,12 +42,20 @@ class RoomModelConfigRepository(
         return dao.findById(VoiceModelConfig.Id)?.toModelConfig()
     }
 
+    override fun observeVoice(): Flow<ModelConfig?> {
+        return dao.observeById(VoiceModelConfig.Id).map { it?.toModelConfig() }
+    }
+
     override suspend fun saveVoice(config: ModelConfig) {
         saveConfig(VoiceModelConfig.Id, config)
     }
 
     override suspend fun getVoiceClone(): ModelConfig? {
         return dao.findById(VoiceCloneModelConfig.Id)?.toModelConfig()
+    }
+
+    override fun observeVoiceClone(): Flow<ModelConfig?> {
+        return dao.observeById(VoiceCloneModelConfig.Id).map { it?.toModelConfig() }
     }
 
     override suspend fun saveVoiceClone(config: ModelConfig) {

@@ -105,6 +105,8 @@
     <string name="profile_save_btn">保存设置</string>
     <string name="profile_saved">设置已保存</string>
     <string name="profile_restore_default">恢复默认</string>
+    <string name="profile_export_success">数据导出成功</string>
+    <string name="profile_import_success">数据导入成功，应用即将重启</string>
 
     <string name="global_settings_avatar_section">用户头像</string>
     <string name="global_settings_general_section">通用设置</string>

@@ -61,12 +61,16 @@ class ProfileViewModel(
             }
             is ProfileAction.ExportData -> {
                 scope().launch {
-                    databaseManager.exportDatabase(action.directoryPath)
+                    databaseManager.exportDatabase(action.directoryPath).onSuccess {
+                        _effects.send(ProfileEffect.ShowMessage(ProfileEffectMessage.EXPORT_SUCCESS))
+                    }
                 }
             }
             is ProfileAction.ImportData -> {
                 scope().launch {
-                    databaseManager.importDatabase(action.filePath)
+                    databaseManager.importDatabase(action.filePath).onSuccess {
+                        _effects.send(ProfileEffect.RestartApp)
+                    }
                 }
             }
             ProfileAction.RestoreDefaultAvatar -> {

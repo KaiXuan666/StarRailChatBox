@@ -33,5 +33,10 @@ data class SettingsUiState(
     val voiceSelectedCloneModel: String = "",
     val voiceIsFetchingModels: Boolean = false,
     val voiceIsSaving: Boolean = false,
+
+    // 配置状态（真实持久化状态）
+    val isDefaultConfigured: Boolean = false,
+    val isMultimodalConfigured: Boolean = false,
+    val isVoiceConfigured: Boolean = false,
 )
 
