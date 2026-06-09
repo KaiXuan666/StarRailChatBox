@@ -257,7 +257,7 @@ class VoiceSynthesisTool(
     companion object {
         const val Name = "synthesize_voice"
         private val VoiceSynthesisRegex = Regex(
-            pattern = "<voice_synthesis\\s*>([\\s\\S]*?)</voice_synthesis\\s*>",
+            pattern = "<voice_synthesis\\s*>([\\s\\S]*?)(?:</voice_synthesis\\s*>|$)",
             option = RegexOption.IGNORE_CASE,
         )
     }
