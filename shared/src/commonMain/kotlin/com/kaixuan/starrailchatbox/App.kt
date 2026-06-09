@@ -9,6 +9,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kaixuan.starrailchatbox.data.character.CharacterRepository
 import com.kaixuan.starrailchatbox.data.character.DefaultCharacterRepository
 import com.kaixuan.starrailchatbox.data.character.InMemoryCharacterStorage
+import com.kaixuan.starrailchatbox.data.database.DatabaseManager
+import com.kaixuan.starrailchatbox.data.database.InMemoryDatabaseManager
 import com.kaixuan.starrailchatbox.data.model.InMemoryModelConfigRepository
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
 import com.kaixuan.starrailchatbox.data.chat.ChatSessionRepository
@@ -42,6 +44,7 @@ fun App(
     chatSessionRepository: ChatSessionRepository = remember {
         InMemoryChatSessionRepository()
     },
+    databaseManager: DatabaseManager = remember { InMemoryDatabaseManager() },
 ) {
     val koinApplication = remember(
         modelConfigRepository,
@@ -49,6 +52,7 @@ fun App(
         appSettingsStore,
         characterRepository,
         chatSessionRepository,
+        databaseManager,
     ) {
         koinApplication {
             modules(
@@ -58,6 +62,7 @@ fun App(
                     appSettingsStore,
                     characterRepository,
                     chatSessionRepository,
+                    databaseManager,
                 ),
             )
         }

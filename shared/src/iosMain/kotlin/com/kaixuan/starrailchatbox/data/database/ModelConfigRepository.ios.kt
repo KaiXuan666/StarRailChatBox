@@ -27,8 +27,9 @@ fun createPersistentRepositories(): PersistentRepositories {
         error = null,
     )
     val directoryPath = requireNotNull(directory?.path)
+    val databasePath = "$directoryPath/starrail_chat_box.db"
     val database = Room.databaseBuilder<StarRailDatabase>(
-        name = "$directoryPath/starrail_chat_box.db",
+        name = databasePath,
         factory = StarRailDatabaseConstructor::initialize,
     )
         .setDriver(BundledSQLiteDriver())
@@ -53,5 +54,6 @@ fun createPersistentRepositories(): PersistentRepositories {
         chatSessionRepository = RoomChatSessionRepository(database),
         profileStore = createProfileStore("$directoryPath/profile_settings.preferences_pb"),
         appSettingsStore = createAppSettingsStore("$directoryPath/app_settings.preferences_pb"),
+        databaseManager = RoomDatabaseManager(database, databasePath),
     )
 }

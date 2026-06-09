@@ -25,6 +25,7 @@ fun main() {
                 appSettingsStore = repositories.appSettingsStore,
                 characterRepository = repositories.characterRepository,
                 chatSessionRepository = repositories.chatSessionRepository,
+                databaseManager = repositories.databaseManager,
             )
         }
     }

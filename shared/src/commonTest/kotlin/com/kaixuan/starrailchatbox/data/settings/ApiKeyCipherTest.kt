@@ -3,7 +3,6 @@ package com.kaixuan.starrailchatbox.data.settings
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFails
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -36,9 +35,18 @@ class ApiKeyCipherTest {
         val otherCipher = ApiKeyCipher(InMemoryEncryptionKeyStore())
         otherCipher.encrypt("initialize-different-key")
 
-        assertFails {
-            otherCipher.decrypt(encrypted)
-        }
+        assertEquals("请重新配置API", otherCipher.decrypt(encrypted))
+    }
+
+    @Test
+    fun returnsPromptWhenDecryptionFails() = runTest {
+        val cipher = ApiKeyCipher(InMemoryEncryptionKeyStore())
+        // Invalid format
+        assertEquals("请重新配置API", cipher.decrypt("v1:"))
+        // Invalid version
+        assertEquals("请重新配置API", cipher.decrypt("v2:some-data"))
+        // Invalid base64
+        assertEquals("请重新配置API", cipher.decrypt("v1:???"))
     }
 
     @Test

@@ -53,5 +53,6 @@ fun createPersistentRepositories(
         appSettingsStore = createAppSettingsStore(
             path = databaseFile.resolveSibling("app_settings.preferences_pb").absolutePath,
         ),
+        databaseManager = RoomDatabaseManager(database, databaseFile.absolutePath),
     )
 }

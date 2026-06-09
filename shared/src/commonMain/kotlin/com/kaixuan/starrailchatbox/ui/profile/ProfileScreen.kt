@@ -35,8 +35,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
 import com.kaixuan.starrailchatbox.ui.components.AvatarImage
 import com.kaixuan.starrailchatbox.ui.components.BackHandler
@@ -44,7 +46,9 @@ import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
 import com.kaixuan.starrailchatbox.ui.main.MainAction
+import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.dialogs.FileKitType
+import io.github.vinceglb.filekit.dialogs.compose.rememberDirectoryPickerLauncher
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.path
 import org.jetbrains.compose.resources.stringResource
@@ -82,6 +86,20 @@ fun ProfileScreen(
     ) { image ->
         if (image != null) {
             onAction(ProfileAction.AvatarChanged(image.path ?: ""))
+        }
+    }
+
+    val exportLauncher = rememberDirectoryPickerLauncher { directory ->
+        if (directory != null) {
+            onAction(ProfileAction.ExportData(directory))
+        }
+    }
+
+    val importLauncher = rememberFilePickerLauncher(
+        type = FileKitType.File(),
+    ) { file ->
+        if (file != null) {
+            onAction(ProfileAction.ImportData(file))
         }
     }
 
@@ -220,14 +238,14 @@ fun ProfileScreen(
                 PrimaryGradientButton(
                     text = stringResource(Res.string.global_settings_export_data),
                     icon = StarRailIconKind.ARROW_UP,
-                    onClick = { onAction(ProfileAction.ExportDataClicked) }
+                    onClick = { exportLauncher.launch() }
                 )
 
                 // Import Data Button (Outlined)
                 OutlinedActionButton(
                     text = stringResource(Res.string.global_settings_import_data),
                     icon = StarRailIconKind.FILE,
-                    onClick = { onAction(ProfileAction.ImportDataClicked) }
+                    onClick = { importLauncher.launch() }
                 )
             }
         }
@@ -504,5 +522,37 @@ private fun OutlinedActionButton(
                 )
             }
         }
+    }
+}
+
+@Preview(widthDp = 360, heightDp = 800)
+@Composable
+private fun ProfileScreenLightPreview() {
+    StarRailTheme(darkThemeOverride = false) {
+        ProfileScreen(
+            state = ProfileUiState(
+                isLoaded = true
+            ),
+            contentPadding = PaddingValues(0.dp),
+            compact = true,
+            onMainAction = {},
+            onAction = {}
+        )
+    }
+}
+
+@Preview(widthDp = 360, heightDp = 800)
+@Composable
+private fun ProfileScreenDarkPreview() {
+    StarRailTheme(darkThemeOverride = true) {
+        ProfileScreen(
+            state = ProfileUiState(
+                isLoaded = true
+            ),
+            contentPadding = PaddingValues(0.dp),
+            compact = true,
+            onMainAction = {},
+            onAction = {}
+        )
     }
 }

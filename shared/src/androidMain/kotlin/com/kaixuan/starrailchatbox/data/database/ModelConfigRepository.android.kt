@@ -33,6 +33,7 @@ fun createPersistentRepositories(
         .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
         .build()
     val keyStorePath = context.filesDir.resolve("api_key.key.preferences_pb").absolutePath
+    val databaseFile = context.getDatabasePath(databaseName)
     return PersistentRepositories(
         modelConfigRepository = RoomModelConfigRepository(
             dao = database.modelConfigDao(),
@@ -59,5 +60,6 @@ fun createPersistentRepositories(
             path = context.filesDir.resolve("app_settings.preferences_pb").absolutePath,
             context = context,
         ),
+        databaseManager = RoomDatabaseManager(database, databaseFile.absolutePath),
     )
 }

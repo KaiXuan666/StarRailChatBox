@@ -12,4 +12,5 @@ data class PersistentRepositories(
     val chatSessionRepository: ChatSessionRepository,
     val profileStore: ProfileStore,
     val appSettingsStore: AppSettingsStore,
+    val databaseManager: DatabaseManager,
 )

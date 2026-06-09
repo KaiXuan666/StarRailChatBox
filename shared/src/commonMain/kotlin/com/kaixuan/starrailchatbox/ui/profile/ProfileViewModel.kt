@@ -2,8 +2,11 @@ package com.kaixuan.starrailchatbox.ui.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kaixuan.starrailchatbox.data.database.DatabaseManager
 import com.kaixuan.starrailchatbox.data.settings.ProfileStore
 import com.kaixuan.starrailchatbox.data.settings.UserProfile
+import io.github.vinceglb.filekit.FileKit
+import io.github.vinceglb.filekit.dialogs.openFilePicker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,6 +17,7 @@ import kotlinx.coroutines.launch
 
 class ProfileViewModel(
     private val profileStore: ProfileStore,
+    private val databaseManager: DatabaseManager,
     private val coroutineScope: CoroutineScope? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ProfileUiState())
@@ -55,11 +59,15 @@ class ProfileViewModel(
                 _uiState.update { it.copy(enableWebSearch = action.enabled) }
                 saveProfile()
             }
-            ProfileAction.ExportDataClicked -> {
-                // Placeholder for future implementation
+            is ProfileAction.ExportData -> {
+                scope().launch {
+                    databaseManager.exportDatabase(action.directoryPath)
+                }
             }
-            ProfileAction.ImportDataClicked -> {
-                // Placeholder for future implementation
+            is ProfileAction.ImportData -> {
+                scope().launch {
+                    databaseManager.importDatabase(action.filePath)
+                }
             }
             ProfileAction.RestoreDefaultAvatar -> {
                 _uiState.update { it.copy(customAvatarUri = null) }

@@ -15,6 +15,7 @@ import com.kaixuan.starrailchatbox.data.ai.tool.ToolCallCoordinator
 import com.kaixuan.starrailchatbox.data.ai.tool.ToolRegistry
 import com.kaixuan.starrailchatbox.data.ai.tool.createPlatformToolExecutor
 import com.kaixuan.starrailchatbox.data.api.createPlatformHttpClient
+import com.kaixuan.starrailchatbox.data.database.DatabaseManager
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
 import com.kaixuan.starrailchatbox.data.character.CharacterRepository
 import com.kaixuan.starrailchatbox.data.chat.ChatSessionRepository
@@ -33,6 +34,7 @@ fun appModule(
     appSettingsStore: AppSettingsStore,
     characterRepository: CharacterRepository,
     chatSessionRepository: ChatSessionRepository,
+    databaseManager: DatabaseManager,
 ) = module {
     single { createPlatformHttpClient() }
     single<AiProvider> { OpenAiCompatibleProvider(get()) }
@@ -49,8 +51,9 @@ fun appModule(
     single { appSettingsStore }
     single { characterRepository }
     single { chatSessionRepository }
+    single { databaseManager }
     factory { MainViewModel(get()) }
     factory { ChatViewModel(get(), get(), get(), get(), get()) }
     factory { SettingsViewModel(get(), get()) }
-    factory { ProfileViewModel(get()) }
+    factory { ProfileViewModel(get(), get()) }
 }
