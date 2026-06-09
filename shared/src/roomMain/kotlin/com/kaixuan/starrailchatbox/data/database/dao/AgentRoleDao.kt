@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Upsert
 import com.kaixuan.starrailchatbox.data.database.entity.AgentRoleEntity
+import com.kaixuan.starrailchatbox.data.database.entity.AgentRoleSummaryEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -17,20 +18,20 @@ interface AgentRoleDao {
     suspend fun insertIfMissing(roles: List<AgentRoleEntity>)
 
     @Query("""
-        SELECT id, name, avatar_uri, description, SUBSTR(system_prompt, 1, 20) AS system_prompt, opening_message, temperature, top_p, sort_order, is_builtin, created_at, updated_at, deleted_at 
+        SELECT *, (SELECT MAX(last_message_at) FROM chat_session WHERE agent_id = agent_role.id AND deleted_at IS NULL) as last_message_at 
         FROM agent_role 
         WHERE deleted_at IS NULL 
         ORDER BY sort_order, created_at
     """)
-    suspend fun findAll(): List<AgentRoleEntity>
+    suspend fun findAll(): List<AgentRoleSummaryEntity>
 
     @Query("""
-        SELECT id, name, avatar_uri, description, SUBSTR(system_prompt, 1, 20) AS system_prompt, opening_message, temperature, top_p, sort_order, is_builtin, created_at, updated_at, deleted_at 
+        SELECT *, (SELECT MAX(last_message_at) FROM chat_session WHERE agent_id = agent_role.id AND deleted_at IS NULL) as last_message_at
         FROM agent_role 
         WHERE deleted_at IS NULL 
         ORDER BY sort_order, created_at
     """)
-    fun observeAll(): Flow<List<AgentRoleEntity>>
+    fun observeAll(): Flow<List<AgentRoleSummaryEntity>>
 
     @Query("SELECT * FROM agent_role WHERE id = :id AND deleted_at IS NULL")
     suspend fun findById(id: String): AgentRoleEntity?

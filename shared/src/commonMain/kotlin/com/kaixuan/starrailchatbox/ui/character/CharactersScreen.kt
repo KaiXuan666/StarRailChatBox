@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.statusBars
+import com.kaixuan.starrailchatbox.platform.formatLocalTime
 import com.kaixuan.starrailchatbox.ui.components.StarRailPageHeader
 import starrailchatbox.shared.generated.resources.character_list_drag_tip
 import androidx.compose.ui.Alignment
@@ -489,7 +490,7 @@ private fun CharacterCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = character.prompt.takeIf { it.isNotBlank() } ?: character.openingMessage,
+                    text = character.lastMessageAt?.let { "上次聊天：${formatLocalTime(it)}" }.orEmpty(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 1,

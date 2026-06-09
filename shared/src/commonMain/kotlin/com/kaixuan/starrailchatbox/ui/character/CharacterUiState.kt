@@ -14,6 +14,7 @@ data class CharacterEditUiState(
     val pendingAvatarSource: CharacterAvatarSource? = null,
     val temperature: Double = 0.85,
     val topP: Double = 0.9,
+    val voiceSampleUri: String? = null,
     val isSaving: Boolean = false,
     val isPromptGenDialogOpen: Boolean = false,
     val promptGenInputText: String = "",
@@ -40,4 +41,5 @@ fun Character.toEditUiState() = CharacterEditUiState(
     avatarUri = avatarUri,
     temperature = temperature,
     topP = topP,
+    voiceSampleUri = voiceSampleUri,
 )

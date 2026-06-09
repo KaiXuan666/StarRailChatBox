@@ -15,6 +15,7 @@ data class Character(
     val topP: Double = 0.9,
     val createdAt: Long = 0L,
     val sortOrder: Int = 0,
+    val lastMessageAt: Long? = null,
 )
 
 data class CharacterFiles(
@@ -28,6 +29,7 @@ data class CharacterFiles(
     val topP: Double = 0.9,
     val createdAt: Long = Clock.System.now().toEpochMilliseconds(),
     val sortOrder: Int = 0,
+    val lastMessageAt: Long? = null,
 )
 
 data class CharacterAvatarSource(
@@ -136,6 +138,7 @@ class DefaultCharacterRepository(
             topP = character.topP.coerceIn(0.0, 1.0),
             createdAt = character.createdAt,
             sortOrder = character.sortOrder,
+            lastMessageAt = character.lastMessageAt,
         )
         return storage.saveCharacter(files, avatarSource).toCharacter()
     }
@@ -160,6 +163,7 @@ private fun CharacterFiles.toCharacter() = Character(
     topP = topP,
     createdAt = createdAt,
     sortOrder = sortOrder,
+    lastMessageAt = lastMessageAt,
 )
 
 @OptIn(ExperimentalResourceApi::class)

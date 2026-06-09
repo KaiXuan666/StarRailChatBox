@@ -2,6 +2,7 @@ package com.kaixuan.starrailchatbox.data.character
 
 import com.kaixuan.starrailchatbox.data.database.dao.AgentRoleDao
 import com.kaixuan.starrailchatbox.data.database.entity.AgentRoleEntity
+import com.kaixuan.starrailchatbox.data.database.entity.AgentRoleSummaryEntity
 
 class RoomCharacterStorage(
     private val dao: AgentRoleDao,
@@ -117,6 +118,20 @@ class RoomCharacterStorage(
         createdAt = createdAt,
         updatedAt = updatedAt,
         voiceSampleUri = voiceSampleUri,
+    )
+
+    private fun AgentRoleSummaryEntity.toCharacterFiles() = CharacterFiles(
+        id = id,
+        name = name,
+        prompt = "", // Excluded from summary
+        openingMessage = openingMessage,
+        avatarUri = avatarUri,
+        voiceSampleUri = voiceSampleUri,
+        temperature = temperature,
+        topP = topP,
+        createdAt = createdAt,
+        sortOrder = sortOrder,
+        lastMessageAt = lastMessageAt,
     )
 
     private fun AgentRoleEntity.toCharacterFiles() = CharacterFiles(

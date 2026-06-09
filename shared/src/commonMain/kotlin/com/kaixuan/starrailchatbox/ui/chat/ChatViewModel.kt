@@ -456,6 +456,7 @@ class ChatViewModel(
                         avatarUri = editState.avatarUri,
                         temperature = editState.temperature.coerceIn(0.0, 2.0),
                         topP = editState.topP.coerceIn(0.0, 1.0),
+                        voiceSampleUri = editState.voiceSampleUri,
                         createdAt = currentTimeMillis(),
                     )
                     characterRepository.updateCharacter(newCharacter, editState.pendingAvatarSource)
@@ -470,6 +471,7 @@ class ChatViewModel(
                             avatarUri = editState.avatarUri,
                             temperature = editState.temperature.coerceIn(0.0, 2.0),
                             topP = editState.topP.coerceIn(0.0, 1.0),
+                            voiceSampleUri = editState.voiceSampleUri,
                         ),
                         editState.pendingAvatarSource,
                     )
