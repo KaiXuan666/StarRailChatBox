@@ -8,6 +8,7 @@ import com.kaixuan.starrailchatbox.data.ai.OpenAiCompatibleProvider
 import com.kaixuan.starrailchatbox.data.ai.tool.AiTool
 import com.kaixuan.starrailchatbox.data.ai.tool.QuickRepliesTool
 import com.kaixuan.starrailchatbox.data.ai.tool.VoiceSynthesisTool
+import com.kaixuan.starrailchatbox.data.ai.tool.BochaSearchTool
 import com.kaixuan.starrailchatbox.data.ai.tool.RiskBasedToolApprovalGateway
 import com.kaixuan.starrailchatbox.data.ai.tool.PlatformToolExecutor
 import com.kaixuan.starrailchatbox.data.ai.tool.ToolApprovalGateway
@@ -41,6 +42,7 @@ fun appModule(
     single { AiProviderRegistry(getAll()) }
     single<AiTool>(named("QuickReplies")) { QuickRepliesTool() }
     single<AiTool>(named("VoiceSynthesis")) { VoiceSynthesisTool(get(), get()) }
+    single<AiTool>(named("BochaSearch")) { BochaSearchTool(get(), get()) }
     single { ToolRegistry(getAll()) }
     single<ToolApprovalGateway> { RiskBasedToolApprovalGateway }
     single<PlatformToolExecutor> { createPlatformToolExecutor() }

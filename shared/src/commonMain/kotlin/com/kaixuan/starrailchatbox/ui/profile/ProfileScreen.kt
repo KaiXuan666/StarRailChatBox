@@ -213,16 +213,16 @@ fun ProfileScreen(
                 }
 
                 // Web Search
-                SettingsItemRow(
-                    title = stringResource(Res.string.global_settings_enable_web_search),
-                    description = stringResource(Res.string.global_settings_enable_web_search_desc),
-                ) {
-                    Switch(
-                        checked = state.enableWebSearch,
-                        onCheckedChange = { onAction(ProfileAction.EnableWebSearchChanged(it)) },
-                        colors = switchColors()
-                    )
-                }
+//                SettingsItemRow(
+//                    title = stringResource(Res.string.global_settings_enable_web_search),
+//                    description = stringResource(Res.string.global_settings_enable_web_search_desc),
+//                ) {
+//                    Switch(
+//                        checked = state.enableWebSearch,
+//                        onCheckedChange = { onAction(ProfileAction.EnableWebSearchChanged(it)) },
+//                        colors = switchColors()
+//                    )
+//                }
             }
         }
 
