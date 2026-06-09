@@ -855,7 +855,8 @@ class ChatViewModel(
         }
         val hasHistoryMultimodalAttachment = context.messages.any { msg ->
             msg.attachments.any { att ->
-                att.mimeType.startsWith("image/") || att.mimeType.startsWith("audio/") || !enableFileAppend
+                val isAiVoice = msg.role == ChatRole.ASSISTANT && att.mimeType.startsWith("audio/")
+                !isAiVoice && (att.mimeType.startsWith("image/") || att.mimeType.startsWith("audio/") || !enableFileAppend)
             }
         }
         val hasMultimodalAttachment = hasCurrentMultimodalAttachment || hasHistoryMultimodalAttachment
@@ -1050,6 +1051,10 @@ class ChatViewModel(
 
         val historyMessageParts = context.messages.associate { msg ->
             msg.id to msg.attachments.mapNotNull { attachment ->
+                // 去掉 AI 发送的语音附件，保留文本 (文本在 buildChatContext 中处理)
+                if (msg.role == ChatRole.ASSISTANT && attachment.mimeType.startsWith("audio/")) {
+                    return@mapNotNull null
+                }
                 if (attachment.uri.startsWith("data:")) {
                     if (attachment.mimeType.startsWith("image/")) {
                         AiContentPart.ImageUrl(attachment.uri)
