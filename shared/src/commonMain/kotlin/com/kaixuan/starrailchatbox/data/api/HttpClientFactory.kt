@@ -47,6 +47,9 @@ internal fun HttpClientConfig<*>.configureOpenAiClient() {
                         start = end
                         count ++
                     }
+                    if (count == 5) {
+                        Napier.d("消息过长，已被截断", tag = "OpenAiHttp")
+                    }
                 }
                 saveNetworkLog(message)
             }
