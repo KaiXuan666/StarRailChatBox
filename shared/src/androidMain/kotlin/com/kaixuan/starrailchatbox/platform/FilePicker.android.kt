@@ -5,7 +5,10 @@ import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.core.content.FileProvider
@@ -40,29 +43,31 @@ actual fun rememberCameraLauncher(onImageCaptured: (PickedImage?) -> Unit): () -
     val context = LocalContext.current
     val isPreview = LocalInspectionMode.current
     
-    // 使用 remember 避免在重组时重复创建文件和生成 URI
-    // 在预览模式下跳过 FileProvider 调用，因为它依赖于 Manifest 中的配置，预览环境可能无法识别
-    val uri = remember(isPreview) {
-        if (isPreview) {
-            null
-        } else {
-            val tempFile = File(context.cacheDir, "temp_camera_image_${System.currentTimeMillis()}.jpg")
-            val authority = "${context.packageName}.fileprovider"
-            FileProvider.getUriForFile(context, authority, tempFile)
-        }
-    }
+    // 使用 remember 保存当前的 URI，以便在回调中访问
+    var currentUri by remember { mutableStateOf<Uri?>(null) }
+    var currentName by remember { mutableStateOf<String?>(null) }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
         if (success) {
-            onImageCaptured(PickedImage(uri?.toString() ?: ""))
+            onImageCaptured(PickedImage(currentUri?.toString() ?: "", currentName))
         } else {
             onImageCaptured(null)
         }
     }
     
     return { 
-        uri?.let { launcher.launch(it) }
+        if (isPreview) {
+            onImageCaptured(null)
+        } else {
+            val name = "camera_${System.currentTimeMillis()}.jpg"
+            val tempFile = File(context.cacheDir, name)
+            val authority = "${context.packageName}.fileprovider"
+            val uri = FileProvider.getUriForFile(context, authority, tempFile)
+            currentUri = uri
+            currentName = name
+            launcher.launch(uri)
+        }
     }
 }

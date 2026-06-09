@@ -10,6 +10,11 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import com.kaixuan.starrailchatbox.platform.compressImageIfPossible
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -144,14 +149,25 @@ fun MainRoute(
     settings: SettingsRouteBinding,
     profile: ProfileRouteBinding,
 ) {
+    val coroutineScope = rememberCoroutineScope()
     val imagePicker = rememberImagePicker { picked ->
-        picked?.let { chat.onAction(ChatAction.ImageSelected(it.uri)) }
+        picked?.let { 
+            coroutineScope.launch {
+                val compressedUri = compressImageIfPossible(it.uri)
+                chat.onAction(ChatAction.ImageSelected(compressedUri, it.name))
+            }
+        }
     }
     val filePicker = rememberFilePicker { picked ->
         picked?.let { chat.onAction(ChatAction.FileSelected(it.uri, it.name)) }
     }
     val cameraLauncher = rememberCameraLauncher { captured ->
-        captured?.let { chat.onAction(ChatAction.ImageSelected(captured.uri)) }
+        captured?.let { 
+            coroutineScope.launch {
+                val compressedUri = compressImageIfPossible(captured.uri)
+                chat.onAction(ChatAction.ImageSelected(compressedUri, captured.name))
+            }
+        }
     }
 
     val wrappedOnChatAction: (ChatAction) -> Unit = { action ->

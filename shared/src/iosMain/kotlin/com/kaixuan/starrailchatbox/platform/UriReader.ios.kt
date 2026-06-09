@@ -27,3 +27,10 @@ actual fun writeAudioBytesToCache(bytes: ByteArray, fileName: String): String {
     }
 }
 
+actual suspend fun compressImageIfPossible(uri: String): String {
+    return uri
+}
+
+actual suspend fun persistAttachment(uri: String, fileName: String): String {
+    return uri
+}

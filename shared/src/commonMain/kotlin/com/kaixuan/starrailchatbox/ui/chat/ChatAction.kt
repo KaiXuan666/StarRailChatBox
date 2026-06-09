@@ -13,7 +13,7 @@ sealed interface ChatAction {
     data class HeaderActionClicked(val action: HeaderAction) : ChatAction
     data class ComposerActionClicked(val action: ComposerAction) : ChatAction
     data class FileSelected(val uri: String, val name: String) : ChatAction
-    data class ImageSelected(val uri: String) : ChatAction
+    data class ImageSelected(val uri: String, val name: String? = null) : ChatAction
     data class RemoveAttachment(val attachment: SelectedAttachment) : ChatAction
     data class OpenAttachment(val attachment: com.kaixuan.starrailchatbox.data.chat.MessageAttachment) : ChatAction
     data object RestoreMainCharacter : ChatAction

@@ -1597,15 +1597,26 @@ fun ChatSessionBottomBar(
 ) {
     val characterId = state.selectedCharacterId
     val isVoiceMode = characterId?.let { state.characterStates[it]?.isVoiceMode } ?: false
+    val coroutineScope = rememberCoroutineScope()
 
     val imagePicker = rememberImagePicker { picked ->
-        picked?.let { onAction(ChatAction.ImageSelected(it.uri)) }
+        picked?.let { 
+            coroutineScope.launch {
+                val compressedUri = com.kaixuan.starrailchatbox.platform.compressImageIfPossible(it.uri)
+                onAction(ChatAction.ImageSelected(compressedUri, it.name))
+            }
+        }
     }
     val filePicker = rememberFilePicker { picked ->
         picked?.let { onAction(ChatAction.FileSelected(it.uri, it.name)) }
     }
     val cameraLauncher = rememberCameraLauncher { picked ->
-        picked?.let { onAction(ChatAction.ImageSelected(it.uri)) }
+        picked?.let { 
+            coroutineScope.launch {
+                val compressedUri = com.kaixuan.starrailchatbox.platform.compressImageIfPossible(it.uri)
+                onAction(ChatAction.ImageSelected(compressedUri, it.name))
+            }
+        }
     }
 
     val interceptedOnAction: (ChatAction) -> Unit = { action ->

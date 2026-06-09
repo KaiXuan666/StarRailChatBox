@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.kaixuan.starrailchatbox.data.ai.AiContentPart
 import com.kaixuan.starrailchatbox.data.ai.AiMessage
 import com.kaixuan.starrailchatbox.data.ai.AiRepository
+import com.kaixuan.starrailchatbox.platform.persistAttachment
 import com.kaixuan.starrailchatbox.platform.readUriAsBytes
 import com.kaixuan.starrailchatbox.data.ai.ChatCompletionResult
 import com.kaixuan.starrailchatbox.data.api.ApiResult
@@ -188,7 +189,7 @@ class ChatViewModel(
             is ChatAction.ImageSelected -> {
                 Napier.d("Image selected at ${action.uri}")
                 val characterId = uiState.value.selectedCharacterId ?: return
-                val name = action.uri.substringAfterLast('/')
+                val name = action.name ?: action.uri.substringAfterLast('/')
                 updateCharacterState(characterId) { state ->
                     state.copy(
                         selectedAttachments = state.selectedAttachments + SelectedAttachment.Image(action.uri, name),
@@ -250,7 +251,7 @@ class ChatViewModel(
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (e: Throwable) {
-                Napier.e("Retry message failed", e)
+                Napier.e("Retry message failed (msgId: ${messageToRetry.id})", e)
                 emitMessage(EffectMessage.CHAT_REQUEST_FAILED)
             } finally {
                 updateCharacterState(characterId) { it.copy(isSending = false) }
@@ -893,7 +894,13 @@ class ChatViewModel(
         ).let { newSession ->
             val userMessageId = idGenerator("message")
             val domainAttachments = attachments.map {
-                it.toMessageAttachment(userMessageId, now)
+                val persistedUri = persistAttachment(it.uri, it.name)
+                val updatedAttachment = when (it) {
+                    is SelectedAttachment.File -> it.copy(uri = persistedUri)
+                    is SelectedAttachment.Image -> it.copy(uri = persistedUri)
+                    is SelectedAttachment.Voice -> it.copy(uri = persistedUri)
+                }
+                updatedAttachment.toMessageAttachment(userMessageId, now)
             }
             val userMessage = NewChatMessage(
                 id = userMessageId,
@@ -931,7 +938,13 @@ class ChatViewModel(
         if (previousSession != null) {
             val userMessageId = idGenerator("message")
             val domainAttachments = attachments.map {
-                it.toMessageAttachment(userMessageId, now)
+                val persistedUri = persistAttachment(it.uri, it.name)
+                val updatedAttachment = when (it) {
+                    is SelectedAttachment.File -> it.copy(uri = persistedUri)
+                    is SelectedAttachment.Image -> it.copy(uri = persistedUri)
+                    is SelectedAttachment.Voice -> it.copy(uri = persistedUri)
+                }
+                updatedAttachment.toMessageAttachment(userMessageId, now)
             }
             chatSessionRepository.appendMessage(
                 NewChatMessage(

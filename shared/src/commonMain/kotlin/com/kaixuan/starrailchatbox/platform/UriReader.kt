@@ -13,3 +13,14 @@ expect suspend fun readUriAsBytes(uri: String): ByteArray
  */
 expect fun writeAudioBytesToCache(bytes: ByteArray, fileName: String): String
 
+/**
+ * 压缩图片到指定大小以内（例如 1MB），并返回压缩后的新 URI。
+ * 如果无需压缩或平台不支持，则返回原 URI。
+ */
+expect suspend fun compressImageIfPossible(uri: String): String
+
+/**
+ * 将附件持久化到应用的私有存储目录。
+ */
+expect suspend fun persistAttachment(uri: String, fileName: String): String
+

@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 
 data class PickedImage(
     val uri: String,
+    val name: String? = null,
 )
 
 /**

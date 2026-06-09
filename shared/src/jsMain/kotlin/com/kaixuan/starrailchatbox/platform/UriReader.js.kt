@@ -9,3 +9,10 @@ actual fun writeAudioBytesToCache(bytes: ByteArray, fileName: String): String {
     return "data:audio/wav;base64," + kotlin.io.encoding.Base64.encode(bytes)
 }
 
+actual suspend fun compressImageIfPossible(uri: String): String {
+    return uri
+}
+
+actual suspend fun persistAttachment(uri: String, fileName: String): String {
+    return uri
+}
