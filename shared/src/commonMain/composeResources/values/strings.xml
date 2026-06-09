@@ -98,20 +98,34 @@
     <string name="character_edit_delete_confirm_message">确定删除“%1$s”吗？</string>
     <string name="character_edit_delete_confirm_action">删除</string>
     
-    <!-- 个人信息界面 -->
-    <string name="settings_profile_title">个人信息</string>
-    <string name="settings_profile_desc">修改你的昵称与个人头像</string>
+    <!-- 个人信息界面 (全局设置) -->
+    <string name="settings_profile_title">全局设置</string>
+    <string name="settings_profile_desc">修改头像、通用偏好及数据管理</string>
     <string name="profile_avatar_title">更换头像</string>
     <string name="profile_nickname_title">昵称</string>
-    <string name="profile_save_btn">保存信息</string>
-    <string name="profile_saved">个人信息已保存</string>
+    <string name="profile_save_btn">保存设置</string>
+    <string name="profile_saved">设置已保存</string>
     <string name="profile_nickname_empty">昵称不能为空</string>
     <string name="profile_restore_default">恢复默认</string>
     <string name="profile_unsaved_changes_title">未保存的更改</string>
-    <string name="profile_unsaved_changes_message">你有未保存的个人信息更改，是否保存后再离开？</string>
+    <string name="profile_unsaved_changes_message">你有未保存的设置更改，是否保存后再离开？</string>
     <string name="profile_unsaved_changes_save">保存</string>
     <string name="profile_unsaved_changes_discard">不保存</string>
     <string name="profile_unsaved_changes_cancel">取消</string>
+
+    <string name="global_settings_avatar_section">用户头像</string>
+    <string name="global_settings_general_section">通用设置</string>
+    <string name="global_settings_summary_threshold">消息总结阈值</string>
+    <string name="global_settings_summary_threshold_desc">超过阈值后将自动总结历史消息</string>
+    <string name="global_settings_messages_unit">%1$d条消息</string>
+    <string name="global_settings_save_multimodal_token">节省多模态 Token</string>
+    <string name="global_settings_save_multimodal_token_desc">减少图片/音频等上下文消耗</string>
+    <string name="global_settings_enable_web_search">联网搜索</string>
+    <string name="global_settings_enable_web_search_desc">允许 AI 获取实时网络信息</string>
+    <string name="global_settings_data_management">数据管理</string>
+    <string name="global_settings_export_data">导出数据</string>
+    <string name="global_settings_import_data">导入数据</string>
+    <string name="global_settings_data_footer">您的数据仅保存在本地设备，安全可控</string>
 
 
     <!-- 设置界面 -->

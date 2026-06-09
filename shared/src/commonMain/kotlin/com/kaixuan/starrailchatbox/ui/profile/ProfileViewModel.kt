@@ -47,6 +47,21 @@ class ProfileViewModel(
             is ProfileAction.AvatarChanged -> {
                 _uiState.update { it.copy(customAvatarUri = action.avatarUri) }
             }
+            is ProfileAction.SummaryThresholdChanged -> {
+                _uiState.update { it.copy(summaryThreshold = action.threshold) }
+            }
+            is ProfileAction.SaveMultimodalTokenChanged -> {
+                _uiState.update { it.copy(saveMultimodalToken = action.enabled) }
+            }
+            is ProfileAction.EnableWebSearchChanged -> {
+                _uiState.update { it.copy(enableWebSearch = action.enabled) }
+            }
+            ProfileAction.ExportDataClicked -> {
+                // Placeholder for future implementation
+            }
+            ProfileAction.ImportDataClicked -> {
+                // Placeholder for future implementation
+            }
             ProfileAction.RestoreDefaultAvatar -> {
                 _uiState.update { it.copy(customAvatarUri = null) }
             }
@@ -65,6 +80,9 @@ class ProfileViewModel(
                     it.copy(
                         nickname = it.originalNickname,
                         customAvatarUri = it.originalCustomAvatarUri,
+                        summaryThreshold = it.originalSummaryThreshold,
+                        saveMultimodalToken = it.originalSaveMultimodalToken,
+                        enableWebSearch = it.originalEnableWebSearch,
                         isDiscardDialogOpen = false
                     )
                 }
@@ -86,6 +104,7 @@ class ProfileViewModel(
         _uiState.update { it.copy(isSaving = true) }
         scope().launch {
             try {
+                // Note: Only saving nickname and avatar for now as requested "just interface"
                 val updatedProfile = UserProfile(
                     nickname = state.nickname.trim(),
                     customAvatarUri = state.customAvatarUri
@@ -96,7 +115,10 @@ class ProfileViewModel(
                         isSaving = false,
                         isDiscardDialogOpen = false,
                         originalNickname = updatedProfile.nickname,
-                        originalCustomAvatarUri = updatedProfile.customAvatarUri
+                        originalCustomAvatarUri = updatedProfile.customAvatarUri,
+                        originalSummaryThreshold = it.summaryThreshold,
+                        originalSaveMultimodalToken = it.saveMultimodalToken,
+                        originalEnableWebSearch = it.enableWebSearch,
                     )
                 }
                 _effects.send(ProfileEffect.ProfileSaved)
