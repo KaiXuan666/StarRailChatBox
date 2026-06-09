@@ -1,21 +1,32 @@
 package com.kaixuan.starrailchatbox.ui.components
 
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import kotlin.math.PI
 import kotlin.math.cos
-import kotlin.math.min
 import kotlin.math.sin
+
+private const val RetryStartAngle = 35f
+private const val RetrySweepAngle = 285f
+private const val RetryEndCos = 0.76604444f
+private const val RetryEndSin = -0.64278764f
+private const val RetryArrowLeftCos = 0.9612617f
+private const val RetryArrowLeftSin = 0.27563736f
+private const val RetryArrowRightCos = 0.104528464f
+private const val RetryArrowRightSin = 0.9945219f
 
 enum class StarRailIconKind {
     VOICE,
@@ -72,33 +83,27 @@ fun StarRailIcon(
         }
     }
 
-    Canvas(semanticsModifier) {
-        val side = min(size.width, size.height)
-        val strokeWidth = side * 0.085f
-        val stroke = Stroke(
-            width = strokeWidth,
-            cap = StrokeCap.Round,
-            join = StrokeJoin.Round,
-        )
-        fun point(x: Float, y: Float) = Offset(size.width * x, size.height * y)
+    Spacer(
+        modifier = semanticsModifier.drawWithCache {
+            val side = size.minDimension
+            val strokeWidth = side * 0.085f
+            val stroke = Stroke(
+                width = strokeWidth,
+                cap = StrokeCap.Round,
+                join = StrokeJoin.Round,
+            )
+            val path = Path()
 
-        when (kind) {
+            fun point(x: Float, y: Float) = Offset(size.width * x, size.height * y)
+
+            onDrawBehind {
+                when (kind) {
             StarRailIconKind.VOICE -> {
-                listOf(
-                    0.2f to 0.3f,
-                    0.35f to 0.18f,
-                    0.5f to 0.1f,
-                    0.65f to 0.2f,
-                    0.8f to 0.34f,
-                ).forEach { (x, top) ->
-                    drawLine(
-                        color = tint,
-                        start = point(x, top),
-                        end = point(x, 1f - top),
-                        strokeWidth = strokeWidth,
-                        cap = StrokeCap.Round,
-                    )
-                }
+                drawLine(tint, point(0.20f, 0.30f), point(0.20f, 0.70f), strokeWidth, cap = StrokeCap.Round)
+                drawLine(tint, point(0.35f, 0.18f), point(0.35f, 0.82f), strokeWidth, cap = StrokeCap.Round)
+                drawLine(tint, point(0.50f, 0.10f), point(0.50f, 0.90f), strokeWidth, cap = StrokeCap.Round)
+                drawLine(tint, point(0.65f, 0.20f), point(0.65f, 0.80f), strokeWidth, cap = StrokeCap.Round)
+                drawLine(tint, point(0.80f, 0.34f), point(0.80f, 0.66f), strokeWidth, cap = StrokeCap.Round)
             }
 
             StarRailIconKind.VOICE_WAVE -> {
@@ -135,7 +140,7 @@ fun StarRailIcon(
                     color = tint,
                     topLeft = point(0.2f, 0.14f),
                     size = Size(size.width * 0.58f, size.height * 0.7f),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(
+                    cornerRadius = CornerRadius(
                         side * 0.06f,
                     ),
                     style = stroke,
@@ -146,16 +151,17 @@ fun StarRailIcon(
             }
 
             StarRailIconKind.SETTINGS -> {
-                val path = Path()
+                path.reset()
                 val teeth = 8
                 val outerRadius = side * 0.46f
                 val innerRadius = side * 0.32f
                 val holeRadius = side * 0.16f
+                val halfStep = (PI / teeth).toFloat()
+                val toothWidth = halfStep * 0.5f
+                val fullStep = (2.0 * PI / teeth).toFloat()
 
                 for (i in 0 until teeth) {
-                    val angle = (i * 2 * kotlin.math.PI / teeth).toFloat()
-                    val halfStep = (kotlin.math.PI / teeth).toFloat()
-                    val toothWidth = halfStep * 0.5f
+                    val angle = i * fullStep
 
                     val x1 = size.width * 0.5f + cos(angle - toothWidth) * innerRadius
                     val y1 = size.height * 0.5f + sin(angle - toothWidth) * innerRadius
@@ -171,7 +177,7 @@ fun StarRailIcon(
                     path.lineTo(x3, y3)
                     path.lineTo(x4, y4)
 
-                    val nextAngle = ((i + 1) * 2 * kotlin.math.PI / teeth).toFloat()
+                    val nextAngle = (i + 1) * fullStep
                     val x5 = size.width * 0.5f + cos(nextAngle - toothWidth) * innerRadius
                     val y5 = size.height * 0.5f + sin(nextAngle - toothWidth) * innerRadius
                     path.lineTo(x5, y5)
@@ -182,7 +188,9 @@ fun StarRailIcon(
             }
 
             StarRailIconKind.HEART -> {
-                val path = Path().apply {
+                path.reset()
+
+                path.apply {
                     moveTo(size.width * 0.5f, size.height * 0.84f)
                     cubicTo(
                         size.width * 0.36f,
@@ -223,12 +231,12 @@ fun StarRailIcon(
             StarRailIconKind.CHAT -> {
                 drawCircle(tint, side * 0.37f, point(0.5f, 0.46f), style = stroke)
                 drawLine(tint, point(0.63f, 0.75f), point(0.76f, 0.86f), strokeWidth)
-                listOf(0.36f, 0.5f, 0.64f).forEach {
-                    drawCircle(tint, side * 0.035f, point(it, 0.46f))
-                }
+                drawCircle(tint, side * 0.035f, point(0.36f, 0.46f))
+                drawCircle(tint, side * 0.035f, point(0.50f, 0.46f))
+                drawCircle(tint, side * 0.035f, point(0.64f, 0.46f))
             }
 
-            StarRailIconKind.SPARKLE -> drawSparkle(tint, point(0.5f, 0.5f), side * 0.42f)
+            StarRailIconKind.SPARKLE -> drawSparkle(path, tint, point(0.5f, 0.5f), side * 0.42f)
 
             StarRailIconKind.MOON -> {
                 drawArc(
@@ -272,7 +280,9 @@ fun StarRailIcon(
             }
 
             StarRailIconKind.SEND -> {
-                val path = Path().apply {
+                path.reset()
+
+                path.apply {
                     moveTo(size.width * 0.12f, size.height * 0.48f)
                     lineTo(size.width * 0.88f, size.height * 0.15f)
                     lineTo(size.width * 0.66f, size.height * 0.87f)
@@ -288,7 +298,7 @@ fun StarRailIcon(
                     color = tint,
                     topLeft = point(0.37f, 0.12f),
                     size = Size(size.width * 0.26f, size.height * 0.5f),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(side * 0.13f),
+                    cornerRadius = CornerRadius(side * 0.13f),
                     style = stroke,
                 )
                 drawArc(
@@ -306,9 +316,9 @@ fun StarRailIcon(
 
             StarRailIconKind.CONVERSATION -> {
                 drawCircle(tint, side * 0.38f, point(0.5f, 0.5f), style = stroke)
-                listOf(0.34f, 0.5f, 0.66f).forEach {
-                    drawCircle(tint, side * 0.045f, point(it, 0.5f))
-                }
+                drawCircle(tint, side * 0.045f, point(0.34f, 0.5f))
+                drawCircle(tint, side * 0.045f, point(0.50f, 0.5f))
+                drawCircle(tint, side * 0.045f, point(0.66f, 0.5f))
             }
 
             StarRailIconKind.PERSON -> {
@@ -326,7 +336,9 @@ fun StarRailIcon(
 
             StarRailIconKind.COMPASS -> {
                 drawCircle(tint, side * 0.39f, point(0.5f, 0.5f), style = stroke)
-                val path = Path().apply {
+                path.reset()
+
+                path.apply {
                     moveTo(size.width * 0.62f, size.height * 0.26f)
                     lineTo(size.width * 0.53f, size.height * 0.57f)
                     lineTo(size.width * 0.27f, size.height * 0.72f)
@@ -342,7 +354,9 @@ fun StarRailIcon(
             }
 
             StarRailIconKind.CUBE -> {
-                val path = Path().apply {
+                path.reset()
+
+                path.apply {
                     moveTo(size.width * 0.5f, size.height * 0.18f)
                     lineTo(size.width * 0.82f, size.height * 0.34f)
                     lineTo(size.width * 0.82f, size.height * 0.66f)
@@ -367,7 +381,9 @@ fun StarRailIcon(
                     size = Size(side * 0.6f, side * 0.6f),
                     style = stroke,
                 )
-                val path = Path().apply {
+                path.reset()
+
+                path.apply {
                     moveTo(size.width * 0.7f, size.height * 0.14f)
                     lineTo(size.width * 0.82f, size.height * 0.34f)
                     lineTo(size.width * 0.58f, size.height * 0.38f)
@@ -376,7 +392,9 @@ fun StarRailIcon(
             }
 
             StarRailIconKind.BELL -> {
-                val path = Path().apply {
+                path.reset()
+
+                path.apply {
                     moveTo(size.width * 0.5f, size.height * 0.14f)
                     cubicTo(
                         size.width * 0.46f, size.height * 0.14f,
@@ -410,7 +428,9 @@ fun StarRailIcon(
             }
 
             StarRailIconKind.PALETTE -> {
-                val path = Path().apply {
+                path.reset()
+
+                path.apply {
                     moveTo(size.width * 0.5f, size.height * 0.16f)
                     cubicTo(
                         size.width * 0.85f, size.height * 0.16f,
@@ -443,7 +463,9 @@ fun StarRailIcon(
             }
 
             StarRailIconKind.SHIELD -> {
-                val path = Path().apply {
+                path.reset()
+
+                path.apply {
                     moveTo(size.width * 0.24f, size.height * 0.24f)
                     lineTo(size.width * 0.76f, size.height * 0.24f)
                     lineTo(size.width * 0.76f, size.height * 0.54f)
@@ -465,7 +487,9 @@ fun StarRailIcon(
             }
 
             StarRailIconKind.CHEVRON_RIGHT -> {
-                val path = Path().apply {
+                path.reset()
+
+                path.apply {
                     moveTo(size.width * 0.42f, size.height * 0.32f)
                     lineTo(size.width * 0.6f, size.height * 0.5f)
                     lineTo(size.width * 0.42f, size.height * 0.68f)
@@ -493,7 +517,9 @@ fun StarRailIcon(
             }
 
             StarRailIconKind.EYE_VISIBLE -> {
-                val path = Path().apply {
+                path.reset()
+
+                path.apply {
                     moveTo(size.width * 0.18f, size.height * 0.5f)
                     quadraticTo(size.width * 0.5f, size.height * 0.22f, size.width * 0.82f, size.height * 0.5f)
                     quadraticTo(size.width * 0.5f, size.height * 0.78f, size.width * 0.18f, size.height * 0.5f)
@@ -504,7 +530,9 @@ fun StarRailIcon(
             }
 
             StarRailIconKind.EYE_HIDDEN -> {
-                val path = Path().apply {
+                path.reset()
+
+                path.apply {
                     moveTo(size.width * 0.18f, size.height * 0.5f)
                     quadraticTo(size.width * 0.5f, size.height * 0.22f, size.width * 0.82f, size.height * 0.5f)
                     quadraticTo(size.width * 0.5f, size.height * 0.78f, size.width * 0.18f, size.height * 0.5f)
@@ -516,7 +544,9 @@ fun StarRailIcon(
             }
 
             StarRailIconKind.CHEVRON_LEFT -> {
-                val path = Path().apply {
+                path.reset()
+
+                path.apply {
                     moveTo(size.width * 0.58f, size.height * 0.32f)
                     lineTo(size.width * 0.4f, size.height * 0.5f)
                     lineTo(size.width * 0.58f, size.height * 0.68f)
@@ -535,7 +565,7 @@ fun StarRailIcon(
                     color = tint,
                     topLeft = point(0.27f, 0.3f),
                     size = Size(size.width * 0.46f, size.height * 0.56f),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(side * 0.05f),
+                    cornerRadius = CornerRadius(side * 0.05f),
                     style = stroke,
                 )
                 drawLine(tint, point(0.2f, 0.3f), point(0.8f, 0.3f), strokeWidth)
@@ -545,7 +575,9 @@ fun StarRailIcon(
             }
 
             StarRailIconKind.EDIT -> {
-                val path = Path().apply {
+                path.reset()
+
+                path.apply {
                     moveTo(size.width * 0.73f, size.height * 0.15f)
                     lineTo(size.width * 0.85f, size.height * 0.27f)
                     lineTo(size.width * 0.42f, size.height * 0.7f)
@@ -558,7 +590,9 @@ fun StarRailIcon(
             }
 
             StarRailIconKind.FILE -> {
-                val path = Path().apply {
+                path.reset()
+
+                path.apply {
                     moveTo(size.width * 0.25f, size.height * 0.15f)
                     lineTo(size.width * 0.6f, size.height * 0.15f)
                     lineTo(size.width * 0.75f, size.height * 0.3f)
@@ -576,7 +610,7 @@ fun StarRailIcon(
                     color = tint,
                     topLeft = point(0.18f, 0.28f),
                     size = Size(size.width * 0.64f, size.height * 0.52f),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(side * 0.08f),
+                    cornerRadius = CornerRadius(side * 0.08f),
                     style = stroke,
                 )
                 drawCircle(tint, side * 0.14f, point(0.5f, 0.54f), style = stroke)
@@ -593,11 +627,13 @@ fun StarRailIcon(
                     color = tint,
                     topLeft = point(0.18f, 0.22f),
                     size = Size(size.width * 0.64f, size.height * 0.56f),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(side * 0.06f),
+                    cornerRadius = CornerRadius(side * 0.06f),
                     style = stroke,
                 )
                 drawCircle(tint, side * 0.06f, point(0.32f, 0.38f))
-                val path = Path().apply {
+                path.reset()
+
+                path.apply {
                     moveTo(size.width * 0.22f, size.height * 0.72f)
                     lineTo(size.width * 0.42f, size.height * 0.42f)
                     lineTo(size.width * 0.58f, size.height * 0.62f)
@@ -617,7 +653,7 @@ fun StarRailIcon(
                     color = tint,
                     topLeft = point(0.15f, 0.25f),
                     size = Size(size.width * 0.7f, size.height * 0.5f),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(side * 0.05f),
+                    cornerRadius = CornerRadius(side * 0.05f),
                     style = stroke,
                 )
                 // Keys
@@ -634,73 +670,53 @@ fun StarRailIcon(
             }
 
             StarRailIconKind.RETRY -> {
-                val path = Path()
-
-                val rect = androidx.compose.ui.geometry.Rect(
-                    left = size.width * 0.22f,
-                    top = size.height * 0.22f,
-                    right = size.width * 0.78f,
-                    bottom = size.height * 0.78f
+                drawArc(
+                    color = tint,
+                    startAngle = RetryStartAngle,
+                    sweepAngle = RetrySweepAngle,
+                    useCenter = false,
+                    topLeft = point(0.22f, 0.22f),
+                    size = Size(side * 0.56f, side * 0.56f),
+                    style = stroke,
                 )
 
                 val center = Offset(size.width * 0.5f, size.height * 0.5f)
-                val radius = rect.width / 2f
-
-                val startAngle = 35f
-                val sweepAngle = 285f
-                val endAngle = startAngle + sweepAngle
-
-                path.addArc(
-                    oval = rect,
-                    startAngleDegrees = startAngle,
-                    sweepAngleDegrees = sweepAngle
+                val radius = side * 0.28f
+                val arrowLength = side * 0.16f
+                val arrowTip = Offset(
+                    x = center.x + RetryEndCos * radius,
+                    y = center.y + RetryEndSin * radius,
                 )
-
-                drawPath(path, tint, style = stroke)
-
-                fun pointOnCircle(angleDegrees: Float): Offset {
-                    val rad = angleDegrees * PI / 180.0
-                    return Offset(
-                        x = center.x + cos(rad).toFloat() * radius,
-                        y = center.y + sin(rad).toFloat() * radius
-                    )
-                }
-
-                val arrowTip = pointOnCircle(endAngle)
-
-                val tangentAngle = endAngle + 90f
-                val arrowLength = size.minDimension * 0.16f
-                val arrowSpread = 34f
-
-                fun arrowBackPoint(angleDegrees: Float): Offset {
-                    val rad = angleDegrees * PI / 180.0
-                    return Offset(
-                        x = arrowTip.x - cos(rad).toFloat() * arrowLength,
-                        y = arrowTip.y - sin(rad).toFloat() * arrowLength
-                    )
-                }
-
-                val arrowLeft = arrowBackPoint(tangentAngle - arrowSpread)
-                val arrowRight = arrowBackPoint(tangentAngle + arrowSpread)
 
                 path.reset()
                 path.moveTo(arrowTip.x, arrowTip.y)
-                path.lineTo(arrowLeft.x, arrowLeft.y)
+                path.lineTo(
+                    arrowTip.x - RetryArrowLeftCos * arrowLength,
+                    arrowTip.y - RetryArrowLeftSin * arrowLength,
+                )
                 path.moveTo(arrowTip.x, arrowTip.y)
-                path.lineTo(arrowRight.x, arrowRight.y)
+                path.lineTo(
+                    arrowTip.x - RetryArrowRightCos * arrowLength,
+                    arrowTip.y - RetryArrowRightSin * arrowLength,
+                )
 
                 drawPath(path, tint, style = stroke)
             }
+                }
+            }
         }
-    }
+    )
 }
 
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSparkle(
+private fun DrawScope.drawSparkle(
+    path: Path,
     color: Color,
     center: Offset,
     radius: Float,
 ) {
-    val path = Path().apply {
+    path.reset()
+
+    path.apply {
         moveTo(center.x, center.y - radius)
         lineTo(center.x + radius * 0.2f, center.y - radius * 0.2f)
         lineTo(center.x + radius, center.y)
