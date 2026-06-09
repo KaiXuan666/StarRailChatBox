@@ -26,6 +26,8 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyListState
@@ -71,6 +73,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -166,8 +170,15 @@ fun ChatSessionScreen(
     val characterChatState = state.characterStates[characterId] ?: CharacterChatState()
     val coroutineScope = rememberCoroutineScope()
 
+    var attachmentsToShow by remember { mutableStateOf<List<MessageAttachment>?>(null) }
+    var previewImageUri by remember { mutableStateOf<String?>(null) }
+
     BackHandler(enabled = state.isAttachmentPanelVisible) {
         onAction(ChatAction.ComposerActionClicked(ComposerAction.ATTACH))
+    }
+
+    BackHandler(enabled = previewImageUri != null) {
+        previewImageUri = null
     }
 
     if (charactersState.isLoadingCharacters) {
@@ -206,7 +217,6 @@ fun ChatSessionScreen(
     // 在 reverseLayout 模式下，索引 0 是列表底部。
     // 我们将消息按倒序排列，Header 放在最后（即最顶部）。
     
-    var attachmentsToShow by remember { mutableStateOf<List<MessageAttachment>?>(null) }
     val uriHandler = LocalUriHandler.current
 
     val audioPlayer = rememberAudioPlayer()
@@ -263,11 +273,12 @@ fun ChatSessionScreen(
         }
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.statusBars)
-    ) {
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.statusBars)
+        ) {
         // 固定顶部的标题栏
         Text(
             text = stringResource(Res.string.app_title),
@@ -369,7 +380,7 @@ fun ChatSessionScreen(
                         pageMessages.asReversed().forEachIndexed { reversedIndex, message ->
                             // 计算原始索引以处理日期分割线逻辑
                             val index = pageMessages.size - 1 - reversedIndex
-                            
+
                             item(key = message.id) {
                                 MessageItem(
                                     message = message,
@@ -393,6 +404,8 @@ fun ChatSessionScreen(
                                                     }
                                                 }
                                             }
+                                        } else if (attachment.mimeType.startsWith("image/")) {
+                                            previewImageUri = attachment.uri
                                         } else {
                                             uriHandler.openUri(attachment.uri)
                                         }
@@ -477,10 +490,19 @@ fun ChatSessionScreen(
             }
         }
 
+        }
+
         if (isRecording) {
             RecordingOverlay(
                 isCancelTargeted = isCancelTargeted,
                 modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        if (previewImageUri != null) {
+            FullScreenImagePreview(
+                uri = previewImageUri!!,
+                onDismiss = { previewImageUri = null }
             )
         }
     }
@@ -1122,7 +1144,7 @@ private fun ReceivedMessage(
                         horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm)
                     ) {
                         val attachments = message.attachments
-                        val hasAttachmentsBtn = !(attachments.size == 1 && attachments.first().mimeType.startsWith("image/")) && attachments.isNotEmpty()
+                        val hasAttachmentsBtn = attachments.any { !it.mimeType.startsWith("image/") } && attachments.isNotEmpty()
                         if (hasAttachmentsBtn) {
                             Text(
                                 text = stringResource(Res.string.view_attachments),
@@ -1271,7 +1293,7 @@ private fun SentMessage(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         val attachments = message.attachments
-                        val hasAttachmentsBtn = !(attachments.size == 1 && attachments.first().mimeType.startsWith("image/")) && attachments.isNotEmpty()
+                        val hasAttachmentsBtn = attachments.any { !it.mimeType.startsWith("image/") } && attachments.isNotEmpty()
                         if (hasAttachmentsBtn) {
                             Text(
                                 text = stringResource(Res.string.view_attachments),
@@ -1317,6 +1339,7 @@ private fun SentMessage(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MessageAttachments(
     attachments: List<MessageAttachment>,
@@ -1324,27 +1347,36 @@ private fun MessageAttachments(
     compact: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    if (attachments.isEmpty()) return
+    val images = remember(attachments) {
+        attachments.filter { it.mimeType.startsWith("image/") }
+    }
+    if (images.isEmpty()) return
 
-    // 如果只有一张图片，直接显示
-    if (attachments.size == 1 && attachments.first().mimeType.startsWith("image/")) {
-        val attachment = attachments.first()
-        Box(
-            modifier = modifier
-                .padding(StarRailSpacing.xs)
-                .widthIn(max = 240.dp)
-                .aspectRatio(16f / 9f)
-                .clip(MaterialTheme.shapes.medium)
-                .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                .clickable { onOpenAttachment(attachment) },
-            contentAlignment = Alignment.Center
-        ) {
-            AsyncImage(
-                model = attachment.uri,
-                contentDescription = attachment.name,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
+    FlowRow(
+        modifier = modifier.padding(StarRailSpacing.xs),
+        horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
+        verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
+    ) {
+        images.forEach { attachment ->
+            val isSingle = images.size == 1
+            Box(
+                modifier = Modifier
+                    .then(
+                        if (isSingle) Modifier.widthIn(max = 240.dp).aspectRatio(16f / 9f)
+                        else Modifier.size(if (compact) 80.dp else 100.dp)
+                    )
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                    .clickable { onOpenAttachment(attachment) },
+                contentAlignment = Alignment.Center
+            ) {
+                AsyncImage(
+                    model = attachment.uri,
+                    contentDescription = attachment.name,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+            }
         }
     }
 }
@@ -1519,6 +1551,37 @@ private fun AttachmentsDialog(
             }
         }
     )
+}
+
+@Composable
+private fun FullScreenImagePreview(
+    uri: String,
+    onDismiss: () -> Unit,
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false
+        )
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = Color.Black,
+            onClick = onDismiss
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                AsyncImage(
+                    model = uri,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+            }
+        }
+    }
 }
 
 /**
@@ -2320,9 +2383,15 @@ fun CharacterChatScreen(
 
     var isRecording by remember { mutableStateOf(false) }
     var isCancelTargeted by remember { mutableStateOf(false) }
+    var attachmentsToShow by remember { mutableStateOf<List<MessageAttachment>?>(null) }
+    var previewImageUri by remember { mutableStateOf<String?>(null) }
 
     BackHandler(enabled = pageState.isAttachmentPanelVisible) {
         onAction(ChatAction.ComposerActionClicked(ComposerAction.ATTACH))
+    }
+
+    BackHandler(enabled = previewImageUri != null) {
+        previewImageUri = null
     }
 
     BackHandler {
@@ -2334,7 +2403,6 @@ fun CharacterChatScreen(
         charactersState.characters.associateBy(Character::id)
     }
 
-    var attachmentsToShow by remember { mutableStateOf<List<MessageAttachment>?>(null) }
     val uriHandler = LocalUriHandler.current
 
     val audioPlayer = rememberAudioPlayer()
@@ -2483,6 +2551,8 @@ fun CharacterChatScreen(
                                                         }
                                                     }
                                                 }
+                                            } else if (attachment.mimeType.startsWith("image/")) {
+                                                previewImageUri = attachment.uri
                                             } else {
                                                 uriHandler.openUri(attachment.uri)
                                             }
@@ -2559,6 +2629,13 @@ fun CharacterChatScreen(
             RecordingOverlay(
                 isCancelTargeted = isCancelTargeted,
                 modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        if (previewImageUri != null) {
+            FullScreenImagePreview(
+                uri = previewImageUri!!,
+                onDismiss = { previewImageUri = null }
             )
         }
     }
