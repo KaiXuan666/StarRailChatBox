@@ -202,8 +202,9 @@ fun ChatSessionScreen(
         initialPage = initialPage,
     ) { characters.size }
 
-    val messagesStartIndex = 3
-
+    // 在 reverseLayout 模式下，索引 0 是列表底部。
+    // 我们将消息按倒序排列，Header 放在最后（即最顶部）。
+    
     var attachmentsToShow by remember { mutableStateOf<List<MessageAttachment>?>(null) }
     val uriHandler = LocalUriHandler.current
 
@@ -230,10 +231,8 @@ fun ChatSessionScreen(
     val currentStates = remember(characters) {
         characters.associate { character ->
             character.id to pageListStates.getOrPut(character.id) {
-                // 如果当前已经有消息（例如从其他 Tab 切回时），初始化在底部，避免闪烁
-                val messages = state.characterStates[character.id]?.messages.orEmpty()
-                val initialIndex = if (messages.isNotEmpty()) messagesStartIndex + messages.lastIndex else 0
-                LazyListState(firstVisibleItemIndex = initialIndex)
+                // 在 reverseLayout 下，默认就在底部 (index 0)，无需特殊初始化
+                LazyListState()
             }
         }
     }
@@ -263,12 +262,57 @@ fun ChatSessionScreen(
         }
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.statusBars)
+    ) {
+        // 固定顶部的标题栏
+        Text(
+            text = stringResource(Res.string.app_title),
+            color = MaterialTheme.colorScheme.onBackground,
+            style = if (compact) {
+                MaterialTheme.typography.headlineSmall
+            } else {
+                MaterialTheme.typography.headlineLarge
+            },
+            maxLines = 1,
+            modifier = Modifier
+                .padding(horizontal = if (compact) StarRailSpacing.sm else StarRailSpacing.md)
+                .padding(top = StarRailSpacing.md)
+        )
+
+        // 固定顶部的角色选择器
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = if (compact) StarRailSpacing.sm else StarRailSpacing.md)
+                .padding(vertical = StarRailSpacing.sm)
+        ) {
+            CharacterSelector(
+                characters = characters,
+                selectedCharacterId = selectedCharacter?.id,
+                compact = compact,
+                onCharacterSelected = { characterId ->
+                    val index = characters.indexOfFirst { it.id == characterId }
+                    if (index != -1) {
+                        coroutineScope.launch {
+                            if (pagerState.currentPage != index) {
+                                pagerState.scrollToPage(index)
+                            }
+                            val targetListState = currentStates[characterId]
+                            if (targetListState != null) {
+                                targetListState.scrollToItem(0)
+                            }
+                        }
+                    }
+                },
+            )
+        }
+
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier
-                .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.statusBars),
+            modifier = Modifier.weight(1f),
         ) { page ->
             val pageCharacter = characters[page]
             val pageState = state.characterStates[pageCharacter.id] ?: CharacterChatState()
@@ -287,51 +331,23 @@ fun ChatSessionScreen(
                 val pageListState = currentStates.getValue(pageCharacter.id)
                 val pageMessages = pageState.messages
 
-                var previousPageMessageCount by remember { mutableStateOf(pageMessages.size) }
-                var shouldPageScrollToBottomOnLoad by remember { mutableStateOf(false) }
-
-                LaunchedEffect(pageCharacter.id) {
-                    previousPageMessageCount = pageMessages.size
-                    if (pageMessages.isNotEmpty()) {
-                        pageListState.scrollToMessageBottomAfterLayout(
-                            messagesStartIndex,
-                            pageMessages.lastIndex,
-                        )
-                    } else {
-                        shouldPageScrollToBottomOnLoad = true
-                    }
-                }
-
-                LaunchedEffect(pageMessages, pageState.isLoadingSession) {
-                    if (shouldPageScrollToBottomOnLoad && !pageState.isLoadingSession && pageMessages.isNotEmpty()) {
-                        shouldPageScrollToBottomOnLoad = false
-                        pageListState.scrollToMessageBottomAfterLayout(
-                            messagesStartIndex,
-                            pageMessages.lastIndex,
-                        )
-                    }
-                }
-
-                LaunchedEffect(pageMessages.size) {
-                    val lastVisibleIndex = pageListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
-                    val wasNearBottom = lastVisibleIndex != null &&
-                        lastVisibleIndex >= pageListState.layoutInfo.totalItemsCount - 3
-                    if (
-                        pageMessages.size > previousPageMessageCount &&
-                        wasNearBottom &&
-                        pageMessages.isNotEmpty()
-                    ) {
-                        pageListState.scrollToMessageBottomAfterLayout(
-                            messagesStartIndex,
-                            pageMessages.lastIndex,
-                        )
-                    }
-                    previousPageMessageCount = pageMessages.size
-                }
-
-                val showScrollToTop by remember {
+                val isAtBottom by remember {
                     derivedStateOf {
-                        pageListState.firstVisibleItemIndex > 0 || pageListState.firstVisibleItemScrollOffset > 0
+                        pageListState.firstVisibleItemIndex == 0
+                    }
+                }
+
+                val isAtTop by remember {
+                    derivedStateOf {
+                        val lastVisibleItem = pageListState.layoutInfo.visibleItemsInfo.lastOrNull()
+                        lastVisibleItem != null && lastVisibleItem.index == pageListState.layoutInfo.totalItemsCount - 1
+                    }
+                }
+
+                // 只要不是既在顶又在底（即内容多于一屏），就显示按钮
+                val showScrollButton by remember {
+                    derivedStateOf {
+                        pageListState.layoutInfo.totalItemsCount > 0 && !(isAtTop && isAtBottom)
                     }
                 }
 
@@ -339,73 +355,20 @@ fun ChatSessionScreen(
                     LazyColumn(
                         state = pageListState,
                         modifier = Modifier.fillMaxSize(),
+                        reverseLayout = true,
                         contentPadding = PaddingValues(
                             start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
                             end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
                             bottom = contentPadding.calculateBottomPadding() + StarRailSpacing.lg,
+                            top = StarRailSpacing.md,
                         ),
                         verticalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
                     ) {
-                        item(key = "header") {
-                            ChatHeader(
-                                selectedCharacter = pageCharacter,
-                                compact = compact,
-                                onAction = onAction,
-                                onCharacterAction = onCharacterAction,
-                                onMainAction = onMainAction,
-                            )
-                        }
-                        stickyHeader(key = "characters") {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(Color.Transparent)
-                                    .padding(top = StarRailSpacing.xxs),
-                            ) {
-                                CharacterSelector(
-                                    characters = characters,
-                                    selectedCharacterId = selectedCharacter?.id,
-                                    compact = compact,
-                                    onCharacterSelected = { characterId ->
-                                        val index = characters.indexOfFirst { it.id == characterId }
-                                        if (index != -1) {
-                                            coroutineScope.launch {
-                                                if (pagerState.currentPage != index) {
-                                                    pagerState.scrollToPage(index)
-                                                }
-                                                val targetListState = currentStates[characterId]
-                                                if (targetListState != null) {
-                                                    val targetPageState = state.characterStates[characterId]
-                                                    val targetMessages = targetPageState?.messages.orEmpty()
-                                                    if (targetMessages.isNotEmpty()) {
-                                                        targetListState.scrollToMessageBottomAfterLayout(
-                                                            messagesStartIndex,
-                                                            targetMessages.lastIndex,
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    },
-                                )
-                            }
-                        }
-                        
-                        pageMessages.forEachIndexed { index, message ->
-                            val showDivider = if (index > 0) {
-                                val prevMessage = pageMessages[index - 1]
-                                // 只有当两条消息跨越天数时，才显示分割线
-                                !com.kaixuan.starrailchatbox.platform.isSameDay(message.createdAt, prevMessage.createdAt)
-                            } else {
-                                false
-                            }
-
-                            if (showDivider) {
-                                item(key = "date_${message.id}") {
-                                    DateDivider(com.kaixuan.starrailchatbox.platform.formatHeaderDate(message.createdAt))
-                                }
-                            }
-
+                        // 倒序排列：消息在前（index 0 在底），Header 在后（在顶）
+                        pageMessages.asReversed().forEachIndexed { reversedIndex, message ->
+                            // 计算原始索引以处理日期分割线逻辑
+                            val index = pageMessages.size - 1 - reversedIndex
+                            
                             item(key = message.id) {
                                 MessageItem(
                                     message = message,
@@ -435,14 +398,44 @@ fun ChatSessionScreen(
                                     }
                                 )
                             }
+
+                            val showDivider = if (index > 0) {
+                                val prevMessage = pageMessages[index - 1]
+                                !com.kaixuan.starrailchatbox.platform.isSameDay(message.createdAt, prevMessage.createdAt)
+                            } else {
+                                false
+                            }
+
+                            if (showDivider) {
+                                item(key = "date_${message.id}") {
+                                    DateDivider(com.kaixuan.starrailchatbox.platform.formatHeaderDate(message.createdAt))
+                                }
+                            }
+                        }
+
+                        item(key = "header") {
+                            ChatHeader(
+                                selectedCharacter = pageCharacter,
+                                compact = compact,
+                                onAction = onAction,
+                                onCharacterAction = onCharacterAction,
+                                onMainAction = onMainAction,
+                                modifier = Modifier.padding(bottom = StarRailSpacing.md)
+                            )
                         }
                     }
 
-                    if (showScrollToTop) {
+                    if (showScrollButton) {
                         Surface(
                             onClick = {
                                 coroutineScope.launch {
-                                    pageListState.scrollToItem(0)
+                                    if (isAtTop) {
+                                        // 如果在顶部，点击滚动到底部 (index 0)
+                                        pageListState.animateScrollToItem(0)
+                                    } else {
+                                        // 否则滚动到顶部 (最后一个 item)
+                                        pageListState.animateScrollToItem(pageListState.layoutInfo.totalItemsCount - 1)
+                                    }
                                 }
                             },
                             modifier = Modifier
@@ -464,9 +457,13 @@ fun ChatSessionScreen(
                             Box(contentAlignment = Alignment.Center) {
                                 StarRailIcon(
                                     kind = StarRailIconKind.ARROW_UP,
-                                    contentDescription = "滚动到最顶部",
+                                    contentDescription = if (isAtTop) "滚动到底部" else "滚动到最顶部",
                                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.size(if (compact) 20.dp else 24.dp),
+                                    modifier = Modifier
+                                        .size(if (compact) 20.dp else 24.dp)
+                                        .graphicsLayer {
+                                            if (isAtTop) rotationZ = 180f
+                                        },
                                 )
                             }
                         }
@@ -576,43 +573,27 @@ private fun ChatHeader(
     onAction: (ChatAction) -> Unit,
     onCharacterAction: (CharacterAction) -> Unit,
     onMainAction: (MainAction) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(
-            if (compact) StarRailSpacing.md else StarRailSpacing.lg,
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(
+            if (compact) StarRailSpacing.md else StarRailSpacing.xl,
         ),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = stringResource(Res.string.app_title),
-            color = MaterialTheme.colorScheme.onBackground,
-            style = if (compact) {
-                MaterialTheme.typography.headlineSmall
-            } else {
-                MaterialTheme.typography.headlineLarge
-            },
-            maxLines = 1,
+        CharacterSummary(
+            character = selectedCharacter,
+            modifier = Modifier.weight(1f),
+            compact = compact,
         )
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(
-                if (compact) StarRailSpacing.md else StarRailSpacing.xl,
-            ),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            CharacterSummary(
-                character = selectedCharacter,
-                modifier = Modifier.weight(1f),
-                compact = compact,
-            )
-            HeaderActions(
-                characterId = selectedCharacter.id,
-                compact = compact,
-                onAction = onAction,
-                onCharacterAction = onCharacterAction,
-                onMainAction = onMainAction,
-            )
-        }
+        HeaderActions(
+            characterId = selectedCharacter.id,
+            compact = compact,
+            onAction = onAction,
+            onCharacterAction = onCharacterAction,
+            onMainAction = onMainAction,
+        )
     }
 }
 
@@ -2312,52 +2293,27 @@ fun CharacterChatScreen(
         )
     }
 
-    // 自动滚动到最新消息的逻辑
-    var previousPageMessageCount by remember { mutableStateOf(pageMessages.size) }
-    var shouldPageScrollToBottomOnLoad by remember { mutableStateOf(false) }
-
     LaunchedEffect(characterId) {
-        previousPageMessageCount = pageMessages.size
-        if (pageMessages.isNotEmpty()) {
-            pageListState.scrollToMessageBottomAfterLayout(
-                0, // Header 已经被移到 LazyColumn 外层，所以消息序列从 index = 0 开始
-                pageMessages.lastIndex,
-            )
-        } else {
-            shouldPageScrollToBottomOnLoad = true
-        }
+        // 在 reverseLayout 下，切换角色默认就在底部
     }
 
-    LaunchedEffect(pageMessages, pageState.isLoadingSession) {
-        if (shouldPageScrollToBottomOnLoad && !pageState.isLoadingSession && pageMessages.isNotEmpty()) {
-            shouldPageScrollToBottomOnLoad = false
-            pageListState.scrollToMessageBottomAfterLayout(
-                0,
-                pageMessages.lastIndex,
-            )
-        }
-    }
-
-    LaunchedEffect(pageMessages.size) {
-        val lastVisibleIndex = pageListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
-        val wasNearBottom = lastVisibleIndex != null &&
-            lastVisibleIndex >= pageListState.layoutInfo.totalItemsCount - 3
-        if (
-            pageMessages.size > previousPageMessageCount &&
-            wasNearBottom &&
-            pageMessages.isNotEmpty()
-        ) {
-            pageListState.scrollToMessageBottomAfterLayout(
-                0,
-                pageMessages.lastIndex,
-            )
-        }
-        previousPageMessageCount = pageMessages.size
-    }
-
-    val showScrollToTop by remember {
+    val isAtBottom by remember {
         derivedStateOf {
-            pageListState.firstVisibleItemIndex > 0 || pageListState.firstVisibleItemScrollOffset > 0
+            pageListState.firstVisibleItemIndex == 0
+        }
+    }
+
+    val isAtTop by remember {
+        derivedStateOf {
+            val lastVisibleItem = pageListState.layoutInfo.visibleItemsInfo.lastOrNull()
+            lastVisibleItem != null && lastVisibleItem.index == pageListState.layoutInfo.totalItemsCount - 1
+        }
+    }
+
+    // 只要不是既在顶又在底（即内容多于一屏），就显示按钮
+    val showScrollButton by remember {
+        derivedStateOf {
+            pageListState.layoutInfo.totalItemsCount > 0 && !(isAtTop && isAtBottom)
         }
     }
 
@@ -2430,26 +2386,17 @@ fun CharacterChatScreen(
                         LazyColumn(
                             state = pageListState,
                             modifier = Modifier.fillMaxSize(),
+                            reverseLayout = true,
                             contentPadding = PaddingValues(
                                 start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
                                 end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
                                 bottom = scaffoldPadding.calculateBottomPadding() + StarRailSpacing.lg,
+                                top = StarRailSpacing.md,
                             ),
                             verticalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
                         ) {
-                            pageMessages.forEachIndexed { index, message ->
-                                val showDivider = if (index > 0) {
-                                    val prevMessage = pageMessages[index - 1]
-                                    !com.kaixuan.starrailchatbox.platform.isSameDay(message.createdAt, prevMessage.createdAt)
-                                } else {
-                                    false
-                                }
-
-                                if (showDivider) {
-                                    item(key = "date_${message.id}") {
-                                        DateDivider(com.kaixuan.starrailchatbox.platform.formatHeaderDate(message.createdAt))
-                                    }
-                                }
+                            pageMessages.asReversed().forEachIndexed { reversedIndex, message ->
+                                val index = pageMessages.size - 1 - reversedIndex
 
                                 item(key = message.id) {
                                     MessageItem(
@@ -2480,14 +2427,31 @@ fun CharacterChatScreen(
                                         }
                                     )
                                 }
+
+                                val showDivider = if (index > 0) {
+                                    val prevMessage = pageMessages[index - 1]
+                                    !com.kaixuan.starrailchatbox.platform.isSameDay(message.createdAt, prevMessage.createdAt)
+                                } else {
+                                    false
+                                }
+
+                                if (showDivider) {
+                                    item(key = "date_${message.id}") {
+                                        DateDivider(com.kaixuan.starrailchatbox.platform.formatHeaderDate(message.createdAt))
+                                    }
+                                }
                             }
                         }
 
-                        if (showScrollToTop) {
+                        if (showScrollButton) {
                             Surface(
                                 onClick = {
                                     coroutineScope.launch {
-                                        pageListState.scrollToItem(0)
+                                        if (isAtTop) {
+                                            pageListState.animateScrollToItem(0)
+                                        } else {
+                                            pageListState.animateScrollToItem(pageListState.layoutInfo.totalItemsCount - 1)
+                                        }
                                     }
                                 },
                                 modifier = Modifier
@@ -2509,9 +2473,13 @@ fun CharacterChatScreen(
                                 Box(contentAlignment = Alignment.Center) {
                                     StarRailIcon(
                                         kind = StarRailIconKind.ARROW_UP,
-                                        contentDescription = "滚动到最顶部",
+                                        contentDescription = if (isAtTop) "滚动到底部" else "滚动到最顶部",
                                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        modifier = Modifier.size(if (compact) 20.dp else 24.dp),
+                                        modifier = Modifier
+                                            .size(if (compact) 20.dp else 24.dp)
+                                            .graphicsLayer {
+                                                if (isAtTop) rotationZ = 180f
+                                            },
                                     )
                                 }
                             }
