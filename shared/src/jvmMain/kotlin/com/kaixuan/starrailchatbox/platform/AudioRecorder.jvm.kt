@@ -6,12 +6,6 @@ import androidx.compose.runtime.remember
 class JvmAudioRecorder : AudioRecorder {
     private var startTime = 0L
 
-    override fun hasPermission(): Boolean = true
-
-    override fun requestPermission(onResult: (Boolean) -> Unit) {
-        onResult(true)
-    }
-
     override fun startRecording() {
         startTime = System.currentTimeMillis()
     }

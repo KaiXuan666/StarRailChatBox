@@ -1,19 +1,11 @@
 package com.kaixuan.starrailchatbox.platform
 
-import android.Manifest
 import android.content.Context
-import android.content.pm.PackageManager
 import android.media.MediaRecorder
 import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.ContextCompat
 import java.io.File
 
 class AndroidAudioRecorder(private val context: Context) {
@@ -134,38 +126,10 @@ class AndroidAudioRecorder(private val context: Context) {
 @Composable
 actual fun rememberAudioRecorder(): AudioRecorder {
     val context = LocalContext.current
-    var hasPermissionState by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-        )
-    }
-
-    var onPermissionResultCallback by remember { mutableStateOf<((Boolean) -> Unit)?>(null) }
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        hasPermissionState = isGranted
-        onPermissionResultCallback?.invoke(isGranted)
-    }
-
     val recorder = remember(context) { AndroidAudioRecorder(context) }
 
-    return remember(context, hasPermissionState) {
+    return remember(recorder) {
         object : AudioRecorder {
-            override fun hasPermission(): Boolean {
-                val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-                if (granted != hasPermissionState) {
-                    hasPermissionState = granted
-                }
-                return granted
-            }
-
-            override fun requestPermission(onResult: (Boolean) -> Unit) {
-                onPermissionResultCallback = onResult
-                permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-            }
-
             override fun startRecording() {
                 recorder.start()
             }

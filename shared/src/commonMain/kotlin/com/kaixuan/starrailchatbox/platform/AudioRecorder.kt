@@ -9,16 +9,6 @@ data class RecordResult(
 
 interface AudioRecorder {
     /**
-     * 检测是否已被授予麦克风权限。
-     */
-    fun hasPermission(): Boolean
-
-    /**
-     * 请求麦克风权限。
-     */
-    fun requestPermission(onResult: (Boolean) -> Unit)
-
-    /**
      * 开始录制音频。
      */
     fun startRecording()

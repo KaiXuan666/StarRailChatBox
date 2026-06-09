@@ -135,6 +135,8 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.ktor.client.okhttp)
             implementation(libs.androidx.activity.compose)
+            implementation(libs.mokoPermissionsCompose)
+            implementation(libs.mokoPermissionsMicrophone)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -191,10 +193,10 @@ kotlin {
         jvmMain.get().dependsOn(roomMain)
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
+            implementation(libs.mokoPermissionsCompose)
+            implementation(libs.mokoPermissionsMicrophone)
         }
         iosMain.get().dependsOn(roomMain)
-        androidMain.dependencies {
-        }
         androidMain.get().dependsOn(roomMain)
     }
 }

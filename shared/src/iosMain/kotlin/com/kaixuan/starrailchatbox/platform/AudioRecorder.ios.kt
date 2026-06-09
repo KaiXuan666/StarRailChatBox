@@ -8,12 +8,6 @@ import kotlin.time.TimeMark
 class IosAudioRecorder : AudioRecorder {
     private var startTimeMark: TimeMark? = null
 
-    override fun hasPermission(): Boolean = true
-
-    override fun requestPermission(onResult: (Boolean) -> Unit) {
-        onResult(true)
-    }
-
     override fun startRecording() {
         startTimeMark = TimeSource.Monotonic.markNow()
     }

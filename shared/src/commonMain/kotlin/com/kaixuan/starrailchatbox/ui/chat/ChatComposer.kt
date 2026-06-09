@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.platform.rememberAudioRecorder
 import com.kaixuan.starrailchatbox.platform.rememberCameraLauncher
+import com.kaixuan.starrailchatbox.platform.rememberRecordAudioPermissionController
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
@@ -156,7 +157,10 @@ fun MessageComposer(
 ) {
     var dragOffsetY by remember { mutableStateOf(0f) }
     val audioRecorder = rememberAudioRecorder()
+    val recordAudioPermissionController = rememberRecordAudioPermissionController()
+    val coroutineScope = rememberCoroutineScope()
     var isRecordingActive by remember { mutableStateOf(false) }
+    var isLongPressActive by remember { mutableStateOf(false) }
 
     Row(
         modifier = Modifier
@@ -185,19 +189,25 @@ fun MessageComposer(
                     .pointerInput(Unit) {
                         detectDragGesturesAfterLongPress(
                             onDragStart = {
-                                if (audioRecorder.hasPermission()) {
+                                isLongPressActive = true
+                                coroutineScope.launch {
+                                    val permissionGranted =
+                                        recordAudioPermissionController.isPermissionGranted()
+                                    if (!permissionGranted) {
+                                        recordAudioPermissionController.providePermission()
+                                        return@launch
+                                    }
+                                    if (!isLongPressActive) {
+                                        return@launch
+                                    }
                                     dragOffsetY = 0f
                                     isRecordingActive = true
                                     audioRecorder.startRecording()
                                     onRecordingStateChanged(true, false)
-                                } else {
-                                    isRecordingActive = false
-                                    audioRecorder.requestPermission { granted ->
-                                        // 权限申请成功，下一次长按便能开始录音
-                                    }
                                 }
                             },
                             onDragEnd = {
+                                isLongPressActive = false
                                 if (isRecordingActive) {
                                     isRecordingActive = false
                                     if (dragOffsetY < -160f) {
@@ -213,6 +223,7 @@ fun MessageComposer(
                                 }
                             },
                             onDragCancel = {
+                                isLongPressActive = false
                                 if (isRecordingActive) {
                                     isRecordingActive = false
                                     audioRecorder.stopRecording(cancel = true)

@@ -24,6 +24,7 @@ ktorfit = "2.7.4"
 ksp = "2.3.9"
 material3 = "1.11.0-alpha07"
 napier = "2.7.1"
+moko-permissions = "0.20.1"
 filekit = "0.14.1"
 room = "2.8.4"
 sqlite = "2.6.2"
@@ -64,6 +65,8 @@ ktorfit-lib = { module = "de.jensklingenberg.ktorfit:ktorfit-lib", version.ref =
 ktorfit-ksp = { module = "de.jensklingenberg.ktorfit:ktorfit-ksp", version.ref = "ktorfit" }
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 napier = { module = "io.github.aakira:napier", version.ref = "napier" }
+mokoPermissionsCompose = { module = "dev.icerock.moko:permissions-compose", version.ref = "moko-permissions" }
+mokoPermissionsMicrophone = { module = "dev.icerock.moko:permissions-microphone", version.ref = "moko-permissions" }
 datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
 cryptography-core = { module = "dev.whyoleg.cryptography:cryptography-core", version.ref = "cryptography" }
 cryptography-provider-optimal = { module = "dev.whyoleg.cryptography:cryptography-provider-optimal", version.ref = "cryptography" }
