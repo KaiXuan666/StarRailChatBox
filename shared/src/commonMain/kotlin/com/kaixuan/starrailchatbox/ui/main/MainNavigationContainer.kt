@@ -1,5 +1,11 @@
 package com.kaixuan.starrailchatbox.ui.main
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -44,6 +50,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.collectLatest
@@ -656,16 +663,63 @@ private fun MainNavigationRail(
 }
 
 @Composable
-private fun StarfieldBackground() {
+private fun StarfieldBackground(modifier: Modifier = Modifier) {
     val colors = MaterialTheme.starRailColors
     val darkTheme = isSystemInDarkTheme()
+    val density = LocalDensity.current
 
-    Canvas(Modifier.fillMaxSize()) {
+    // ==========================================
+    // 1. 性能优化：在 Canvas 外部把所有 dp 转换为 px 并缓存
+    // ==========================================
+    val config = remember(colors, darkTheme, density) {
+        with(density) {
+            val nebulaAlpha = if (darkTheme) 0.08f else 0.12f
+            StarfieldConfig(
+                pathStrokeWidth = 1.2.dp.toPx(),
+                starSizes = listOf(2.2.dp.toPx(), 1.5.dp.toPx(), 1.0.dp.toPx()),
+                sparkleSizes = listOf(14.dp.toPx(), 10.dp.toPx(), 12.dp.toPx()),
+                // 提前计算好带 alpha 的颜色，避免在 draw 期间频繁 copy()
+                nebulaColor1 = colors.backgroundGlow.copy(alpha = nebulaAlpha),
+                nebulaColor2 = colors.constellation.copy(alpha = nebulaAlpha * 0.6f),
+                pathColor1 = colors.constellationMuted.copy(alpha = if (darkTheme) 0.35f else 0.25f),
+                starBaseColor = colors.constellation,
+                sparkleColor1 = colors.constellation.copy(alpha = 0.75f),
+                sparkleColor2 = colors.warmSparkle.copy(alpha = 0.65f),
+                sparkleColor3 = colors.constellationMuted.copy(alpha = 0.55f)
+            )
+        }
+    }
+
+    // ==========================================
+    // 2. 动效增强：引入微弱的呼吸感（完全硬件加速）
+    // ==========================================
+    val infiniteTransition = rememberInfiniteTransition(label = "StarfieldAnimation")
+    val breatheAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.6f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3500, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "Breathe"
+    )
+
+    // 静态的星星坐标
+    val starCoords = remember {
+        listOf(
+            0.12f to 0.15f, 0.85f to 0.08f, 0.92f to 0.25f,
+            0.05f to 0.45f, 0.75f to 0.55f, 0.20f to 0.70f,
+            0.88f to 0.78f, 0.45f to 0.85f, 0.55f to 0.12f,
+            0.35f to 0.32f, 0.65f to 0.42f, 0.15f to 0.88f,
+            0.52f to 0.52f, 0.28f to 0.05f, 0.95f to 0.65f
+        )
+    }
+
+    Canvas(modifier = modifier.fillMaxSize()) {
         // 1. Nebula / Glow spots
-        val nebulaAlpha = if (darkTheme) 0.08f else 0.12f
         drawCircle(
             brush = Brush.radialGradient(
-                colors = listOf(colors.backgroundGlow.copy(alpha = nebulaAlpha), Color.Transparent),
+                colors = listOf(config.nebulaColor1, Color.Transparent),
                 center = Offset(size.width * 0.2f, size.height * 0.3f),
                 radius = size.width * 0.7f
             ),
@@ -675,7 +729,7 @@ private fun StarfieldBackground() {
 
         drawCircle(
             brush = Brush.radialGradient(
-                colors = listOf(colors.constellation.copy(alpha = nebulaAlpha * 0.6f), Color.Transparent),
+                colors = listOf(config.nebulaColor2, Color.Transparent),
                 center = Offset(size.width * 0.8f, size.height * 0.7f),
                 radius = size.width * 0.6f
             ),
@@ -683,64 +737,70 @@ private fun StarfieldBackground() {
             radius = size.width * 0.6f
         )
 
-        // 2. Orbital Paths / Curved Lines
-        val pathStroke = Stroke(width = 1.2.dp.toPx())
-        val pathColor = colors.constellationMuted.copy(alpha = if (darkTheme) 0.35f else 0.25f)
-
+        // 2. Orbital Paths
+        val stroke = Stroke(width = config.pathStrokeWidth)
         drawOval(
-            color = pathColor,
+            color = config.pathColor1,
             topLeft = Offset(-size.width * 0.2f, size.height * 0.1f),
             size = Size(size.width * 1.4f, size.height * 0.45f),
-            style = pathStroke,
+            style = stroke,
         )
 
         drawOval(
-            color = pathColor.copy(alpha = pathColor.alpha * 0.6f),
+            color = config.pathColor1.copy(alpha = config.pathColor1.alpha * 0.6f),
             topLeft = Offset(size.width * 0.3f, -size.height * 0.15f),
             size = Size(size.width * 1.3f, size.height * 0.7f),
-            style = pathStroke,
+            style = stroke,
         )
 
-        // 3. Stars - varying sizes and brightness
-        val starCoords = listOf(
-            0.12f to 0.15f, 0.85f to 0.08f, 0.92f to 0.25f,
-            0.05f to 0.45f, 0.75f to 0.55f, 0.20f to 0.70f,
-            0.88f to 0.78f, 0.45f to 0.85f, 0.55f to 0.12f,
-            0.35f to 0.32f, 0.65f to 0.42f, 0.15f to 0.88f,
-            0.52f to 0.52f, 0.28f to 0.05f, 0.95f to 0.65f
-        )
-
+        // 3. Stars - 叠加上述的 breatheAlpha 动效
         starCoords.forEachIndexed { index, (x, y) ->
-            val sizeFactor = if (index % 3 == 0) 2.2.dp else if (index % 3 == 1) 1.5.dp else 1.0.dp
-            val alpha = if (index % 2 == 0) 0.7f else 0.4f
+            val radius = config.starSizes[index % 3]
+            val baseAlpha = if (index % 2 == 0) 0.7f else 0.4f
+            // 让奇数和偶数位星星交错呼吸
+            val finalAlpha = baseAlpha * (if (index % 2 == 0) breatheAlpha else (1.6f - breatheAlpha))
+
             drawCircle(
-                color = colors.constellation.copy(alpha = alpha),
-                radius = sizeFactor.toPx(),
+                color = config.starBaseColor.copy(alpha = finalAlpha.coerceIn(0f, 1f)),
+                radius = radius,
                 center = Offset(size.width * x, size.height * y),
             )
         }
 
-        // 4. Sparkles
+        // 4. Sparkles - 同样绑定动画使其闪烁
         drawDecorativeSparkle(
             center = Offset(size.width * 0.18f, size.height * 0.22f),
-            radius = 14.dp.toPx(),
-            color = colors.constellation.copy(alpha = 0.75f),
+            radius = config.sparkleSizes[0] * breatheAlpha,
+            color = config.sparkleColor1,
         )
 
         drawDecorativeSparkle(
             center = Offset(size.width * 0.82f, size.height * 0.35f),
-            radius = 10.dp.toPx(),
-            color = colors.warmSparkle.copy(alpha = 0.65f),
+            radius = config.sparkleSizes[1] * (1.6f - breatheAlpha),
+            color = config.sparkleColor2,
         )
 
         drawDecorativeSparkle(
             center = Offset(size.width * 0.25f, size.height * 0.65f),
-            radius = 12.dp.toPx(),
-            color = colors.constellationMuted.copy(alpha = 0.55f),
+            radius = config.sparkleSizes[2] * breatheAlpha,
+            color = config.sparkleColor3,
         )
     }
 }
 
+// 辅助类：用于打包缓存的数据
+private class StarfieldConfig(
+    val pathStrokeWidth: Float,
+    val starSizes: List<Float>,
+    val sparkleSizes: List<Float>,
+    val nebulaColor1: Color,
+    val nebulaColor2: Color,
+    val pathColor1: Color,
+    val starBaseColor: Color,
+    val sparkleColor1: Color,
+    val sparkleColor2: Color,
+    val sparkleColor3: Color
+)
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDecorativeSparkle(
     center: Offset,
     radius: Float,
