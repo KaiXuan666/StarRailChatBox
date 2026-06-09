@@ -247,6 +247,7 @@ fun ChatSessionScreen(
             }
         }
     }
+    val initiallyPositionedCharacterIds = remember { mutableSetOf<String>() }
 
     LaunchedEffect(selectedCharacter?.id) {
         val targetPage = characters.indexOfFirst { it.id == selectedCharacter?.id }
@@ -312,6 +313,7 @@ fun ChatSessionScreen(
                             if (pagerState.currentPage != index) {
                                 pagerState.scrollToPage(index)
                             }
+                            withFrameNanos {}
                             val targetListState = currentStates[characterId]
                             if (targetListState != null) {
                                 targetListState.scrollToItem(0)
@@ -342,6 +344,18 @@ fun ChatSessionScreen(
             } else {
                 val pageListState = currentStates.getValue(pageCharacter.id)
                 val pageMessages = pageState.messages
+                val latestMessageId = pageMessages.lastOrNull()?.id
+
+                LaunchedEffect(pageCharacter.id, latestMessageId) {
+                    if (
+                        latestMessageId != null &&
+                        pageCharacter.id !in initiallyPositionedCharacterIds
+                    ) {
+                        withFrameNanos {}
+                        pageListState.scrollToItem(0)
+                        initiallyPositionedCharacterIds += pageCharacter.id
+                    }
+                }
 
                 val isAtBottom by remember {
                     derivedStateOf {
