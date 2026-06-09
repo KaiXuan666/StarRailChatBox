@@ -2,6 +2,7 @@ package com.kaixuan.starrailchatbox.ui.main
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -340,9 +341,11 @@ fun MainNavigationContainer(
                 Brush.linearGradient(
                     listOf(
                         MaterialTheme.colorScheme.background,
-                        colors.backgroundGlow.copy(alpha = 0.38f),
+                        colors.backgroundGlow.copy(alpha = if (isSystemInDarkTheme()) 0.12f else 0.38f),
                         MaterialTheme.colorScheme.background,
                     ),
+                    start = Offset.Zero,
+                    end = Offset(0f, Float.POSITIVE_INFINITY)
                 ),
             ),
     ) {
@@ -655,45 +658,85 @@ private fun MainNavigationRail(
 @Composable
 private fun StarfieldBackground() {
     val colors = MaterialTheme.starRailColors
+    val darkTheme = isSystemInDarkTheme()
+
     Canvas(Modifier.fillMaxSize()) {
-        val thinStroke = Stroke(width = 1.dp.toPx())
+        // 1. Nebula / Glow spots
+        val nebulaAlpha = if (darkTheme) 0.08f else 0.12f
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(colors.backgroundGlow.copy(alpha = nebulaAlpha), Color.Transparent),
+                center = Offset(size.width * 0.2f, size.height * 0.3f),
+                radius = size.width * 0.7f
+            ),
+            center = Offset(size.width * 0.2f, size.height * 0.3f),
+            radius = size.width * 0.7f
+        )
+
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(colors.constellation.copy(alpha = nebulaAlpha * 0.6f), Color.Transparent),
+                center = Offset(size.width * 0.8f, size.height * 0.7f),
+                radius = size.width * 0.6f
+            ),
+            center = Offset(size.width * 0.8f, size.height * 0.7f),
+            radius = size.width * 0.6f
+        )
+
+        // 2. Orbital Paths / Curved Lines
+        val pathStroke = Stroke(width = 1.2.dp.toPx())
+        val pathColor = colors.constellationMuted.copy(alpha = if (darkTheme) 0.35f else 0.25f)
+
         drawOval(
-            color = colors.constellationMuted.copy(alpha = 0.45f),
-            topLeft = Offset(size.width * 0.62f, size.height * 0.02f),
-            size = Size(size.width * 0.48f, size.height * 0.18f),
-            style = thinStroke,
+            color = pathColor,
+            topLeft = Offset(-size.width * 0.2f, size.height * 0.1f),
+            size = Size(size.width * 1.4f, size.height * 0.45f),
+            style = pathStroke,
         )
+
         drawOval(
-            color = colors.constellationMuted.copy(alpha = 0.38f),
-            topLeft = Offset(size.width * 0.68f, size.height * 0.045f),
-            size = Size(size.width * 0.34f, size.height * 0.12f),
-            style = thinStroke,
+            color = pathColor.copy(alpha = pathColor.alpha * 0.6f),
+            topLeft = Offset(size.width * 0.3f, -size.height * 0.15f),
+            size = Size(size.width * 1.3f, size.height * 0.7f),
+            style = pathStroke,
         )
-        val stars = listOf(
-            0.08f to 0.26f,
-            0.93f to 0.31f,
-            0.81f to 0.52f,
-            0.12f to 0.72f,
-            0.9f to 0.84f,
-            0.46f to 0.18f,
+
+        // 3. Stars - varying sizes and brightness
+        val starCoords = listOf(
+            0.12f to 0.15f, 0.85f to 0.08f, 0.92f to 0.25f,
+            0.05f to 0.45f, 0.75f to 0.55f, 0.20f to 0.70f,
+            0.88f to 0.78f, 0.45f to 0.85f, 0.55f to 0.12f,
+            0.35f to 0.32f, 0.65f to 0.42f, 0.15f to 0.88f,
+            0.52f to 0.52f, 0.28f to 0.05f, 0.95f to 0.65f
         )
-        stars.forEachIndexed { index, (x, y) ->
-            val radius = if (index % 2 == 0) 2.2.dp.toPx() else 1.4.dp.toPx()
+
+        starCoords.forEachIndexed { index, (x, y) ->
+            val sizeFactor = if (index % 3 == 0) 2.2.dp else if (index % 3 == 1) 1.5.dp else 1.0.dp
+            val alpha = if (index % 2 == 0) 0.7f else 0.4f
             drawCircle(
-                color = colors.constellation.copy(alpha = 0.58f),
-                radius = radius,
+                color = colors.constellation.copy(alpha = alpha),
+                radius = sizeFactor.toPx(),
                 center = Offset(size.width * x, size.height * y),
             )
         }
+
+        // 4. Sparkles
         drawDecorativeSparkle(
-            center = Offset(size.width * 0.84f, size.height * 0.42f),
-            radius = 12.dp.toPx(),
-            color = colors.constellationMuted.copy(alpha = 0.64f),
+            center = Offset(size.width * 0.18f, size.height * 0.22f),
+            radius = 14.dp.toPx(),
+            color = colors.constellation.copy(alpha = 0.75f),
         )
+
         drawDecorativeSparkle(
-            center = Offset(size.width * 0.17f, size.height * 0.62f),
-            radius = 8.dp.toPx(),
-            color = colors.constellation.copy(alpha = 0.42f),
+            center = Offset(size.width * 0.82f, size.height * 0.35f),
+            radius = 10.dp.toPx(),
+            color = colors.warmSparkle.copy(alpha = 0.65f),
+        )
+
+        drawDecorativeSparkle(
+            center = Offset(size.width * 0.25f, size.height * 0.65f),
+            radius = 12.dp.toPx(),
+            color = colors.constellationMuted.copy(alpha = 0.55f),
         )
     }
 }
@@ -705,16 +748,20 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDecorativeSpark
 ) {
     val path = Path().apply {
         moveTo(center.x, center.y - radius)
-        lineTo(center.x + radius * 0.2f, center.y - radius * 0.2f)
-        lineTo(center.x + radius, center.y)
-        lineTo(center.x + radius * 0.2f, center.y + radius * 0.2f)
-        lineTo(center.x, center.y + radius)
-        lineTo(center.x - radius * 0.2f, center.y + radius * 0.2f)
-        lineTo(center.x - radius, center.y)
-        lineTo(center.x - radius * 0.2f, center.y - radius * 0.2f)
+        quadraticTo(center.x + radius * 0.08f, center.y - radius * 0.08f, center.x + radius, center.y)
+        quadraticTo(center.x + radius * 0.08f, center.y + radius * 0.08f, center.x, center.y + radius)
+        quadraticTo(center.x - radius * 0.08f, center.y + radius * 0.08f, center.x - radius, center.y)
+        quadraticTo(center.x - radius * 0.08f, center.y - radius * 0.08f, center.x, center.y - radius)
         close()
     }
     drawPath(path, color)
+
+    // Core glow
+    drawCircle(
+        color = color.copy(alpha = color.alpha * 0.4f),
+        radius = radius * 0.25f,
+        center = center
+    )
 }
 
 @Preview(widthDp = 360, heightDp = 800)
