@@ -277,6 +277,7 @@ class ChatViewModel(
             try {
                 val fileName = uri.substringAfterLast('/')
                 val attachment = SelectedAttachment.Voice(uri, fileName, durationMs)
+                Napier.d { "sendVoiceMessage: uri=$uri, fileName=$fileName" }
                 sendMessage(character, "", listOf(attachment))
             } catch (cancellation: CancellationException) {
                 throw cancellation
@@ -900,6 +901,7 @@ class ChatViewModel(
                     is SelectedAttachment.Image -> it.copy(uri = persistedUri)
                     is SelectedAttachment.Voice -> it.copy(uri = persistedUri)
                 }
+                Napier.d { "sendMessage: updatedAttachment=${updatedAttachment.uri}." }
                 updatedAttachment.toMessageAttachment(userMessageId, now)
             }
             val userMessage = NewChatMessage(
@@ -944,6 +946,7 @@ class ChatViewModel(
                     is SelectedAttachment.Image -> it.copy(uri = persistedUri)
                     is SelectedAttachment.Voice -> it.copy(uri = persistedUri)
                 }
+                Napier.d { "sendMessage: updatedAttachment=${updatedAttachment.uri}." }
                 updatedAttachment.toMessageAttachment(userMessageId, now)
             }
             chatSessionRepository.appendMessage(
@@ -1012,7 +1015,9 @@ class ChatViewModel(
             if (enableFileAppend && (attachment.mimeType == "text/plain" || attachment.mimeType == "application/json")) {
                 // 文件内容已在发送时被拼接到 content 中，此处无需重复处理
             } else {
+                Napier.d { "lastUserMessage.attachments= attachment=$attachment" }
                 val part = readAttachmentAsAiContentPart(attachment)
+                Napier.d { "lastUserMessage.attachments= part=$part" }
                 if (part != null) {
                     contentParts.add(part)
                 }
@@ -1034,6 +1039,7 @@ class ChatViewModel(
             ?.takeIf(String::isNotBlank)
             ?: session.systemPromptSnapshot
 
+        Napier.d { "performChatRequest messageParts=$messageParts" }
         val historyMessageParts = history.associate { msg ->
             msg.id to msg.attachments.mapNotNull { attachment ->
                 if (msg.role == ChatRole.ASSISTANT && attachment.mimeType.startsWith("audio/")) {
@@ -1085,6 +1091,7 @@ class ChatViewModel(
     }
 
     private suspend fun readAttachmentAsAiContentPart(attachment: MessageAttachment): AiContentPart? {
+        Napier.d { "readAttachmentAsAiContentPart attachment=$attachment" }
         if (attachment.uri.startsWith("data:")) {
             return if (attachment.mimeType.startsWith("image/")) {
                 AiContentPart.ImageUrl(attachment.uri)
@@ -1093,6 +1100,7 @@ class ChatViewModel(
             }
         } else {
             val bytes = runCatching { readUriAsBytes(attachment.uri) }.getOrNull()
+            Napier.d { "readAttachmentAsAiContentPart bytes=$bytes" }
             if (bytes != null && bytes.isNotEmpty()) {
                 val base64 = "data:${attachment.mimeType};base64,${kotlin.io.encoding.Base64.encode(bytes)}"
                 return if (attachment.mimeType.startsWith("image/")) {

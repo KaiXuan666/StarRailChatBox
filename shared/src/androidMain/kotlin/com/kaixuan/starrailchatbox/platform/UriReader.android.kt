@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import com.kaixuan.starrailchatbox.data.database.AndroidContextHolder
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -98,6 +99,7 @@ actual suspend fun compressImageIfPossible(uri: String): String = withContext(Di
 }
 
 actual suspend fun persistAttachment(uri: String, fileName: String): String = withContext(Dispatchers.IO) {
+    Napier.d { "persistAttachment=$uri $fileName" }
     val context = AndroidContextHolder.context ?: return@withContext uri
     try {
         val parsedUri = if (uri.startsWith("/") && !uri.startsWith("//")) {
@@ -105,19 +107,25 @@ actual suspend fun persistAttachment(uri: String, fileName: String): String = wi
         } else {
             Uri.parse(uri)
         }
-        
         val outputDir = File(context.filesDir, "chat_attachments")
         if (!outputDir.exists()) {
             outputDir.mkdirs()
         }
-        
         val destFile = File(outputDir, fileName)
+        // ===== 核心修复：检查源文件和目标文件是否是同一个 =====
+        if (parsedUri.scheme == "file") {
+            val sourceFile = java.io.File(parsedUri.path ?: "")
+            // 如果绝对路径一致，说明已经是最终想要的目标文件了，直接返回
+            if (sourceFile.canonicalPath == destFile.canonicalPath) {
+                Napier.d { "源文件与目标文件一致，跳过复制" }
+                return@withContext Uri.fromFile(destFile).toString()
+            }
+        }
         context.contentResolver.openInputStream(parsedUri)?.use { input ->
             FileOutputStream(destFile).use { output ->
                 input.copyTo(output)
             }
         }
-        
         Uri.fromFile(destFile).toString()
     } catch (e: Exception) {
         uri
