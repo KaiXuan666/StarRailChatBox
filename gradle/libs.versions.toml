@@ -24,6 +24,8 @@ ktorfit = "2.7.4"
 ksp = "2.3.9"
 material3 = "1.11.0-alpha07"
 napier = "2.7.1"
+filekit = "0.14.1"
+kstore = "1.0.0"
 room = "2.8.4"
 sqlite = "2.6.2"
 
@@ -69,6 +71,13 @@ cryptography-provider-optimal = { module = "dev.whyoleg.cryptography:cryptograph
 room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
 sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version.ref = "sqlite" }
+
+filekit-core = { module = "io.github.vinceglb:filekit-core", version.ref = "filekit" }
+filekit-dialogs-compose = { module = "io.github.vinceglb:filekit-dialogs-compose", version.ref = "filekit" }
+filekit-coil = { module = "io.github.vinceglb:filekit-coil", version.ref = "filekit" }
+kstore = { module = "io.github.xxfast:kstore", version.ref = "kstore" }
+kstore-file = { module = "io.github.xxfast:kstore-file", version.ref = "kstore" }
+kstore-storage = { module = "io.github.xxfast:kstore-storage", version.ref = "kstore" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
