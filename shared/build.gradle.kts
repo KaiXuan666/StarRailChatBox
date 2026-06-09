@@ -159,7 +159,6 @@ kotlin {
             implementation(libs.filekit.core)
             implementation(libs.filekit.dialogs.compose)
             implementation(libs.filekit.coil)
-            implementation(libs.kstore)
         }
         commonMain {
             kotlin.srcDir(layout.buildDirectory.dir("generated/ksp/metadata/commonMain/kotlin"))
@@ -171,7 +170,6 @@ kotlin {
                 implementation(libs.datastore.preferences)
                 implementation(libs.room.runtime)
                 implementation(libs.sqlite.bundled)
-                implementation(libs.kstore.file)
             }
         }
         commonTest.dependencies {
@@ -182,12 +180,10 @@ kotlin {
         jsMain.dependencies {
             implementation(libs.wrappers.browser)
             implementation(libs.ktor.client.js)
-            implementation(libs.kstore.storage)
         }
         wasmJsMain.dependencies {
             implementation(libs.wrappers.browser)
             implementation(libs.ktor.client.js)
-            implementation(libs.kstore.storage)
         }
         jvmMain.dependencies {
             implementation(libs.ktor.client.cio)

@@ -1,12 +1,30 @@
+@file:OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
+
 package com.kaixuan.starrailchatbox.data.character
 
-import io.github.xxfast.kstore.storage.storeOf
+import kotlinx.browser.localStorage
+import kotlinx.serialization.json.Json
+import kotlin.io.encoding.Base64
 
 class WasmJsCharacterStorage : CharacterStorage {
-    private val kStore = storeOf<List<CharacterFiles>>(key = "characters")
+    private val key = "characters"
+
+    private fun getStoredCharacters(): List<CharacterFiles> {
+        val json = localStorage.getItem(key) ?: return emptyList()
+        return try {
+            Json.decodeFromString(json)
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun saveStoredCharacters(characters: List<CharacterFiles>) {
+        val json = Json.encodeToString(characters)
+        localStorage.setItem(key, json)
+    }
 
     override suspend fun initializeDefaults(defaults: List<DefaultCharacterAsset>) {
-        val current = kStore.get() ?: emptyList()
+        val current = getStoredCharacters()
         val missing = defaults.filter { d -> current.none { it.id == d.id } }
         if (missing.isNotEmpty()) {
             val newDefaults = missing.mapIndexed { index, d ->
@@ -15,17 +33,17 @@ class WasmJsCharacterStorage : CharacterStorage {
                     name = d.name,
                     prompt = d.prompt,
                     openingMessage = d.openingMessage,
-                    avatarUri = "data:image/webp;base64," + com.kaixuan.starrailchatbox.data.settings.encodeBase64(d.avatarContent),
+                    avatarUri = "data:image/webp;base64," + Base64.encode(d.avatarContent),
                     temperature = d.temperature,
                     topP = d.topP,
                     sortOrder = current.size + index
                 )
             }
-            kStore.set(current + newDefaults)
+            saveStoredCharacters(current + newDefaults)
         }
     }
 
-    override suspend fun loadCharacters(): List<CharacterFiles> = kStore.get() ?: emptyList()
+    override suspend fun loadCharacters(): List<CharacterFiles> = getStoredCharacters()
 
     override suspend fun getCharacter(id: String): CharacterFiles? = loadCharacters().find { it.id == id }
 
@@ -35,28 +53,26 @@ class WasmJsCharacterStorage : CharacterStorage {
     ): CharacterFiles {
         val avatarUri = avatarSource?.uri ?: character.avatarUri
         val finalCharacter = character.copy(avatarUri = avatarUri)
-        kStore.update { current ->
-            val list = current?.toMutableList() ?: mutableListOf()
-            val index = list.indexOfFirst { it.id == character.id }
-            if (index >= 0) {
-                list[index] = finalCharacter
-            } else {
-                list.add(finalCharacter)
-            }
-            list
+        val current = getStoredCharacters().toMutableList()
+        val index = current.indexOfFirst { it.id == character.id }
+        if (index >= 0) {
+            current[index] = finalCharacter
+        } else {
+            current.add(finalCharacter)
         }
+        saveStoredCharacters(current)
         return finalCharacter
     }
 
     override suspend fun updateSortOrder(id: String, sortOrder: Int) {
-        kStore.update { current ->
-            current?.map { if (it.id == id) it.copy(sortOrder = sortOrder) else it }
-        }
+        val current = getStoredCharacters()
+        val updated = current.map { if (it.id == id) it.copy(sortOrder = sortOrder) else it }
+        saveStoredCharacters(updated)
     }
 
     override suspend fun deleteCharacter(id: String, deletedAt: Long) {
-        kStore.update { current ->
-            current?.filterNot { it.id == id }
-        }
+        val current = getStoredCharacters()
+        val filtered = current.filterNot { it.id == id }
+        saveStoredCharacters(filtered)
     }
 }

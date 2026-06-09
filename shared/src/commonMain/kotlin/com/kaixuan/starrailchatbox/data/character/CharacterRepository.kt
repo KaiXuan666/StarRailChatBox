@@ -1,9 +1,11 @@
 package com.kaixuan.starrailchatbox.data.character
 
+import kotlinx.serialization.Serializable
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import starrailchatbox.shared.generated.resources.Res
 import kotlin.time.Clock
 
+@Serializable
 data class Character(
     val id: String,
     val name: String,
@@ -18,6 +20,7 @@ data class Character(
     val lastMessageAt: Long? = null,
 )
 
+@Serializable
 data class CharacterFiles(
     val id: String,
     val name: String,
