@@ -126,34 +126,10 @@ class VoiceSynthesisTool(
             </voice_output_contract>
         """.trimIndent()
 
-        val systemIndex = messages.indexOfFirst { it.role == "system" }
-        val prepared = messages.toMutableList()
-        if (systemIndex >= 0) {
-            val message = prepared[systemIndex]
-            prepared[systemIndex] = message.copy(
-                content = listOfNotNull(message.content?.trim(), format)
-                    .filter(String::isNotEmpty)
-                    .joinToString("\n\n"),
-            )
-        } else {
-            prepared.add(0, AiMessage(role = "system", content = format))
-        }
-
-        val userIndex = prepared.indexOfLast { it.role == "user" }
-        if (userIndex >= 0) {
-            val message = prepared[userIndex]
-            prepared[userIndex] = message.copy(
-                content = """
-                    <user_input>
-                    ${message.content.orEmpty().trim()}
-                    </user_input>
-                    <control_signals>
-                    如果本次回复需要发声/发语音，请遵守 system 消息中的 <voice_output_contract>，并以完整的 <voice_synthesis> JSON 元数据块结束回复。
-                    </control_signals>
-                """.trimIndent()
-            )
-        }
-        return prepared
+        return messages.injectFallbackInstructions(
+            systemFormat = format,
+            controlSignal = "如果本次回复需要发声/发语音，请遵守 system 消息中的 <voice_output_contract>，并以完整的 <voice_synthesis> JSON 元数据块结束回复。"
+        )
     }
 
     override suspend fun parseFallback(

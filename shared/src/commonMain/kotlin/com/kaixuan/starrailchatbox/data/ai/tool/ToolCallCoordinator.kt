@@ -93,6 +93,12 @@ class ToolCallCoordinator(
             }
 
             val toolMessages = mutableListOf<AiMessage>()
+            var terminalContent: String? = null
+            var terminalSuggestions = mutableListOf<String>()
+            var terminalVoiceUri: String? = null
+            var terminalVoiceDuration: Long? = null
+            var hasTerminal = false
+
             for (call in calls) {
                 val signature = "${call.name}:${call.arguments}"
                 if (!seenCalls.add(signature)) {
@@ -106,16 +112,13 @@ class ToolCallCoordinator(
                 }
                 when (result) {
                     is ToolResult.Terminal -> {
-                        return ApiResult.Success(
-                            CoordinatedCompletion(
-                                content = result.content,
-                                suggestions = result.suggestions,
-                                finishReason = completion.finishReason,
-                                usage = usage,
-                                voiceAttachmentUri = result.voiceAttachmentUri,
-                                voiceDurationMs = result.voiceDurationMs,
-                            ),
-                        )
+                        terminalContent = result.content
+                        terminalSuggestions.addAll(result.suggestions)
+                        if (result.voiceAttachmentUri != null) {
+                            terminalVoiceUri = result.voiceAttachmentUri
+                            terminalVoiceDuration = result.voiceDurationMs
+                        }
+                        hasTerminal = true
                     }
                     is ToolResult.Continue -> toolMessages += AiMessage(
                         role = "tool",
@@ -131,6 +134,19 @@ class ToolCallCoordinator(
                         toolCallId = call.id,
                     )
                 }
+            }
+
+            if (hasTerminal) {
+                return ApiResult.Success(
+                    CoordinatedCompletion(
+                        content = terminalContent.orEmpty(),
+                        suggestions = terminalSuggestions.distinct(),
+                        finishReason = completion.finishReason,
+                        usage = usage,
+                        voiceAttachmentUri = terminalVoiceUri,
+                        voiceDurationMs = terminalVoiceDuration,
+                    ),
+                )
             }
             messages = messages + completion.message + toolMessages
         }
@@ -223,23 +239,35 @@ class ToolCallCoordinator(
             is ApiResult.Success -> {
                 val completion = result.value
                 val content = completion.message.content.orEmpty()
-                var terminal: ToolResult.Terminal? = null
+                
+                var currentContent = content
+                var finalSuggestions = mutableListOf<String>()
+                var finalVoiceUri: String? = null
+                var finalVoiceDuration: Long? = null
+                var hasTerminal = false
+
                 for (tool in tools) {
-                    val res = tool.parseFallback(content, context)
+                    val res = tool.parseFallback(currentContent, context)
                     if (res != null) {
-                        terminal = res
-                        break
+                        currentContent = res.content
+                        finalSuggestions.addAll(res.suggestions)
+                        if (res.voiceAttachmentUri != null) {
+                            finalVoiceUri = res.voiceAttachmentUri
+                            finalVoiceDuration = res.voiceDurationMs
+                        }
+                        hasTerminal = true
                     }
                 }
-                if (terminal != null) {
+
+                if (hasTerminal) {
                     ApiResult.Success(
                         CoordinatedCompletion(
-                            content = terminal.content,
-                            suggestions = terminal.suggestions,
+                            content = currentContent,
+                            suggestions = finalSuggestions.distinct(),
                             finishReason = completion.finishReason,
                             usage = completion.usage,
-                            voiceAttachmentUri = terminal.voiceAttachmentUri,
-                            voiceDurationMs = terminal.voiceDurationMs,
+                            voiceAttachmentUri = finalVoiceUri,
+                            voiceDurationMs = finalVoiceDuration,
                         ),
                     )
                 } else {

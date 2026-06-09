@@ -93,9 +93,7 @@ class QuickRepliesTool(
     ): List<AiMessage> {
         val format = """
             <quick_replies_output_contract>
-            你必须完成两个部分：
-            1. 先以${context.characterName}的身份正常回复用户。
-            2. 在回复的最后另起一行，输出且只输出一个快捷回复元数据块：
+            你需要在回复的最后另起一行，输出且只输出一个快捷回复元数据块：
             <quick_replies>{"suggestions":["🌸 选项一","🍃 选项二","✨ 选项三","🌙 选项四"]}</quick_replies>
 
             强制规则：
@@ -113,34 +111,10 @@ class QuickRepliesTool(
             </quick_replies_output_contract>
         """.trimIndent()
 
-        val systemIndex = messages.indexOfFirst { it.role == "system" }
-        val prepared = messages.toMutableList()
-        if (systemIndex >= 0) {
-            val message = prepared[systemIndex]
-            prepared[systemIndex] = message.copy(
-                content = listOfNotNull(message.content?.trim(), format)
-                    .filter(String::isNotEmpty)
-                    .joinToString("\n\n"),
-            )
-        } else {
-            prepared.add(0, AiMessage(role = "system", content = format))
-        }
-
-        val userIndex = prepared.indexOfLast { it.role == "user" }
-        if (userIndex >= 0) {
-            val message = prepared[userIndex]
-            prepared[userIndex] = message.copy(
-                content = """
-                    <user_input>
-                    ${message.content.orEmpty().trim()}
-                    </user_input>
-                    <control_signals>
-                    请遵守 system 消息中的 <quick_replies_output_contract>，并以完整的 <quick_replies> JSON 元数据块结束回复。
-                    </control_signals>
-                """.trimIndent()
-            )
-        }
-        return prepared
+        return messages.injectFallbackInstructions(
+            systemFormat = format,
+            controlSignal = "请遵守 system 消息中的 <quick_replies_output_contract>，并以完整的 <quick_replies> JSON 元数据块结束回复。"
+        )
     }
 
     override suspend fun parseFallback(

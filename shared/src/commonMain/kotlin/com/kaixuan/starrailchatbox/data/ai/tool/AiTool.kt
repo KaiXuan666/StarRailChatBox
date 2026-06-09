@@ -96,6 +96,67 @@ interface AiTool {
 }
 
 /**
+ * 辅助工具，用于将工具的降级指令安全地注入到消息列表中，避免多次注入导致嵌套。
+ */
+fun List<AiMessage>.injectFallbackInstructions(
+    systemFormat: String,
+    controlSignal: String,
+): List<AiMessage> {
+    val prepared = this.toMutableList()
+
+    // 1. 注入 System Prompt
+    val systemIndex = prepared.indexOfFirst { it.role == "system" }
+    if (systemIndex >= 0) {
+        val message = prepared[systemIndex]
+        prepared[systemIndex] = message.copy(
+            content = listOfNotNull(message.content?.trim(), systemFormat)
+                .filter(String::isNotEmpty)
+                .joinToString("\n\n")
+        )
+    } else {
+        prepared.add(0, AiMessage(role = "system", content = systemFormat))
+    }
+
+    // 2. 注入 User Control Signals
+    val userIndex = prepared.indexOfLast { it.role == "user" }
+    if (userIndex >= 0) {
+        val message = prepared[userIndex]
+        val content = message.content.orEmpty().trim()
+
+        // 使用正则提取现有结构，避免重复嵌套 <user_input>
+        val userInputRegex = Regex("<user_input>([\\s\\S]*?)</user_input>", RegexOption.IGNORE_CASE)
+        val controlSignalsRegex = Regex("<control_signals>([\\s\\S]*?)</control_signals>", RegexOption.IGNORE_CASE)
+
+        val userInputMatch = userInputRegex.find(content)
+        val controlSignalsMatch = controlSignalsRegex.find(content)
+
+        val actualInput = userInputMatch?.groupValues?.get(1)?.trim() ?: content
+        val existingSignals = controlSignalsMatch?.groupValues?.get(1)?.trim() ?: ""
+
+        val newSignals = if (existingSignals.isEmpty()) {
+            controlSignal
+        } else if (existingSignals.contains(controlSignal.trim())) {
+            existingSignals // 避免重复注入相同的信号
+        } else {
+            "$existingSignals\n$controlSignal"
+        }
+
+        prepared[userIndex] = message.copy(
+            content = """
+                <user_input>
+                $actualInput
+                </user_input>
+                <control_signals>
+                $newSignals
+                </control_signals>
+            """.trimIndent()
+        )
+    }
+
+    return prepared
+}
+
+/**
  * 已注册工具的只读查找表。
  *
  * 新工具通过依赖注入注册后即可被协调器发现，无需在 Repository 中增加条件分支。
