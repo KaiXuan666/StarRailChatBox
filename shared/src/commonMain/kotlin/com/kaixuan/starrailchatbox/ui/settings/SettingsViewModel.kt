@@ -472,12 +472,34 @@ class SettingsViewModel(
                     isVoice -> {
                         modelConfigRepository.deleteConfig(VoiceModelConfig.Id)
                         modelConfigRepository.deleteConfig(VoiceCloneModelConfig.Id)
+                        _uiState.update { 
+                            it.copy(
+                                voiceApiKey = "",
+                                voiceSelectedModel = "",
+                                voiceSelectedCloneModel = "",
+                                voiceModelsList = emptyList()
+                            )
+                        }
                     }
                     isMultimodal -> {
                         modelConfigRepository.deleteConfig(MultimodalModelConfig.Id)
+                        _uiState.update {
+                            it.copy(
+                                multimodalApiKey = "",
+                                multimodalSelectedModel = "",
+                                multimodalModelsList = emptyList()
+                            )
+                        }
                     }
                     else -> {
                         modelConfigRepository.deleteConfig(DefaultModelConfig.Id)
+                        _uiState.update {
+                            it.copy(
+                                apiKey = "",
+                                selectedModel = "",
+                                modelsList = emptyList()
+                            )
+                        }
                     }
                 }
                 _effects.send(SettingsEffect.NavigateBack)

@@ -118,10 +118,10 @@
     <string name="settings_title">设置</string>
     <string name="settings_api_title">API设置</string>
     <string name="settings_multimodal_api_title">多模态API设置</string>
-    <string name="settings_multimodal_api_desc">配置多模态模型接口、Key 与请求参数</string>
+    <string name="settings_multimodal_api_desc">配置后可以发送文件、图片和语音</string>
     <string name="settings_multimodal_api_tip">一般来说，带有 -O 或 Omni是支持多模态的模型</string>
     <string name="settings_voice_api_title">语音生成API设置</string>
-    <string name="settings_voice_api_desc">配置语音合成（TTS）接口、Key与参数</string>
+    <string name="settings_voice_api_desc">配置后角色可以使用语音回复你</string>
     <string name="settings_api_desc">配置模型接口、Key 与请求参数</string>
     <string name="settings_update_title">检查更新</string>
     <string name="settings_update_desc">当前版本 v1.0.0，查看是否有新版本</string>
@@ -165,6 +165,8 @@
     <string name="navigation_back">返回</string>
     <string name="settings_api_save_failed">API 配置保存失败</string>
     <string name="settings_api_empty_models">填写 API 主机和密钥后获取模型列表</string>
+    <string name="settings_api_configured">已配置</string>
+    <string name="settings_api_not_configured">未配置</string>
     <string name="settings_saving">保存中...</string>
     <string name="settings_voice_generation_models">语音生成模型</string>
     <string name="settings_voice_clone_models">音色克隆模型</string>

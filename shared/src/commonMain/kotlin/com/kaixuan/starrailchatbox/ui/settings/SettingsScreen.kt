@@ -27,6 +27,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -46,7 +47,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.tooling.preview.Preview
@@ -59,6 +65,8 @@ import starrailchatbox.shared.generated.resources.settings_about_desc
 import starrailchatbox.shared.generated.resources.settings_about_title
 import starrailchatbox.shared.generated.resources.settings_api_desc
 import starrailchatbox.shared.generated.resources.settings_api_title
+import starrailchatbox.shared.generated.resources.settings_api_configured
+import starrailchatbox.shared.generated.resources.settings_api_not_configured
 import starrailchatbox.shared.generated.resources.settings_multimodal_api_desc
 import starrailchatbox.shared.generated.resources.settings_multimodal_api_title
 import starrailchatbox.shared.generated.resources.settings_voice_api_title
@@ -92,6 +100,7 @@ private data class SettingsItemUiData(
     val iconKind: StarRailIconKind,
     val titleRes: StringResource,
     val descRes: StringResource,
+    val isConfigured: Boolean? = null,
     val getColors: @Composable () -> Pair<Color, Color> // Returns (ContainerColor, IconColor)
 )
 
@@ -120,6 +129,7 @@ fun SettingsScreen(
             iconKind = StarRailIconKind.CUBE,
             titleRes = Res.string.settings_api_title,
             descRes = Res.string.settings_api_desc,
+            isConfigured = settingsState.apiKey.isNotBlank() && settingsState.selectedModel.isNotBlank(),
             getColors = {
                 MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f) to MaterialTheme.colorScheme.secondary
             }
@@ -129,6 +139,7 @@ fun SettingsScreen(
             iconKind = StarRailIconKind.SPARKLE,
             titleRes = Res.string.settings_multimodal_api_title,
             descRes = Res.string.settings_multimodal_api_desc,
+            isConfigured = settingsState.multimodalApiKey.isNotBlank() && settingsState.multimodalSelectedModel.isNotBlank(),
             getColors = {
                 MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.55f) to MaterialTheme.colorScheme.tertiary
             }
@@ -138,6 +149,7 @@ fun SettingsScreen(
             iconKind = StarRailIconKind.VOICE,
             titleRes = Res.string.settings_voice_api_title,
             descRes = Res.string.settings_voice_api_desc,
+            isConfigured = settingsState.voiceApiKey.isNotBlank() && (settingsState.voiceSelectedModel.isNotBlank() || settingsState.voiceSelectedCloneModel.isNotBlank()),
             getColors = {
                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f) to MaterialTheme.colorScheme.primary
             }
@@ -243,6 +255,50 @@ fun SettingsScreen(
                 }
             }
         }
+
+        // Footer: Powered by StarRailChatBox
+        val uriHandler = LocalUriHandler.current
+        val footerText = buildAnnotatedString {
+            withStyle(
+                style = SpanStyle(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                )
+            ) {
+                append("Powered by ")
+            }
+            pushStringAnnotation(
+                tag = "URL",
+                annotation = "https://github.com/KaiXuan666/StarRailChatBox"
+            )
+            withStyle(
+                style = SpanStyle(
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                    fontWeight = FontWeight.Bold,
+                    textDecoration = TextDecoration.Underline
+                )
+            ) {
+                append("StarRailChatBox")
+            }
+            pop()
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = StarRailSpacing.sm),
+            contentAlignment = Alignment.Center
+        ) {
+            ClickableText(
+                text = footerText,
+                style = MaterialTheme.typography.bodySmall,
+                onClick = { offset ->
+                    footerText.getStringAnnotations(tag = "URL", start = offset, end = offset)
+                        .firstOrNull()?.let { annotation ->
+                            uriHandler.openUri(annotation.item)
+                        }
+                }
+            )
+        }
     }
 
     // Theme Selection Dialog
@@ -311,6 +367,43 @@ private fun SettingsItemRow(
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 2
             )
+        }
+
+        // Status Text and Icon
+        if (data.isConfigured != null) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                val statusText = if (data.isConfigured) {
+                    stringResource(Res.string.settings_api_configured)
+                } else {
+                    stringResource(Res.string.settings_api_not_configured)
+                }
+                val statusColor = if (data.isConfigured) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                }
+                val statusIcon = if (data.isConfigured) {
+                    StarRailIconKind.CHECK
+                } else {
+                    StarRailIconKind.INFO
+                }
+
+                Text(
+                    text = statusText,
+                    color = statusColor,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                StarRailIcon(
+                    kind = statusIcon,
+                    contentDescription = null,
+                    tint = statusColor,
+                    modifier = Modifier.size(if (compact) 14.dp else 16.dp)
+                )
+            }
         }
 
         // Right Chevron Arrow

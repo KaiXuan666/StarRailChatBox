@@ -144,24 +144,39 @@ fun StarRailIcon(
             }
 
             StarRailIconKind.SETTINGS -> {
-                drawCircle(
-                    color = tint,
-                    radius = side * 0.18f,
-                    center = point(0.5f, 0.5f),
-                    style = stroke,
-                )
-                repeat(8) { index ->
-                    val angle = index * (kotlin.math.PI / 4).toFloat()
-                    val inner = Offset(
-                        point(0.5f, 0.5f).x + cos(angle) * side * 0.3f,
-                        point(0.5f, 0.5f).y + sin(angle) * side * 0.3f,
-                    )
-                    val outer = Offset(
-                        point(0.5f, 0.5f).x + cos(angle) * side * 0.43f,
-                        point(0.5f, 0.5f).y + sin(angle) * side * 0.43f,
-                    )
-                    drawLine(tint, inner, outer, strokeWidth, StrokeCap.Round)
+                val path = Path()
+                val teeth = 8
+                val outerRadius = side * 0.46f
+                val innerRadius = side * 0.32f
+                val holeRadius = side * 0.16f
+
+                for (i in 0 until teeth) {
+                    val angle = (i * 2 * kotlin.math.PI / teeth).toFloat()
+                    val halfStep = (kotlin.math.PI / teeth).toFloat()
+                    val toothWidth = halfStep * 0.5f
+
+                    val x1 = size.width * 0.5f + cos(angle - toothWidth) * innerRadius
+                    val y1 = size.height * 0.5f + sin(angle - toothWidth) * innerRadius
+                    val x2 = size.width * 0.5f + cos(angle - toothWidth) * outerRadius
+                    val y2 = size.height * 0.5f + sin(angle - toothWidth) * outerRadius
+                    val x3 = size.width * 0.5f + cos(angle + toothWidth) * outerRadius
+                    val y3 = size.height * 0.5f + sin(angle + toothWidth) * outerRadius
+                    val x4 = size.width * 0.5f + cos(angle + toothWidth) * innerRadius
+                    val y4 = size.height * 0.5f + sin(angle + toothWidth) * innerRadius
+
+                    if (i == 0) path.moveTo(x1, y1) else path.lineTo(x1, y1)
+                    path.lineTo(x2, y2)
+                    path.lineTo(x3, y3)
+                    path.lineTo(x4, y4)
+
+                    val nextAngle = ((i + 1) * 2 * kotlin.math.PI / teeth).toFloat()
+                    val x5 = size.width * 0.5f + cos(nextAngle - toothWidth) * innerRadius
+                    val y5 = size.height * 0.5f + sin(nextAngle - toothWidth) * innerRadius
+                    path.lineTo(x5, y5)
                 }
+                path.close()
+                drawPath(path, tint, style = stroke)
+                drawCircle(tint, holeRadius, point(0.5f, 0.5f), style = stroke)
             }
 
             StarRailIconKind.HEART -> {
