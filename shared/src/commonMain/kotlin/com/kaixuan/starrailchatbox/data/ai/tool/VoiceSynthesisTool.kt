@@ -108,6 +108,7 @@ class VoiceSynthesisTool(
         messages: List<AiMessage>,
         context: ToolContext,
     ): List<AiMessage> {
+        Napier.d { "VoiceSynthesisTool prepareFallbackMessages" }
         val format = """
             <voice_output_contract>
             如果用户要求你说话、发语音、听声音，或用户自身发送了语音消息（或者任何你想对用户表达声音/配音的场景），你必须在回复的最后另起一行，输出且只输出一个语音合成元数据块，指定你要说的话（正文）以及你想呈现的配音音色与语境设计。

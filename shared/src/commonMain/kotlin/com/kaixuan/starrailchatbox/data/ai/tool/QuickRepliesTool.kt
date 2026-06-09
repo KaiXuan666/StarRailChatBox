@@ -5,6 +5,7 @@ import com.kaixuan.starrailchatbox.data.ai.AiResponseFormat
 import com.kaixuan.starrailchatbox.data.ai.AiResponseFormatType
 import com.kaixuan.starrailchatbox.data.ai.AiToolCall
 import com.kaixuan.starrailchatbox.data.ai.AiToolDefinition
+import io.github.aakira.napier.Napier
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
@@ -91,6 +92,7 @@ class QuickRepliesTool(
         messages: List<AiMessage>,
         context: ToolContext,
     ): List<AiMessage> {
+        Napier.d { "QuickRepliesTool prepareFallbackMessages" }
         val format = """
             <quick_replies_output_contract>
             你需要在回复的最后另起一行，输出且只输出一个快捷回复元数据块：

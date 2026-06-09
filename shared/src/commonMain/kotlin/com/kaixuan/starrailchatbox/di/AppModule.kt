@@ -22,6 +22,7 @@ import com.kaixuan.starrailchatbox.data.settings.ProfileStore
 import com.kaixuan.starrailchatbox.ui.settings.SettingsViewModel
 import com.kaixuan.starrailchatbox.ui.profile.ProfileViewModel
 import com.kaixuan.starrailchatbox.ui.chat.ChatViewModel
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 fun appModule(
@@ -33,8 +34,8 @@ fun appModule(
     single { createPlatformHttpClient() }
     single<AiProvider> { OpenAiCompatibleProvider(get()) }
     single { AiProviderRegistry(getAll()) }
-    single<AiTool> { QuickRepliesTool() }
-    single<AiTool> { VoiceSynthesisTool(get(), get()) }
+    single<AiTool>(named("QuickReplies")) { QuickRepliesTool() }
+    single<AiTool>(named("VoiceSynthesis")) { VoiceSynthesisTool(get(), get()) }
     single { ToolRegistry(getAll()) }
     single<ToolApprovalGateway> { RiskBasedToolApprovalGateway }
     single<PlatformToolExecutor> { createPlatformToolExecutor() }

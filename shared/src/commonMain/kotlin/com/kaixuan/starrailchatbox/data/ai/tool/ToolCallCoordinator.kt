@@ -9,6 +9,7 @@ import com.kaixuan.starrailchatbox.data.ai.AiToolCall
 import com.kaixuan.starrailchatbox.data.ai.AiUsage
 import com.kaixuan.starrailchatbox.data.ai.ToolChoice
 import com.kaixuan.starrailchatbox.data.api.ApiResult
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -41,10 +42,12 @@ class ToolCallCoordinator(
         context: ToolContext,
         supportsToolCalls: Boolean,
     ): ApiResult<CoordinatedCompletion> {
+        Napier.d { "ToolCallCoordinator toolNames=$toolNames" }
         val tools = toolNames
             ?.mapNotNull(toolRegistry::find)
             ?.filter(AiTool::isAvailable)
             ?: toolRegistry.availableTools()
+        Napier.d { "ToolCallCoordinator available tools: ${tools.map { it.name }}" }
         val initialResult = if (!supportsToolCalls) {
             completeWithFallback(provider, providerConfig, request, tools, context)
         } else {
