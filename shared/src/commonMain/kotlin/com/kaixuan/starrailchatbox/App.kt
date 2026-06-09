@@ -13,6 +13,8 @@ import com.kaixuan.starrailchatbox.data.model.InMemoryModelConfigRepository
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
 import com.kaixuan.starrailchatbox.data.chat.ChatSessionRepository
 import com.kaixuan.starrailchatbox.data.chat.InMemoryChatSessionRepository
+import com.kaixuan.starrailchatbox.data.settings.AppSettingsStore
+import com.kaixuan.starrailchatbox.data.settings.createAppSettingsStore
 import com.kaixuan.starrailchatbox.data.settings.ProfileStore
 import com.kaixuan.starrailchatbox.data.settings.createProfileStore
 import com.kaixuan.starrailchatbox.design.StarRailTheme
@@ -33,6 +35,7 @@ import org.koin.dsl.koinApplication
 fun App(
     modelConfigRepository: ModelConfigRepository = remember { InMemoryModelConfigRepository() },
     profileStore: ProfileStore = remember { createProfileStore() },
+    appSettingsStore: AppSettingsStore = remember { createAppSettingsStore() },
     characterRepository: CharacterRepository = remember {
         DefaultCharacterRepository(InMemoryCharacterStorage())
     },
@@ -43,6 +46,7 @@ fun App(
     val koinApplication = remember(
         modelConfigRepository,
         profileStore,
+        appSettingsStore,
         characterRepository,
         chatSessionRepository,
     ) {
@@ -51,6 +55,7 @@ fun App(
                 appModule(
                     modelConfigRepository,
                     profileStore,
+                    appSettingsStore,
                     characterRepository,
                     chatSessionRepository,
                 ),
@@ -63,7 +68,7 @@ fun App(
         }
     }
 
-    val mainViewModel = viewModel { MainViewModel() }
+    val mainViewModel = viewModel { koinApplication.koin.get<MainViewModel>() }
     val mainState by mainViewModel.uiState.collectAsStateWithLifecycle()
 
     val chatViewModel = viewModel { koinApplication.koin.get<ChatViewModel>() }

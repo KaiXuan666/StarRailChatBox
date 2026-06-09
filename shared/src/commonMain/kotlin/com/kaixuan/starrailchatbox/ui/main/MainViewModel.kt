@@ -1,19 +1,32 @@
 package com.kaixuan.starrailchatbox.ui.main
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.kaixuan.starrailchatbox.data.settings.AppSettingsStore
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import com.kaixuan.starrailchatbox.ui.navigation.Route
+import kotlinx.coroutines.launch
 
-class MainViewModel : ViewModel() {
+class MainViewModel(private val settingsStore: AppSettingsStore) : ViewModel() {
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState = _uiState.asStateFlow()
 
     private val _effects = Channel<MainEffect>(Channel.BUFFERED)
     val effects = _effects.receiveAsFlow()
+
+    init {
+        settingsStore.darkThemeOverride
+            .onEach { theme ->
+                _uiState.update { it.copy(darkThemeOverride = theme) }
+            }
+            .launchIn(viewModelScope)
+    }
 
     fun onAction(action: MainAction) {
         when (action) {
@@ -75,11 +88,11 @@ class MainViewModel : ViewModel() {
             }
 
             is MainAction.ThemeDialogConfirm -> {
+                viewModelScope.launch {
+                    settingsStore.setDarkThemeOverride(action.themeOverride)
+                }
                 _uiState.update { state ->
-                    state.copy(
-                        darkThemeOverride = action.themeOverride,
-                        showThemeDialog = false
-                    )
+                    state.copy(showThemeDialog = false)
                 }
                 _effects.trySend(MainEffect.ShowMessage(MainEffectMessage.THEME_CHANGED))
             }

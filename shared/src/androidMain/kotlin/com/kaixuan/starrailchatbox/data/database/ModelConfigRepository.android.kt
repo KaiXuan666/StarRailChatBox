@@ -11,6 +11,8 @@ import com.kaixuan.starrailchatbox.data.character.FileCharacterVoiceSampleStorag
 import com.kaixuan.starrailchatbox.data.character.RoomCharacterStorage
 import com.kaixuan.starrailchatbox.data.chat.RoomChatSessionRepository
 import com.kaixuan.starrailchatbox.data.model.RoomModelConfigRepository
+import com.kaixuan.starrailchatbox.data.settings.createAppSettingsStore
+import com.kaixuan.starrailchatbox.data.settings.createProfileStore
 
 object AndroidContextHolder {
     var context: android.content.Context? = null
@@ -48,5 +50,13 @@ fun createPersistentRepositories(
             ),
         ),
         chatSessionRepository = RoomChatSessionRepository(database),
+        profileStore = createProfileStore(
+            path = context.filesDir.resolve("profile_settings.preferences_pb").absolutePath,
+            context = context,
+        ),
+        appSettingsStore = createAppSettingsStore(
+            path = context.filesDir.resolve("app_settings.preferences_pb").absolutePath,
+            context = context,
+        ),
     )
 }

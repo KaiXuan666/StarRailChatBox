@@ -20,6 +20,8 @@ fun main() = application {
     ) {
         App(
             modelConfigRepository = repositories.modelConfigRepository,
+            profileStore = repositories.profileStore,
+            appSettingsStore = repositories.appSettingsStore,
             characterRepository = repositories.characterRepository,
             chatSessionRepository = repositories.chatSessionRepository,
         )

@@ -7,7 +7,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import com.kaixuan.starrailchatbox.data.database.createPersistentRepositories
-import com.kaixuan.starrailchatbox.data.settings.createProfileStore
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -18,10 +17,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             App(
                 modelConfigRepository = repositories.modelConfigRepository,
-                profileStore = createProfileStore(
-                    path = filesDir.resolve("profile_settings.preferences_pb").absolutePath,
-                    context = this,
-                ),
+                profileStore = repositories.profileStore,
+                appSettingsStore = repositories.appSettingsStore,
                 characterRepository = repositories.characterRepository,
                 chatSessionRepository = repositories.chatSessionRepository,
             )

@@ -10,6 +10,8 @@ import com.kaixuan.starrailchatbox.data.character.FileCharacterVoiceSampleStorag
 import com.kaixuan.starrailchatbox.data.character.RoomCharacterStorage
 import com.kaixuan.starrailchatbox.data.chat.RoomChatSessionRepository
 import com.kaixuan.starrailchatbox.data.model.RoomModelConfigRepository
+import com.kaixuan.starrailchatbox.data.settings.createAppSettingsStore
+import com.kaixuan.starrailchatbox.data.settings.createProfileStore
 import platform.Foundation.NSDocumentDirectory
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSUserDomainMask
@@ -48,5 +50,7 @@ fun createPersistentRepositories(): PersistentRepositories {
             ),
         ),
         chatSessionRepository = RoomChatSessionRepository(database),
+        profileStore = createProfileStore("$directoryPath/profile_settings.preferences_pb"),
+        appSettingsStore = createAppSettingsStore("$directoryPath/app_settings.preferences_pb"),
     )
 }

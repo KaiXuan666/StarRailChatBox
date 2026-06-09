@@ -18,16 +18,19 @@ import com.kaixuan.starrailchatbox.data.api.createPlatformHttpClient
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
 import com.kaixuan.starrailchatbox.data.character.CharacterRepository
 import com.kaixuan.starrailchatbox.data.chat.ChatSessionRepository
+import com.kaixuan.starrailchatbox.data.settings.AppSettingsStore
 import com.kaixuan.starrailchatbox.data.settings.ProfileStore
 import com.kaixuan.starrailchatbox.ui.settings.SettingsViewModel
 import com.kaixuan.starrailchatbox.ui.profile.ProfileViewModel
 import com.kaixuan.starrailchatbox.ui.chat.ChatViewModel
+import com.kaixuan.starrailchatbox.ui.main.MainViewModel
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 fun appModule(
     modelConfigRepository: ModelConfigRepository,
     profileStore: ProfileStore,
+    appSettingsStore: AppSettingsStore,
     characterRepository: CharacterRepository,
     chatSessionRepository: ChatSessionRepository,
 ) = module {
@@ -43,8 +46,10 @@ fun appModule(
     single<AiRepository> { DefaultAiRepository(get(), get()) }
     single { modelConfigRepository }
     single { profileStore }
+    single { appSettingsStore }
     single { characterRepository }
     single { chatSessionRepository }
+    factory { MainViewModel(get()) }
     factory { ChatViewModel(get(), get(), get(), get(), get()) }
     factory { SettingsViewModel(get(), get()) }
     factory { ProfileViewModel(get()) }

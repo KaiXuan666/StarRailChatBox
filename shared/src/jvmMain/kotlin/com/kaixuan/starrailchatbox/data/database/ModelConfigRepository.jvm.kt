@@ -8,6 +8,8 @@ import com.kaixuan.starrailchatbox.data.character.FileCharacterVoiceSampleStorag
 import com.kaixuan.starrailchatbox.data.character.RoomCharacterStorage
 import com.kaixuan.starrailchatbox.data.chat.RoomChatSessionRepository
 import com.kaixuan.starrailchatbox.data.model.RoomModelConfigRepository
+import com.kaixuan.starrailchatbox.data.settings.createAppSettingsStore
+import com.kaixuan.starrailchatbox.data.settings.createProfileStore
 import java.io.File
 
 fun createPersistentRepositories(
@@ -44,5 +46,11 @@ fun createPersistentRepositories(
             ),
         ),
         chatSessionRepository = RoomChatSessionRepository(database),
+        profileStore = createProfileStore(
+            path = databaseFile.resolveSibling("profile_settings.preferences_pb").absolutePath,
+        ),
+        appSettingsStore = createAppSettingsStore(
+            path = databaseFile.resolveSibling("app_settings.preferences_pb").absolutePath,
+        ),
     )
 }
