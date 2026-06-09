@@ -17,9 +17,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -85,21 +85,16 @@ fun StarRailPageHeader(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (onBackClick != null && backContentDescription != null) {
-            Surface(
+            IconButton(
                 onClick = onBackClick,
-                modifier = Modifier.size(40.dp),
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.55f),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier.size(if (compact) 32.dp else 40.dp),
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    StarRailIcon(
-                        kind = StarRailIconKind.CHEVRON_LEFT,
-                        contentDescription = backContentDescription,
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
+                StarRailIcon(
+                    kind = StarRailIconKind.CHEVRON_LEFT,
+                    contentDescription = backContentDescription,
+                    tint = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.size(if (compact) 24.dp else 28.dp),
+                )
             }
         }
 
