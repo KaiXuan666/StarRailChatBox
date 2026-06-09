@@ -278,30 +278,36 @@ class SettingsViewModel(
             return
         }
 
+        val sortedModels = if (isVoice) {
+            models.sortedByDescending { it.contains("tts", ignoreCase = true) }
+        } else {
+            models
+        }
+
         _uiState.update { state ->
             when {
                 isVoice -> {
                     state.copy(
                         voiceIsFetchingModels = false,
-                        voiceModelsList = models,
-                        voiceSelectedModel = state.voiceSelectedModel.takeIf(models::contains) 
-                            ?: models.firstOrNull { !it.contains("clone") && !it.contains("design") } 
-                            ?: models.first(),
-                        voiceSelectedCloneModel = state.voiceSelectedCloneModel.takeIf(models::contains) ?: "",
+                        voiceModelsList = sortedModels,
+                        voiceSelectedModel = state.voiceSelectedModel.takeIf(sortedModels::contains)
+                            ?: sortedModels.firstOrNull { !it.contains("clone") && !it.contains("design") }
+                            ?: sortedModels.first(),
+                        voiceSelectedCloneModel = state.voiceSelectedCloneModel.takeIf(sortedModels::contains) ?: "",
                     )
                 }
                 isMultimodal -> {
                     state.copy(
                         multimodalIsFetchingModels = false,
-                        multimodalModelsList = models,
-                        multimodalSelectedModel = state.multimodalSelectedModel.takeIf(models::contains) ?: models.first(),
+                        multimodalModelsList = sortedModels,
+                        multimodalSelectedModel = state.multimodalSelectedModel.takeIf(sortedModels::contains) ?: sortedModels.first(),
                     )
                 }
                 else -> {
                     state.copy(
                         isFetchingModels = false,
-                        modelsList = models,
-                        selectedModel = state.selectedModel.takeIf(models::contains) ?: models.first(),
+                        modelsList = sortedModels,
+                        selectedModel = state.selectedModel.takeIf(sortedModels::contains) ?: sortedModels.first(),
                     )
                 }
             }

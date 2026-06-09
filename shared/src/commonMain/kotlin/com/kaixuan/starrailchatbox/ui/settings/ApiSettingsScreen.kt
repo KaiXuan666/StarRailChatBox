@@ -1,6 +1,5 @@
 package com.kaixuan.starrailchatbox.ui.settings
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -27,15 +26,21 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -298,70 +303,59 @@ fun ApiSettingsScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
-                        verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs)
+                        verticalArrangement = Arrangement.spacedBy(StarRailSpacing.sm)
                     ) {
                         if (isVoice && modelsList.isNotEmpty()) {
-                            // Generation Section
-                            Text(
-                                text = "「 " + stringResource(Res.string.settings_voice_generation_models) + " 」",
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(top = 4.dp, bottom = 2.dp, start = 4.dp)
+                            StarRailDropdown(
+                                label = stringResource(Res.string.settings_voice_generation_models),
+                                options = modelsList,
+                                selectedOption = selectedModel,
+                                onOptionSelected = { onSettingsAction(SettingsAction.SelectModel(it, isVoice = true)) },
+                                compact = compact,
+                                isFetching = isFetchingModels,
+                                onFetchRequest = { onSettingsAction(SettingsAction.FetchVoiceModelsClicked) }
                             )
-                            modelsList.forEach { model ->
-                                ModelCardItem(
-                                    model = model,
-                                    isSelected = selectedModel == model,
-                                    onClick = { onSettingsAction(SettingsAction.SelectModel(model, isVoice = true)) },
-                                    compact = compact
-                                )
-                            }
 
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
 
-                            // Clone Section
-                            Text(
-                                text = "「 " + stringResource(Res.string.settings_voice_clone_models) + " 」",
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(top = 4.dp, bottom = 0.dp, start = 4.dp)
+                            val noneText = stringResource(Res.string.settings_voice_clone_none)
+                            StarRailDropdown(
+                                label = stringResource(Res.string.settings_voice_clone_models),
+                                options = listOf(noneText) + modelsList,
+                                selectedOption = voiceSelectedCloneModel.ifEmpty { noneText },
+                                onOptionSelected = {
+                                    val model = if (it == noneText) "" else it
+                                    onSettingsAction(SettingsAction.SelectModel(model, isVoice = true, isVoiceClone = true))
+                                },
+                                compact = compact,
+                                placeholder = noneText,
+                                isFetching = isFetchingModels,
+                                onFetchRequest = { onSettingsAction(SettingsAction.FetchVoiceModelsClicked) }
                             )
                             
                             Text(
                                 text = stringResource(Res.string.settings_voice_clone_tip),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                 style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 4.dp)
+                                modifier = Modifier.padding(start = 8.dp, end = 8.dp)
                             )
-                            
-                            // "None" option for clone
-                            ModelCardItem(
-                                model = stringResource(Res.string.settings_voice_clone_none),
-                                isSelected = voiceSelectedCloneModel.isEmpty(),
-                                onClick = { onSettingsAction(SettingsAction.SelectModel("", isVoice = true, isVoiceClone = true)) },
+                        } else if (modelsList.isNotEmpty()) {
+                            StarRailDropdown(
+                                options = modelsList,
+                                selectedOption = selectedModel,
+                                onOptionSelected = { onSettingsAction(SettingsAction.SelectModel(it, isMultimodal = isMultimodal, isVoice = isVoice)) },
                                 compact = compact,
-                                iconKind = StarRailIconKind.CLOSE
+                                placeholder = stringResource(Res.string.settings_api_model_selected),
+                                isFetching = isFetchingModels,
+                                onFetchRequest = {
+                                    onSettingsAction(
+                                        when {
+                                            isMultimodal -> SettingsAction.FetchMultimodalModelsClicked
+                                            else -> SettingsAction.FetchModelsClicked
+                                        }
+                                    )
+                                }
                             )
-
-                            modelsList.forEach { model ->
-                                ModelCardItem(
-                                    model = model,
-                                    isSelected = voiceSelectedCloneModel == model,
-                                    onClick = { onSettingsAction(SettingsAction.SelectModel(model, isVoice = true, isVoiceClone = true)) },
-                                    compact = compact
-                                )
-                            }
-                        } else {
-                            modelsList.forEach { model ->
-                                ModelCardItem(
-                                    model = model,
-                                    isSelected = selectedModel == model,
-                                    onClick = { onSettingsAction(SettingsAction.SelectModel(model, isMultimodal = isMultimodal, isVoice = isVoice)) },
-                                    compact = compact
-                                )
-                            }
                         }
                         
                         if (!isFetchingModels && modelsList.isEmpty()) {
@@ -529,125 +523,141 @@ private fun ApiInputField(
 }
 
 @Composable
-private fun ModelCardItem(
-    model: String,
-    isSelected: Boolean,
-    onClick: () -> Unit,
+private fun StarRailDropdown(
+    options: List<String>,
+    selectedOption: String,
+    onOptionSelected: (String) -> Unit,
     modifier: Modifier = Modifier,
     compact: Boolean = false,
-    iconKind: StarRailIconKind = StarRailIconKind.CUBE
+    label: String? = null,
+    placeholder: String = "",
+    iconKind: StarRailIconKind = StarRailIconKind.CUBE,
+    isFetching: Boolean = false,
+    onFetchRequest: (() -> Unit)? = null
 ) {
-    val outlineBrushColor = if (isSelected) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
-    } else {
-        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-    }
-    
-    val bgGradient = if (isSelected) {
-        Brush.horizontalGradient(
-            listOf(
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.02f)
-            )
-        )
-    } else {
-        Brush.horizontalGradient(
-            listOf(
-                MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.15f),
-                MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.15f)
-            )
-        )
+    var expanded by remember { mutableStateOf(false) }
+    var wasFetching by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isFetching) {
+        if (wasFetching && !isFetching) {
+            wasFetching = false
+            if (options.isNotEmpty()) {
+                expanded = true
+            }
+        }
     }
 
-    Surface(
-        onClick = onClick,
+    Column(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        color = Color.Transparent,
-        border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, outlineBrushColor)
+        verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(bgGradient)
-                .padding(horizontal = 14.dp, vertical = if (compact) 12.dp else 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
+        if (label != null) {
+            Text(
+                text = label,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.9f),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(start = 4.dp)
+            )
+        }
+
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Surface(
+                onClick = {
+                    if (options.isEmpty() && !isFetching && onFetchRequest != null) {
+                        onFetchRequest()
+                        wasFetching = true
+                    } else {
+                        expanded = !expanded
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.7f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f))
             ) {
-                Box(
+                Row(
                     modifier = Modifier
-                        .size(if (compact) 32.dp else 38.dp)
-                        .background(
-                            if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                            else MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
-                            CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = if (compact) 10.dp else 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    StarRailIcon(
-                        kind = iconKind,
-                        contentDescription = null,
-                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(if (compact) 16.dp else 18.dp)
-                    )
-                }
-                
-                Spacer(modifier = Modifier.width(12.dp))
-                
-                Text(
-                    text = model,
-                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-                )
-                
-                if (isSelected) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                RoundedCornerShape(50)
-                            )
-                            .padding(horizontal = 8.dp, vertical = 2.dp),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
                     ) {
+                        if (isFetching) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(if (compact) 18.dp else 22.dp),
+                                color = MaterialTheme.colorScheme.primary,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            StarRailIcon(
+                                kind = iconKind,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(if (compact) 18.dp else 22.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
                         Text(
-                            text = stringResource(Res.string.settings_api_model_selected),
-                            color = MaterialTheme.colorScheme.primary,
-                            style = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            text = if (isFetching && options.isEmpty()) stringResource(Res.string.settings_api_fetching)
+                                   else selectedOption.ifEmpty { placeholder },
+                            color = if (selectedOption.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            else MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.bodyLarge,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
+
+                    Box(modifier = Modifier.rotate(if (expanded) -90f else 90f)) {
+                        StarRailIcon(
+                            kind = StarRailIconKind.CHEVRON_RIGHT,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
             }
-            
-            Box(
+
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
                 modifier = Modifier
-                    .size(if (compact) 18.dp else 22.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-                        else Color.Transparent
-                    )
-                    .border(
-                        if (isSelected) 2.dp else 1.5.dp,
-                        if (isSelected) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                        CircleShape
-                    ),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth(0.9f)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
             ) {
-                if (isSelected) {
-                    StarRailIcon(
-                        kind = StarRailIconKind.CHECK,
-                        contentDescription = "Selected",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(if (compact) 10.dp else 12.dp)
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = option,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (option == selectedOption) MaterialTheme.colorScheme.primary 
+                                        else MaterialTheme.colorScheme.onSurface
+                            )
+                        },
+                        onClick = {
+                            onOptionSelected(option)
+                            expanded = false
+                        },
+                        trailingIcon = if (option == selectedOption) {
+                            {
+                                StarRailIcon(
+                                    kind = StarRailIconKind.CHECK,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        } else null
                     )
                 }
             }
