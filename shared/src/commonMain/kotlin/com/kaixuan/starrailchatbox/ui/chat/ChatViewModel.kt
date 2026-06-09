@@ -977,12 +977,33 @@ class ChatViewModel(
         )
 
         val lastUserMessage = context.messages.lastOrNull { it.role == ChatRole.USER } ?: return
-        val history = context.messages.filter { it.seq < lastUserMessage.seq }
+        val originalHistory = context.messages.filter { it.seq < lastUserMessage.seq }
+        val saveMultimodalToken = profileStore.load()?.saveMultimodalToken ?: false
+
+        val history = if (saveMultimodalToken) {
+            originalHistory.map { msg ->
+                if (msg.attachments.isNotEmpty()) {
+                    val attachmentText = msg.attachments.joinToString(" ") { "[${it.name}]" }
+                    msg.copy(content = if (msg.content.isBlank()) attachmentText else "${msg.content}\n$attachmentText")
+                } else {
+                    msg
+                }
+            }
+        } else {
+            originalHistory
+        }
+
+        Napier.d { "performChatRequest: lastUserMessage.seq=${lastUserMessage.seq}, saveMultimodalToken=$saveMultimodalToken" }
+        Napier.d { "performChatRequest: summary=${context.summary?.content ?: "None"}" }
+        Napier.d { "performChatRequest: history messages (count=${history.size}):" }
+        history.forEach { msg ->
+            Napier.d { "  - seq=${msg.seq}, role=${msg.role}, content=${msg.content.take(100)}" }
+        }
 
         val hasCurrentMultimodalAttachment = lastUserMessage.attachments.any {
             it.mimeType.startsWith("image/") || it.mimeType.startsWith("audio/") || !enableFileAppend
         }
-        val hasHistoryMultimodalAttachment = history.any { msg ->
+        val hasHistoryMultimodalAttachment = !saveMultimodalToken && history.any { msg ->
             msg.attachments.any { att ->
                 val isAiVoice = msg.role == ChatRole.ASSISTANT && att.mimeType.startsWith("audio/")
                 !isAiVoice && (att.mimeType.startsWith("image/") || att.mimeType.startsWith("audio/") || !enableFileAppend)
@@ -1040,14 +1061,18 @@ class ChatViewModel(
             ?: session.systemPromptSnapshot
 
         Napier.d { "performChatRequest messageParts=$messageParts" }
-        val historyMessageParts = history.associate { msg ->
-            msg.id to msg.attachments.mapNotNull { attachment ->
-                if (msg.role == ChatRole.ASSISTANT && attachment.mimeType.startsWith("audio/")) {
-                    return@mapNotNull null
+        val historyMessageParts = if (saveMultimodalToken) {
+            emptyMap()
+        } else {
+            history.associate { msg ->
+                msg.id to msg.attachments.mapNotNull { attachment ->
+                    if (msg.role == ChatRole.ASSISTANT && attachment.mimeType.startsWith("audio/")) {
+                        return@mapNotNull null
+                    }
+                    readAttachmentAsAiContentPart(attachment)
                 }
-                readAttachmentAsAiContentPart(attachment)
-            }
-        }.filterValues { it.isNotEmpty() }
+            }.filterValues { it.isNotEmpty() }
+        }
 
         val requestMessages = buildChatContext(
             systemPrompt = prompt,

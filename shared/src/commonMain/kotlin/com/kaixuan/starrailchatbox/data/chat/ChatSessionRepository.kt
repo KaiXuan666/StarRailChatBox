@@ -17,7 +17,13 @@ data class ChatSession(
     val customSystemPrompt: String?,
     val maxContextMessageCount: Int?,
     val enableSummary: Boolean,
+    /**
+     * 未压缩有效消息达到该数量时触发总结
+     */
     val summaryThresholdMessageCount: Int,
+    /**
+     * 每次压缩后仍保留的最近原始消息数量
+     */
     val summaryRetainedMessageCount: Int,
     val lastMessageAt: Long,
 )
