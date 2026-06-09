@@ -144,7 +144,10 @@
     <string name="about_donate_footer">所有支付均为自愿支持，感谢你的鼓励与认可！</string>
     <string name="settings_privacy_title">隐私与安全</string>
     <string name="settings_privacy_desc">查看隐私政策与数据安全说明</string>
-    
+    <string name="settings_qq_group_prefix">QQ交流群：</string>
+    <string name="settings_qq_group_number">797269811</string>
+    <string name="settings_copied_success">已复制群号</string>
+
     <!-- 设置项点击反馈 -->
     <string name="settings_api_not_ready">API设置功能开发中...</string>
     <string name="settings_update_check">当前已是最新版本 v1.0.0</string>

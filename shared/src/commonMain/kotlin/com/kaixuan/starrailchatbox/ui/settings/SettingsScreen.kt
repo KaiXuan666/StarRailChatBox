@@ -47,7 +47,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -75,6 +77,8 @@ import starrailchatbox.shared.generated.resources.settings_profile_desc
 import starrailchatbox.shared.generated.resources.settings_profile_title
 import starrailchatbox.shared.generated.resources.settings_privacy_desc
 import starrailchatbox.shared.generated.resources.settings_privacy_title
+import starrailchatbox.shared.generated.resources.settings_qq_group_prefix
+import starrailchatbox.shared.generated.resources.settings_qq_group_number
 import starrailchatbox.shared.generated.resources.settings_theme_desc
 import starrailchatbox.shared.generated.resources.settings_theme_title
 import starrailchatbox.shared.generated.resources.settings_title
@@ -250,8 +254,31 @@ fun SettingsScreen(
             }
         }
 
-        // Footer: Powered by StarRailChatBox
+        // Footer: QQ Group & Powered by StarRailChatBox
         val uriHandler = LocalUriHandler.current
+        val clipboardManager = LocalClipboardManager.current
+        val qqGroupNumber = stringResource(Res.string.settings_qq_group_number)
+        val qqGroupText = buildAnnotatedString {
+            withStyle(
+                style = SpanStyle(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                )
+            ) {
+                append(stringResource(Res.string.settings_qq_group_prefix))
+            }
+            pushStringAnnotation(tag = "COPY", annotation = qqGroupNumber)
+            withStyle(
+                style = SpanStyle(
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                    fontWeight = FontWeight.Bold,
+                    textDecoration = TextDecoration.Underline
+                )
+            ) {
+                append(qqGroupNumber)
+            }
+            pop()
+        }
+
         val footerText = buildAnnotatedString {
             withStyle(
                 style = SpanStyle(
@@ -282,16 +309,33 @@ fun SettingsScreen(
                 .padding(top = StarRailSpacing.sm),
             contentAlignment = Alignment.Center
         ) {
-            ClickableText(
-                text = footerText,
-                style = MaterialTheme.typography.bodySmall,
-                onClick = { offset ->
-                    footerText.getStringAnnotations(tag = "URL", start = offset, end = offset)
-                        .firstOrNull()?.let { annotation ->
-                            uriHandler.openUri(annotation.item)
-                        }
-                }
-            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                ClickableText(
+                    text = qqGroupText,
+                    style = MaterialTheme.typography.bodySmall,
+                    onClick = { offset ->
+                        qqGroupText.getStringAnnotations(tag = "COPY", start = offset, end = offset)
+                            .firstOrNull()?.let { annotation ->
+                                clipboardManager.setText(AnnotatedString(annotation.item))
+                                onSettingsAction(SettingsAction.CopyToClipboard(annotation.item))
+                            }
+                    }
+                )
+
+                ClickableText(
+                    text = footerText,
+                    style = MaterialTheme.typography.bodySmall,
+                    onClick = { offset ->
+                        footerText.getStringAnnotations(tag = "URL", start = offset, end = offset)
+                            .firstOrNull()?.let { annotation ->
+                                uriHandler.openUri(annotation.item)
+                            }
+                    }
+                )
+            }
         }
     }
 

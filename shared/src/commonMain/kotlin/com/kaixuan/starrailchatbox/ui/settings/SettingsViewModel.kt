@@ -159,6 +159,10 @@ class SettingsViewModel(
             is SettingsAction.ClearApiSettingsClicked -> {
                 clearApiSettings(isMultimodal = action.isMultimodal, isVoice = action.isVoice)
             }
+
+            is SettingsAction.CopyToClipboard -> {
+                emitMessage(SettingsEffectMessage.SETTINGS_COPIED_SUCCESS)
+            }
         }
     }
 

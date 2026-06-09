@@ -141,6 +141,7 @@ import com.kaixuan.starrailchatbox.ui.profile.ProfileAction
 import com.kaixuan.starrailchatbox.ui.profile.ProfileEffect
 import com.kaixuan.starrailchatbox.ui.profile.ProfileUiState
 import com.kaixuan.starrailchatbox.ui.profile.ProfileEffectMessage
+import starrailchatbox.shared.generated.resources.settings_copied_success
 
 @Composable
 fun MainRoute(
@@ -220,6 +221,7 @@ fun MainRoute(
         SettingsEffectMessage.SETTINGS_API_FETCH_FAILED to stringResource(Res.string.settings_api_fetch_failed),
         SettingsEffectMessage.SETTINGS_API_NO_MODELS to stringResource(Res.string.settings_api_no_models),
         SettingsEffectMessage.SETTINGS_API_SAVE_FAILED to stringResource(Res.string.settings_api_save_failed),
+        SettingsEffectMessage.SETTINGS_COPIED_SUCCESS to stringResource(Res.string.settings_copied_success),
     )
     val profileEffectMessages = mapOf(
         ProfileEffectMessage.PROFILE_SAVED to stringResource(Res.string.profile_saved),

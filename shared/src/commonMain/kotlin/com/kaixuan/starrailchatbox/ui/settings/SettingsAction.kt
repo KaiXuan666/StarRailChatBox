@@ -36,4 +36,7 @@ sealed interface SettingsAction {
 
     // 清空配置并退出
     data class ClearApiSettingsClicked(val isMultimodal: Boolean = false, val isVoice: Boolean = false) : SettingsAction
+
+    // 复制到剪贴板
+    data class CopyToClipboard(val text: String) : SettingsAction
 }
