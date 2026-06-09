@@ -26,13 +26,11 @@ class ProfileViewModel(
         scope().launch {
             val profile = profileStore.load()
             _uiState.update { state ->
-                val nickname = profile?.nickname ?: "星空旅人"
-                val avatarUri = profile?.customAvatarUri
                 state.copy(
-                    nickname = nickname,
-                    customAvatarUri = avatarUri,
-                    originalNickname = nickname,
-                    originalCustomAvatarUri = avatarUri,
+                    customAvatarUri = profile?.customAvatarUri,
+                    summaryThreshold = profile?.summaryThreshold ?: 20,
+                    saveMultimodalToken = profile?.saveMultimodalToken ?: false,
+                    enableWebSearch = profile?.enableWebSearch ?: false,
                     isLoaded = true
                 )
             }
@@ -41,20 +39,21 @@ class ProfileViewModel(
 
     fun onAction(action: ProfileAction) {
         when (action) {
-            is ProfileAction.NicknameChanged -> {
-                _uiState.update { it.copy(nickname = action.name) }
-            }
             is ProfileAction.AvatarChanged -> {
                 _uiState.update { it.copy(customAvatarUri = action.avatarUri) }
+                saveProfile()
             }
             is ProfileAction.SummaryThresholdChanged -> {
                 _uiState.update { it.copy(summaryThreshold = action.threshold) }
+                saveProfile()
             }
             is ProfileAction.SaveMultimodalTokenChanged -> {
                 _uiState.update { it.copy(saveMultimodalToken = action.enabled) }
+                saveProfile()
             }
             is ProfileAction.EnableWebSearchChanged -> {
                 _uiState.update { it.copy(enableWebSearch = action.enabled) }
+                saveProfile()
             }
             ProfileAction.ExportDataClicked -> {
                 // Placeholder for future implementation
@@ -64,74 +63,35 @@ class ProfileViewModel(
             }
             ProfileAction.RestoreDefaultAvatar -> {
                 _uiState.update { it.copy(customAvatarUri = null) }
-            }
-            ProfileAction.SaveClicked -> {
                 saveProfile()
             }
             ProfileAction.BackClicked -> {
-                if (uiState.value.hasUnsavedChanges) {
-                    _uiState.update { it.copy(isDiscardDialogOpen = true) }
-                } else {
-                    scope().launch { _effects.send(ProfileEffect.NavigateBack) }
-                }
-            }
-            ProfileAction.ConfirmDiscard -> {
-                _uiState.update {
-                    it.copy(
-                        nickname = it.originalNickname,
-                        customAvatarUri = it.originalCustomAvatarUri,
-                        summaryThreshold = it.originalSummaryThreshold,
-                        saveMultimodalToken = it.originalSaveMultimodalToken,
-                        enableWebSearch = it.originalEnableWebSearch,
-                        isDiscardDialogOpen = false
-                    )
-                }
                 scope().launch { _effects.send(ProfileEffect.NavigateBack) }
-            }
-            ProfileAction.CancelDiscard -> {
-                _uiState.update { it.copy(isDiscardDialogOpen = false) }
             }
         }
     }
 
     private fun saveProfile() {
         val state = _uiState.value
-        if (state.nickname.isBlank()) {
-            emitMessage(ProfileEffectMessage.NICKNAME_EMPTY)
-            return
-        }
-
-        _uiState.update { it.copy(isSaving = true) }
         scope().launch {
             try {
-                // Note: Only saving nickname and avatar for now as requested "just interface"
                 val updatedProfile = UserProfile(
-                    nickname = state.nickname.trim(),
-                    customAvatarUri = state.customAvatarUri
+                    customAvatarUri = state.customAvatarUri,
+                    summaryThreshold = state.summaryThreshold,
+                    saveMultimodalToken = state.saveMultimodalToken,
+                    enableWebSearch = state.enableWebSearch
                 )
                 profileStore.save(updatedProfile)
-                _uiState.update {
-                    it.copy(
-                        isSaving = false,
-                        isDiscardDialogOpen = false,
-                        originalNickname = updatedProfile.nickname,
-                        originalCustomAvatarUri = updatedProfile.customAvatarUri,
-                        originalSummaryThreshold = it.summaryThreshold,
-                        originalSaveMultimodalToken = it.saveMultimodalToken,
-                        originalEnableWebSearch = it.enableWebSearch,
-                    )
+                // If the store modified fields (like avatar path), update UI state to match
+                val loaded = profileStore.load()
+                if (loaded != null && loaded.customAvatarUri != state.customAvatarUri) {
+                    _uiState.update { it.copy(customAvatarUri = loaded.customAvatarUri) }
                 }
-                _effects.send(ProfileEffect.ProfileSaved)
             } catch (t: Throwable) {
                 t.printStackTrace()
-                _uiState.update { it.copy(isSaving = false) }
             }
         }
     }
 
     private fun scope(): CoroutineScope = coroutineScope ?: viewModelScope
-
-    private fun emitMessage(message: ProfileEffectMessage) {
-        _effects.trySend(ProfileEffect.ShowMessage(message))
-    }
 }

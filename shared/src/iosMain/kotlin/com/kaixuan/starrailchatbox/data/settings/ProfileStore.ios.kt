@@ -39,9 +39,12 @@ private class DataStoreProfileStore(
     private val fileSystem = okio.FileSystem.SYSTEM
 
     override val profile: Flow<UserProfile?> = dataStore.data.map { preferences ->
-        val nickname = preferences[NicknameKey] ?: return@map null
-        val customAvatar = preferences[CustomAvatarKey]
-        UserProfile(nickname, customAvatar)
+        UserProfile(
+            customAvatarUri = preferences[CustomAvatarKey],
+            summaryThreshold = preferences[SummaryThresholdKey] ?: 20,
+            saveMultimodalToken = preferences[SaveMultimodalTokenKey] ?: false,
+            enableWebSearch = preferences[EnableWebSearchKey] ?: false
+        )
     }
 
     override suspend fun load(): UserProfile? = profile.first()
@@ -76,15 +79,19 @@ private class DataStoreProfileStore(
         }
 
         dataStore.edit { preferences ->
-            preferences[NicknameKey] = profile.nickname
             if (finalAvatarUri != null) {
                 preferences[CustomAvatarKey] = finalAvatarUri
             } else {
                 preferences.remove(CustomAvatarKey)
             }
+            preferences[SummaryThresholdKey] = profile.summaryThreshold
+            preferences[SaveMultimodalTokenKey] = profile.saveMultimodalToken
+            preferences[EnableWebSearchKey] = profile.enableWebSearch
         }
     }
 }
 
-private val NicknameKey = stringPreferencesKey("profile_nickname")
 private val CustomAvatarKey = stringPreferencesKey("profile_custom_avatar_uri")
+private val SummaryThresholdKey = androidx.datastore.preferences.core.intPreferencesKey("summary_threshold")
+private val SaveMultimodalTokenKey = androidx.datastore.preferences.core.booleanPreferencesKey("save_multimodal_token")
+private val EnableWebSearchKey = androidx.datastore.preferences.core.booleanPreferencesKey("enable_web_search")

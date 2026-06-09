@@ -72,7 +72,6 @@ import starrailchatbox.shared.generated.resources.microphone_not_ready
 import starrailchatbox.shared.generated.resources.nav_characters
 import starrailchatbox.shared.generated.resources.nav_chat
 import starrailchatbox.shared.generated.resources.nav_settings
-import starrailchatbox.shared.generated.resources.profile_nickname_empty
 import starrailchatbox.shared.generated.resources.profile_saved
 import starrailchatbox.shared.generated.resources.profile_not_ready
 import starrailchatbox.shared.generated.resources.settings_api_not_ready
@@ -227,7 +226,6 @@ fun MainRoute(
     )
     val profileEffectMessages = mapOf(
         ProfileEffectMessage.PROFILE_SAVED to stringResource(Res.string.profile_saved),
-        ProfileEffectMessage.NICKNAME_EMPTY to stringResource(Res.string.profile_nickname_empty),
     )
     val mainEffectMessages = mapOf(
         MainEffectMessage.THEME_CHANGED to stringResource(Res.string.theme_changed),

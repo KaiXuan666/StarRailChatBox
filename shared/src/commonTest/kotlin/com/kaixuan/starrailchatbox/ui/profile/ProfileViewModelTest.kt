@@ -2,12 +2,8 @@ package com.kaixuan.starrailchatbox.ui.profile
 
 import com.kaixuan.starrailchatbox.data.settings.ProfileStore
 import com.kaixuan.starrailchatbox.data.settings.UserProfile
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.take
-import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runCurrent
@@ -27,8 +23,10 @@ class ProfileViewModelTest {
         runCurrent()
 
         val state = viewModel.uiState.value
-        assertEquals("星空旅人", state.nickname)
         assertNull(state.customAvatarUri)
+        assertEquals(20, state.summaryThreshold)
+        assertFalse(state.saveMultimodalToken)
+        assertFalse(state.enableWebSearch)
         assertFalse(state.isSaving)
         assertTrue(state.isLoaded)
     }
@@ -37,132 +35,81 @@ class ProfileViewModelTest {
     fun storedProfileIsLoaded() = runTest {
         val store = FakeProfileStore(
             UserProfile(
-                nickname = "三月七",
-                customAvatarUri = "file:///test/avatar.png"
+                customAvatarUri = "file:///test/avatar.png",
+                summaryThreshold = 30,
+                saveMultimodalToken = true,
+                enableWebSearch = true
             )
         )
         val viewModel = createViewModel(store = store, scope = this)
         runCurrent()
 
         val state = viewModel.uiState.value
-        assertEquals("三月七", state.nickname)
         assertEquals("file:///test/avatar.png", state.customAvatarUri)
+        assertEquals(30, state.summaryThreshold)
+        assertTrue(state.saveMultimodalToken)
+        assertTrue(state.enableWebSearch)
     }
 
     @Test
-    fun nicknameChangeUpdatesState() = runTest {
-        val viewModel = createViewModel(scope = this)
+    fun avatarChangeTriggersRealTimeSave() = runTest {
+        val store = FakeProfileStore()
+        val viewModel = createViewModel(store = store, scope = this)
         runCurrent()
 
-        viewModel.onAction(ProfileAction.NicknameChanged("开拓者"))
-        assertEquals("开拓者", viewModel.uiState.value.nickname)
+        viewModel.onAction(ProfileAction.AvatarChanged("file:///test/new_avatar.png"))
+        advanceUntilIdle()
+
+        assertEquals("file:///test/new_avatar.png", store.saved?.customAvatarUri)
     }
 
     @Test
-    fun avatarChangeUpdatesState() = runTest {
-        val viewModel = createViewModel(scope = this)
+    fun thresholdChangeTriggersRealTimeSave() = runTest {
+        val store = FakeProfileStore()
+        val viewModel = createViewModel(store = store, scope = this)
         runCurrent()
 
-        viewModel.onAction(ProfileAction.AvatarChanged("file:///test/avatar.png"))
-        assertEquals("file:///test/avatar.png", viewModel.uiState.value.customAvatarUri)
+        viewModel.onAction(ProfileAction.SummaryThresholdChanged(50))
+        advanceUntilIdle()
+
+        assertEquals(50, store.saved?.summaryThreshold)
     }
 
     @Test
-    fun restoreDefaultAvatarClearsCustomAvatar() = runTest {
-        val store = FakeProfileStore(UserProfile("星空旅人", "file:///test/avatar.png"))
+    fun multimodalTokenChangeTriggersRealTimeSave() = runTest {
+        val store = FakeProfileStore()
+        val viewModel = createViewModel(store = store, scope = this)
+        runCurrent()
+
+        viewModel.onAction(ProfileAction.SaveMultimodalTokenChanged(true))
+        advanceUntilIdle()
+
+        assertTrue(store.saved?.saveMultimodalToken == true)
+    }
+
+    @Test
+    fun webSearchChangeTriggersRealTimeSave() = runTest {
+        val store = FakeProfileStore()
+        val viewModel = createViewModel(store = store, scope = this)
+        runCurrent()
+
+        viewModel.onAction(ProfileAction.EnableWebSearchChanged(true))
+        advanceUntilIdle()
+
+        assertTrue(store.saved?.enableWebSearch == true)
+    }
+
+    @Test
+    fun restoreDefaultAvatarClearsCustomAvatarAndSaves() = runTest {
+        val store = FakeProfileStore(UserProfile(customAvatarUri = "file:///test/avatar.png"))
         val viewModel = createViewModel(store = store, scope = this)
         runCurrent()
 
         viewModel.onAction(ProfileAction.RestoreDefaultAvatar)
+        advanceUntilIdle()
+
         assertNull(viewModel.uiState.value.customAvatarUri)
-    }
-
-    @Test
-    fun saveProfilePersistsDataAndEmitsSavedEffect() = runTest {
-        val store = FakeProfileStore()
-        val viewModel = createViewModel(store = store, scope = this)
-        runCurrent()
-
-        viewModel.onAction(ProfileAction.NicknameChanged(" 丹恒 "))
-        viewModel.onAction(ProfileAction.AvatarChanged("file:///test/avatar.png"))
-        
-        val effect = async { viewModel.effects.first { it is ProfileEffect.ProfileSaved } }
-        
-        viewModel.onAction(ProfileAction.SaveClicked)
-        advanceUntilIdle()
-
-        assertEquals(
-            UserProfile(
-                nickname = "丹恒",
-                customAvatarUri = "file:///test/avatar.png"
-            ),
-            store.saved
-        )
-        assertEquals(ProfileEffect.ProfileSaved, effect.await())
-        assertFalse(viewModel.uiState.value.isSaving)
-    }
-
-    @Test
-    fun saveEmptyNicknameEmitsErrorEffect() = runTest {
-        val store = FakeProfileStore()
-        val viewModel = createViewModel(store = store, scope = this)
-        runCurrent()
-
-        viewModel.onAction(ProfileAction.NicknameChanged("   "))
-        
-        val effects = async { viewModel.effects.take(1).toList() }
-        
-        viewModel.onAction(ProfileAction.SaveClicked)
-        advanceUntilIdle()
-
-        assertEquals(
-            listOf(ProfileEffect.ShowMessage(ProfileEffectMessage.NICKNAME_EMPTY)),
-            effects.await()
-        )
-        assertNull(store.saved)
-        assertFalse(viewModel.uiState.value.isSaving)
-    }
-
-    @Test
-    fun backWithChangesShowsDiscardDialog() = runTest {
-        val viewModel = createViewModel(scope = this)
-        runCurrent()
-
-        viewModel.onAction(ProfileAction.NicknameChanged("新昵称"))
-        viewModel.onAction(ProfileAction.BackClicked)
-
-        assertTrue(viewModel.uiState.value.isDiscardDialogOpen)
-    }
-
-    @Test
-    fun backWithoutChangesEmitsSavedEffect() = runTest {
-        val viewModel = createViewModel(scope = this)
-        runCurrent()
-
-        val effect = async { viewModel.effects.first { it is ProfileEffect.ProfileSaved } }
-        viewModel.onAction(ProfileAction.BackClicked)
-
-        assertEquals(ProfileEffect.ProfileSaved, effect.await())
-    }
-
-    @Test
-    fun confirmDiscardRestoresOriginalAndEmitsSavedEffect() = runTest {
-        val store = FakeProfileStore(UserProfile("原本的", "file:///old.png"))
-        val viewModel = createViewModel(store = store, scope = this)
-        runCurrent()
-
-        viewModel.onAction(ProfileAction.NicknameChanged("改变后的"))
-        viewModel.onAction(ProfileAction.AvatarChanged(null))
-        viewModel.onAction(ProfileAction.BackClicked)
-        
-        val effect = async { viewModel.effects.first { it is ProfileEffect.ProfileSaved } }
-        viewModel.onAction(ProfileAction.ConfirmDiscard)
-
-        assertEquals(ProfileEffect.ProfileSaved, effect.await())
-        val state = viewModel.uiState.value
-        assertEquals("原本的", state.nickname)
-        assertEquals("file:///old.png", state.customAvatarUri)
-        assertFalse(state.isDiscardDialogOpen)
+        assertNull(store.saved?.customAvatarUri)
     }
 
     private fun createViewModel(

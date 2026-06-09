@@ -5,8 +5,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 data class UserProfile(
-    val nickname: String,
-    val customAvatarUri: String? = null
+    val customAvatarUri: String? = null,
+    val summaryThreshold: Int = 20,
+    val saveMultimodalToken: Boolean = false,
+    val enableWebSearch: Boolean = false
 )
 
 interface ProfileStore {
@@ -16,7 +18,7 @@ interface ProfileStore {
 }
 
 class InMemoryProfileStore(
-    initialProfile: UserProfile? = UserProfile("星空旅人", null)
+    initialProfile: UserProfile? = UserProfile()
 ) : ProfileStore {
     private val _profile = MutableStateFlow(initialProfile)
     override val profile: Flow<UserProfile?> = _profile.asStateFlow()

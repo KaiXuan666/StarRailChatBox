@@ -6,7 +6,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,10 +26,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,11 +37,9 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.starRailColors
 import com.kaixuan.starrailchatbox.ui.components.AvatarImage
 import com.kaixuan.starrailchatbox.ui.components.BackHandler
-import com.kaixuan.starrailchatbox.ui.components.StarRailDialog
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
@@ -72,11 +65,6 @@ import starrailchatbox.shared.generated.resources.global_settings_summary_thresh
 import starrailchatbox.shared.generated.resources.navigation_back
 import starrailchatbox.shared.generated.resources.profile_avatar_title
 import starrailchatbox.shared.generated.resources.profile_restore_default
-import starrailchatbox.shared.generated.resources.profile_unsaved_changes_cancel
-import starrailchatbox.shared.generated.resources.profile_unsaved_changes_discard
-import starrailchatbox.shared.generated.resources.profile_unsaved_changes_message
-import starrailchatbox.shared.generated.resources.profile_unsaved_changes_save
-import starrailchatbox.shared.generated.resources.profile_unsaved_changes_title
 import starrailchatbox.shared.generated.resources.settings_profile_title
 
 @Composable
@@ -99,24 +87,6 @@ fun ProfileScreen(
 
     BackHandler {
         onAction(ProfileAction.BackClicked)
-    }
-
-    if (state.isDiscardDialogOpen) {
-        StarRailDialog(
-            title = stringResource(Res.string.profile_unsaved_changes_title),
-            dismissText = stringResource(Res.string.profile_unsaved_changes_cancel),
-            confirmText = stringResource(Res.string.profile_unsaved_changes_save),
-            neutralText = stringResource(Res.string.profile_unsaved_changes_discard),
-            onDismissRequest = { onAction(ProfileAction.CancelDiscard) },
-            onConfirm = { onAction(ProfileAction.SaveClicked) },
-            onNeutral = { onAction(ProfileAction.ConfirmDiscard) },
-        ) {
-            Text(
-                text = stringResource(Res.string.profile_unsaved_changes_message),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyLarge,
-            )
-        }
     }
 
     StarRailPageLayout(
@@ -162,7 +132,7 @@ fun ProfileScreen(
                         AvatarImage(
                             avatarUri = state.customAvatarUri.orEmpty(),
                             contentDescription = null,
-                            placeholderKind = StarRailIconKind.PERSON,
+                            placeholderKind = StarRailIconKind.SPARKLE,
                             placeholderSize = 60.dp,
                             modifier = Modifier.fillMaxSize(),
                             isUser = true,

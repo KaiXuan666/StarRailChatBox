@@ -8,5 +8,4 @@ sealed interface ProfileEffect {
 
 enum class ProfileEffectMessage {
     PROFILE_SAVED,
-    NICKNAME_EMPTY
 }
