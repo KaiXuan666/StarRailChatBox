@@ -149,7 +149,7 @@ driver、provider 和日志出口等边界。
   网络调用和能力探测，不得包含具体工具业务。
 - 新增工具时实现 `AiTool` 并注册到 Koin。工具 schema 使用 `JsonObject` 表达；
   参数校验、fallback prompt 和结果解析归工具所有，不得写回 `ChatContextBuilder`
-  或 Provider。
+  或 Provider。当前包含 `QuickRepliesTool` 和 `VoiceSynthesisTool`。
 - `ToolExecutionType.TerminalOutput` 直接形成最终助手输出；
   `ToolExecutionType.Executable` 生成 tool result 并继续请求模型。协调器按模型返回
   顺序执行，最多 4 轮，并拒绝重复调用签名。
@@ -157,7 +157,7 @@ driver、provider 和日志出口等边界。
   通过各源码集提供的 `PlatformToolExecutor` 接入，公共工具代码不得引用平台类型。
 - API Host、API Key 和所选模型通过 `ModelConfigRepository` 读取和保存。Android、
   iOS 与 Desktop 使用 Room 的 `model_config` 表；JS/WasmJS 当前使用内存实现。
-- 当前设置页维护两个独立的模型配置记录：固定 ID 为 `default` 的默认模型配置记录（`supportVision = false`），以及固定 ID 为 `multimodal` 的多模态模型配置记录（`supportVision = true`）。后续扩展多模型配置时应继续通过 `ModelConfigRepository`，不要恢复独立的 `ApiSettingsStore`。
+- 当前设置页维护四组独立的模型配置记录：固定 ID 为 `default` 的默认普通模型、固定 ID 为 `multimodal` 的多模态模型（`supportVision = true`）、固定 ID 为 `voice` 的语音合成模型以及固定 ID 为 `voice_clone` 的音色克隆模型。后续扩展多模型配置时应继续通过 `ModelConfigRepository`。
 - API Key 持久化必须使用 `cryptography-kotlin` 的 AES-GCM 加密，`model_config`
   中只保存带版本标识的密文；DataStore 仅保存加密密钥，不得增加明文兼容字段或
   明文回退存储。

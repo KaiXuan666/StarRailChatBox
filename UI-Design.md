@@ -114,6 +114,7 @@ shared/src/commonMain/kotlin/com/kaixuan/starrailchatbox/
 
 - 页面负责组合、状态提升和事件转发。
 - 小组件保持无状态，使用 `value`、`selected`、`enabled` 和回调参数。
+- 提供统一的品牌按钮组件：`StarRailPrimaryButton`（主色渐变胶囊按钮）和 `StarRailSecondaryButton`（次要边框胶囊按钮），用于设置保存、页面提交等场景。
 - 相同语义、结构和视觉样式应优先复用已有公共组件；不得在不同页面复制返回按钮、
   主操作按钮等通用实现。确需差异时，应通过公共组件参数或主题令牌表达。
 - 带返回按钮的二级页面必须复用统一页面骨架（当前为 `StarRailPageLayout`），由公共
@@ -489,7 +490,7 @@ Scaffold
 - 用户正在阅读历史消息时，不得强制抢夺滚动位置。
 - 点击角色选择器中的头像（无论切换角色与否）时，对应消息列表必须自动平滑滚动到最底部。
 - 当聊天列表离开最顶部时，需在页面左下角（底栏上方，适配 bottom 避开输入区并应用 Insets 间距）浮现一键回顶按钮。点击后平滑回滚到最顶部（露出 ChatHeader）。
-  - 视觉与触控规范：回顶按钮使用 `StarRailIconKind.ARROW_UP` 图标（崩铁风格手绘矢量线条），背景采用 M3 的 `surfaceContainerHigh` 并设置透明度（`alpha = 0.88f`），圆角使用 `Shapes.medium`。其最小触控目标大小应保持 48 x 48dp。
+  - 视觉与触控规范：回顶按钮使用 `StarRailIconKind.ARROW_UP` 图标（崩铁风格手绘矢量线条），背景采用 M3 的 `primaryContainer` 并设置透明度（`alpha = 0.88f`），形状使用 `CircleShape`。其最小触控目标大小应保持 48 x 48dp。
 
 
 消息类型建议：
