@@ -42,7 +42,7 @@ class MainViewModel(
             _effects.trySend(MainEffect.ShowMessage(MainEffectMessage.CHECKING_FOR_UPDATE))
         }
         viewModelScope.launch {
-            when (val result = updateRepository.checkUpdate()) {
+            when (val result = updateRepository.checkUpdate(isManual)) {
                 is ApiResult.Success -> {
                     val info = result.value
                     val currentVersionCode = getPlatform().versionCode

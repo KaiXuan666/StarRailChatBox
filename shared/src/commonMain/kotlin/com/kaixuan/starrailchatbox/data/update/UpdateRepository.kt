@@ -17,13 +17,13 @@ data class UpdateResponse(
 )
 
 interface UpdateRepository {
-    suspend fun checkUpdate(): ApiResult<UpdateResponse>
+    suspend fun checkUpdate(isManual: Boolean): ApiResult<UpdateResponse>
 }
 
 class DefaultUpdateRepository(
     private val httpClient: HttpClient
 ) : UpdateRepository {
-    override suspend fun checkUpdate(): ApiResult<UpdateResponse> {
+    override suspend fun checkUpdate(isManual: Boolean): ApiResult<UpdateResponse> {
         return try {
             val response = httpClient.get("https://cdn.jsdelivr.net/gh/KaiXuan666/StarRailChatBox@main/update.json")
             if (response.status.value in 200..299) {
