@@ -28,6 +28,7 @@ moko-permissions = "0.20.1"
 filekit = "0.14.1"
 room = "2.8.4"
 sqlite = "2.6.2"
+okio = "3.17.0"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -73,6 +74,7 @@ cryptography-provider-optimal = { module = "dev.whyoleg.cryptography:cryptograph
 room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
 sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version.ref = "sqlite" }
+okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
 
 filekit-core = { module = "io.github.vinceglb:filekit-core", version.ref = "filekit" }
 filekit-dialogs-compose = { module = "io.github.vinceglb:filekit-dialogs-compose", version.ref = "filekit" }
