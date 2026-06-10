@@ -85,7 +85,7 @@ fun MessageAttachments(
                         verticalArrangement = Arrangement.Center
                     ) {
                         StarRailIcon(
-                            kind = if (attachment.mimeType.startsWith("audio/")) StarRailIconKind.MICROPHONE else StarRailIconKind.FILE,
+                            kind = getIconForMimeType(attachment.mimeType),
                             contentDescription = attachment.name,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(if (compact) 32.dp else 40.dp)
@@ -119,7 +119,7 @@ fun AttachmentsDialog(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 attachments.forEach { attachment ->
-                    Row(
+                        Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(MaterialTheme.shapes.medium)
@@ -129,7 +129,6 @@ fun AttachmentsDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm)
                     ) {
-                        val isImage = attachment.mimeType.startsWith("image/")
                         Box(
                             modifier = Modifier
                                 .size(40.dp)
@@ -138,7 +137,7 @@ fun AttachmentsDialog(
                             contentAlignment = Alignment.Center
                         ) {
                             StarRailIcon(
-                                kind = if (isImage) StarRailIconKind.GALLERY else StarRailIconKind.FILE,
+                                kind = getIconForMimeType(attachment.mimeType),
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(24.dp)

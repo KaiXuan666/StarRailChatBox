@@ -66,6 +66,7 @@ enum class StarRailIconKind {
     KEYBOARD,
     VOICE_WAVE,
     RETRY,
+    DATABASE,
 }
 
 @Composable
@@ -701,6 +702,39 @@ fun StarRailIcon(
                 )
 
                 drawPath(path, tint, style = stroke)
+            }
+
+            StarRailIconKind.DATABASE -> {
+                // Bottom disk
+                drawArc(
+                    color = tint,
+                    startAngle = 0f,
+                    sweepAngle = 180f,
+                    useCenter = false,
+                    topLeft = point(0.25f, 0.55f),
+                    size = Size(size.width * 0.5f, size.height * 0.25f),
+                    style = stroke
+                )
+                // Middle disk
+                drawArc(
+                    color = tint,
+                    startAngle = 0f,
+                    sweepAngle = 180f,
+                    useCenter = false,
+                    topLeft = point(0.25f, 0.35f),
+                    size = Size(size.width * 0.5f, size.height * 0.25f),
+                    style = stroke
+                )
+                // Top disk (full ellipse)
+                drawOval(
+                    color = tint,
+                    topLeft = point(0.25f, 0.15f),
+                    size = Size(size.width * 0.5f, size.height * 0.25f),
+                    style = stroke
+                )
+                // Vertical lines
+                drawLine(tint, point(0.25f, 0.275f), point(0.25f, 0.675f), strokeWidth)
+                drawLine(tint, point(0.75f, 0.275f), point(0.75f, 0.675f), strokeWidth)
             }
                 }
             }

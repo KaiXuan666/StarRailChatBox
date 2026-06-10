@@ -179,9 +179,18 @@ class ChatViewModel(
             is ChatAction.FileSelected -> {
                 Napier.d("File selected: ${action.name} at ${action.uri}")
                 val characterId = uiState.value.selectedCharacterId ?: return
+                val isImage = action.name.lowercase().let { 
+                    it.endsWith(".jpg") || it.endsWith(".jpeg") || it.endsWith(".png") || 
+                    it.endsWith(".webp") || it.endsWith(".gif") || it.endsWith(".bmp")
+                }
+                val attachment = if (isImage) {
+                    SelectedAttachment.Image(action.uri, action.name)
+                } else {
+                    SelectedAttachment.File(action.uri, action.name)
+                }
                 updateCharacterState(characterId) { state ->
                     state.copy(
-                        selectedAttachments = state.selectedAttachments + SelectedAttachment.File(action.uri, action.name),
+                        selectedAttachments = state.selectedAttachments + attachment,
                         isAttachmentPanelVisible = false
                     )
                 }
@@ -1279,26 +1288,11 @@ class ChatViewModel(
     }
 
     private fun SelectedAttachment.toMessageAttachment(messageId: String, now: Long): MessageAttachment {
-        val ext = name.substringAfterLast('.', "").lowercase()
-        val mimeType = when (this) {
-            is SelectedAttachment.Image -> when (ext) {
-                "png" -> "image/png"
-                "gif" -> "image/gif"
-                "webp" -> "image/webp"
-                else -> "image/jpeg"
-            }
-            is SelectedAttachment.File -> when (ext) {
-                "txt", "kt", "java", "py", "js", "ts" -> "text/plain"
-                "json" -> "application/json"
-                "pdf" -> "application/pdf"
-                "doc" -> "application/msword"
-                "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                "xls" -> "application/vnd.ms-excel"
-                "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                else -> "application/octet-stream"
-            }
-            is SelectedAttachment.Voice -> "audio/m4a"
-        }
+        val mimeType = getMimeTypeFromName(
+            name = name,
+            isImage = this is SelectedAttachment.Image,
+            isVoice = this is SelectedAttachment.Voice
+        )
         return MessageAttachment(
             id = idGenerator("attachment"),
             messageId = messageId,

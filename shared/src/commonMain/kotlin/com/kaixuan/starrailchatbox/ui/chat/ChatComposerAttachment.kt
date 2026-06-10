@@ -173,7 +173,7 @@ fun AttachmentPreviewItem(
                     verticalArrangement = Arrangement.Center
                 ) {
                     StarRailIcon(
-                        kind = StarRailIconKind.FILE,
+                        kind = getIconForMimeType(getMimeTypeFromName(attachment.name)),
                         contentDescription = attachment.name,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(if (compact) 28.dp else 32.dp)
@@ -194,7 +194,7 @@ fun AttachmentPreviewItem(
                     verticalArrangement = Arrangement.Center
                 ) {
                     StarRailIcon(
-                        kind = StarRailIconKind.MICROPHONE,
+                        kind = getIconForMimeType(getMimeTypeFromName(attachment.name, isVoice = true)),
                         contentDescription = attachment.name,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(if (compact) 28.dp else 32.dp)
