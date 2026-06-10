@@ -153,6 +153,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
+import io.github.vinceglb.filekit.extension
 import io.github.vinceglb.filekit.name
 import io.github.vinceglb.filekit.path
 import starrailchatbox.shared.generated.resources.image_save_failed
@@ -176,18 +177,18 @@ fun MainRoute(
         picked?.let { 
             coroutineScope.launch {
                 val compressedUri = compressImageIfPossible(it.path ?: "")
-                chat.onAction(ChatAction.ImageSelected(compressedUri, it.name))
+                chat.onAction(ChatAction.ImageSelected(compressedUri, it.name, it.extension))
             }
         }
     }
     val filePicker = rememberFilePickerLauncher(type = FileKitType.File()) { picked ->
-        picked?.let { chat.onAction(ChatAction.FileSelected(it.path ?: "", it.name)) }
+        picked?.let { chat.onAction(ChatAction.FileSelected(it.path ?: "", it.name, it.extension)) }
     }
     val cameraLauncher = rememberCameraLauncher { captured ->
         captured?.let { 
             coroutineScope.launch {
                 val compressedUri = compressImageIfPossible(captured.uri)
-                chat.onAction(ChatAction.ImageSelected(compressedUri, captured.name))
+                chat.onAction(ChatAction.ImageSelected(compressedUri, captured.name, captured.extension))
             }
         }
     }

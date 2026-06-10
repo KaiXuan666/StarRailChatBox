@@ -506,7 +506,7 @@ class ChatViewModelTest {
         )
         advanceUntilIdle()
 
-        viewModel.onAction(ChatAction.FileSelected(tempTextFile.absolutePath, "test.txt"))
+        viewModel.onAction(ChatAction.FileSelected(tempTextFile.absolutePath, "test.txt", "txt"))
         viewModel.onAction(ChatAction.MessageChanged("Check this file:"))
         viewModel.onAction(ChatAction.SendClicked)
         advanceUntilIdle()
@@ -548,7 +548,7 @@ class ChatViewModelTest {
         )
         advanceUntilIdle()
 
-        viewModel.onAction(ChatAction.FileSelected(tempTextFile.absolutePath, "test.txt"))
+        viewModel.onAction(ChatAction.FileSelected(tempTextFile.absolutePath, "test.txt", "txt"))
         viewModel.onAction(ChatAction.MessageChanged("Check this file:"))
         viewModel.onAction(ChatAction.SendClicked)
         advanceUntilIdle()

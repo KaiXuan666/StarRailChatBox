@@ -59,7 +59,7 @@ class ProfileViewModelTest {
         val viewModel = createViewModel(store = store, scope = this)
         runCurrent()
 
-        viewModel.onAction(ProfileAction.AvatarChanged("file:///test/new_avatar.png"))
+        viewModel.onAction(ProfileAction.AvatarChanged("file:///test/new_avatar.png", "new_avatar.png", "png"))
         advanceUntilIdle()
 
         assertEquals("file:///test/new_avatar.png", store.saved?.customAvatarUri)

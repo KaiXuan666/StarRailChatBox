@@ -6,19 +6,19 @@ import com.kaixuan.starrailchatbox.data.database.DatabaseManager
 import com.kaixuan.starrailchatbox.data.settings.ProfileStore
 import com.kaixuan.starrailchatbox.data.settings.UserProfile
 import io.github.vinceglb.filekit.FileKit
-import io.github.vinceglb.filekit.dialogs.openFilePicker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
+import com.kaixuan.starrailchatbox.platform.persistAttachment
 import kotlinx.coroutines.launch
 
 class ProfileViewModel(
     private val profileStore: ProfileStore,
     private val databaseManager: DatabaseManager,
-    private val coroutineScope: CoroutineScope? = null,
+    private val coroutineScope: CoroutineScope? = null
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState = _uiState.asStateFlow()
@@ -44,8 +44,19 @@ class ProfileViewModel(
     fun onAction(action: ProfileAction) {
         when (action) {
             is ProfileAction.AvatarChanged -> {
-                _uiState.update { it.copy(customAvatarUri = action.avatarUri) }
-                saveProfile()
+                scope().launch {
+                    val finalUri = if (action.avatarUri != null && action.name != null) {
+                        try {
+                            persistAttachment(action.avatarUri, action.name)
+                        } catch (e: Exception) {
+                            action.avatarUri
+                        }
+                    } else {
+                        action.avatarUri
+                    }
+                    _uiState.update { it.copy(customAvatarUri = finalUri) }
+                    saveProfile()
+                }
             }
             is ProfileAction.SummaryThresholdChanged -> {
                 _uiState.update { it.copy(summaryThreshold = action.threshold) }

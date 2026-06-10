@@ -45,10 +45,26 @@ sealed interface ChatMessageUiModel {
 sealed interface SelectedAttachment {
     val uri: String
     val name: String
+    val extension: String
 
-    data class File(override val uri: String, override val name: String) : SelectedAttachment
-    data class Image(override val uri: String, override val name: String) : SelectedAttachment
-    data class Voice(override val uri: String, override val name: String, val durationMs: Long) : SelectedAttachment
+    data class File(
+        override val uri: String,
+        override val name: String,
+        override val extension: String
+    ) : SelectedAttachment
+
+    data class Image(
+        override val uri: String,
+        override val name: String,
+        override val extension: String
+    ) : SelectedAttachment
+
+    data class Voice(
+        override val uri: String,
+        override val name: String,
+        val durationMs: Long,
+        override val extension: String = "mp3"
+    ) : SelectedAttachment
 }
 
 @Immutable

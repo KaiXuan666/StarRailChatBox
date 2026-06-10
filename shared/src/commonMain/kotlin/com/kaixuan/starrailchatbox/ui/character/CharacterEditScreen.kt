@@ -53,6 +53,8 @@ import com.kaixuan.starrailchatbox.ui.components.StarRailPrimaryButton
 import com.kaixuan.starrailchatbox.ui.main.MainAction
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.dialogs.FileKitType
+import io.github.vinceglb.filekit.extension
+import io.github.vinceglb.filekit.name
 import io.github.vinceglb.filekit.path
 import org.jetbrains.compose.resources.stringResource
 import starrailchatbox.shared.generated.resources.Res
@@ -81,6 +83,9 @@ import starrailchatbox.shared.generated.resources.confirm
 import starrailchatbox.shared.generated.resources.navigation_back
 import starrailchatbox.shared.generated.resources.settings_saving
 import com.kaixuan.starrailchatbox.platform.rememberAudioPlayer
+import io.github.vinceglb.filekit.extension
+import io.github.vinceglb.filekit.mimeType
+import io.github.vinceglb.filekit.nameWithoutExtension
 import starrailchatbox.shared.generated.resources.character_edit_voice_clear
 import starrailchatbox.shared.generated.resources.character_edit_voice_sample
 import starrailchatbox.shared.generated.resources.character_edit_voice_sample_hint
@@ -114,7 +119,15 @@ fun CharacterEditScreen(
         type = FileKitType.Image,
     ) { image ->
         if (image != null) {
-            onAction(CharacterAvatarChanged(CharacterAvatarSource(image.path ?: "")))
+            onAction(
+                CharacterAvatarChanged(
+                    CharacterAvatarSource(
+                        uri = image.path ?: "",
+                        name = image.name,
+                        extension = image.extension,
+                    )
+                )
+            )
         }
     }
 
@@ -471,7 +484,13 @@ private fun CharacterVoiceSampleCard(
         )
     ) { picked ->
         if (picked != null) {
-            onAction(CharacterAction.CharacterVoiceSampleChanged(picked.path ?: ""))
+            onAction(
+                CharacterAction.CharacterVoiceSampleChanged(
+                    uri = picked.path ?: "",
+                    name = picked.name,
+                    extension = picked.extension,
+                )
+            )
         }
     }
 

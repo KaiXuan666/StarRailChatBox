@@ -10,7 +10,11 @@ sealed interface CharacterAction {
     data class CharacterPromptChanged(val prompt: String) : CharacterAction
     data class CharacterOpeningMessageChanged(val openingMessage: String) : CharacterAction
     data class CharacterAvatarChanged(val avatarSource: CharacterAvatarSource) : CharacterAction
-    data class CharacterVoiceSampleChanged(val uri: String?) : CharacterAction
+    data class CharacterVoiceSampleChanged(
+        val uri: String?,
+        val name: String? = null,
+        val extension: String? = null,
+    ) : CharacterAction
     data class CharacterTemperatureChanged(val temperature: Double) : CharacterAction
     data class CharacterTopPChanged(val topP: Double) : CharacterAction
     data object CharacterSaveClicked : CharacterAction

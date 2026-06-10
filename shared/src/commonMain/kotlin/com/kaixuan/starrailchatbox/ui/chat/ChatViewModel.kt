@@ -182,14 +182,14 @@ class ChatViewModel(
             is ChatAction.FileSelected -> {
                 Napier.d("File selected: ${action.name} at ${action.uri}")
                 val characterId = uiState.value.selectedCharacterId ?: return
-                val isImage = action.name.lowercase().let { 
-                    it.endsWith(".jpg") || it.endsWith(".jpeg") || it.endsWith(".png") || 
-                    it.endsWith(".webp") || it.endsWith(".gif") || it.endsWith(".bmp")
+                val isImage = action.extension.lowercase().let { 
+                    it == "jpg" || it == "jpeg" || it == "png" || 
+                    it == "webp" || it == "gif" || it == "bmp"
                 }
                 val attachment = if (isImage) {
-                    SelectedAttachment.Image(action.uri, action.name)
+                    SelectedAttachment.Image(action.uri, action.name, action.extension)
                 } else {
-                    SelectedAttachment.File(action.uri, action.name)
+                    SelectedAttachment.File(action.uri, action.name, action.extension)
                 }
                 updateCharacterState(characterId) { state ->
                     state.copy(
@@ -202,9 +202,10 @@ class ChatViewModel(
                 Napier.d("Image selected at ${action.uri}")
                 val characterId = uiState.value.selectedCharacterId ?: return
                 val name = action.name ?: action.uri.substringAfterLast('/')
+                val extension = action.extension ?: "jpg"
                 updateCharacterState(characterId) { state ->
                     state.copy(
-                        selectedAttachments = state.selectedAttachments + SelectedAttachment.Image(action.uri, name),
+                        selectedAttachments = state.selectedAttachments + SelectedAttachment.Image(action.uri, name, extension),
                         isAttachmentPanelVisible = false
                     )
                 }
@@ -332,14 +333,14 @@ class ChatViewModel(
                     } else {
                         runCatching {
                             val bytes = readUriAsBytes(uri)
-                            val extension = uri.substringAfterLast('.', "png")
+                            val extension = action.avatarSource.extension ?: uri.substringAfterLast('.', "png")
                             val fileName = "temp_avatar_${currentTimeMillis()}.$extension"
                             val cachePath = fileManager.cacheDir / fileName.toPath()
                             fileManager.writeBytes(cachePath, bytes)
                             updateCharacterEdit {
                                 it.copy(
                                     avatarUri = cachePath.toString(),
-                                    pendingAvatarSource = action.avatarSource.copy(uri = cachePath.toString()),
+                                    pendingAvatarSource = action.avatarSource.copy(uri = cachePath.toString(), extension = extension),
                                 )
                             }
                         }.onFailure {
@@ -365,7 +366,7 @@ class ChatViewModel(
                     } else {
                         runCatching {
                             val bytes = readUriAsBytes(uri)
-                            val extension = uri.substringAfterLast('.', "mp3")
+                            val extension = action.extension ?: uri.substringAfterLast('.', "mp3")
                             val fileName = "temp_voice_${currentTimeMillis()}.$extension"
                             val cachePath = fileManager.cacheDir / fileName.toPath()
                             fileManager.writeBytes(cachePath, bytes)
@@ -1394,6 +1395,7 @@ class ChatViewModel(
     private fun SelectedAttachment.toMessageAttachment(messageId: String, now: Long): MessageAttachment {
         val mimeType = getMimeTypeFromName(
             name = name,
+            extension = extension,
             isImage = this is SelectedAttachment.Image,
             isVoice = this is SelectedAttachment.Voice
         )

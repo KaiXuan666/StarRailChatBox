@@ -26,7 +26,7 @@ actual fun rememberCameraLauncher(onImageCaptured: (PickedImage?) -> Unit): () -
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
         if (success) {
-            onImageCaptured(PickedImage(currentUri?.toString() ?: "", currentName))
+            onImageCaptured(PickedImage(currentUri?.toString() ?: "", currentName, "jpg"))
         } else {
             onImageCaptured(null)
         }

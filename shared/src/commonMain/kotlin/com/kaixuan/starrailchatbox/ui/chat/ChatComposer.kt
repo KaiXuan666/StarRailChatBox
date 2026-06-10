@@ -50,6 +50,7 @@ import starrailchatbox.shared.generated.resources.nav_chat
 import starrailchatbox.shared.generated.resources.record_voice
 import starrailchatbox.shared.generated.resources.send_message
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import io.github.vinceglb.filekit.extension
 import io.github.vinceglb.filekit.name
 import io.github.vinceglb.filekit.path
 
@@ -69,18 +70,18 @@ fun ChatSessionBottomBar(
         picked?.let { 
             coroutineScope.launch {
                 val compressedUri = com.kaixuan.starrailchatbox.platform.compressImageIfPossible(it.path ?: "")
-                onAction(ChatAction.ImageSelected(compressedUri, it.name))
+                onAction(ChatAction.ImageSelected(compressedUri, it.name, it.extension))
             }
         }
     }
     val filePicker = rememberFilePickerLauncher(type = FileKitType.File()) { picked ->
-        picked?.let { onAction(ChatAction.FileSelected(it.path ?: "", it.name)) }
+        picked?.let { onAction(ChatAction.FileSelected(it.path ?: "", it.name, it.extension)) }
     }
     val cameraLauncher = rememberCameraLauncher { picked ->
         picked?.let { 
             coroutineScope.launch {
                 val compressedUri = com.kaixuan.starrailchatbox.platform.compressImageIfPossible(picked.uri)
-                onAction(ChatAction.ImageSelected(compressedUri, picked.name))
+                onAction(ChatAction.ImageSelected(compressedUri, picked.name, picked.extension))
             }
         }
     }

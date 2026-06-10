@@ -70,6 +70,9 @@ import starrailchatbox.shared.generated.resources.navigation_back
 import starrailchatbox.shared.generated.resources.profile_avatar_title
 import starrailchatbox.shared.generated.resources.profile_restore_default
 import starrailchatbox.shared.generated.resources.settings_profile_title
+import io.github.vinceglb.filekit.extension
+import io.github.vinceglb.filekit.name
+import io.github.vinceglb.filekit.path
 
 @Composable
 fun ProfileScreen(
@@ -85,10 +88,9 @@ fun ProfileScreen(
         type = FileKitType.Image,
     ) { image ->
         if (image != null) {
-            onAction(ProfileAction.AvatarChanged(image.path ?: ""))
+            onAction(ProfileAction.AvatarChanged(image.path, image.name, image.extension))
         }
     }
-
     val exportLauncher = rememberDirectoryPickerLauncher { directory ->
         if (directory != null) {
             onAction(ProfileAction.ExportData(directory))

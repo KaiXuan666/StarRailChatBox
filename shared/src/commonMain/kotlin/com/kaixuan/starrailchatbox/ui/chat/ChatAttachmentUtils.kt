@@ -2,16 +2,26 @@ package com.kaixuan.starrailchatbox.ui.chat
 
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 
-fun getMimeTypeFromName(name: String, isImage: Boolean = false, isVoice: Boolean = false): String {
-    val ext = name.substringAfterLast('.', "").lowercase()
+fun getMimeTypeFromName(
+    name: String,
+    extension: String? = null,
+    isImage: Boolean = false,
+    isVoice: Boolean = false
+): String {
+    val ext = extension?.lowercase() ?: name.substringAfterLast('.', "").lowercase()
     return when {
         isImage -> when (ext) {
             "png" -> "image/png"
             "gif" -> "image/gif"
             "webp" -> "image/webp"
+            "bmp" -> "image/bmp"
             else -> "image/jpeg"
         }
-        isVoice -> "audio/m4a"
+        isVoice -> when (ext) {
+            "wav" -> "audio/wav"
+            "mp3" -> "audio/mpeg"
+            else -> "audio/m4a"
+        }
         else -> when (ext) {
             "txt", "kt", "java", "py", "js", "ts", "md" -> "text/plain"
             "html", "htm" -> "text/html"

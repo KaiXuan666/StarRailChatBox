@@ -38,6 +38,8 @@ data class CharacterFiles(
 
 data class CharacterAvatarSource(
     val uri: String,
+    val name: String? = null,
+    val extension: String? = null,
 )
 
 data class DefaultCharacterAsset(
