@@ -100,7 +100,7 @@ driver、provider 和日志出口等边界。
 - 编写跨平台代码前，如果有比较成熟的第三方库，优先使用第三方库，不要自行实现功能。
 
 ### 文件处理规范
-- 选择文件优先使用FileKit，文件读写采用Okio，对于文件操作，不要自己写各平台实现。
+- 选择文件优先使用FileKit，文件读写采用Okio 封装类 `KmpFileManager`，对于文件操作，不要自己写各平台实现。
 
 #### 两阶段落盘法 (Cache ➔ Files)
 当出现用户选择文件 → 后续可以保存入库的情况时，（比如AgentRoleEntity中的avatarUri和voiceSampleUri，MessageAttachmentEntity里面的uri）
