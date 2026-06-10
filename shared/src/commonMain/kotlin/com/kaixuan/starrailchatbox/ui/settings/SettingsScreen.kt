@@ -86,6 +86,7 @@ import starrailchatbox.shared.generated.resources.settings_theme_desc
 import starrailchatbox.shared.generated.resources.settings_theme_title
 import starrailchatbox.shared.generated.resources.settings_title
 import starrailchatbox.shared.generated.resources.settings_update_desc
+import starrailchatbox.shared.generated.resources.settings_update_available
 import starrailchatbox.shared.generated.resources.settings_update_title
 import starrailchatbox.shared.generated.resources.theme_dark
 import starrailchatbox.shared.generated.resources.theme_follow_system
@@ -99,6 +100,7 @@ import com.kaixuan.starrailchatbox.ui.components.StarRailDialog
 import com.kaixuan.starrailchatbox.ui.main.MainAction
 import com.kaixuan.starrailchatbox.ui.main.MainSettingsItem
 import com.kaixuan.starrailchatbox.ui.main.MainUiState
+import com.kaixuan.starrailchatbox.getPlatform
 
 private data class SettingsItemUiData(
     val item: SettingsItem,
@@ -106,7 +108,8 @@ private data class SettingsItemUiData(
     val titleRes: StringResource,
     val descRes: StringResource,
     val isConfigured: Boolean? = null,
-    val getColors: @Composable () -> Pair<Color, Color> // Returns (ContainerColor, IconColor)
+    val getColors: @Composable () -> Pair<Color, Color>, // Returns (ContainerColor, IconColor)
+    val getDescColor: @Composable () -> Color? = { null }
 )
 
 @Composable
@@ -119,6 +122,7 @@ fun SettingsScreen(
     onSettingsAction: (SettingsAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val hasUpdate = mainState.updateInfo != null
     val items = listOf(
         SettingsItemUiData(
             item = SettingsItem.PROFILE,
@@ -173,9 +177,12 @@ fun SettingsScreen(
             item = SettingsItem.CHECK_UPDATE,
             iconKind = StarRailIconKind.UPDATE,
             titleRes = Res.string.settings_update_title,
-            descRes = Res.string.settings_update_desc,
+            descRes = if (hasUpdate) Res.string.settings_update_available else Res.string.settings_update_desc,
             getColors = {
                 MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f) to MaterialTheme.colorScheme.secondary
+            },
+            getDescColor = {
+                if (hasUpdate) MaterialTheme.colorScheme.primary else null
             }
         ),
         SettingsItemUiData(
@@ -414,9 +421,14 @@ private fun SettingsItemRow(
                 },
                 maxLines = 1
             )
+            val description = if (data.item == SettingsItem.CHECK_UPDATE && data.descRes == Res.string.settings_update_desc) {
+                stringResource(data.descRes, getPlatform().versionName)
+            } else {
+                stringResource(data.descRes)
+            }
             Text(
-                text = stringResource(data.descRes),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = description,
+                color = data.getDescColor() ?: MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 2
             )

@@ -143,7 +143,8 @@
     <string name="settings_voice_api_desc">配置后角色可以给你发送语音</string>
     <string name="settings_api_desc">配置模型接口、Key 与请求参数</string>
     <string name="settings_update_title">检查更新</string>
-    <string name="settings_update_desc">当前版本 v1.0.0，查看是否有新版本</string>
+    <string name="settings_update_desc">当前版本 v%1$s，查看是否有新版本</string>
+    <string name="settings_update_available">发现新版本，点击更新</string>
     <string name="settings_update_dialog_title">发现新版本</string>
     <string name="settings_update_dialog_version">版本：%1$s</string>
     <string name="settings_update_dialog_confirm">立即更新</string>
@@ -191,11 +192,11 @@
 
     <!-- 设置项点击反馈 -->
     <string name="settings_api_not_ready">API设置功能开发中...</string>
-    <string name="settings_update_check">当前已是最新版本 v1.0.0</string>
+    <string name="settings_update_check">当前已是最新版本 v%1$s</string>
     <string name="settings_update_checking">正在检查更新中...</string>
     <string name="settings_update_failed">检查更新失败，请检查网络</string>
     <string name="settings_notice_not_ready">通知设置功能开发中...</string>
-    <string name="settings_about_desc_toast">崩铁Chat Box v1.0.0 - 探索星轨的聊天助手</string>
+    <string name="settings_about_desc_toast">崩铁Chat Box v%1$s - 探索星轨的聊天助手</string>
     <string name="settings_privacy_not_ready">隐私政策与数据安全说明已加载</string>
     
     <!-- 主题风格弹窗 -->

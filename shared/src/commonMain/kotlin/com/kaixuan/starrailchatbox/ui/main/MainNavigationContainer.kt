@@ -160,6 +160,7 @@ import starrailchatbox.shared.generated.resources.image_save_success
 import starrailchatbox.shared.generated.resources.profile_export_success
 import starrailchatbox.shared.generated.resources.profile_import_success
 import starrailchatbox.shared.generated.resources.settings_copied_success
+import com.kaixuan.starrailchatbox.getPlatform
 
 @Composable
 fun MainRoute(
@@ -170,6 +171,7 @@ fun MainRoute(
     profile: ProfileRouteBinding,
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val versionName = remember { getPlatform().versionName }
     val imagePicker = rememberFilePickerLauncher(type = FileKitType.Image) { picked ->
         picked?.let { 
             coroutineScope.launch {
@@ -227,9 +229,9 @@ fun MainRoute(
     val characterDeletedMessage = stringResource(Res.string.character_deleted)
     val settingsEffectMessages = mapOf(
         SettingsEffectMessage.SETTINGS_API_NOT_READY to stringResource(Res.string.settings_api_not_ready),
-        SettingsEffectMessage.SETTINGS_UPDATE_CHECK to stringResource(Res.string.settings_update_check),
+        SettingsEffectMessage.SETTINGS_UPDATE_CHECK to stringResource(Res.string.settings_update_check, versionName),
         SettingsEffectMessage.SETTINGS_NOTICE_NOT_READY to stringResource(Res.string.settings_notice_not_ready),
-        SettingsEffectMessage.SETTINGS_ABOUT_INFO to stringResource(Res.string.settings_about_desc_toast),
+        SettingsEffectMessage.SETTINGS_ABOUT_INFO to stringResource(Res.string.settings_about_desc_toast, versionName),
         SettingsEffectMessage.SETTINGS_PRIVACY_INFO to stringResource(Res.string.settings_privacy_not_ready),
         SettingsEffectMessage.SETTINGS_API_SAVED to stringResource(Res.string.settings_api_saved),
         SettingsEffectMessage.SETTINGS_API_FETCH_START to stringResource(Res.string.settings_api_fetching),
@@ -250,7 +252,7 @@ fun MainRoute(
         MainEffectMessage.THEME_CHANGED to stringResource(Res.string.theme_changed),
         MainEffectMessage.IMAGE_SAVED to stringResource(Res.string.image_save_success),
         MainEffectMessage.IMAGE_SAVE_FAILED to stringResource(Res.string.image_save_failed),
-        MainEffectMessage.ALREADY_LATEST_VERSION to stringResource(Res.string.settings_update_check),
+        MainEffectMessage.ALREADY_LATEST_VERSION to stringResource(Res.string.settings_update_check, versionName),
         MainEffectMessage.CHECKING_FOR_UPDATE to stringResource(Res.string.settings_update_checking),
         MainEffectMessage.UPDATE_CHECK_FAILED to stringResource(Res.string.settings_update_failed),
     )
