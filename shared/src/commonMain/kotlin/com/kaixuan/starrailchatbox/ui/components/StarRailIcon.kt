@@ -67,6 +67,7 @@ enum class StarRailIconKind {
     VOICE_WAVE,
     RETRY,
     DATABASE,
+    DOWNLOAD,
 }
 
 @Composable
@@ -763,6 +764,13 @@ fun StarRailIcon(
                 // Vertical lines
                 drawLine(tint, point(0.25f, 0.275f), point(0.25f, 0.675f), strokeWidth)
                 drawLine(tint, point(0.75f, 0.275f), point(0.75f, 0.675f), strokeWidth)
+            }
+
+            StarRailIconKind.DOWNLOAD -> {
+                drawLine(tint, point(0.5f, 0.18f), point(0.5f, 0.66f), strokeWidth)
+                drawLine(tint, point(0.5f, 0.66f), point(0.32f, 0.48f), strokeWidth)
+                drawLine(tint, point(0.5f, 0.66f), point(0.68f, 0.48f), strokeWidth)
+                drawLine(tint, point(0.24f, 0.82f), point(0.76f, 0.82f), strokeWidth)
             }
                 }
             }

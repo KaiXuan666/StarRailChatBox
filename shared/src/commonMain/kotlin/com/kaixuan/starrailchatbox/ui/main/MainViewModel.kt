@@ -110,6 +110,10 @@ class MainViewModel(private val settingsStore: AppSettingsStore) : ViewModel() {
             MainAction.ThemeDialogDismiss -> {
                 _uiState.update { it.copy(showThemeDialog = false) }
             }
+
+            is MainAction.ShowMessage -> {
+                _effects.trySend(MainEffect.ShowMessage(action.message))
+            }
         }
     }
 }

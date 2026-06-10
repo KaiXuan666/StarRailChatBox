@@ -101,6 +101,13 @@ interface KmpFileManager {
         return list(appDataDir / relativeName.toPath())
     }
 
+    /**
+     * 将图片保存到系统相册/画廊。
+     * @param bytes 图片的字节数组
+     * @param name 保存的文件名（包含扩展名）
+     */
+    suspend fun saveImageToGallery(bytes: ByteArray, name: String)
+
     companion object {
         val Default: KmpFileManager by lazy { getPlatformFileManager() }
     }

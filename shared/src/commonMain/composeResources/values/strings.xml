@@ -76,6 +76,8 @@
     <string name="character_name_required">请先输入角色名称</string>
     <string name="character_save_failed">角色保存失败</string>
     <string name="theme_changed">已切换主题显示模式</string>
+    <string name="image_save_success">图片已保存到本地</string>
+    <string name="image_save_failed">图片保存失败</string>
  
     <!-- 角色编辑界面 -->
     <string name="character_edit_title">角色编辑</string>

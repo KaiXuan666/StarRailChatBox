@@ -25,6 +25,10 @@ class IosFileManager : KmpFileManager {
         }
         directoryPath.toPath()
     }
+
+    override suspend fun saveImageToGallery(bytes: ByteArray, name: String) {
+        // TODO: Implement iOS photo gallery saving
+    }
 }
 
 actual fun getPlatformFileManager(): KmpFileManager = IosFileManager()

@@ -16,6 +16,15 @@ class JvmFileManager : KmpFileManager {
         }
         appDir.absolutePath.toPath()
     }
+
+    override suspend fun saveImageToGallery(bytes: ByteArray, name: String) {
+        val userHome = System.getProperty("user.home")
+        val downloadsDir = File(userHome, "Downloads")
+        val targetDir = if (downloadsDir.exists()) downloadsDir else File(userHome)
+        val targetFile = File(targetDir, name)
+        
+        writeBytes(targetFile.absolutePath.toPath(), bytes)
+    }
 }
 
 actual fun getPlatformFileManager(): KmpFileManager = JvmFileManager()

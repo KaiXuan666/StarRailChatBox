@@ -41,7 +41,10 @@ import org.jetbrains.compose.resources.stringResource
 import starrailchatbox.shared.generated.resources.Res
 import starrailchatbox.shared.generated.resources.app_title
 import starrailchatbox.shared.generated.resources.no_characters
+import com.kaixuan.starrailchatbox.platform.KmpFileManager
+import com.kaixuan.starrailchatbox.platform.readUriAsBytes
 import androidx.compose.foundation.ExperimentalFoundationApi
+import com.kaixuan.starrailchatbox.ui.main.MainEffectMessage
 
 /**
  * 聊天会话主屏组件 (原 ChatContent 模块)
@@ -65,14 +68,14 @@ fun ChatSessionScreen(
     val coroutineScope = rememberCoroutineScope()
 
     var attachmentsToShow by remember { mutableStateOf<List<MessageAttachment>?>(null) }
-    var previewImageUri by remember { mutableStateOf<String?>(null) }
+    var previewAttachment by remember { mutableStateOf<MessageAttachment?>(null) }
 
     BackHandler(enabled = state.isAttachmentPanelVisible) {
         onAction(ChatAction.ComposerActionClicked(ComposerAction.ATTACH))
     }
 
-    BackHandler(enabled = previewImageUri != null) {
-        previewImageUri = null
+    BackHandler(enabled = previewAttachment != null) {
+        previewAttachment = null
     }
 
     if (charactersState.isLoadingCharacters) {
@@ -279,7 +282,7 @@ fun ChatSessionScreen(
                                 }
                             }
                         } else if (attachment.mimeType.startsWith("image/")) {
-                            previewImageUri = attachment.uri
+                            previewAttachment = attachment
                         } else {
                             openUri(attachment.uri, attachment.mimeType)
                         }
@@ -311,10 +314,24 @@ fun ChatSessionScreen(
             )
         }
 
-        if (previewImageUri != null) {
+        if (previewAttachment != null) {
             FullScreenImagePreview(
-                uri = previewImageUri!!,
-                onDismiss = { previewImageUri = null }
+                uri = previewAttachment!!.uri,
+                onDismiss = { previewAttachment = null },
+                onDownload = {
+                    val attachment = previewAttachment!!
+                    previewAttachment = null
+                    coroutineScope.launch {
+                        try {
+                            val bytes = readUriAsBytes(attachment.uri)
+                            KmpFileManager.Default.saveImageToGallery(bytes, attachment.name)
+                            onMainAction(MainAction.ShowMessage(MainEffectMessage.IMAGE_SAVED))
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            onMainAction(MainAction.ShowMessage(MainEffectMessage.IMAGE_SAVE_FAILED))
+                        }
+                    }
+                }
             )
         }
     }

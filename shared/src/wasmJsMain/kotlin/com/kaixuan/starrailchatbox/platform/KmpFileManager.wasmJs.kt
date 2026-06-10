@@ -11,6 +11,10 @@ class WasmJsFileManager : KmpFileManager {
 
     override val fileSystem: FileSystem
         get() = throw UnsupportedOperationException("FileSystem operations are not supported on WasmJS Web platform.")
+
+    override suspend fun saveImageToGallery(bytes: ByteArray, name: String) {
+        // Not supported on WasmJs Web
+    }
 }
 
 actual fun getPlatformFileManager(): KmpFileManager = WasmJsFileManager()

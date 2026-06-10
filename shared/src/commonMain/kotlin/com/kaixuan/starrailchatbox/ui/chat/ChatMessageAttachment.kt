@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -175,6 +176,7 @@ fun AttachmentsDialog(
 fun FullScreenImagePreview(
     uri: String,
     onDismiss: () -> Unit,
+    onDownload: (() -> Unit)? = null,
 ) {
     Dialog(
         onDismissRequest = onDismiss,
@@ -197,6 +199,26 @@ fun FullScreenImagePreview(
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Fit
                 )
+
+                if (onDownload != null) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(StarRailSpacing.lg)
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.2f))
+                            .clickable { onDownload() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        StarRailIcon(
+                            kind = StarRailIconKind.DOWNLOAD,
+                            contentDescription = "下载",
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                }
             }
         }
     }

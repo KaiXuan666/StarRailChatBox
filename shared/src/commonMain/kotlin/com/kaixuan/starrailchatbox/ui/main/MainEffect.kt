@@ -5,5 +5,7 @@ sealed interface MainEffect {
 }
 
 enum class MainEffectMessage {
-    THEME_CHANGED
+    THEME_CHANGED,
+    IMAGE_SAVED,
+    IMAGE_SAVE_FAILED
 }

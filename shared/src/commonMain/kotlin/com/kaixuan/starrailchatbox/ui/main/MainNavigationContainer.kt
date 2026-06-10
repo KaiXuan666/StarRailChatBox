@@ -141,6 +141,8 @@ import com.kaixuan.starrailchatbox.ui.profile.ProfileEffectMessage
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.name
 import io.github.vinceglb.filekit.path
+import starrailchatbox.shared.generated.resources.image_save_failed
+import starrailchatbox.shared.generated.resources.image_save_success
 import starrailchatbox.shared.generated.resources.profile_export_success
 import starrailchatbox.shared.generated.resources.profile_import_success
 import starrailchatbox.shared.generated.resources.settings_copied_success
@@ -232,7 +234,21 @@ fun MainRoute(
     )
     val mainEffectMessages = mapOf(
         MainEffectMessage.THEME_CHANGED to stringResource(Res.string.theme_changed),
+        MainEffectMessage.IMAGE_SAVED to stringResource(Res.string.image_save_success),
+        MainEffectMessage.IMAGE_SAVE_FAILED to stringResource(Res.string.image_save_failed),
     )
+
+    LaunchedEffect(main.effects, mainEffectMessages) {
+        main.effects.collectLatest { effect ->
+            when (effect) {
+                is MainEffect.ShowMessage -> {
+                    snackbarHostState.showSnackbar(
+                        mainEffectMessages.getValue(effect.message),
+                    )
+                }
+            }
+        }
+    }
 
     LaunchedEffect(chat.effects, chatEffectMessages) {
         chat.effects.collectLatest { effect ->
@@ -322,18 +338,6 @@ fun MainRoute(
                         kotlinx.coroutines.delay(1500)
                         restartApp()
                     }
-                }
-            }
-        }
-    }
-
-    LaunchedEffect(main.effects, mainEffectMessages) {
-        main.effects.collectLatest { effect ->
-            when (effect) {
-                is MainEffect.ShowMessage -> {
-                    snackbarHostState.showSnackbar(
-                        mainEffectMessages.getValue(effect.message),
-                    )
                 }
             }
         }
