@@ -129,6 +129,7 @@ import com.kaixuan.starrailchatbox.ui.navigation.entryProvider
 import com.kaixuan.starrailchatbox.ui.settings.ApiSettingsScreen
 import com.kaixuan.starrailchatbox.ui.settings.SettingsScreen
 import com.kaixuan.starrailchatbox.ui.settings.AboutScreen
+import com.kaixuan.starrailchatbox.ui.settings.PrivacyPolicyScreen
 import com.kaixuan.starrailchatbox.ui.settings.SettingsAction
 import com.kaixuan.starrailchatbox.ui.settings.SettingsEffect
 import com.kaixuan.starrailchatbox.ui.settings.SettingsEffectMessage
@@ -541,6 +542,13 @@ fun MainNavigationContainer(
                     }
                     entry<Route.About> {
                         AboutScreen(
+                            contentPadding = contentPadding,
+                            compact = compact,
+                            onMainAction = onMainAction,
+                        )
+                    }
+                    entry<Route.PrivacyPolicy> {
+                        PrivacyPolicyScreen(
                             contentPadding = contentPadding,
                             compact = compact,
                             onMainAction = onMainAction,

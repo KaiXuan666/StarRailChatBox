@@ -249,7 +249,8 @@ fun SettingsScreen(
                                 itemData.item == SettingsItem.IMAGE_GENERATION_API_SETTINGS ||
                                 itemData.item == SettingsItem.VOICE_API_SETTINGS || 
                                 itemData.item == SettingsItem.THEME_STYLE ||
-                                itemData.item == SettingsItem.ABOUT_US) {
+                                itemData.item == SettingsItem.ABOUT_US ||
+                                itemData.item == SettingsItem.PRIVACY_SECURITY) {
                                 onMainAction(MainAction.SettingsItemClicked(MainSettingsItem.valueOf(itemData.item.name)))
                             } else {
                                 onSettingsAction(SettingsAction.SettingsItemClicked(itemData.item))

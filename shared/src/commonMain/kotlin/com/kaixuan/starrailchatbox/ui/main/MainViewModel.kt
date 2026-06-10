@@ -91,6 +91,11 @@ class MainViewModel(private val settingsStore: AppSettingsStore) : ViewModel() {
                             state.copy(backStack = state.backStack + Route.About)
                         }
                     }
+                    MainSettingsItem.PRIVACY_SECURITY -> {
+                        _uiState.update { state ->
+                            state.copy(backStack = state.backStack + Route.PrivacyPolicy)
+                        }
+                    }
                     else -> {
                         // 其它非核心主逻辑（更新检查、通知等）由 SettingsViewModel 处理
                     }
