@@ -1,6 +1,7 @@
 package com.kaixuan.starrailchatbox.ui.chat
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,7 +22,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,22 +50,20 @@ fun MessageAttachments(
     compact: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val images = remember(attachments) {
-        attachments.filter { it.mimeType.startsWith("image/") }
-    }
-    if (images.isEmpty()) return
+    if (attachments.isEmpty()) return
 
     FlowRow(
         modifier = modifier.padding(StarRailSpacing.xs),
         horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
         verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
     ) {
-        images.forEach { attachment ->
-            val isSingle = images.size == 1
+        attachments.forEach { attachment ->
+            val isImage = attachment.mimeType.startsWith("image/")
+            val isSingle = attachments.size == 1
             Box(
                 modifier = Modifier
                     .then(
-                        if (isSingle) Modifier.widthIn(max = 240.dp).aspectRatio(16f / 9f)
+                        if (isSingle && isImage) Modifier.widthIn(max = 240.dp).aspectRatio(16f / 9f)
                         else Modifier.size(if (compact) 80.dp else 100.dp)
                     )
                     .clip(MaterialTheme.shapes.medium)
@@ -73,12 +71,34 @@ fun MessageAttachments(
                     .clickable { onOpenAttachment(attachment) },
                 contentAlignment = Alignment.Center
             ) {
-                AsyncImage(
-                    model = attachment.uri,
-                    contentDescription = attachment.name,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                )
+                if (isImage) {
+                    AsyncImage(
+                        model = attachment.uri,
+                        contentDescription = attachment.name,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                    )
+                } else {
+                    Column(
+                        modifier = Modifier.fillMaxSize().padding(StarRailSpacing.xs),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        StarRailIcon(
+                            kind = if (attachment.mimeType.startsWith("audio/")) StarRailIconKind.MICROPHONE else StarRailIconKind.FILE,
+                            contentDescription = attachment.name,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(if (compact) 32.dp else 40.dp)
+                        )
+                        Text(
+                            text = attachment.name,
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.basicMarquee()
+                        )
+                    }
+                }
             }
         }
     }
