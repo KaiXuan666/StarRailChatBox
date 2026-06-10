@@ -3,11 +3,7 @@ package com.kaixuan.starrailchatbox.data.character
 interface CharacterVoiceSampleStorage {
     fun saveBytes(characterId: String, voiceBytes: ByteArray): String
 
-    fun delete(voiceUri: String)
-}
+    fun copyFrom(characterId: String, sourceUri: String): String
 
-internal fun characterVoiceSampleFileName(characterId: String): String {
-    return characterId.encodeToByteArray()
-        .joinToString(separator = "") { byte -> byte.toUByte().toString(16).padStart(2, '0') }
-        .plus(".mp3")
+    fun delete(voiceUri: String)
 }

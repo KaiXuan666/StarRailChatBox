@@ -1,6 +1,7 @@
 package com.kaixuan.starrailchatbox.data.character
 
 import kotlinx.serialization.Serializable
+import okio.Path.Companion.toPath
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import starrailchatbox.shared.generated.resources.Res
 import kotlin.time.Clock
@@ -92,6 +93,7 @@ interface CharacterRepository {
 
 class DefaultCharacterRepository(
     private val storage: CharacterStorage,
+    private val fileManager: com.kaixuan.starrailchatbox.platform.KmpFileManager = com.kaixuan.starrailchatbox.platform.KmpFileManager.Default,
     private val defaultAssets: suspend () -> List<DefaultCharacterAsset> = ::loadDefaultCharacterAssets,
 ) : CharacterRepository {
     override suspend fun loadCharacters(): List<Character> {
@@ -158,12 +160,21 @@ class DefaultCharacterRepository(
 
     override suspend fun getDefaultCharacter(id: String): Character? {
         val asset = defaultAssets().find { it.id == id } ?: return null
+        
+        val voiceSampleUri = asset.voiceSampleContent?.let { bytes ->
+            val fileName = characterVoiceSampleFileName(asset.name)
+            val relativePath = "character_voice_samples/$fileName"
+            fileManager.writeBytes(relativePath, bytes)
+            (fileManager.appDataDir / relativePath.toPath()).toString()
+        }
+
         return Character(
             id = asset.id,
             name = asset.name,
             prompt = asset.prompt,
             openingMessage = asset.openingMessage,
             avatarUri = "", // 对于内置角色，通常由 storage 在初始化时确定，这里暂设为空
+            voiceSampleUri = voiceSampleUri,
             temperature = asset.temperature,
             topP = asset.topP,
         )
@@ -212,3 +223,15 @@ private val DefaultCharacterNames = listOf(
     "黄泉",
     "瑕蝶",
 )
+
+fun characterAvatarFileName(characterId: String): String {
+    return characterId.encodeToByteArray()
+        .joinToString(separator = "") { byte -> byte.toUByte().toString(16).padStart(2, '0') }
+        .plus(".webp")
+}
+
+fun characterVoiceSampleFileName(characterId: String, extension: String = "mp3"): String {
+    return characterId.encodeToByteArray()
+        .joinToString(separator = "") { byte -> byte.toUByte().toString(16).padStart(2, '0') }
+        .plus(".$extension")
+}

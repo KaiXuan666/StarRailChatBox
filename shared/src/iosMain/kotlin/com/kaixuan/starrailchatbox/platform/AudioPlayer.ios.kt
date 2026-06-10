@@ -38,6 +38,10 @@ class IosAudioPlayer : AudioPlayer {
     override fun release() {
         stop()
     }
+
+    override suspend fun getDuration(uri: String): Int? {
+        return 3
+    }
 }
 
 @Composable

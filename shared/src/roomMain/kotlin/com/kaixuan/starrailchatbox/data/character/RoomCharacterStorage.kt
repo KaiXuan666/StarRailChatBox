@@ -61,6 +61,20 @@ class RoomCharacterStorage(
             ?.let { avatarStorage.copyFrom(character.id, it.uri) }
             ?: character.avatarUri.takeIf(String::isNotBlank)
             ?: oldAvatarUri.orEmpty()
+
+        val oldVoiceSampleUri = existing?.voiceSampleUri
+        val voiceSampleUri = if (character.voiceSampleUri != oldVoiceSampleUri) {
+            character.voiceSampleUri?.let { uri ->
+                if (uri.startsWith("builtin:") || uri.isBlank()) {
+                    uri
+                } else {
+                    voiceSampleStorage.copyFrom(character.id, uri)
+                }
+            }
+        } else {
+            character.voiceSampleUri
+        }
+
         val sortOrder = if (existing != null) {
             existing.sortOrder
         } else {
@@ -70,6 +84,7 @@ class RoomCharacterStorage(
         dao.upsert(
             character.toEntity(
                 avatarUri = avatarUri,
+                voiceSampleUri = voiceSampleUri,
                 isBuiltin = existing?.isBuiltin ?: false,
                 sortOrder = sortOrder,
                 createdAt = existing?.createdAt ?: now,
@@ -79,7 +94,10 @@ class RoomCharacterStorage(
         if (avatarSource != null && oldAvatarUri != null && oldAvatarUri != avatarUri) {
             avatarStorage.delete(oldAvatarUri)
         }
-        return character.copy(avatarUri = avatarUri, voiceSampleUri = character.voiceSampleUri, sortOrder = sortOrder)
+        if (character.voiceSampleUri != oldVoiceSampleUri && oldVoiceSampleUri != null && oldVoiceSampleUri != voiceSampleUri) {
+            voiceSampleStorage.delete(oldVoiceSampleUri)
+        }
+        return character.copy(avatarUri = avatarUri, voiceSampleUri = voiceSampleUri, sortOrder = sortOrder)
     }
 
     override suspend fun updateSortOrder(id: String, sortOrder: Int) {
@@ -100,6 +118,7 @@ class RoomCharacterStorage(
 
     private fun CharacterFiles.toEntity(
         avatarUri: String,
+        voiceSampleUri: String?,
         isBuiltin: Boolean,
         sortOrder: Int,
         createdAt: Long,

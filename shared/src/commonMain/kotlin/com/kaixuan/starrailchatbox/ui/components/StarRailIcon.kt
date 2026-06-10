@@ -68,6 +68,8 @@ enum class StarRailIconKind {
     RETRY,
     DATABASE,
     DOWNLOAD,
+    PLAY,
+    STOP,
 }
 
 @Composable
@@ -771,6 +773,23 @@ fun StarRailIcon(
                 drawLine(tint, point(0.5f, 0.66f), point(0.32f, 0.48f), strokeWidth)
                 drawLine(tint, point(0.5f, 0.66f), point(0.68f, 0.48f), strokeWidth)
                 drawLine(tint, point(0.24f, 0.82f), point(0.76f, 0.82f), strokeWidth)
+            }
+
+            StarRailIconKind.PLAY -> {
+                path.reset()
+                path.moveTo(size.width * 0.35f, size.height * 0.28f)
+                path.lineTo(size.width * 0.75f, size.height * 0.5f)
+                path.lineTo(size.width * 0.35f, size.height * 0.72f)
+                path.close()
+                drawPath(path, tint)
+            }
+
+            StarRailIconKind.STOP -> {
+                drawRect(
+                    color = tint,
+                    topLeft = point(0.3f, 0.3f),
+                    size = Size(size.width * 0.4f, size.height * 0.4f)
+                )
             }
                 }
             }

@@ -110,6 +110,34 @@ class AndroidAudioPlayer(private val context: Context) : AudioPlayer {
     override fun release() {
         stop()
     }
+
+    override suspend fun getDuration(uri: String): Int? {
+        if (uri.startsWith("builtin:")) {
+            return 3
+        }
+        
+        return try {
+            val retriever = android.media.MediaMetadataRetriever()
+            if (uri.startsWith("content://") || uri.startsWith("file://") || uri.startsWith("http://") || uri.startsWith("https://")) {
+                retriever.setDataSource(context, Uri.parse(uri))
+            } else if (uri.startsWith("data:")) {
+                val base64Data = uri.substringAfter("base64,")
+                val bytes = Base64.decode(base64Data, Base64.DEFAULT)
+                val temp = File.createTempFile("temp_duration_", ".m4a", context.cacheDir)
+                temp.writeBytes(bytes)
+                retriever.setDataSource(temp.absolutePath)
+                temp.delete()
+            } else {
+                retriever.setDataSource(uri)
+            }
+            val durationStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
+            retriever.release()
+            durationStr?.toLong()?.div(1000)?.toInt()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
 }
 
 @Composable

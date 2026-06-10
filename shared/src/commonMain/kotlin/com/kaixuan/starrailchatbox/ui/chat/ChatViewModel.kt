@@ -321,6 +321,9 @@ class ChatViewModel(
                     pendingAvatarSource = action.avatarSource,
                 )
             }
+            is CharacterAction.CharacterVoiceSampleChanged -> updateCharacterEdit {
+                it.copy(voiceSampleUri = action.uri)
+            }
             is CharacterAction.CharacterTemperatureChanged -> updateCharacterEdit {
                 it.copy(temperature = action.temperature.coerceIn(0.0, 2.0))
             }
@@ -428,6 +431,7 @@ class ChatViewModel(
                                 openingMessage = default.openingMessage,
                                 temperature = default.temperature,
                                 topP = default.topP,
+                                voiceSampleUri = default.voiceSampleUri,
                             )
                         }
                     }

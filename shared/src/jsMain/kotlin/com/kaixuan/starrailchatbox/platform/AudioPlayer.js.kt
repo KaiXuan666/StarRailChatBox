@@ -38,6 +38,34 @@ class JsAudioPlayer : AudioPlayer {
     override fun release() {
         stop()
     }
+
+    override suspend fun getDuration(uri: String): Int? {
+        return kotlinx.coroutines.suspendCancellableCoroutine { continuation ->
+            try {
+                val tempAudio = Audio(uri)
+                val onLoadedMetadata = {
+                    val duration = tempAudio.duration
+                    if (duration.isNaN() || duration.isInfinite()) {
+                        continuation.resume(null) { }
+                    } else {
+                        continuation.resume(duration.toInt()) { }
+                    }
+                }
+                val onError = {
+                    continuation.resume(null) { }
+                }
+                tempAudio.addEventListener("loadedmetadata", onLoadedMetadata)
+                tempAudio.addEventListener("error", onError)
+                
+                continuation.invokeOnCancellation {
+                    tempAudio.removeEventListener("loadedmetadata", onLoadedMetadata)
+                    tempAudio.removeEventListener("error", onError)
+                }
+            } catch (e: Exception) {
+                continuation.resume(null) { }
+            }
+        }
+    }
 }
 
 @Composable

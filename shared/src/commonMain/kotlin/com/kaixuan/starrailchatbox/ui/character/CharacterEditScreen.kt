@@ -80,6 +80,11 @@ import starrailchatbox.shared.generated.resources.cancel
 import starrailchatbox.shared.generated.resources.confirm
 import starrailchatbox.shared.generated.resources.navigation_back
 import starrailchatbox.shared.generated.resources.settings_saving
+import com.kaixuan.starrailchatbox.platform.rememberAudioPlayer
+import starrailchatbox.shared.generated.resources.character_edit_voice_clear
+import starrailchatbox.shared.generated.resources.character_edit_voice_sample
+import starrailchatbox.shared.generated.resources.character_edit_voice_sample_hint
+import starrailchatbox.shared.generated.resources.character_edit_voice_select
 import kotlin.math.roundToInt
 
 private const val MaxCharacterNameLength = 40
@@ -209,6 +214,11 @@ fun CharacterEditScreen(
             valueRange = 0.0..1.0,
             hint = stringResource(Res.string.character_edit_top_p_hint),
             onValueChange = { onAction(CharacterAction.CharacterTopPChanged(it)) },
+        )
+
+        CharacterVoiceSampleCard(
+            state = editState,
+            onAction = onAction
         )
 
         if (editState.characterId?.startsWith("builtin:") == true) {
@@ -445,6 +455,157 @@ private fun CharacterTextCard(
                 onValueChange = onValueChange,
                 minLines = minLines,
                 supportingText = "${value.length}/$maxLength",
+            )
+        }
+    }
+}
+
+@Composable
+private fun CharacterVoiceSampleCard(
+    state: CharacterEditUiState,
+    onAction: (CharacterAction) -> Unit,
+) {
+    val audioPicker = rememberFilePickerLauncher(
+        type = FileKitType.File(
+            extensions = listOf("mp3", "wav")
+        )
+    ) { picked ->
+        if (picked != null) {
+            onAction(CharacterAction.CharacterVoiceSampleChanged(picked.path ?: ""))
+        }
+    }
+
+    val audioPlayer = rememberAudioPlayer()
+    var isPlaying by remember { mutableStateOf(false) }
+    var durationSeconds by remember { mutableStateOf<Int?>(null) }
+
+    LaunchedEffect(state.voiceSampleUri) {
+        isPlaying = false
+        audioPlayer.stop()
+        durationSeconds = state.voiceSampleUri?.let { audioPlayer.getDuration(it) }
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.92f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = StarRailSpacing.md, vertical = StarRailSpacing.sm),
+            verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(Res.string.character_edit_voice_sample),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (!state.voiceSampleUri.isNullOrEmpty()) {
+                        Surface(
+                            onClick = { onAction(CharacterAction.CharacterVoiceSampleChanged(null)) },
+                            shape = MaterialTheme.shapes.extraLarge,
+                            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f)),
+                        ) {
+                            Text(
+                                text = stringResource(Res.string.character_edit_voice_clear),
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
+
+                    Surface(
+                        onClick = { audioPicker.launch() },
+                        shape = MaterialTheme.shapes.extraLarge,
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)),
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.character_edit_voice_select),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            }
+
+            if (!state.voiceSampleUri.isNullOrEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.md)
+                ) {
+                    Surface(
+                        onClick = {
+                            if (isPlaying) {
+                                audioPlayer.stop()
+                                isPlaying = false
+                            } else {
+                                state.voiceSampleUri?.let { uri ->
+                                    audioPlayer.play(uri) {
+                                        isPlaying = false
+                                    }
+                                    isPlaying = true
+                                }
+                            }
+                        },
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            StarRailIcon(
+                                kind = if (isPlaying) StarRailIconKind.STOP else StarRailIconKind.PLAY,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    Column {
+                        Text(
+                            text = state.voiceSampleUri.substringAfterLast('/'),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                        )
+                        Text(
+                            text = durationSeconds?.let { 
+                                val mins = it / 60
+                                val secs = it % 60
+                                "$mins:${secs.toString().padStart(2, '0')}"
+                            } ?: "--:--",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+            }
+
+            Text(
+                text = stringResource(Res.string.character_edit_voice_sample_hint),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                modifier = Modifier.padding(top = 2.dp)
             )
         }
     }

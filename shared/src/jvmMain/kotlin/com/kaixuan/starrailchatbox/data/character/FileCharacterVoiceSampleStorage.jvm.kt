@@ -12,6 +12,16 @@ class FileCharacterVoiceSampleStorage(
             .absolutePath
     }
 
+    override fun copyFrom(characterId: String, sourceUri: String): String {
+        directory.mkdirs()
+        val extension = sourceUri.substringAfterLast('.', "mp3").let { ext ->
+            if (ext.contains('/') || ext.length > 5) "mp3" else ext
+        }
+        val target = directory.resolve(characterVoiceSampleFileName(characterId, extension))
+        File(sourceUri.removePrefix("file://")).copyTo(target, overwrite = true)
+        return target.absolutePath
+    }
+
     override fun delete(voiceUri: String) {
         val file = File(voiceUri.removePrefix("file://"))
         if (file.startsWith(directory)) {

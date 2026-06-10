@@ -24,6 +24,11 @@ interface AudioPlayer {
      * 释放播放器资源。
      */
     fun release()
+
+    /**
+     * 获取音频时长（单位为秒）。
+     */
+    suspend fun getDuration(uri: String): Int?
 }
 
 @Composable

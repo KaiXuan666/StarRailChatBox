@@ -48,6 +48,7 @@ fun createPersistentRepositories(
                 ),
                 voiceSampleStorage = FileCharacterVoiceSampleStorage(
                     directory = context.filesDir.resolve("character_voice_samples"),
+                    context = context.applicationContext,
                 ),
             ),
         ),

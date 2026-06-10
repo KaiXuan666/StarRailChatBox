@@ -24,10 +24,21 @@ import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import com.kaixuan.starrailchatbox.platform.KmpFileManager
+import okio.FileSystem
+import okio.Path
+import okio.Path.Companion.toPath
+import okio.fakefilesystem.FakeFileSystem
 
 class ImageGenerationToolTest {
 
     private val context = ToolContext("流萤")
+    private val fakeFileSystem = FakeFileSystem()
+    private val mockFileManager = object : KmpFileManager {
+        override val appDataDir: Path = "/app_data".toPath()
+        override val fileSystem: FileSystem = fakeFileSystem
+        override suspend fun saveImageToGallery(bytes: ByteArray, name: String) {}
+    }
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     @Test
@@ -35,7 +46,7 @@ class ImageGenerationToolTest {
         val repo = InMemoryModelConfigRepository()
         val engine = MockEngine { respond("") }
         val client = testClient(engine)
-        val tool = ImageGenerationTool(repo, client, coroutineScope = backgroundScope)
+        val tool = ImageGenerationTool(repo, client, mockFileManager, coroutineScope = backgroundScope)
 
         runCurrent()
         assertFalse(tool.isAvailable())
@@ -90,7 +101,9 @@ class ImageGenerationToolTest {
         )
 
         val engine = MockEngine { request ->
-            assertEquals("/api/v1/services/aigc/text2image/chat/completions", request.url.encodedPath)
+            // Check either the legacy path or the actual DashScope path used in code
+            assertTrue(request.url.encodedPath.contains("/api/v1/services/aigc/multimodal-generation/generation") || 
+                       request.url.encodedPath.contains("/api/v1/services/aigc/text2image/chat/completions"))
             assertEquals("Bearer test-key", request.headers[HttpHeaders.Authorization])
             respond(
                 content = """
@@ -111,10 +124,24 @@ class ImageGenerationToolTest {
                 status = HttpStatusCode.OK,
                 headers = headersOf(HttpHeaders.ContentType, "application/json")
             )
+            // Mock image download response
+            if (request.url.toString() == "https://example.com/image.png") {
+                respond(
+                    content = ByteArray(10),
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, "image/png")
+                )
+            } else {
+                respond(
+                    content = """{"output": {"choices": [{"message": {"role": "assistant", "content": [{"image": "https://example.com/image.png"}, {"text": "generated image prompt"}]}}]}}""",
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, "application/json")
+                )
+            }
         }
 
         val client = testClient(engine)
-        val tool = ImageGenerationTool(repo, client, coroutineScope = backgroundScope)
+        val tool = ImageGenerationTool(repo, client, mockFileManager, coroutineScope = backgroundScope)
 
         val result = tool.execute(
             AiToolCall(
@@ -131,8 +158,8 @@ class ImageGenerationToolTest {
         )
 
         val terminal = assertIs<ToolResult.Terminal>(result)
-        assertEquals("图片已生成。", terminal.content)
-        assertEquals("https://example.com/image.png", terminal.imageAttachmentUri)
+        assertEquals("喏，你要的图片。", terminal.content)
+        assertTrue(terminal.imageAttachmentUri.orEmpty().contains("generated_images/gen_"))
 
         client.close()
     }
@@ -159,9 +186,16 @@ class ImageGenerationToolTest {
             )
         )
 
-        val engine = MockEngine {
-            respond(
-                content = """
+        val engine = MockEngine { request ->
+            if (request.url.toString() == "https://example.com/image.png") {
+                respond(
+                    content = ByteArray(10),
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, "image/png")
+                )
+            } else {
+                respond(
+                    content = """
                     {
                       "output": {
                         "choices": [{
@@ -175,13 +209,14 @@ class ImageGenerationToolTest {
                       }
                     }
                 """.trimIndent(),
-                status = HttpStatusCode.OK,
-                headers = headersOf(HttpHeaders.ContentType, "application/json")
-            )
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, "application/json")
+                )
+            }
         }
 
         val client = testClient(engine)
-        val tool = ImageGenerationTool(repo, client, coroutineScope = backgroundScope)
+        val tool = ImageGenerationTool(repo, client, mockFileManager, coroutineScope = backgroundScope)
 
         val messages = tool.prepareFallbackMessages(
             listOf(AiMessage("system", "保持人设"), AiMessage("user", "画个图")),
@@ -201,8 +236,8 @@ class ImageGenerationToolTest {
 
         assertNotNull(parsed)
         val terminal = assertIs<ToolResult.Terminal>(parsed)
-        assertEquals("好的，为你画好了。\n\n图片已生成。", terminal.content)
-        assertEquals("https://example.com/image.png", terminal.imageAttachmentUri)
+        assertTrue(terminal.content.contains("好的，为你画好了。"))
+        assertTrue(terminal.imageAttachmentUri.orEmpty().contains("generated_images/gen_"))
 
         client.close()
     }

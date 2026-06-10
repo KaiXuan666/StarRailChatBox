@@ -7,9 +7,3 @@ interface CharacterAvatarStorage {
 
     fun delete(avatarUri: String)
 }
-
-internal fun characterAvatarFileName(characterId: String): String {
-    return characterId.encodeToByteArray()
-        .joinToString(separator = "") { byte -> byte.toUByte().toString(16).padStart(2, '0') }
-        .plus(".webp")
-}
