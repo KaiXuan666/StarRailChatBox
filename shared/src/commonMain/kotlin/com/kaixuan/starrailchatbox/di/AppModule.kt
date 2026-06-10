@@ -23,6 +23,7 @@ import com.kaixuan.starrailchatbox.data.character.CharacterRepository
 import com.kaixuan.starrailchatbox.data.chat.ChatSessionRepository
 import com.kaixuan.starrailchatbox.data.settings.AppSettingsStore
 import com.kaixuan.starrailchatbox.data.settings.ProfileStore
+import com.kaixuan.starrailchatbox.platform.KmpFileManager
 import com.kaixuan.starrailchatbox.ui.settings.SettingsViewModel
 import com.kaixuan.starrailchatbox.ui.profile.ProfileViewModel
 import com.kaixuan.starrailchatbox.ui.chat.ChatViewModel
@@ -43,7 +44,7 @@ fun appModule(
     single { AiProviderRegistry(getAll()) }
     single<AiTool>(named("QuickReplies")) { QuickRepliesTool() }
     single<AiTool>(named("VoiceSynthesis")) { VoiceSynthesisTool(get(), get()) }
-    single<AiTool>(named("ImageGeneration")) { ImageGenerationTool(get(), get()) }
+    single<AiTool>(named("ImageGeneration")) { ImageGenerationTool(get(), get(), get()) }
     single<AiTool>(named("BochaSearch")) { BochaSearchTool(get(), get()) }
     single { ToolRegistry(getAll()) }
     single<ToolApprovalGateway> { RiskBasedToolApprovalGateway }
@@ -56,6 +57,7 @@ fun appModule(
     single { characterRepository }
     single { chatSessionRepository }
     single { databaseManager }
+    single<KmpFileManager> { KmpFileManager.Default }
     factory { MainViewModel(get()) }
     factory { ChatViewModel(get(), get(), get(), get(), get()) }
     factory { SettingsViewModel(get(), get()) }

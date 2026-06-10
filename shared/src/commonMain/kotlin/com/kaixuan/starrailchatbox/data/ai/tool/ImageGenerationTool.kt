@@ -4,9 +4,12 @@ import com.kaixuan.starrailchatbox.data.ai.AiMessage
 import com.kaixuan.starrailchatbox.data.ai.AiToolCall
 import com.kaixuan.starrailchatbox.data.ai.AiToolDefinition
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
+import com.kaixuan.starrailchatbox.platform.KmpFileManager
 import io.github.aakira.napier.Napier
 import io.github.vinceglb.filekit.FileKit
 import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -29,6 +32,9 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
+import okio.Path
+import okio.Path.Companion.toPath
+import kotlin.random.Random
 
 /**
  * 图片生成工具。
@@ -37,6 +43,7 @@ import kotlinx.serialization.json.putJsonObject
 class ImageGenerationTool(
     private val modelConfigRepository: ModelConfigRepository,
     private val httpClient: HttpClient,
+    private val fileManager: KmpFileManager,
     private val json: Json = Json { ignoreUnknownKeys = true },
     coroutineScope: CoroutineScope? = null,
 ) : AiTool {
@@ -210,9 +217,25 @@ class ImageGenerationTool(
                 ?.get("image")?.jsonPrimitive?.content
 
             if (!imageUrl.isNullOrBlank()) {
+                // 下载并保存图片到本地私有目录
+                val imageBytes = httpClient.get(imageUrl).body<ByteArray>()
+                val randomSuffix = (Random.nextLong() and 0x7FFFFFFFFFFFFFFF).toString(36)
+                
+                // 优先从 URL 提取后缀名
+                val extension = imageUrl.substringAfterLast('.', "png").let { ext ->
+                    if (ext.contains('/') || ext.length > 5) "png" else ext
+                }
+                
+                val fileName = "gen_$randomSuffix.$extension"
+                val relativePath = "generated_images/$fileName"
+                fileManager.writeBytes(relativePath, imageBytes)
+                
+                val localPath = (fileManager.appDataDir / relativePath).toString()
+                Napier.d { "Image saved to: $localPath" }
+
                 ToolResult.Terminal(
-                    content = "图片已生成。",
-                    imageAttachmentUri = imageUrl
+                    content = "图片已生成并保存到本地。",
+                    imageAttachmentUri = localPath
                 )
             } else {
                 ToolResult.Error("generation_failed", "Failed to extract image URL from response: $responseText")
