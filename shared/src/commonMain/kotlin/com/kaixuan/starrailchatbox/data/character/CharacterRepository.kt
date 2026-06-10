@@ -163,8 +163,15 @@ class DefaultCharacterRepository(
     override suspend fun getDefaultCharacter(id: String): Character? {
         val asset = defaultAssets().find { it.id == id } ?: return null
         
+        val avatarUri = run {
+            val fileName = characterAvatarFileName(asset.id)
+            val relativePath = "character_avatars/$fileName"
+            fileManager.writeBytes(relativePath, asset.avatarContent)
+            (fileManager.appDataDir / relativePath.toPath()).toString()
+        }
+
         val voiceSampleUri = asset.voiceSampleContent?.let { bytes ->
-            val fileName = characterVoiceSampleFileName(asset.name)
+            val fileName = characterVoiceSampleFileName(asset.id)
             val relativePath = "character_voice_samples/$fileName"
             fileManager.writeBytes(relativePath, bytes)
             (fileManager.appDataDir / relativePath.toPath()).toString()
@@ -175,7 +182,7 @@ class DefaultCharacterRepository(
             name = asset.name,
             prompt = asset.prompt,
             openingMessage = asset.openingMessage,
-            avatarUri = "", // 对于内置角色，通常由 storage 在初始化时确定，这里暂设为空
+            avatarUri = avatarUri,
             voiceSampleUri = voiceSampleUri,
             temperature = asset.temperature,
             topP = asset.topP,

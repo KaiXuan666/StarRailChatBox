@@ -101,6 +101,8 @@ driver、provider 和日志出口等边界。
 
 ### 文件处理规范
 - 选择文件优先使用FileKit，文件读写采用Okio 封装类 `KmpFileManager`，对于文件操作，不要自己写各平台实现。
+- 注意FileKit选择出来的文件，可能路径会很奇怪，比如“content://media/picker/0/com.android.providers.media.photopicker/media/1000125767”
+  所以拿到FileKit返回的path后，除了path，我们还需要传递image.name 和 image.extension给调用方，避免调用方拿不到扩展名，导致存储下来无扩展名的文件。
 
 #### 两阶段落盘法 (Cache ➔ Files)
 当出现用户选择文件 → 后续可以保存入库的情况时，（比如 `AgentRoleEntity` 中的 `avatarUri`和 `voiceSampleUri`，`MessageAttachmentEntity`里面的uri，还有 `AttachmentPanel`，用户选择添加附件）

@@ -47,7 +47,12 @@ class ProfileViewModel(
                 scope().launch {
                     val finalUri = if (action.avatarUri != null && action.name != null) {
                         try {
-                            persistAttachment(action.avatarUri, action.name)
+                            val bytes = com.kaixuan.starrailchatbox.platform.readUriAsBytes(action.avatarUri)
+                            val extension = action.extension ?: action.avatarUri.substringAfterLast('.', "png")
+                            val fileName = "temp_user_avatar_${kotlin.time.Clock.System.now().toEpochMilliseconds()}.$extension"
+                            val cachePath = (com.kaixuan.starrailchatbox.platform.KmpFileManager.Default.cacheDir / fileName.toPath()).toString()
+                            com.kaixuan.starrailchatbox.platform.KmpFileManager.Default.writeBytes(cachePath, bytes)
+                            cachePath
                         } catch (e: Exception) {
                             action.avatarUri
                         }
@@ -55,7 +60,7 @@ class ProfileViewModel(
                         action.avatarUri
                     }
                     _uiState.update { it.copy(customAvatarUri = finalUri) }
-                    saveProfile()
+                    // 规范：两阶段。这里仅更新 UI/Cache，正式保存由 saveProfile 触发
                 }
             }
             is ProfileAction.SummaryThresholdChanged -> {
@@ -98,8 +103,20 @@ class ProfileViewModel(
         val state = _uiState.value
         scope().launch {
             try {
+                // 如果是 Cache 目录的文件，正式移动到 Files 目录
+                val finalAvatarUri = state.customAvatarUri?.let { uri ->
+                    if (uri.startsWith(com.kaixuan.starrailchatbox.platform.KmpFileManager.Default.cacheDir.toString())) {
+                        val fileName = "user_avatar_${kotlin.time.Clock.System.now().toEpochMilliseconds()}.${uri.substringAfterLast('.')}"
+                        val targetPath = com.kaixuan.starrailchatbox.platform.KmpFileManager.Default.appDataDir / fileName.toPath()
+                        com.kaixuan.starrailchatbox.platform.KmpFileManager.Default.move(uri.toPath(), targetPath)
+                        targetPath.toString()
+                    } else {
+                        uri
+                    }
+                }
+
                 val updatedProfile = UserProfile(
-                    customAvatarUri = state.customAvatarUri,
+                    customAvatarUri = finalAvatarUri,
                     summaryThreshold = state.summaryThreshold,
                     saveMultimodalToken = state.saveMultimodalToken,
                     enableWebSearch = state.enableWebSearch
