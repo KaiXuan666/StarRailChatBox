@@ -4,6 +4,7 @@ import com.kaixuan.starrailchatbox.data.ai.AiMessage
 import com.kaixuan.starrailchatbox.data.ai.AiRepository
 import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.model.ModelConfig
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.time.Clock
@@ -26,14 +27,15 @@ class ChatSummaryCoordinator(
 
         summaryMutex.withLock {
             val source = chatSessionRepository.findSummarySource(session.id)
+            Napier.d { "performChatRequest 判断消息总结 summaryThresholdMessageCount=${session.summaryThresholdMessageCount}, summaryRetainedMessageCount=${session.summaryRetainedMessageCount}" }
             val threshold = session.summaryThresholdMessageCount.coerceAtLeast(2)
             val retainedCount = session.summaryRetainedMessageCount
                 .coerceIn(1, threshold - 1)
+            Napier.d { "performChatRequest 判断消息总结 messages.size=${source.messages.size}, threshold=${threshold}, retainedCount=$retainedCount" }
             if (source.messages.size < threshold) return
-
             val messagesToSummarize = source.messages.dropLast(retainedCount)
             if (messagesToSummarize.isEmpty()) return
-
+            Napier.d { "performChatRequest 判断消息总结 开始消息总结 messagesToSummarize.size=${messagesToSummarize.size} messagesToSummarize=${messagesToSummarize.joinToString { it.seq.toString() }}" }
             val result = aiRepository.createConversationSummary(
                 config = config,
                 messages = buildSummaryRequest(source.summary, messagesToSummarize),
@@ -89,11 +91,11 @@ internal fun buildSummaryRequest(
         AiMessage(
             role = "system",
             content = """
-                Compress the conversation into a durable factual summary for future context.
-                Preserve user preferences, decisions, constraints, unresolved questions, names,
-                important facts, and ongoing tasks. Preserve role-play continuity when relevant.
-                Merge the previous summary with the new conversation. Do not invent information.
-                Return only the summary, with no preamble or XML tags.
+将对话内容压缩成一份持久的事实摘要，以便日后参考。
+保留用户偏好、决策、限制条件、未解决的问题、姓名、
+重要事实和正在进行的任务。在相关情况下，保持角色扮演的连贯性。
+将之前的摘要与新的对话合并。不要捏造信息。
+仅返回摘要，不包含任何前导符或 XML 标签。
             """.trimIndent(),
         ),
         AiMessage(role = "user", content = transcript),
