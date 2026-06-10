@@ -43,12 +43,14 @@ import org.jetbrains.compose.resources.getString
 import starrailchatbox.shared.generated.resources.Res
 import starrailchatbox.shared.generated.resources.chat_new_session_title
 import com.kaixuan.starrailchatbox.data.settings.ProfileStore
+import com.kaixuan.starrailchatbox.platform.KmpFileManager
 import com.kaixuan.starrailchatbox.ui.character.CharacterAction
 import com.kaixuan.starrailchatbox.ui.character.CharacterEffect
 import com.kaixuan.starrailchatbox.ui.character.CharacterEffectMessage
 import com.kaixuan.starrailchatbox.ui.character.CharactersUiState
 import com.kaixuan.starrailchatbox.ui.character.CharacterEditUiState
 import com.kaixuan.starrailchatbox.ui.character.toEditUiState
+import okio.Path.Companion.toPath
 
 class ChatViewModel(
     private val characterRepository: CharacterRepository,
@@ -56,6 +58,7 @@ class ChatViewModel(
     private val modelConfigRepository: ModelConfigRepository,
     private val aiRepository: AiRepository,
     private val profileStore: ProfileStore,
+    private val fileManager: KmpFileManager = KmpFileManager.Default,
     private val chatSummaryCoordinator: ChatSummaryCoordinator = ChatSummaryCoordinator(
         chatSessionRepository = chatSessionRepository,
         aiRepository = aiRepository,
@@ -315,14 +318,68 @@ class ChatViewModel(
             is CharacterAction.CharacterOpeningMessageChanged -> updateCharacterEdit {
                 it.copy(openingMessage = action.openingMessage)
             }
-            is CharacterAction.CharacterAvatarChanged -> updateCharacterEdit {
-                it.copy(
-                    avatarUri = action.avatarSource.uri,
-                    pendingAvatarSource = action.avatarSource,
-                )
+            is CharacterAction.CharacterAvatarChanged -> {
+                viewModelScope.launch {
+                    val uri = action.avatarSource.uri
+                    Napier.d { "CharacterAvatarChanged: uri=$uri" }
+                    if (uri.startsWith("http") || uri.startsWith("data:") || uri.isBlank() || (uri.startsWith("picked:") && !fileManager.isSupported)) {
+                        updateCharacterEdit {
+                            it.copy(
+                                avatarUri = uri,
+                                pendingAvatarSource = action.avatarSource,
+                            )
+                        }
+                    } else {
+                        runCatching {
+                            val bytes = readUriAsBytes(uri)
+                            val extension = uri.substringAfterLast('.', "png")
+                            val fileName = "temp_avatar_${currentTimeMillis()}.$extension"
+                            val cachePath = fileManager.cacheDir / fileName.toPath()
+                            fileManager.writeBytes(cachePath, bytes)
+                            updateCharacterEdit {
+                                it.copy(
+                                    avatarUri = cachePath.toString(),
+                                    pendingAvatarSource = action.avatarSource.copy(uri = cachePath.toString()),
+                                )
+                            }
+                        }.onFailure {
+                            Napier.e("Failed to cache avatar", it)
+                            // Fallback to original uri if caching fails
+                            updateCharacterEdit {
+                                it.copy(
+                                    avatarUri = uri,
+                                    pendingAvatarSource = action.avatarSource,
+                                )
+                            }
+                        }
+                    }
+                }
             }
-            is CharacterAction.CharacterVoiceSampleChanged -> updateCharacterEdit {
-                it.copy(voiceSampleUri = action.uri)
+            is CharacterAction.CharacterVoiceSampleChanged -> {
+                viewModelScope.launch {
+                    val uri = action.uri
+                    if (uri == null || uri.startsWith("http") || uri.startsWith("data:") || uri.isBlank() || uri.startsWith("builtin:") || (uri.startsWith("picked:") && !fileManager.isSupported)) {
+                        updateCharacterEdit {
+                            it.copy(voiceSampleUri = uri)
+                        }
+                    } else {
+                        runCatching {
+                            val bytes = readUriAsBytes(uri)
+                            val extension = uri.substringAfterLast('.', "mp3")
+                            val fileName = "temp_voice_${currentTimeMillis()}.$extension"
+                            val cachePath = fileManager.cacheDir / fileName.toPath()
+                            fileManager.writeBytes(cachePath, bytes)
+                            updateCharacterEdit {
+                                it.copy(voiceSampleUri = cachePath.toString())
+                            }
+                        }.onFailure {
+                            Napier.e("Failed to cache voice sample", it)
+                            updateCharacterEdit {
+                                it.copy(voiceSampleUri = uri)
+                            }
+                        }
+                    }
+                }
             }
             is CharacterAction.CharacterTemperatureChanged -> updateCharacterEdit {
                 it.copy(temperature = action.temperature.coerceIn(0.0, 2.0))
@@ -507,6 +564,12 @@ class ChatViewModel(
         updateCharacterEdit { it.copy(isSaving = true) }
         viewModelScope.launch {
             runCatching {
+                val finalAvatarUri = if (editState.avatarUri.startsWith(fileManager.cacheDir.toString())) {
+                    editState.avatarUri
+                } else {
+                    editState.avatarUri
+                }
+
                 if (characterId == null) {
                     val newId = "user_${currentTimeMillis()}"
                     val newCharacter = Character(
@@ -514,7 +577,7 @@ class ChatViewModel(
                         name = editState.name.trim(),
                         prompt = editState.prompt,
                         openingMessage = editState.openingMessage,
-                        avatarUri = editState.avatarUri,
+                        avatarUri = finalAvatarUri,
                         temperature = editState.temperature.coerceIn(0.0, 2.0),
                         topP = editState.topP.coerceIn(0.0, 1.0),
                         voiceSampleUri = editState.voiceSampleUri,
@@ -529,7 +592,7 @@ class ChatViewModel(
                             name = editState.name.trim(),
                             prompt = editState.prompt,
                             openingMessage = editState.openingMessage,
-                            avatarUri = editState.avatarUri,
+                            avatarUri = finalAvatarUri,
                             temperature = editState.temperature.coerceIn(0.0, 2.0),
                             topP = editState.topP.coerceIn(0.0, 1.0),
                             voiceSampleUri = editState.voiceSampleUri,

@@ -103,10 +103,12 @@ driver、provider 和日志出口等边界。
 - 选择文件优先使用FileKit，文件读写采用Okio 封装类 `KmpFileManager`，对于文件操作，不要自己写各平台实现。
 
 #### 两阶段落盘法 (Cache ➔ Files)
-当出现用户选择文件 → 后续可以保存入库的情况时，（比如AgentRoleEntity中的avatarUri和voiceSampleUri，MessageAttachmentEntity里面的uri）
+当出现用户选择文件 → 后续可以保存入库的情况时，（比如 `AgentRoleEntity` 中的 `avatarUri`和 `voiceSampleUri`，`MessageAttachmentEntity`里面的uri，还有 `AttachmentPanel`，用户选择添加附件）
 应采用“临时缓存 -> 确认入库”的策略：
 1. **阶段一（选择即缓存）：** 当用户选完文件后，立即将文件拷贝到 App 沙盒的【临时缓存目录 (Cache Dir)】中，并生成一个临时路径。
 2. **阶段二（确认才入库）：** 只有当用户在 UI 上真正点击了“保存/提交”按钮时，将文件从【临时缓存目录】移动到【正式私有目录 (Files Dir)】，并完成数据库入库。
+
+其他情况下，如果文件是需要转为uri存储到数据库的，都应该直接保存到应用私有目录中，使用私有目录中的uri。
 
 ### Room 数据库与持久化
 

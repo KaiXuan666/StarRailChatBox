@@ -19,6 +19,11 @@ interface KmpFileManager {
     val appDataDir: Path
 
     /**
+     * 应用的临时缓存目录。
+     */
+    val cacheDir: Path
+
+    /**
      * 用于文件操作的 okio FileSystem。
      */
     val fileSystem: FileSystem
@@ -31,6 +36,24 @@ interface KmpFileManager {
     }
     fun createDirectories(relativeName: String) {
         createDirectories(appDataDir / relativeName.toPath())
+    }
+
+    fun move(source: Path, target: Path) {
+        if (!isSupported) return
+        val parent = target.parent
+        if (parent != null) {
+            fileSystem.createDirectories(parent)
+        }
+        fileSystem.atomicMove(source, target)
+    }
+
+    fun copy(source: Path, target: Path) {
+        if (!isSupported) return
+        val parent = target.parent
+        if (parent != null) {
+            fileSystem.createDirectories(parent)
+        }
+        fileSystem.copy(source, target)
     }
 
     fun writeBytes(path: Path, bytes: ByteArray) {

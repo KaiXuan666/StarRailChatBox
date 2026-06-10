@@ -9,6 +9,8 @@ class JsFileManager : KmpFileManager {
 
     override val appDataDir: Path by lazy { "/tmp".toPath() }
 
+    override val cacheDir: Path by lazy { "/tmp/cache".toPath() }
+
     override val fileSystem: FileSystem
         get() = throw UnsupportedOperationException("FileSystem operations are not supported on JS Web platform.")
 

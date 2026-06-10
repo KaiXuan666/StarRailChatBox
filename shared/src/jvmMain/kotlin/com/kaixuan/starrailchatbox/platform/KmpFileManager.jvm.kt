@@ -17,6 +17,15 @@ class JvmFileManager : KmpFileManager {
         appDir.absolutePath.toPath()
     }
 
+    override val cacheDir: Path by lazy {
+        val tempDir = System.getProperty("java.io.tmpdir")
+        val appCacheDir = File(tempDir, "starrailchatbox_cache")
+        if (!appCacheDir.exists()) {
+            appCacheDir.mkdirs()
+        }
+        appCacheDir.absolutePath.toPath()
+    }
+
     override suspend fun saveImageToGallery(bytes: ByteArray, name: String) {
         val userHome = System.getProperty("user.home")
         val downloadsDir = File(userHome, "Downloads")

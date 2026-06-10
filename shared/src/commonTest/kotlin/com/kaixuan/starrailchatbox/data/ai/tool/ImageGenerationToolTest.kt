@@ -36,6 +36,7 @@ class ImageGenerationToolTest {
     private val fakeFileSystem = FakeFileSystem()
     private val mockFileManager = object : KmpFileManager {
         override val appDataDir: Path = "/app_data".toPath()
+        override val cacheDir: Path = "/cache".toPath()
         override val fileSystem: FileSystem = fakeFileSystem
         override suspend fun saveImageToGallery(bytes: ByteArray, name: String) {}
     }

@@ -7,8 +7,6 @@ import androidx.room.RoomDatabase
 import androidx.room.RoomDatabaseConstructor
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.kaixuan.starrailchatbox.data.character.DefaultCharacterRepository
-import com.kaixuan.starrailchatbox.data.character.FileCharacterAvatarStorage
-import com.kaixuan.starrailchatbox.data.character.FileCharacterVoiceSampleStorage
 import com.kaixuan.starrailchatbox.data.character.RoomCharacterStorage
 import com.kaixuan.starrailchatbox.data.chat.RoomChatSessionRepository
 import com.kaixuan.starrailchatbox.data.model.RoomModelConfigRepository
@@ -42,14 +40,6 @@ fun createPersistentRepositories(
         characterRepository = DefaultCharacterRepository(
             RoomCharacterStorage(
                 dao = database.agentRoleDao(),
-                avatarStorage = FileCharacterAvatarStorage(
-                    directory = context.filesDir.resolve("character_avatars"),
-                    context = context.applicationContext,
-                ),
-                voiceSampleStorage = FileCharacterVoiceSampleStorage(
-                    directory = context.filesDir.resolve("character_voice_samples"),
-                    context = context.applicationContext,
-                ),
             ),
         ),
         chatSessionRepository = RoomChatSessionRepository(database),

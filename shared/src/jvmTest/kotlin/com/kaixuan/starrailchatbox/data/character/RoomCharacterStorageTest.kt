@@ -4,19 +4,32 @@ import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.kaixuan.starrailchatbox.data.database.StarRailDatabase
 import com.kaixuan.starrailchatbox.data.database.StarRailDatabaseConstructor
+import com.kaixuan.starrailchatbox.platform.JvmFileManager
+import com.kaixuan.starrailchatbox.platform.KmpFileManager
 import java.nio.file.Files
 import kotlinx.coroutines.test.runTest
+import okio.FileSystem
+import okio.Path
+import okio.Path.Companion.toPath
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.test.assertFalse
 
 class RoomCharacterStorageTest {
+    private fun createMockFileManager(appDir: java.nio.file.Path, cacheDir: java.nio.file.Path) = object : KmpFileManager {
+        override val appDataDir: Path = appDir.toString().toPath()
+        override val cacheDir: Path = cacheDir.toString().toPath()
+        override val fileSystem: FileSystem = FileSystem.SYSTEM
+        override suspend fun saveImageToGallery(bytes: ByteArray, name: String) {}
+    }
+
     @Test
     fun importsDefaultsIntoAgentRoleWithoutOverwritingExistingRows() = runTest {
         val databasePath = Files.createTempFile("starrail-agent-role", ".db")
-        val avatarDirectory = Files.createTempDirectory("starrail-agent-avatars")
-        val voiceSampleDirectory = Files.createTempDirectory("starrail-agent-voice-samples")
+        val appDataDirectory = Files.createTempDirectory("starrail-agent-appdata")
+        val cacheDirectory = Files.createTempDirectory("starrail-agent-cache")
         val database = Room.databaseBuilder<StarRailDatabase>(
             name = databasePath.toString(),
             factory = StarRailDatabaseConstructor::initialize,
@@ -25,8 +38,7 @@ class RoomCharacterStorageTest {
             .build()
         val storage = RoomCharacterStorage(
             dao = database.agentRoleDao(),
-            avatarStorage = FileCharacterAvatarStorage(avatarDirectory.toFile()),
-            voiceSampleStorage = FileCharacterVoiceSampleStorage(voiceSampleDirectory.toFile()),
+            fileManager = createMockFileManager(appDataDirectory, cacheDirectory),
             currentTimeMillis = { 1_000L },
         )
         val initial = characterFiles("builtin:流萤", "流萤", "first")
@@ -39,7 +51,7 @@ class RoomCharacterStorageTest {
             assertTrue(stored.isBuiltin)
             assertEquals("first", stored.systemPrompt)
             assertEquals("今天要聊点什么呢？", stored.openingMessage)
-            assertTrue(stored.avatarUri.startsWith(avatarDirectory.toString()))
+            assertTrue(stored.avatarUri.contains(appDataDirectory.toString()))
             assertContentEquals(initial.avatarContent, Files.readAllBytes(java.nio.file.Path.of(stored.avatarUri)))
             assertEquals(
                 listOf("流萤", "三月七"),
@@ -61,16 +73,16 @@ class RoomCharacterStorageTest {
         } finally {
             database.close()
             Files.deleteIfExists(databasePath)
-            avatarDirectory.toFile().deleteRecursively()
-            voiceSampleDirectory.toFile().deleteRecursively()
+            appDataDirectory.toFile().deleteRecursively()
+            cacheDirectory.toFile().deleteRecursively()
         }
     }
 
     @Test
     fun saveCharacterNewAssignsNextMaxSortOrderAndExistingRetainsSortOrder() = runTest {
         val databasePath = Files.createTempFile("starrail-agent-role-save", ".db")
-        val avatarDirectory = Files.createTempDirectory("starrail-agent-avatars-save")
-        val voiceSampleDirectory = Files.createTempDirectory("starrail-agent-voice-samples-save")
+        val appDataDirectory = Files.createTempDirectory("starrail-agent-appdata-save")
+        val cacheDirectory = Files.createTempDirectory("starrail-agent-cache-save")
         val database = Room.databaseBuilder<StarRailDatabase>(
             name = databasePath.toString(),
             factory = StarRailDatabaseConstructor::initialize,
@@ -79,8 +91,7 @@ class RoomCharacterStorageTest {
             .build()
         val storage = RoomCharacterStorage(
             dao = database.agentRoleDao(),
-            avatarStorage = FileCharacterAvatarStorage(avatarDirectory.toFile()),
-            voiceSampleStorage = FileCharacterVoiceSampleStorage(voiceSampleDirectory.toFile()),
+            fileManager = createMockFileManager(appDataDirectory, cacheDirectory),
             currentTimeMillis = { 1_000L },
         )
 
@@ -93,6 +104,10 @@ class RoomCharacterStorageTest {
             assertEquals(1, database.agentRoleDao().findById("builtin:三月七")?.sortOrder)
 
             val newChar = characterFiles("custom:流萤2号", "流萤2号", "custom prompt")
+            val avatarBytes = byteArrayOf(4, 5, 6)
+            val tempAvatar = Files.createTempFile(cacheDirectory, "temp_avatar", ".webp")
+            Files.write(tempAvatar, avatarBytes)
+
             storage.saveCharacter(
                 CharacterFiles(
                     id = newChar.id,
@@ -101,12 +116,13 @@ class RoomCharacterStorageTest {
                     openingMessage = newChar.openingMessage,
                     avatarUri = "",
                 ),
-                CharacterAvatarSource(createAvatarSource(byteArrayOf(4, 5, 6))),
+                CharacterAvatarSource(tempAvatar.toString()),
             )
 
             val storedNew = requireNotNull(database.agentRoleDao().findById("custom:流萤2号"))
             assertEquals(2, storedNew.sortOrder)
-            assertContentEquals(byteArrayOf(4, 5, 6), Files.readAllBytes(java.nio.file.Path.of(storedNew.avatarUri)))
+            assertContentEquals(avatarBytes, Files.readAllBytes(java.nio.file.Path.of(storedNew.avatarUri)))
+            assertFalse(Files.exists(tempAvatar), "Cache file should be moved")
 
             val updatedInitial = characterFiles("builtin:流萤", "流萤新版", "new prompt")
             storage.saveCharacter(
@@ -126,16 +142,16 @@ class RoomCharacterStorageTest {
         } finally {
             database.close()
             Files.deleteIfExists(databasePath)
-            avatarDirectory.toFile().deleteRecursively()
-            voiceSampleDirectory.toFile().deleteRecursively()
+            appDataDirectory.toFile().deleteRecursively()
+            cacheDirectory.toFile().deleteRecursively()
         }
     }
 
     @Test
     fun replacingAvatarOverwritesOwnedAvatarAndDeleteCharacterRemovesAvatarFile() = runTest {
         val databasePath = Files.createTempFile("starrail-agent-role-delete", ".db")
-        val avatarDirectory = Files.createTempDirectory("starrail-agent-avatars-delete")
-        val voiceSampleDirectory = Files.createTempDirectory("starrail-agent-voice-samples-delete")
+        val appDataDirectory = Files.createTempDirectory("starrail-agent-appdata-delete")
+        val cacheDirectory = Files.createTempDirectory("starrail-agent-cache-delete")
         val database = Room.databaseBuilder<StarRailDatabase>(
             name = databasePath.toString(),
             factory = StarRailDatabaseConstructor::initialize,
@@ -144,8 +160,7 @@ class RoomCharacterStorageTest {
             .build()
         val storage = RoomCharacterStorage(
             dao = database.agentRoleDao(),
-            avatarStorage = FileCharacterAvatarStorage(avatarDirectory.toFile()),
-            voiceSampleStorage = FileCharacterVoiceSampleStorage(voiceSampleDirectory.toFile()),
+            fileManager = createMockFileManager(appDataDirectory, cacheDirectory),
             currentTimeMillis = { 1_000L },
         )
 
@@ -153,6 +168,10 @@ class RoomCharacterStorageTest {
             val initial = characterFiles("builtin:流萤", "流萤", "first")
             storage.initializeDefaults(listOf(initial))
             val oldAvatarUri = requireNotNull(database.agentRoleDao().findById(initial.id)).avatarUri
+
+            val avatarBytes = byteArrayOf(9, 8, 7)
+            val tempAvatar = Files.createTempFile(cacheDirectory, "temp_avatar", ".webp")
+            Files.write(tempAvatar, avatarBytes)
 
             val saved = storage.saveCharacter(
                 CharacterFiles(
@@ -162,11 +181,12 @@ class RoomCharacterStorageTest {
                     openingMessage = initial.openingMessage,
                     avatarUri = oldAvatarUri,
                 ),
-                CharacterAvatarSource(createAvatarSource(byteArrayOf(9, 8, 7))),
+                CharacterAvatarSource(tempAvatar.toString()),
             )
 
-            assertEquals(oldAvatarUri, saved.avatarUri)
-            assertContentEquals(byteArrayOf(9, 8, 7), Files.readAllBytes(java.nio.file.Path.of(saved.avatarUri)))
+            assertTrue(saved.avatarUri.contains(appDataDirectory.toString()))
+            assertContentEquals(avatarBytes, Files.readAllBytes(java.nio.file.Path.of(saved.avatarUri)))
+            assertFalse(Files.exists(java.nio.file.Path.of(oldAvatarUri)), "Old avatar should be deleted")
 
             storage.deleteCharacter(initial.id, deletedAt = 2_000L)
 
@@ -175,8 +195,8 @@ class RoomCharacterStorageTest {
         } finally {
             database.close()
             Files.deleteIfExists(databasePath)
-            avatarDirectory.toFile().deleteRecursively()
-            voiceSampleDirectory.toFile().deleteRecursively()
+            appDataDirectory.toFile().deleteRecursively()
+            cacheDirectory.toFile().deleteRecursively()
         }
     }
 }

@@ -3,11 +3,13 @@ package com.kaixuan.starrailchatbox.data.character
 import com.kaixuan.starrailchatbox.data.database.dao.AgentRoleDao
 import com.kaixuan.starrailchatbox.data.database.entity.AgentRoleEntity
 import com.kaixuan.starrailchatbox.data.database.entity.AgentRoleSummaryEntity
+import com.kaixuan.starrailchatbox.platform.KmpFileManager
+import okio.Path
+import okio.Path.Companion.toPath
 
 class RoomCharacterStorage(
     private val dao: AgentRoleDao,
-    private val avatarStorage: CharacterAvatarStorage,
-    private val voiceSampleStorage: CharacterVoiceSampleStorage,
+    private val fileManager: KmpFileManager = KmpFileManager.Default,
     private val currentTimeMillis: () -> Long = { kotlin.time.Clock.System.now().toEpochMilliseconds() },
 ) : CharacterStorage {
     override suspend fun initializeDefaults(defaults: List<DefaultCharacterAsset>) {
@@ -16,9 +18,16 @@ class RoomCharacterStorage(
             if (dao.containsId(character.id)) {
                 null
             } else {
-                val avatarUri = avatarStorage.saveBytes(character.id, character.avatarContent)
+                val avatarFileName = characterAvatarFileName(character.id)
+                val avatarRelativePath = "character_avatars/$avatarFileName"
+                fileManager.writeBytes(avatarRelativePath, character.avatarContent)
+                val avatarUri = (fileManager.appDataDir / avatarRelativePath.toPath()).toString()
+
                 val voiceSampleUri = character.voiceSampleContent?.let { bytes ->
-                    voiceSampleStorage.saveBytes(character.id, bytes)
+                    val voiceFileName = characterVoiceSampleFileName(character.id)
+                    val voiceRelativePath = "character_voice_samples/$voiceFileName"
+                    fileManager.writeBytes(voiceRelativePath, bytes)
+                    (fileManager.appDataDir / voiceRelativePath.toPath()).toString()
                 }
                 AgentRoleEntity(
                     id = character.id,
@@ -50,6 +59,11 @@ class RoomCharacterStorage(
         return dao.findById(id)?.toCharacterFiles()
     }
 
+    private fun characterSafeFileName(characterId: String): String {
+        return characterId.encodeToByteArray()
+            .joinToString(separator = "") { byte -> byte.toUByte().toString(16).padStart(2, '0') }
+    }
+
     override suspend fun saveCharacter(
         character: CharacterFiles,
         avatarSource: CharacterAvatarSource?,
@@ -57,18 +71,35 @@ class RoomCharacterStorage(
         val existing = dao.findById(character.id)
         val now = currentTimeMillis()
         val oldAvatarUri = existing?.avatarUri
-        val avatarUri = avatarSource
-            ?.let { avatarStorage.copyFrom(character.id, it.uri) }
-            ?: character.avatarUri.takeIf(String::isNotBlank)
-            ?: oldAvatarUri.orEmpty()
+        
+        val avatarUri = if (avatarSource != null) {
+            val sourceUri = avatarSource.uri
+            if (sourceUri.startsWith(fileManager.cacheDir.toString())) {
+                val extension = sourceUri.substringAfterLast('.', "webp")
+                val safeId = characterSafeFileName(character.id)
+                val targetFileName = "${safeId}_${now}.$extension"
+                val targetPath = fileManager.appDataDir / "character_avatars".toPath() / targetFileName.toPath()
+                fileManager.move(sourceUri.toPath(), targetPath)
+                targetPath.toString()
+            } else {
+                sourceUri.takeIf(String::isNotBlank) ?: oldAvatarUri.orEmpty()
+            }
+        } else {
+            character.avatarUri.takeIf(String::isNotBlank) ?: oldAvatarUri.orEmpty()
+        }
 
         val oldVoiceSampleUri = existing?.voiceSampleUri
         val voiceSampleUri = if (character.voiceSampleUri != oldVoiceSampleUri) {
             character.voiceSampleUri?.let { uri ->
-                if (uri.startsWith("builtin:") || uri.isBlank()) {
-                    uri
+                if (uri.startsWith(fileManager.cacheDir.toString())) {
+                    val extension = uri.substringAfterLast('.', "mp3")
+                    val safeId = characterSafeFileName(character.id)
+                    val targetFileName = "${safeId}_${now}.$extension"
+                    val targetPath = fileManager.appDataDir / "character_voice_samples".toPath() / targetFileName.toPath()
+                    fileManager.move(uri.toPath(), targetPath)
+                    targetPath.toString()
                 } else {
-                    voiceSampleStorage.copyFrom(character.id, uri)
+                    uri
                 }
             }
         } else {
@@ -92,12 +123,18 @@ class RoomCharacterStorage(
             ),
         )
         if (avatarSource != null && oldAvatarUri != null && oldAvatarUri != avatarUri) {
-            avatarStorage.delete(oldAvatarUri)
+            deleteFileIfAppOwned(oldAvatarUri)
         }
         if (character.voiceSampleUri != oldVoiceSampleUri && oldVoiceSampleUri != null && oldVoiceSampleUri != voiceSampleUri) {
-            voiceSampleStorage.delete(oldVoiceSampleUri)
+            deleteFileIfAppOwned(oldVoiceSampleUri)
         }
         return character.copy(avatarUri = avatarUri, voiceSampleUri = voiceSampleUri, sortOrder = sortOrder)
+    }
+
+    private fun deleteFileIfAppOwned(uri: String) {
+        if (uri.startsWith(fileManager.appDataDir.toString())) {
+            fileManager.delete(uri.toPath())
+        }
     }
 
     override suspend fun updateSortOrder(id: String, sortOrder: Int) {
@@ -112,8 +149,8 @@ class RoomCharacterStorage(
         check(dao.softDelete(id, deletedAt) == 1) {
             "Character does not exist: $id"
         }
-        avatarStorage.delete(existing.avatarUri)
-        existing.voiceSampleUri?.let { voiceSampleStorage.delete(it) }
+        deleteFileIfAppOwned(existing.avatarUri)
+        existing.voiceSampleUri?.let { deleteFileIfAppOwned(it) }
     }
 
     private fun CharacterFiles.toEntity(

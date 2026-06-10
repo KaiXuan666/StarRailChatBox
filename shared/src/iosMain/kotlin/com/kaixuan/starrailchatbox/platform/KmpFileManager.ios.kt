@@ -26,6 +26,21 @@ class IosFileManager : KmpFileManager {
         directoryPath.toPath()
     }
 
+    @OptIn(ExperimentalForeignApi::class)
+    override val cacheDir: Path by lazy {
+        val directory = NSFileManager.defaultManager.URLForDirectory(
+            directory = platform.Foundation.NSCachesDirectory,
+            inDomain = NSUserDomainMask,
+            appropriateForURL = null,
+            create = true,
+            error = null,
+        )
+        val directoryPath = requireNotNull(directory?.path) {
+            "Failed to retrieve iOS NSCachesDirectory path"
+        }
+        directoryPath.toPath()
+    }
+
     override suspend fun saveImageToGallery(bytes: ByteArray, name: String) {
         // TODO: Implement iOS photo gallery saving
     }

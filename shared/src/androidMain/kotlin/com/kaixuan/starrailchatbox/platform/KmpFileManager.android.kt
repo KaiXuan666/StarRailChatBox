@@ -21,6 +21,13 @@ class AndroidFileManager : KmpFileManager {
         context.filesDir.absolutePath.toPath()
     }
 
+    override val cacheDir: Path by lazy {
+        val context = requireNotNull(AndroidContextHolder.context) {
+            "Android context must be initialized before using KmpFileManager."
+        }
+        context.cacheDir.absolutePath.toPath()
+    }
+
     override suspend fun saveImageToGallery(bytes: ByteArray, name: String) {
         val context = requireNotNull(AndroidContextHolder.context)
         withContext(Dispatchers.IO) {
