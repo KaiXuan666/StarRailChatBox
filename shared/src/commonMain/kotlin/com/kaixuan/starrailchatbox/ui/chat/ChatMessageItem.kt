@@ -36,6 +36,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.data.chat.MessageAttachment
@@ -216,7 +217,8 @@ fun ReceivedMessage(
                         Box(Modifier.align(Alignment.TopEnd)) {
                             DropdownMenu(
                                 expanded = showMenu,
-                                onDismissRequest = { showMenu = false }
+                                onDismissRequest = { showMenu = false },
+                                offset = DpOffset(x = 0.dp, y = (-48).dp)
                             ) {
                                 DropdownMenuItem(
                                     text = { Text(stringResource(Res.string.action_copy)) },
@@ -388,7 +390,8 @@ fun SentMessage(
                         Box(Modifier.align(Alignment.TopEnd)) {
                             DropdownMenu(
                                 expanded = showMenu,
-                                onDismissRequest = { showMenu = false }
+                                onDismissRequest = { showMenu = false },
+                                offset = DpOffset(x = 0.dp, y = (-48).dp)
                             ) {
                                 DropdownMenuItem(
                                     text = { Text(stringResource(Res.string.action_copy)) },
