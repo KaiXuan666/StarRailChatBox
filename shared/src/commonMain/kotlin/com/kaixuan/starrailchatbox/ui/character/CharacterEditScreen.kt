@@ -82,8 +82,8 @@ import starrailchatbox.shared.generated.resources.settings_saving
 import kotlin.math.roundToInt
 
 private const val MaxCharacterNameLength = 40
-private const val MaxPromptLength = 5000
-private const val MaxOpeningMessageLength = 200
+private const val MaxPromptLength = 10000
+private const val MaxOpeningMessageLength = 1000
 
 @Composable
 fun CharacterEditScreen(
