@@ -417,6 +417,22 @@ class ChatViewModel(
                 }
             }
             is CharacterAction.CharactersReordered -> reorderCharacters(action.orderedCharacters)
+            CharacterAction.CharacterRestoreDefaultClicked -> {
+                val characterId = characterUiState.value.characterEdit.characterId ?: return
+                viewModelScope.launch {
+                    characterRepository.getDefaultCharacter(characterId)?.let { default ->
+                        updateCharacterEdit {
+                            it.copy(
+                                name = default.name,
+                                prompt = default.prompt,
+                                openingMessage = default.openingMessage,
+                                temperature = default.temperature,
+                                topP = default.topP,
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 

@@ -65,6 +65,7 @@ import starrailchatbox.shared.generated.resources.character_edit_delete_confirm_
 import starrailchatbox.shared.generated.resources.character_edit_name
 import starrailchatbox.shared.generated.resources.character_edit_opening_message
 import starrailchatbox.shared.generated.resources.character_edit_save
+import starrailchatbox.shared.generated.resources.character_edit_restore_default
 import starrailchatbox.shared.generated.resources.character_edit_system_prompt
 import starrailchatbox.shared.generated.resources.character_edit_temperature
 import starrailchatbox.shared.generated.resources.character_edit_temperature_hint
@@ -209,6 +210,38 @@ fun CharacterEditScreen(
             hint = stringResource(Res.string.character_edit_top_p_hint),
             onValueChange = { onAction(CharacterAction.CharacterTopPChanged(it)) },
         )
+
+        if (editState.characterId?.startsWith("builtin:") == true) {
+            Surface(
+                onClick = { onAction(CharacterAction.CharacterRestoreDefaultClicked) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                shape = MaterialTheme.shapes.extraLarge,
+                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f)),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        StarRailIcon(
+                            kind = StarRailIconKind.SPARKLE,
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.secondary,
+                            contentDescription = null
+                        )
+                        Text(
+                            text = stringResource(Res.string.character_edit_restore_default),
+                            color = MaterialTheme.colorScheme.secondary,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            }
+        }
 
         Row(
             modifier = Modifier.fillMaxWidth(),

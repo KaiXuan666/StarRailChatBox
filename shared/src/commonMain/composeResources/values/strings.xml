@@ -93,6 +93,7 @@
     <string name="character_edit_prompt_gen_generating">生成中...</string>
     <string name="character_edit_prompt_gen_failed">自动生成提示词失败，请检查 API 配置和网络状态</string>
     <string name="character_edit_save">保存</string>
+    <string name="character_edit_restore_default">恢复默认</string>
     <string name="character_edit_delete">删除角色</string>
     <string name="character_edit_delete_confirm_title">删除角色？</string>
     <string name="character_edit_delete_confirm_message">确定删除“%1$s”吗？</string>

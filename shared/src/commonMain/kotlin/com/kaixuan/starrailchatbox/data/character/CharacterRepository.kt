@@ -86,6 +86,8 @@ interface CharacterRepository {
     suspend fun updateSortOrder(id: String, sortOrder: Int)
 
     suspend fun deleteCharacter(id: String, deletedAt: Long)
+
+    suspend fun getDefaultCharacter(id: String): Character?
 }
 
 class DefaultCharacterRepository(
@@ -152,6 +154,19 @@ class DefaultCharacterRepository(
 
     override suspend fun deleteCharacter(id: String, deletedAt: Long) {
         storage.deleteCharacter(id, deletedAt)
+    }
+
+    override suspend fun getDefaultCharacter(id: String): Character? {
+        val asset = defaultAssets().find { it.id == id } ?: return null
+        return Character(
+            id = asset.id,
+            name = asset.name,
+            prompt = asset.prompt,
+            openingMessage = asset.openingMessage,
+            avatarUri = "", // 对于内置角色，通常由 storage 在初始化时确定，这里暂设为空
+            temperature = asset.temperature,
+            topP = asset.topP,
+        )
     }
 }
 
