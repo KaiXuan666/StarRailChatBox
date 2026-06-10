@@ -81,7 +81,7 @@ class ToolCallCoordinator(
                 request.copy(
                     messages = messages,
                     tools = tools.map { tool -> tool.definition(context) },
-                    toolChoice = if (tools.isEmpty()) ToolChoice.None else ToolChoice.Required,
+                    toolChoice = ToolChoice.Auto,
                 ),
             )
             val completion = when (providerResult) {
