@@ -4,6 +4,7 @@ import com.kaixuan.starrailchatbox.data.database.dao.AgentRoleDao
 import com.kaixuan.starrailchatbox.data.database.entity.AgentRoleEntity
 import com.kaixuan.starrailchatbox.data.database.entity.AgentRoleSummaryEntity
 import com.kaixuan.starrailchatbox.platform.KmpFileManager
+import io.github.aakira.napier.Napier
 import okio.Path
 import okio.Path.Companion.toPath
 
@@ -123,9 +124,11 @@ class RoomCharacterStorage(
             ),
         )
         if (avatarSource != null && oldAvatarUri != null && oldAvatarUri != avatarUri) {
+            Napier.d { "删除老文件判断 avatarSource=$avatarSource, oldAvatarUri+$oldAvatarUri avatarUri=$avatarUri" }
             deleteFileIfAppOwned(oldAvatarUri)
         }
         if (character.voiceSampleUri != oldVoiceSampleUri && oldVoiceSampleUri != null && oldVoiceSampleUri != voiceSampleUri) {
+            Napier.d { "删除老语音判断 oldVoiceSampleUri=$oldVoiceSampleUri, voiceSampleUri=$voiceSampleUri" }
             deleteFileIfAppOwned(oldVoiceSampleUri)
         }
         return character.copy(avatarUri = avatarUri, voiceSampleUri = voiceSampleUri, sortOrder = sortOrder)
