@@ -16,6 +16,7 @@ class RoomCharacterStorageTest {
     fun importsDefaultsIntoAgentRoleWithoutOverwritingExistingRows() = runTest {
         val databasePath = Files.createTempFile("starrail-agent-role", ".db")
         val avatarDirectory = Files.createTempDirectory("starrail-agent-avatars")
+        val voiceSampleDirectory = Files.createTempDirectory("starrail-agent-voice-samples")
         val database = Room.databaseBuilder<StarRailDatabase>(
             name = databasePath.toString(),
             factory = StarRailDatabaseConstructor::initialize,
@@ -25,6 +26,7 @@ class RoomCharacterStorageTest {
         val storage = RoomCharacterStorage(
             dao = database.agentRoleDao(),
             avatarStorage = FileCharacterAvatarStorage(avatarDirectory.toFile()),
+            voiceSampleStorage = FileCharacterVoiceSampleStorage(voiceSampleDirectory.toFile()),
             currentTimeMillis = { 1_000L },
         )
         val initial = characterFiles("builtin:流萤", "流萤", "first")
@@ -60,6 +62,7 @@ class RoomCharacterStorageTest {
             database.close()
             Files.deleteIfExists(databasePath)
             avatarDirectory.toFile().deleteRecursively()
+            voiceSampleDirectory.toFile().deleteRecursively()
         }
     }
 
@@ -67,6 +70,7 @@ class RoomCharacterStorageTest {
     fun saveCharacterNewAssignsNextMaxSortOrderAndExistingRetainsSortOrder() = runTest {
         val databasePath = Files.createTempFile("starrail-agent-role-save", ".db")
         val avatarDirectory = Files.createTempDirectory("starrail-agent-avatars-save")
+        val voiceSampleDirectory = Files.createTempDirectory("starrail-agent-voice-samples-save")
         val database = Room.databaseBuilder<StarRailDatabase>(
             name = databasePath.toString(),
             factory = StarRailDatabaseConstructor::initialize,
@@ -76,6 +80,7 @@ class RoomCharacterStorageTest {
         val storage = RoomCharacterStorage(
             dao = database.agentRoleDao(),
             avatarStorage = FileCharacterAvatarStorage(avatarDirectory.toFile()),
+            voiceSampleStorage = FileCharacterVoiceSampleStorage(voiceSampleDirectory.toFile()),
             currentTimeMillis = { 1_000L },
         )
 
@@ -122,6 +127,7 @@ class RoomCharacterStorageTest {
             database.close()
             Files.deleteIfExists(databasePath)
             avatarDirectory.toFile().deleteRecursively()
+            voiceSampleDirectory.toFile().deleteRecursively()
         }
     }
 
@@ -129,6 +135,7 @@ class RoomCharacterStorageTest {
     fun replacingAvatarOverwritesOwnedAvatarAndDeleteCharacterRemovesAvatarFile() = runTest {
         val databasePath = Files.createTempFile("starrail-agent-role-delete", ".db")
         val avatarDirectory = Files.createTempDirectory("starrail-agent-avatars-delete")
+        val voiceSampleDirectory = Files.createTempDirectory("starrail-agent-voice-samples-delete")
         val database = Room.databaseBuilder<StarRailDatabase>(
             name = databasePath.toString(),
             factory = StarRailDatabaseConstructor::initialize,
@@ -138,6 +145,7 @@ class RoomCharacterStorageTest {
         val storage = RoomCharacterStorage(
             dao = database.agentRoleDao(),
             avatarStorage = FileCharacterAvatarStorage(avatarDirectory.toFile()),
+            voiceSampleStorage = FileCharacterVoiceSampleStorage(voiceSampleDirectory.toFile()),
             currentTimeMillis = { 1_000L },
         )
 
@@ -168,6 +176,7 @@ class RoomCharacterStorageTest {
             database.close()
             Files.deleteIfExists(databasePath)
             avatarDirectory.toFile().deleteRecursively()
+            voiceSampleDirectory.toFile().deleteRecursively()
         }
     }
 }

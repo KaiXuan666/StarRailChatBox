@@ -673,6 +673,8 @@ private object FakeCharacterRepository : CharacterRepository {
     override suspend fun updateSortOrder(id: String, sortOrder: Int) = Unit
 
     override suspend fun deleteCharacter(id: String, deletedAt: Long) = Unit
+
+    override suspend fun getDefaultCharacter(id: String): Character? = getCharacter(id)
 }
 
 private object NoOpeningCharacterRepository : CharacterRepository {
@@ -696,6 +698,8 @@ private object NoOpeningCharacterRepository : CharacterRepository {
     override suspend fun updateSortOrder(id: String, sortOrder: Int) = Unit
 
     override suspend fun deleteCharacter(id: String, deletedAt: Long) = Unit
+
+    override suspend fun getDefaultCharacter(id: String): Character? = getCharacter(id)
 }
 
 private class EditableCharacterRepository(
@@ -739,6 +743,8 @@ private class EditableCharacterRepository(
     override suspend fun deleteCharacter(id: String, deletedAt: Long) {
         characters = characters.filterNot { it.id == id }
     }
+
+    override suspend fun getDefaultCharacter(id: String): Character? = getCharacter(id)
 }
 
 private open class FakeOpenAiRepository : AiRepository {
@@ -845,7 +851,7 @@ private fun testConfig() = ModelConfig(
 )
 
 private class FakeProfileStore(
-    initial: UserProfile? = UserProfile("星空旅人", null)
+    initial: UserProfile? = UserProfile("星空旅人", 20)
 ) : ProfileStore {
     private val _profile = MutableStateFlow(initial)
     override val profile: Flow<UserProfile?> = _profile

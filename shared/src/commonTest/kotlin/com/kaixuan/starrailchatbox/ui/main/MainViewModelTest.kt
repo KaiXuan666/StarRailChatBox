@@ -1,5 +1,6 @@
 package com.kaixuan.starrailchatbox.ui.main
 
+import com.kaixuan.starrailchatbox.data.settings.InMemoryAppSettingsStore
 import com.kaixuan.starrailchatbox.ui.navigation.Route
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -13,7 +14,7 @@ class MainViewModelTest {
 
     @Test
     fun initialStateIsCorrect() {
-        val viewModel = MainViewModel()
+        val viewModel = MainViewModel(InMemoryAppSettingsStore())
         val state = viewModel.uiState.value
 
         assertEquals(listOf(Route.ChatSession), state.backStack)
@@ -23,7 +24,7 @@ class MainViewModelTest {
 
     @Test
     fun navigationSelectedUpdatesBackStack() {
-        val viewModel = MainViewModel()
+        val viewModel = MainViewModel(InMemoryAppSettingsStore())
 
         viewModel.onAction(MainAction.NavigationSelected(Route.Settings))
 
@@ -32,7 +33,7 @@ class MainViewModelTest {
 
     @Test
     fun navigateToPushesSecondaryRoute() {
-        val viewModel = MainViewModel()
+        val viewModel = MainViewModel(InMemoryAppSettingsStore())
 
         viewModel.onAction(MainAction.NavigateTo(Route.ConversationManagement))
 
@@ -46,7 +47,7 @@ class MainViewModelTest {
 
     @Test
     fun popBackStackDoesNothingWhenOnlyOneElement() {
-        val viewModel = MainViewModel()
+        val viewModel = MainViewModel(InMemoryAppSettingsStore())
 
         viewModel.onAction(MainAction.PopBackStack)
 
@@ -55,7 +56,7 @@ class MainViewModelTest {
 
     @Test
     fun popBackStackRemovesLastElement() {
-        val viewModel = MainViewModel()
+        val viewModel = MainViewModel(InMemoryAppSettingsStore())
 
         // 压入一个
         viewModel.onAction(MainAction.SettingsItemClicked(MainSettingsItem.API_SETTINGS))
@@ -68,7 +69,7 @@ class MainViewModelTest {
 
     @Test
     fun settingsItemClickedTriggersCorrectFlow() {
-        val viewModel = MainViewModel()
+        val viewModel = MainViewModel(InMemoryAppSettingsStore())
 
         // 点击 API 设置
         viewModel.onAction(MainAction.SettingsItemClicked(MainSettingsItem.API_SETTINGS))
@@ -81,7 +82,7 @@ class MainViewModelTest {
 
     @Test
     fun themeDialogConfirmUpdatesThemeAndEmitsEffect() = runTest {
-        val viewModel = MainViewModel()
+        val viewModel = MainViewModel(InMemoryAppSettingsStore())
 
         viewModel.onAction(MainAction.ThemeDialogConfirm(true))
 
@@ -96,7 +97,7 @@ class MainViewModelTest {
 
     @Test
     fun themeDialogDismissClosesDialog() {
-        val viewModel = MainViewModel()
+        val viewModel = MainViewModel(InMemoryAppSettingsStore())
 
         viewModel.onAction(MainAction.SettingsItemClicked(MainSettingsItem.THEME_STYLE))
         assertTrue(viewModel.uiState.value.showThemeDialog)

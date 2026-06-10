@@ -41,6 +41,7 @@ sealed interface ToolResult {
         val suggestions: List<String> = emptyList(),
         val voiceAttachmentUri: String? = null,
         val voiceDurationMs: Long? = null,
+        val imageAttachmentUri: String? = null,
     ) : ToolResult
 
 

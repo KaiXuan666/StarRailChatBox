@@ -1,5 +1,7 @@
 package com.kaixuan.starrailchatbox.ui.profile
 
+import com.kaixuan.starrailchatbox.data.database.DatabaseManager
+import com.kaixuan.starrailchatbox.data.database.InMemoryDatabaseManager
 import com.kaixuan.starrailchatbox.data.settings.ProfileStore
 import com.kaixuan.starrailchatbox.data.settings.UserProfile
 import kotlinx.coroutines.flow.Flow
@@ -114,9 +116,11 @@ class ProfileViewModelTest {
 
     private fun createViewModel(
         store: ProfileStore = FakeProfileStore(),
-        scope: kotlinx.coroutines.CoroutineScope
+        scope: kotlinx.coroutines.CoroutineScope,
+        databaseManager: DatabaseManager = InMemoryDatabaseManager()
     ) = ProfileViewModel(
         profileStore = store,
+        databaseManager = databaseManager,
         coroutineScope = scope
     )
 }
