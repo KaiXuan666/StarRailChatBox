@@ -71,16 +71,17 @@ class SettingsViewModel(
             Napier.d { "settings=$settings" }
             Napier.d { "mmSettings=$mmSettings" }
             _uiState.update { state ->
-                fun String?.resolveHost(fallbackHost: String) =
-                    this?.takeIf(String::isNotBlank)
-                        ?: defaultApiSettings.apiHost.takeIf(String::isNotBlank)
-                        ?: fallbackHost
+                // 1. 提取 Host 解析逻辑
+                fun resolveHost(dbHost: String?, currentHost: String, useDefaultHost: Boolean = false) =
+                    dbHost?.takeIf(String::isNotBlank)
+                        ?: (if (useDefaultHost) defaultApiSettings.apiHost.takeIf(String::isNotBlank) else null)
+                        ?: currentHost
 
-                // 3. 提取 Key 提取逻辑
-                fun String?.resolveKey() =
-                    this?.takeIf(String::isNotBlank)
-                        ?: defaultApiSettings.apiKey.takeIf(String::isNotBlank)
-                        ?: ""
+                // 2. 提取 Key 提取逻辑
+                fun resolveKey(dbKey: String?, currentKey: String, useDefaultKey: Boolean = false) =
+                    dbKey?.takeIf(String::isNotBlank)
+                        ?: (if (useDefaultKey) defaultApiSettings.apiKey.takeIf(String::isNotBlank) else null)
+                        ?: currentKey
 
                 // 4. 提取 Model 列表过滤逻辑
                 fun createModelList(vararg models: String?) =
@@ -94,27 +95,27 @@ class SettingsViewModel(
 
                 state.copy(
                     // 标准模型配置
-                    apiHost = settings?.baseUrl.resolveHost(state.apiHost),
-                    apiKey = settings?.apiKey.resolveKey(),
+                    apiHost = resolveHost(settings?.baseUrl, state.apiHost, useDefaultHost = true),
+                    apiKey = resolveKey(settings?.apiKey, state.apiKey, useDefaultKey = true),
                     selectedModel = model,
                     modelsList = createModelList(model),
 
                     // 多模态模型配置
-                    multimodalApiHost = mmSettings?.baseUrl.resolveHost(state.multimodalApiHost),
-                    multimodalApiKey = mmSettings?.apiKey.resolveKey(),
+                    multimodalApiHost = resolveHost(mmSettings?.baseUrl, state.multimodalApiHost),
+                    multimodalApiKey = resolveKey(mmSettings?.apiKey, state.multimodalApiKey),
                     multimodalSelectedModel = mmModel,
                     multimodalModelsList = createModelList(mmModel),
 
                     // 语音模型配置
-                    voiceApiHost = voiceSettings?.baseUrl.resolveHost(state.voiceApiHost),
-                    voiceApiKey = voiceSettings?.apiKey.resolveKey(),
+                    voiceApiHost = resolveHost(voiceSettings?.baseUrl, state.voiceApiHost),
+                    voiceApiKey = resolveKey(voiceSettings?.apiKey, state.voiceApiKey),
                     voiceSelectedModel = voiceModel,
                     voiceSelectedCloneModel = voiceCloneModel,
                     voiceModelsList = createModelList(voiceModel, voiceCloneModel),
 
                     // 图片生成配置
-                    imageGenerationApiHost = imageGenSettings?.baseUrl.resolveHost(state.imageGenerationApiHost),
-                    imageGenerationApiKey = imageGenSettings?.apiKey.resolveKey(),
+                    imageGenerationApiHost = resolveHost(imageGenSettings?.baseUrl, state.imageGenerationApiHost),
+                    imageGenerationApiKey = resolveKey(imageGenSettings?.apiKey, state.imageGenerationApiKey),
                     imageGenerationSelectedModel = imageGenModel,
                     imageGenerationModelsList = createModelList(imageGenModel)
                 )
@@ -343,7 +344,11 @@ class SettingsViewModel(
         val sortedModels = if (isVoice) {
             models.sortedByDescending { it.contains("tts", ignoreCase = true) }
         } else if (isImageGeneration) {
-            models.sortedByDescending { it.contains("dall-e", ignoreCase = true) || it.contains("flux", ignoreCase = true) }
+            models.sortedByDescending { 
+                it.contains("image", ignoreCase = true) || 
+                it.contains("dall-e", ignoreCase = true) || 
+                it.contains("flux", ignoreCase = true) 
+            }
         } else {
             models
         }
@@ -415,8 +420,13 @@ class SettingsViewModel(
             else -> state.selectedModel
         }
 
-        if (!hasValidApiSettings(apiHost, apiKey) || selectedModel.isBlank()) {
+        if (!hasValidApiSettings(apiHost, apiKey)) {
             emitMessage(SettingsEffectMessage.SETTINGS_API_INVALID)
+            return
+        }
+
+        if (selectedModel.isBlank()) {
+            emitMessage(SettingsEffectMessage.SETTINGS_API_NO_MODELS)
             return
         }
 

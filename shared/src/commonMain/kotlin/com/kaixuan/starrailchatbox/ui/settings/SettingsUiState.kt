@@ -35,7 +35,7 @@ data class SettingsUiState(
     val voiceIsSaving: Boolean = false,
 
     // 图片生成 API 设置
-    val imageGenerationApiHost: String = "https://api.openai.com/v1",
+    val imageGenerationApiHost: String = "https://dashscope.aliyuncs.com/compatible-mode/v1",
     val imageGenerationApiKey: String = "",
     val imageGenerationShowApiKey: Boolean = false,
     val imageGenerationModelsList: List<String> = emptyList(),
