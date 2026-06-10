@@ -1005,17 +1005,23 @@ class ChatViewModel(
         val originalHistory = context.messages.filter { it.seq < lastUserMessage.seq }
         val saveMultimodalToken = profileStore.load()?.saveMultimodalToken ?: false
 
-        val history = if (saveMultimodalToken) {
-            originalHistory.map { msg ->
-                if (msg.attachments.isNotEmpty()) {
-                    val attachmentText = msg.attachments.joinToString(" ") { "[${it.name}]" }
-                    msg.copy(content = if (msg.content.isBlank()) attachmentText else "${msg.content}\n$attachmentText")
-                } else {
-                    msg
-                }
+        // 处理历史记录的附件
+        val history = originalHistory.map { msg ->
+            val shouldRemoveAttachments = when (msg.role) {
+                ChatRole.ASSISTANT -> true // AI消息都不带附件
+                ChatRole.USER -> saveMultimodalToken // 用户消息仅在 saveMultimodalToken 开启时移除历史附件
+                else -> false
             }
-        } else {
-            originalHistory
+
+            if (shouldRemoveAttachments && msg.attachments.isNotEmpty()) {
+                val attachmentText = msg.attachments.joinToString(" ") { "[${it.name}]" }
+                msg.copy(
+                    content = if (msg.content.isBlank()) attachmentText else "${msg.content}\n$attachmentText",
+                    attachments = emptyList()
+                )
+            } else {
+                msg
+            }
         }
 
         Napier.d { "performChatRequest: lastUserMessage.seq=${lastUserMessage.seq}, saveMultimodalToken=$saveMultimodalToken" }
@@ -1025,13 +1031,17 @@ class ChatViewModel(
             Napier.d { "  - seq=${msg.seq}, role=${msg.role}, content=${msg.content.take(100)}" }
         }
 
-        val hasCurrentMultimodalAttachment = lastUserMessage.attachments.any {
+        // 处理当前用户消息的附件（如果是 saveMultimodalToken 关闭，则始终保留）
+        // 如果是 saveMultimodalToken 开启，由于它是 context.messages 的最后一条用户消息，也会保留
+        val currentAttachments = lastUserMessage.attachments
+
+        val hasCurrentMultimodalAttachment = currentAttachments.any {
             it.mimeType.startsWith("image/") || it.mimeType.startsWith("audio/") || !enableFileAppend
         }
-        val hasHistoryMultimodalAttachment = !saveMultimodalToken && history.any { msg ->
+        val hasHistoryMultimodalAttachment = history.any { msg ->
             msg.attachments.any { att ->
-                val isAiVoice = msg.role == ChatRole.ASSISTANT && att.mimeType.startsWith("audio/")
-                !isAiVoice && (att.mimeType.startsWith("image/") || att.mimeType.startsWith("audio/") || !enableFileAppend)
+                // AI 语音附件通常不作为多模态输入（除非特别需要，但这里 AI 消息附件已被移除或过滤）
+                (att.mimeType.startsWith("image/") || att.mimeType.startsWith("audio/") || !enableFileAppend)
             }
         }
         val hasMultimodalAttachment = hasCurrentMultimodalAttachment || hasHistoryMultimodalAttachment
@@ -1057,7 +1067,7 @@ class ChatViewModel(
         val userText = lastUserMessage.content
         val contentParts = mutableListOf<AiContentPart>()
 
-        lastUserMessage.attachments.forEach { attachment ->
+        currentAttachments.forEach { attachment ->
             if (enableFileAppend && (attachment.mimeType == "text/plain" || attachment.mimeType == "application/json")) {
                 // 文件内容已在发送时被拼接到 content 中，此处无需重复处理
             } else {
@@ -1086,18 +1096,13 @@ class ChatViewModel(
             ?: session.systemPromptSnapshot
 
         Napier.d { "performChatRequest messageParts=$messageParts" }
-        val historyMessageParts = if (saveMultimodalToken) {
-            emptyMap()
-        } else {
-            history.associate { msg ->
-                msg.id to msg.attachments.mapNotNull { attachment ->
-                    if (msg.role == ChatRole.ASSISTANT && attachment.mimeType.startsWith("audio/")) {
-                        return@mapNotNull null
-                    }
-                    readAttachmentAsAiContentPart(attachment)
-                }
-            }.filterValues { it.isNotEmpty() }
-        }
+        val historyMessageParts = history.associate { msg ->
+            msg.id to msg.attachments.mapNotNull { attachment ->
+                // 这里 history 里的附件已经根据上面的逻辑过滤过了（AI 消息或开启 saveMultimodalToken 的历史用户消息附件为空）
+                readAttachmentAsAiContentPart(attachment)
+            }
+        }.filterValues { it.isNotEmpty() }
+
 
         val requestMessages = buildChatContext(
             systemPrompt = prompt,
