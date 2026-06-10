@@ -489,6 +489,7 @@ class ChatViewModel(
                                 openingMessage = default.openingMessage,
                                 temperature = default.temperature,
                                 topP = default.topP,
+                                avatarUri = default.avatarUri,
                                 voiceSampleUri = default.voiceSampleUri,
                             )
                         }

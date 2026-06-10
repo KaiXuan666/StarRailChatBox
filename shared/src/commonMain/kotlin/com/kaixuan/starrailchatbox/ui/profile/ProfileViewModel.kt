@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import com.kaixuan.starrailchatbox.platform.persistAttachment
 import kotlinx.coroutines.launch
+import okio.Path.Companion.toPath
 
 class ProfileViewModel(
     private val profileStore: ProfileStore,
