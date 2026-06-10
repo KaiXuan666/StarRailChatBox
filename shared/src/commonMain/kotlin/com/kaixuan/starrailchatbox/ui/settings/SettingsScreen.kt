@@ -82,6 +82,7 @@ import starrailchatbox.shared.generated.resources.settings_privacy_desc
 import starrailchatbox.shared.generated.resources.settings_privacy_title
 import starrailchatbox.shared.generated.resources.settings_qq_group_prefix
 import starrailchatbox.shared.generated.resources.settings_qq_group_number
+import starrailchatbox.shared.generated.resources.settings_qq_group_suffix
 import starrailchatbox.shared.generated.resources.settings_theme_desc
 import starrailchatbox.shared.generated.resources.settings_theme_title
 import starrailchatbox.shared.generated.resources.settings_title
@@ -299,6 +300,13 @@ fun SettingsScreen(
                 append(qqGroupNumber)
             }
             pop()
+            withStyle(
+                style = SpanStyle(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                )
+            ) {
+                append(stringResource(Res.string.settings_qq_group_suffix))
+            }
         }
 
         val footerText = buildAnnotatedString {

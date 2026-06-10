@@ -122,7 +122,7 @@
     <string name="global_settings_summary_threshold_desc">超过阈值后将自动总结历史消息</string>
     <string name="global_settings_messages_unit">%1$d条消息</string>
     <string name="global_settings_save_multimodal_token">节省多模态 Token</string>
-    <string name="global_settings_save_multimodal_token_desc">开启后，仅当用户发送的最新消息非文本消息时，才调用多模态API</string>
+    <string name="global_settings_save_multimodal_token_desc">开启后，仅当用户发送的最新一条消息带有附件时，才调用多模态API</string>
     <string name="global_settings_enable_web_search">联网搜索</string>
     <string name="global_settings_enable_web_search_desc">允许 AI 获取实时网络信息</string>
     <string name="global_settings_data_management">数据管理</string>
@@ -188,6 +188,7 @@
     <string name="privacy_policy_github_link">GitHub：https://github.com/KaiXuan666/StarRailChatBox</string>
     <string name="settings_qq_group_prefix">QQ交流群：</string>
     <string name="settings_qq_group_number">797269811</string>
+    <string name="settings_qq_group_suffix">（加群获得最新版本）</string>
     <string name="settings_copied_success">已复制群号</string>
 
     <!-- 设置项点击反馈 -->
