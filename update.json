@@ -1,6 +1,6 @@
 {
   "versionCode": 12,
-  "versionName": "1.2.0",
+  "versionName": "1.2.1",
   "updateLog": "1. 修复了已知Bug;\n2. 优化了UI界面。",
   "downloadUrl": "https://raw.githubusercontent.com/KaiXuan666/StarRailChatBox/refs/heads/main/release/androidApp-release.apk",
   "forceUpdate": true
