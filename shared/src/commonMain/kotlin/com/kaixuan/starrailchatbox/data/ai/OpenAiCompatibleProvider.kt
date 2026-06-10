@@ -124,7 +124,7 @@ class OpenAiCompatibleProvider(
         val request = AiChatRequest(
             model = config.model,
             messages = listOf(AiMessage(role = "user", content = "Return 2 using the tool.")),
-            maxTokens = 32,
+            maxTokens = 1024,
             tools = listOf(
                 AiToolDefinition(
                     name = probeName,

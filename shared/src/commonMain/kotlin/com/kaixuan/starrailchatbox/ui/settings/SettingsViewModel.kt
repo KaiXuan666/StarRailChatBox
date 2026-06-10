@@ -65,19 +65,15 @@ class SettingsViewModel(
             Napier.d { "settings=$settings" }
             Napier.d { "mmSettings=$mmSettings" }
             _uiState.update { state ->
-                // 1. 统一空状态判定标准（顺便修复上一轮提到的 Blank/Empty 潜在 Bug）
-                val isConfigured = !settings?.baseUrl.isNullOrBlank()
-
-                // 2. 提取 Host 提取逻辑
                 fun String?.resolveHost(fallbackHost: String) =
                     this?.takeIf(String::isNotBlank)
-                        ?: defaultApiSettings.apiHost.takeIf { !isConfigured }
+                        ?: defaultApiSettings.apiHost.takeIf(String::isNotBlank)
                         ?: fallbackHost
 
                 // 3. 提取 Key 提取逻辑
                 fun String?.resolveKey() =
                     this?.takeIf(String::isNotBlank)
-                        ?: defaultApiSettings.apiKey.takeIf { !isConfigured }
+                        ?: defaultApiSettings.apiKey.takeIf(String::isNotBlank)
                         ?: ""
 
                 // 4. 提取 Model 列表过滤逻辑

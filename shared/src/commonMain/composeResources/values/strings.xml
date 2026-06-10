@@ -114,7 +114,7 @@
     <string name="global_settings_summary_threshold_desc">超过阈值后将自动总结历史消息</string>
     <string name="global_settings_messages_unit">%1$d条消息</string>
     <string name="global_settings_save_multimodal_token">节省多模态 Token</string>
-    <string name="global_settings_save_multimodal_token_desc">减少图片/音频等上下文消耗</string>
+    <string name="global_settings_save_multimodal_token_desc">开启后，仅当用户发送的最新消息非文本消息时，才调用多模态API</string>
     <string name="global_settings_enable_web_search">联网搜索</string>
     <string name="global_settings_enable_web_search_desc">允许 AI 获取实时网络信息</string>
     <string name="global_settings_data_management">数据管理</string>

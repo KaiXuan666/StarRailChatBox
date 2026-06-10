@@ -190,15 +190,15 @@ fun ProfileScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Summary Threshold
-                SettingsItemRow(
-                    title = stringResource(Res.string.global_settings_summary_threshold),
-                    description = stringResource(Res.string.global_settings_summary_threshold_desc),
-                ) {
-                    ThresholdDropdown(
-                        value = state.summaryThreshold,
-                        onValueChange = { onAction(ProfileAction.SummaryThresholdChanged(it)) }
-                    )
-                }
+//                SettingsItemRow(
+//                    title = stringResource(Res.string.global_settings_summary_threshold),
+//                    description = stringResource(Res.string.global_settings_summary_threshold_desc),
+//                ) {
+//                    ThresholdDropdown(
+//                        value = state.summaryThreshold,
+//                        onValueChange = { onAction(ProfileAction.SummaryThresholdChanged(it)) }
+//                    )
+//                }
 
                 // Save Multimodal Token
                 SettingsItemRow(
