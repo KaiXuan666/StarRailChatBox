@@ -21,6 +21,8 @@ import com.kaixuan.starrailchatbox.data.database.DatabaseManager
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
 import com.kaixuan.starrailchatbox.data.character.CharacterRepository
 import com.kaixuan.starrailchatbox.data.chat.ChatSessionRepository
+import com.kaixuan.starrailchatbox.data.update.DefaultUpdateRepository
+import com.kaixuan.starrailchatbox.data.update.UpdateRepository
 import com.kaixuan.starrailchatbox.data.settings.AppSettingsStore
 import com.kaixuan.starrailchatbox.data.settings.ProfileStore
 import com.kaixuan.starrailchatbox.platform.KmpFileManager
@@ -58,8 +60,9 @@ fun appModule(
     single { chatSessionRepository }
     single { databaseManager }
     single<KmpFileManager> { KmpFileManager.Default }
+    single<UpdateRepository> { DefaultUpdateRepository(get()) }
     factory { MainViewModel(get()) }
     factory { ChatViewModel(get(), get(), get(), get(), get()) }
-    factory { SettingsViewModel(get(), get()) }
+    factory { SettingsViewModel(get(), get(), get()) }
     factory { ProfileViewModel(get(), get()) }
 }

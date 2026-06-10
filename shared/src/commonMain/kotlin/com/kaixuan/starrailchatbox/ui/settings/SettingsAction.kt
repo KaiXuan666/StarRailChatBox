@@ -43,4 +43,8 @@ sealed interface SettingsAction {
 
     // 复制到剪贴板
     data class CopyToClipboard(val text: String) : SettingsAction
+
+    // 更新弹窗操作
+    data object UpdateDialogDismiss : SettingsAction
+    data object UpdateDialogConfirm : SettingsAction
 }

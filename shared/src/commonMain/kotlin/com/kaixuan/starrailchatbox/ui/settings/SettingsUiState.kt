@@ -48,5 +48,17 @@ data class SettingsUiState(
     val isMultimodalConfigured: Boolean = false,
     val isVoiceConfigured: Boolean = false,
     val isImageGenerationConfigured: Boolean = false,
+
+    // 更新弹窗状态
+    val showUpdateDialog: Boolean = false,
+    val updateInfo: UpdateInfo? = null,
+)
+
+@Immutable
+data class UpdateInfo(
+    val version: String,
+    val description: String,
+    val downloadUrl: String,
+    val isForceUpdate: Boolean = false,
 )
 

@@ -144,6 +144,10 @@
     <string name="settings_api_desc">配置模型接口、Key 与请求参数</string>
     <string name="settings_update_title">检查更新</string>
     <string name="settings_update_desc">当前版本 v1.0.0，查看是否有新版本</string>
+    <string name="settings_update_dialog_title">发现新版本</string>
+    <string name="settings_update_dialog_version">版本：%1$s</string>
+    <string name="settings_update_dialog_confirm">立即更新</string>
+    <string name="settings_update_dialog_cancel">稍后再说</string>
     <string name="settings_notice_title">消息通知</string>
     <string name="settings_notice_desc">管理消息提醒与通知方式</string>
     <string name="settings_theme_title">主题风格</string>

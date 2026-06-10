@@ -12,6 +12,7 @@ import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
 import com.kaixuan.starrailchatbox.data.model.MultimodalModelConfig
 import com.kaixuan.starrailchatbox.data.model.VoiceCloneModelConfig
 import com.kaixuan.starrailchatbox.data.model.VoiceModelConfig
+import com.kaixuan.starrailchatbox.data.update.UpdateRepository
 import com.kaixuan.starrailchatbox.data.settings.ApiSettingsDefaults
 import com.kaixuan.starrailchatbox.data.settings.localApiSettingsDefaults
 import io.github.aakira.napier.Napier
@@ -29,6 +30,7 @@ import kotlinx.coroutines.launch
 class SettingsViewModel(
     private val aiRepository: AiRepository,
     private val modelConfigRepository: ModelConfigRepository,
+    private val updateRepository: UpdateRepository,
     private val coroutineScope: CoroutineScope? = null,
     private val defaultApiSettings: ApiSettingsDefaults = localApiSettingsDefaults(),
 ) : ViewModel() {
@@ -216,6 +218,14 @@ class SettingsViewModel(
             is SettingsAction.CopyToClipboard -> {
                 emitMessage(SettingsEffectMessage.SETTINGS_COPIED_SUCCESS)
             }
+
+            SettingsAction.UpdateDialogDismiss -> {
+                _uiState.update { it.copy(showUpdateDialog = false) }
+            }
+
+            SettingsAction.UpdateDialogConfirm -> {
+                _uiState.update { it.copy(showUpdateDialog = false) }
+            }
         }
     }
 
@@ -236,7 +246,29 @@ class SettingsViewModel(
             SettingsItem.VOICE_API_SETTINGS -> {
                 // 由框架层 MainAction 转发导航压栈
             }
-            SettingsItem.CHECK_UPDATE -> emitMessage(SettingsEffectMessage.SETTINGS_UPDATE_CHECK)
+            SettingsItem.CHECK_UPDATE -> {
+                scope().launch {
+                    when (val result = updateRepository.checkUpdate()) {
+                        is ApiResult.Success -> {
+                            val info = result.value
+                            _uiState.update {
+                                it.copy(
+                                    showUpdateDialog = true,
+                                    updateInfo = UpdateInfo(
+                                        version = info.versionName,
+                                        description = info.updateLog,
+                                        downloadUrl = info.downloadUrl,
+                                        isForceUpdate = info.forceUpdate
+                                    )
+                                )
+                            }
+                        }
+                        else -> {
+                            emitMessage(SettingsEffectMessage.SETTINGS_UPDATE_CHECK)
+                        }
+                    }
+                }
+            }
             SettingsItem.MESSAGE_NOTIFICATION -> emitMessage(SettingsEffectMessage.SETTINGS_NOTICE_NOT_READY)
             SettingsItem.THEME_STYLE -> {
                 // 由框架层 MainAction 转发主题弹窗显示
