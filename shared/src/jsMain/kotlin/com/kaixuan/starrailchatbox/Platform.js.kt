@@ -10,6 +10,7 @@ class JsPlatform: Platform {
             ?.let { (startIndex) -> userAgent.substring(startIndex).substringBefore(" ") }
             ?: "Unknown"
     override val versionCode: Int = 1
+    override val versionName: String = "1.0.0"
 }
 
 actual fun getPlatform(): Platform = JsPlatform()
