@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
@@ -46,6 +47,9 @@ import starrailchatbox.shared.generated.resources.privacy_policy_section_6_conte
 import starrailchatbox.shared.generated.resources.privacy_policy_section_6_title
 import starrailchatbox.shared.generated.resources.privacy_policy_section_7_content
 import starrailchatbox.shared.generated.resources.privacy_policy_section_7_title
+import starrailchatbox.shared.generated.resources.privacy_policy_section_umeng_content
+import starrailchatbox.shared.generated.resources.privacy_policy_section_umeng_link
+import starrailchatbox.shared.generated.resources.privacy_policy_section_umeng_title
 import starrailchatbox.shared.generated.resources.privacy_policy_subtitle
 import starrailchatbox.shared.generated.resources.settings_privacy_title
 
@@ -96,7 +100,7 @@ fun PrivacyPolicyScreen(
                     lineHeight = 22.sp
                 )
 
-                // Sections
+                // Sections 1-2
                 PrivacySection(
                     title = stringResource(Res.string.privacy_policy_section_1_title),
                     content = stringResource(Res.string.privacy_policy_section_1_content)
@@ -107,6 +111,45 @@ fun PrivacyPolicyScreen(
                     content = stringResource(Res.string.privacy_policy_section_2_content)
                 )
 
+                // UMeng Section
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.padding(vertical = 4.dp)
+                ) {
+                    Text(
+                        text = stringResource(Res.string.privacy_policy_section_umeng_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f)
+                    )
+                    Text(
+                        text = stringResource(Res.string.privacy_policy_section_umeng_content),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        lineHeight = 22.sp
+                    )
+                    val umengLinkText = stringResource(Res.string.privacy_policy_section_umeng_link)
+                    val annotatedUmeng = buildAnnotatedString {
+                        pushStringAnnotation(tag = "URL", annotation = "https://www.umeng.com/page/policy")
+                        withStyle(style = SpanStyle(
+                            color = MaterialTheme.colorScheme.primary,
+                            textDecoration = TextDecoration.Underline,
+                            fontSize = 14.sp
+                        )) {
+                            append(umengLinkText)
+                        }
+                        pop()
+                    }
+                    ClickableText(
+                        text = annotatedUmeng,
+                        onClick = { offset ->
+                            annotatedUmeng.getStringAnnotations(tag = "URL", start = offset, end = offset)
+                                .firstOrNull()?.let { openUri(it.item) }
+                        }
+                    )
+                }
+
+                // Remaining Sections
                 PrivacySection(
                     title = stringResource(Res.string.privacy_policy_section_3_title),
                     content = stringResource(Res.string.privacy_policy_section_3_content)
