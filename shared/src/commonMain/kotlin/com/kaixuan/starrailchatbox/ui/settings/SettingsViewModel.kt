@@ -12,8 +12,6 @@ import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
 import com.kaixuan.starrailchatbox.data.model.MultimodalModelConfig
 import com.kaixuan.starrailchatbox.data.model.VoiceCloneModelConfig
 import com.kaixuan.starrailchatbox.data.model.VoiceModelConfig
-import com.kaixuan.starrailchatbox.data.update.UpdateRepository
-import com.kaixuan.starrailchatbox.getPlatform
 import com.kaixuan.starrailchatbox.data.settings.ApiSettingsDefaults
 import com.kaixuan.starrailchatbox.data.settings.localApiSettingsDefaults
 import io.github.aakira.napier.Napier
@@ -31,7 +29,6 @@ import kotlinx.coroutines.launch
 class SettingsViewModel(
     private val aiRepository: AiRepository,
     private val modelConfigRepository: ModelConfigRepository,
-    private val updateRepository: UpdateRepository,
     private val coroutineScope: CoroutineScope? = null,
     private val defaultApiSettings: ApiSettingsDefaults = localApiSettingsDefaults(),
 ) : ViewModel() {
@@ -219,14 +216,6 @@ class SettingsViewModel(
             is SettingsAction.CopyToClipboard -> {
                 emitMessage(SettingsEffectMessage.SETTINGS_COPIED_SUCCESS)
             }
-
-            SettingsAction.UpdateDialogDismiss -> {
-                _uiState.update { it.copy(showUpdateDialog = false) }
-            }
-
-            SettingsAction.UpdateDialogConfirm -> {
-                _uiState.update { it.copy(showUpdateDialog = false) }
-            }
         }
     }
 
@@ -248,33 +237,7 @@ class SettingsViewModel(
                 // 由框架层 MainAction 转发导航压栈
             }
             SettingsItem.CHECK_UPDATE -> {
-                scope().launch {
-                    when (val result = updateRepository.checkUpdate()) {
-                        is ApiResult.Success -> {
-                            val info = result.value
-                            val currentVersionCode = getPlatform().versionCode
-                            Napier.d { "检测更新 currentVersionCode=$currentVersionCode versionCode=${info.versionCode}" }
-                            if (info.versionCode > currentVersionCode) {
-                                _uiState.update {
-                                    it.copy(
-                                        showUpdateDialog = true,
-                                        updateInfo = UpdateInfo(
-                                            version = info.versionName,
-                                            description = info.updateLog,
-                                            downloadUrl = info.downloadUrl,
-                                            isForceUpdate = info.forceUpdate
-                                        )
-                                    )
-                                }
-                            } else {
-                                emitMessage(SettingsEffectMessage.SETTINGS_UPDATE_CHECK)
-                            }
-                        }
-                        else -> {
-                            emitMessage(SettingsEffectMessage.SETTINGS_UPDATE_CHECK)
-                        }
-                    }
-                }
+                // 现在由 MainViewModel 处理全局更新检查
             }
             SettingsItem.MESSAGE_NOTIFICATION -> emitMessage(SettingsEffectMessage.SETTINGS_NOTICE_NOT_READY)
             SettingsItem.THEME_STYLE -> {

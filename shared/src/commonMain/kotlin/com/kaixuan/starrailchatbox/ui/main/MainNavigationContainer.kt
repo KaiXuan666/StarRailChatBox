@@ -75,6 +75,12 @@ import starrailchatbox.shared.generated.resources.profile_saved
 import starrailchatbox.shared.generated.resources.profile_not_ready
 import starrailchatbox.shared.generated.resources.settings_api_not_ready
 import starrailchatbox.shared.generated.resources.settings_update_check
+import starrailchatbox.shared.generated.resources.settings_update_checking
+import starrailchatbox.shared.generated.resources.settings_update_failed
+import starrailchatbox.shared.generated.resources.settings_update_dialog_title
+import starrailchatbox.shared.generated.resources.settings_update_dialog_version
+import starrailchatbox.shared.generated.resources.settings_update_dialog_confirm
+import starrailchatbox.shared.generated.resources.settings_update_dialog_cancel
 import starrailchatbox.shared.generated.resources.settings_notice_not_ready
 import starrailchatbox.shared.generated.resources.settings_about_desc_toast
 import starrailchatbox.shared.generated.resources.settings_privacy_not_ready
@@ -139,6 +145,13 @@ import com.kaixuan.starrailchatbox.ui.profile.ProfileAction
 import com.kaixuan.starrailchatbox.ui.profile.ProfileEffect
 import com.kaixuan.starrailchatbox.ui.profile.ProfileUiState
 import com.kaixuan.starrailchatbox.ui.profile.ProfileEffectMessage
+import com.kaixuan.starrailchatbox.ui.components.StarRailDialog
+import com.kaixuan.starrailchatbox.platform.openUri
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.name
 import io.github.vinceglb.filekit.path
@@ -237,6 +250,9 @@ fun MainRoute(
         MainEffectMessage.THEME_CHANGED to stringResource(Res.string.theme_changed),
         MainEffectMessage.IMAGE_SAVED to stringResource(Res.string.image_save_success),
         MainEffectMessage.IMAGE_SAVE_FAILED to stringResource(Res.string.image_save_failed),
+        MainEffectMessage.ALREADY_LATEST_VERSION to stringResource(Res.string.settings_update_check),
+        MainEffectMessage.CHECKING_FOR_UPDATE to stringResource(Res.string.settings_update_checking),
+        MainEffectMessage.UPDATE_CHECK_FAILED to stringResource(Res.string.settings_update_failed),
     )
 
     LaunchedEffect(main.effects, mainEffectMessages) {
@@ -357,6 +373,68 @@ fun MainRoute(
         onSettingsAction = settings.onAction,
         onProfileAction = profile.onAction,
     )
+
+    // Global Update Dialog
+    if (main.state.showUpdateDialog && main.state.updateInfo != null) {
+        UpdateDialog(
+            info = main.state.updateInfo,
+            onMainAction = main.onAction
+        )
+    }
+}
+
+@Composable
+private fun UpdateDialog(
+    info: UpdateInfo,
+    onMainAction: (MainAction) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    StarRailDialog(
+        title = stringResource(Res.string.settings_update_dialog_title),
+        dismissText = stringResource(Res.string.settings_update_dialog_cancel),
+        confirmText = stringResource(Res.string.settings_update_dialog_confirm),
+        onDismissRequest = { onMainAction(MainAction.UpdateDialogDismiss) },
+        onConfirm = {
+            openUri(info.downloadUrl)
+            onMainAction(MainAction.UpdateDialogConfirm)
+        },
+        modifier = modifier,
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Version Badge
+            Surface(
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                shape = RoundedCornerShape(8.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+            ) {
+                Text(
+                    text = stringResource(Res.string.settings_update_dialog_version, info.version),
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // Update Description
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            ) {
+                Text(
+                    text = info.description,
+                    modifier = Modifier.padding(16.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 22.sp
+                )
+            }
+        }
+    }
 }
 
 @Composable

@@ -2,7 +2,10 @@ package com.kaixuan.starrailchatbox.ui.main
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.settings.AppSettingsStore
+import com.kaixuan.starrailchatbox.data.update.UpdateRepository
+import com.kaixuan.starrailchatbox.getPlatform
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,7 +16,10 @@ import kotlinx.coroutines.flow.update
 import com.kaixuan.starrailchatbox.ui.navigation.Route
 import kotlinx.coroutines.launch
 
-class MainViewModel(private val settingsStore: AppSettingsStore) : ViewModel() {
+class MainViewModel(
+    private val settingsStore: AppSettingsStore,
+    private val updateRepository: UpdateRepository
+) : ViewModel() {
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState = _uiState.asStateFlow()
 
@@ -26,6 +32,43 @@ class MainViewModel(private val settingsStore: AppSettingsStore) : ViewModel() {
                 _uiState.update { it.copy(darkThemeOverride = theme) }
             }
             .launchIn(viewModelScope)
+
+        // 启动时自动检查更新
+        checkUpdate(isManual = false)
+    }
+
+    private fun checkUpdate(isManual: Boolean) {
+        if (isManual) {
+            _effects.trySend(MainEffect.ShowMessage(MainEffectMessage.CHECKING_FOR_UPDATE))
+        }
+        viewModelScope.launch {
+            when (val result = updateRepository.checkUpdate()) {
+                is ApiResult.Success -> {
+                    val info = result.value
+                    val currentVersionCode = getPlatform().versionCode
+                    if (info.versionCode > currentVersionCode) {
+                        _uiState.update {
+                            it.copy(
+                                showUpdateDialog = true,
+                                updateInfo = UpdateInfo(
+                                    version = info.versionName,
+                                    description = info.updateLog,
+                                    downloadUrl = info.downloadUrl,
+                                    isForceUpdate = info.forceUpdate
+                                )
+                            )
+                        }
+                    } else if (isManual) {
+                        _effects.trySend(MainEffect.ShowMessage(MainEffectMessage.ALREADY_LATEST_VERSION))
+                    }
+                }
+                else -> {
+                    if (isManual) {
+                        _effects.trySend(MainEffect.ShowMessage(MainEffectMessage.UPDATE_CHECK_FAILED))
+                    }
+                }
+            }
+        }
     }
 
     fun onAction(action: MainAction) {
@@ -96,10 +139,21 @@ class MainViewModel(private val settingsStore: AppSettingsStore) : ViewModel() {
                             state.copy(backStack = state.backStack + Route.PrivacyPolicy)
                         }
                     }
+                    MainSettingsItem.CHECK_UPDATE -> {
+                        checkUpdate(isManual = true)
+                    }
                     else -> {
                         // 其它非核心主逻辑（更新检查、通知等）由 SettingsViewModel 处理
                     }
                 }
+            }
+
+            MainAction.UpdateDialogDismiss -> {
+                _uiState.update { it.copy(showUpdateDialog = false) }
+            }
+
+            MainAction.UpdateDialogConfirm -> {
+                _uiState.update { it.copy(showUpdateDialog = false) }
             }
 
             is MainAction.ThemeDialogConfirm -> {

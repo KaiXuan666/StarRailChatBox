@@ -61,8 +61,8 @@ fun appModule(
     single { databaseManager }
     single<KmpFileManager> { KmpFileManager.Default }
     single<UpdateRepository> { DefaultUpdateRepository(get()) }
-    factory { MainViewModel(get()) }
+    factory { MainViewModel(get(), get()) }
     factory { ChatViewModel(get(), get(), get(), get(), get()) }
-    factory { SettingsViewModel(get(), get(), get()) }
+    factory { SettingsViewModel(aiRepository = get(), modelConfigRepository = get()) }
     factory { ProfileViewModel(get(), get()) }
 }

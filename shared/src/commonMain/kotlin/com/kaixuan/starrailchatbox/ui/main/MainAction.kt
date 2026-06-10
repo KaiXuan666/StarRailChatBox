@@ -21,6 +21,10 @@ sealed interface MainAction {
     // 取消主题选择
     data object ThemeDialogDismiss : MainAction
 
+    // 更新弹窗操作
+    data object UpdateDialogDismiss : MainAction
+    data object UpdateDialogConfirm : MainAction
+
     // 显示提示消息
     data class ShowMessage(val message: MainEffectMessage) : MainAction
 }

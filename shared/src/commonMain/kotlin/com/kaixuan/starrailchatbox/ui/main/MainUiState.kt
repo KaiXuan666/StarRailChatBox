@@ -11,4 +11,14 @@ data class MainUiState(
     val backStack: List<Route> = listOf(Route.ChatSession),
     val darkThemeOverride: Boolean? = null,
     val showThemeDialog: Boolean = false,
+    val showUpdateDialog: Boolean = false,
+    val updateInfo: UpdateInfo? = null,
+)
+
+@Immutable
+data class UpdateInfo(
+    val version: String,
+    val description: String,
+    val downloadUrl: String,
+    val isForceUpdate: Boolean = false,
 )

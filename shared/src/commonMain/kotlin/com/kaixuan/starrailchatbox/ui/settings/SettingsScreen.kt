@@ -87,10 +87,6 @@ import starrailchatbox.shared.generated.resources.settings_theme_title
 import starrailchatbox.shared.generated.resources.settings_title
 import starrailchatbox.shared.generated.resources.settings_update_desc
 import starrailchatbox.shared.generated.resources.settings_update_title
-import starrailchatbox.shared.generated.resources.settings_update_dialog_title
-import starrailchatbox.shared.generated.resources.settings_update_dialog_version
-import starrailchatbox.shared.generated.resources.settings_update_dialog_confirm
-import starrailchatbox.shared.generated.resources.settings_update_dialog_cancel
 import starrailchatbox.shared.generated.resources.theme_dark
 import starrailchatbox.shared.generated.resources.theme_follow_system
 import starrailchatbox.shared.generated.resources.theme_light
@@ -253,6 +249,7 @@ fun SettingsScreen(
                                 itemData.item == SettingsItem.MULTIMODAL_API_SETTINGS || 
                                 itemData.item == SettingsItem.IMAGE_GENERATION_API_SETTINGS ||
                                 itemData.item == SettingsItem.VOICE_API_SETTINGS || 
+                                itemData.item == SettingsItem.CHECK_UPDATE ||
                                 itemData.item == SettingsItem.THEME_STYLE ||
                                 itemData.item == SettingsItem.ABOUT_US ||
                                 itemData.item == SettingsItem.PRIVACY_SECURITY) {
@@ -363,68 +360,6 @@ fun SettingsScreen(
             currentThemeOverride = mainState.darkThemeOverride,
             onMainAction = onMainAction
         )
-    }
-
-    // Update Dialog
-    if (settingsState.showUpdateDialog && settingsState.updateInfo != null) {
-        UpdateDialog(
-            info = settingsState.updateInfo,
-            onSettingsAction = onSettingsAction
-        )
-    }
-}
-
-@Composable
-private fun UpdateDialog(
-    info: UpdateInfo,
-    onSettingsAction: (SettingsAction) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    StarRailDialog(
-        title = stringResource(Res.string.settings_update_dialog_title),
-        dismissText = stringResource(Res.string.settings_update_dialog_cancel),
-        confirmText = stringResource(Res.string.settings_update_dialog_confirm),
-        onDismissRequest = { onSettingsAction(SettingsAction.UpdateDialogDismiss) },
-        onConfirm = {
-            openUri(info.downloadUrl)
-            onSettingsAction(SettingsAction.UpdateDialogConfirm)
-        },
-        modifier = modifier,
-    ) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Version Badge
-            Surface(
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
-            ) {
-                Text(
-                    text = stringResource(Res.string.settings_update_dialog_version, info.version),
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            // Update Description
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-            ) {
-                Text(
-                    text = info.description,
-                    modifier = Modifier.padding(16.dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 22.sp
-                )
-            }
-        }
     }
 }
 
