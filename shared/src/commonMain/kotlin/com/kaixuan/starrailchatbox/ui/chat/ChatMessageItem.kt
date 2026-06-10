@@ -1,7 +1,10 @@
 package com.kaixuan.starrailchatbox.ui.chat
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -15,14 +18,23 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.kaixuan.starrailchatbox.data.character.Character
@@ -34,6 +46,7 @@ import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import org.jetbrains.compose.resources.stringResource
 import starrailchatbox.shared.generated.resources.Res
+import starrailchatbox.shared.generated.resources.action_copy
 import starrailchatbox.shared.generated.resources.read_status
 import starrailchatbox.shared.generated.resources.received_message_description
 import starrailchatbox.shared.generated.resources.retry
@@ -74,6 +87,7 @@ fun MessageItem(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ReceivedMessage(
     message: ChatMessageUiModel.Received,
@@ -94,6 +108,8 @@ fun ReceivedMessage(
     )
     val voiceAttachment = message.attachments.find { it.mimeType.startsWith("audio/") }
     val isVoiceOnly = voiceAttachment != null
+    var showMenu by remember { mutableStateOf(false) }
+    val clipboardManager = LocalClipboardManager.current
 
     BoxWithConstraints(
         modifier = Modifier
@@ -126,7 +142,7 @@ fun ReceivedMessage(
                         compact = compact,
                         isSent = false,
                         isPlaying = playingAudioUri == voiceAttachment.uri,
-                        onClick = { onOpenAttachment(voiceAttachment) }
+                        onClick = { onOpenAttachment(voiceAttachment) },
                     )
                 }
                 Row(
@@ -164,32 +180,52 @@ fun ReceivedMessage(
                     modifier = Modifier.widthIn(max = bubbleMaxWidth),
                     verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
                 ) {
-                    Surface(
-                        shape = MaterialTheme.shapes.large,
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        border = BorderStroke(
-                            1.dp,
-                            MaterialTheme.starRailColors.receivedBubbleBorder,
-                        ),
-                        shadowElevation = 1.dp,
-                    ) {
-                        Column {
-                            if (text.isNotBlank()) {
-                                Text(
-                                    text = text,
-                                    modifier = Modifier.padding(
-                                        horizontal = if (compact) 12.dp else StarRailSpacing.md,
-                                        vertical = if (compact) 8.dp else StarRailSpacing.sm,
-                                    ),
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    style = MaterialTheme.typography.bodyLarge,
+                    Box {
+                        Surface(
+                            shape = MaterialTheme.shapes.large,
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            border = BorderStroke(
+                                1.dp,
+                                MaterialTheme.starRailColors.receivedBubbleBorder,
+                            ),
+                            shadowElevation = 1.dp,
+                            modifier = Modifier.combinedClickable(
+                                onClick = {},
+                                onLongClick = { showMenu = true }
+                            )
+                        ) {
+                            Column {
+                                if (text.isNotBlank()) {
+                                    Text(
+                                        text = text,
+                                        modifier = Modifier.padding(
+                                            horizontal = if (compact) 12.dp else StarRailSpacing.md,
+                                            vertical = if (compact) 8.dp else StarRailSpacing.sm,
+                                        ),
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                    )
+                                }
+                                MessageAttachments(
+                                    attachments = message.attachments,
+                                    onOpenAttachment = onOpenAttachment,
+                                    compact = compact,
                                 )
                             }
-                            MessageAttachments(
-                                attachments = message.attachments,
-                                onOpenAttachment = onOpenAttachment,
-                                compact = compact,
-                            )
+                        }
+                        Box(Modifier.align(Alignment.TopEnd)) {
+                            DropdownMenu(
+                                expanded = showMenu,
+                                onDismissRequest = { showMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(Res.string.action_copy)) },
+                                    onClick = {
+                                        clipboardManager.setText(AnnotatedString(text))
+                                        showMenu = false
+                                    }
+                                )
+                            }
                         }
                     }
                     Row(
@@ -219,6 +255,7 @@ fun ReceivedMessage(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SentMessage(
     message: ChatMessageUiModel.Sent,
@@ -237,6 +274,8 @@ fun SentMessage(
     )
     val voiceAttachment = message.attachments.find { it.mimeType.startsWith("audio/") }
     val isVoiceOnly = voiceAttachment != null
+    var showMenu by remember { mutableStateOf(false) }
+    val clipboardManager = LocalClipboardManager.current
 
     BoxWithConstraints(
         modifier = Modifier
@@ -261,7 +300,7 @@ fun SentMessage(
                         compact = compact,
                         isSent = true,
                         isPlaying = playingAudioUri == voiceAttachment.uri,
-                        onClick = { onOpenAttachment(voiceAttachment) }
+                        onClick = { onOpenAttachment(voiceAttachment) },
                     )
                     Spacer(Modifier.width(StarRailSpacing.sm))
                     Surface(
@@ -313,32 +352,52 @@ fun SentMessage(
                     horizontalAlignment = Alignment.End,
                     verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
                 ) {
-                    Surface(
-                        shape = MaterialTheme.shapes.large,
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        border = BorderStroke(
-                            1.dp,
-                            MaterialTheme.starRailColors.sentBubbleBorder,
-                        ),
-                        shadowElevation = 1.dp,
-                    ) {
-                        Column(horizontalAlignment = Alignment.End) {
-                            if (text.isNotBlank()) {
-                                Text(
-                                    text = text,
-                                    modifier = Modifier.padding(
-                                        horizontal = if (compact) 12.dp else StarRailSpacing.md,
-                                        vertical = if (compact) 8.dp else StarRailSpacing.sm,
-                                    ),
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    style = MaterialTheme.typography.bodyLarge,
+                    Box {
+                        Surface(
+                            shape = MaterialTheme.shapes.large,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            border = BorderStroke(
+                                1.dp,
+                                MaterialTheme.starRailColors.sentBubbleBorder,
+                            ),
+                            shadowElevation = 1.dp,
+                            modifier = Modifier.combinedClickable(
+                                onClick = {},
+                                onLongClick = { showMenu = true }
+                            )
+                        ) {
+                            Column(horizontalAlignment = Alignment.End) {
+                                if (text.isNotBlank()) {
+                                    Text(
+                                        text = text,
+                                        modifier = Modifier.padding(
+                                            horizontal = if (compact) 12.dp else StarRailSpacing.md,
+                                            vertical = if (compact) 8.dp else StarRailSpacing.sm,
+                                        ),
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                    )
+                                }
+                                MessageAttachments(
+                                    attachments = message.attachments,
+                                    onOpenAttachment = onOpenAttachment,
+                                    compact = compact,
                                 )
                             }
-                            MessageAttachments(
-                                attachments = message.attachments,
-                                onOpenAttachment = onOpenAttachment,
-                                compact = compact,
-                            )
+                        }
+                        Box(Modifier.align(Alignment.TopEnd)) {
+                            DropdownMenu(
+                                expanded = showMenu,
+                                onDismissRequest = { showMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(Res.string.action_copy)) },
+                                    onClick = {
+                                        clipboardManager.setText(AnnotatedString(text))
+                                        showMenu = false
+                                    }
+                                )
+                            }
                         }
                     }
                     Row(

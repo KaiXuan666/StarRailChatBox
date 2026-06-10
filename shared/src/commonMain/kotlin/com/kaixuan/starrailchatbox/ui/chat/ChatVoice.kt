@@ -7,7 +7,9 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +43,7 @@ import starrailchatbox.shared.generated.resources.Res
 import starrailchatbox.shared.generated.resources.release_to_cancel
 import starrailchatbox.shared.generated.resources.release_to_send
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun VoiceMessageBubble(
     durationMs: Long,
@@ -48,7 +51,8 @@ fun VoiceMessageBubble(
     isSent: Boolean,
     isPlaying: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
 ) {
     val durationSec = (durationMs / 1000).coerceAtLeast(1)
     // 根据时长调整气泡宽度，模仿语音气泡效果
@@ -90,12 +94,16 @@ fun VoiceMessageBubble(
     }
 
     Surface(
-        onClick = onClick,
         shape = MaterialTheme.shapes.large,
         color = backgroundColor,
         border = BorderStroke(1.dp, borderColor),
         shadowElevation = 1.dp,
-        modifier = modifier.width(bubbleWidth)
+        modifier = modifier
+            .width(bubbleWidth)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
     ) {
         Row(
             modifier = Modifier.padding(

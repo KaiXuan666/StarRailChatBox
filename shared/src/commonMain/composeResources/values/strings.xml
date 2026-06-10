@@ -11,6 +11,7 @@
     <string name="character_xi_description">穿梭于零轨之间的探索者，对未知保持好奇。</string>
     <string name="action_voice">语音</string>
     <string name="action_conversation_management">对话管理</string>
+    <string name="action_copy">复制</string>
     <string name="action_character_settings">角色设置</string>
     <string name="action_character_edit">角色编辑</string>
     <string name="today">今天</string>
