@@ -211,7 +211,7 @@ private suspend fun loadDefaultCharacterAssets(): List<DefaultCharacterAsset> {
             name = name,
             prompt = Res.readBytes("files/characters/$name.md").decodeToString(),
             openingMessage = openingMessage,
-            avatarContent = Res.readBytes("files/characters/$name.webp"),
+            avatarContent = Res.readBytes("files/characters/$name.png"),
             voiceSampleContent = voiceSampleContent,
         )
     }
