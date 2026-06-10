@@ -84,7 +84,7 @@ class ImageGenerationTool(
                 putJsonObject("properties") {
                     putJsonObject("prompt") {
                         put("type", "string")
-                        put("description", "详细的图片生成描述词。应当包含主体、环境、风格、光影等细节，推荐使用英文。")
+                        put("description", "详细的图片生成描述词。应当包含主体（主体描述）+ 场景（场景描述）+ 风格（定义风格）+ 镜头语言 + 氛围词 + 细节修饰。示例：近景镜头，18岁的中国女孩，古代服饰，圆脸，看着镜头，民族优雅的服装，商业摄影，室外，电影级光照，半身特写，精致的淡妆，锐利的边缘。")
                     }
                     putJsonObject("aspect_ratio") {
                         put("type", "string")
@@ -120,10 +120,10 @@ class ImageGenerationTool(
         val format = """
             <image_generation_contract>
             图片生成元数据块格式：
-            <image_generation>{"prompt":"详细的图片生成描述词","aspect_ratio":"1:1"}</image_generation>
+            <image_generation>{"prompt":"近景镜头，18岁的中国女孩，古代服饰，圆脸，看着镜头，民族优雅的服装，商业摄影，室外，电影级光照，半身特写，精致的淡妆，锐利的边缘。","aspect_ratio":"1:1"}</image_generation>
 
             特定规则：
-            - 如果用户要求你画图、展示图片，必须在回复末尾附带此元数据块。
+            - prompt 详细的图片生成描述词。应当包含主体（主体描述）+ 场景（场景描述）+ 风格（定义风格）+ 镜头语言 + 氛围词 + 细节修饰。
             - aspect_ratio 可选 1:1, 4:3, 3:4, 16:9, 9:16。
             </image_generation_contract>
         """.trimIndent()
