@@ -71,6 +71,8 @@ import starrailchatbox.shared.generated.resources.settings_api_configured
 import starrailchatbox.shared.generated.resources.settings_api_not_configured
 import starrailchatbox.shared.generated.resources.settings_multimodal_api_desc
 import starrailchatbox.shared.generated.resources.settings_multimodal_api_title
+import starrailchatbox.shared.generated.resources.settings_image_generation_api_desc
+import starrailchatbox.shared.generated.resources.settings_image_generation_api_title
 import starrailchatbox.shared.generated.resources.settings_voice_api_title
 import starrailchatbox.shared.generated.resources.settings_voice_api_desc
 import starrailchatbox.shared.generated.resources.settings_profile_desc
@@ -144,6 +146,16 @@ fun SettingsScreen(
             isConfigured = settingsState.isMultimodalConfigured,
             getColors = {
                 MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.55f) to MaterialTheme.colorScheme.tertiary
+            }
+        ),
+        SettingsItemUiData(
+            item = SettingsItem.IMAGE_GENERATION_API_SETTINGS,
+            iconKind = StarRailIconKind.GALLERY,
+            titleRes = Res.string.settings_image_generation_api_title,
+            descRes = Res.string.settings_image_generation_api_desc,
+            isConfigured = settingsState.isImageGenerationConfigured,
+            getColors = {
+                MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f) to MaterialTheme.colorScheme.secondary
             }
         ),
         SettingsItemUiData(
@@ -234,6 +246,7 @@ fun SettingsScreen(
                             if (itemData.item == SettingsItem.PROFILE || 
                                 itemData.item == SettingsItem.API_SETTINGS || 
                                 itemData.item == SettingsItem.MULTIMODAL_API_SETTINGS || 
+                                itemData.item == SettingsItem.IMAGE_GENERATION_API_SETTINGS ||
                                 itemData.item == SettingsItem.VOICE_API_SETTINGS || 
                                 itemData.item == SettingsItem.THEME_STYLE ||
                                 itemData.item == SettingsItem.ABOUT_US) {

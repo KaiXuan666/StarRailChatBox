@@ -62,6 +62,18 @@ class RoomModelConfigRepository(
         saveConfig(VoiceCloneModelConfig.Id, config)
     }
 
+    override suspend fun getImageGeneration(): ModelConfig? {
+        return dao.findById(ImageGenerationModelConfig.Id)?.toModelConfig()
+    }
+
+    override fun observeImageGeneration(): Flow<ModelConfig?> {
+        return dao.observeById(ImageGenerationModelConfig.Id).map { it?.toModelConfig() }
+    }
+
+    override suspend fun saveImageGeneration(config: ModelConfig) {
+        saveConfig(ImageGenerationModelConfig.Id, config)
+    }
+
     override suspend fun deleteConfig(id: String) {
         dao.deleteById(id)
     }

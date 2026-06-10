@@ -9,8 +9,13 @@ import com.kaixuan.starrailchatbox.data.model.ModelConfig
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
 import com.kaixuan.starrailchatbox.data.settings.ApiSettingsDefaults
 import com.kaixuan.starrailchatbox.data.model.MultimodalModelConfig
+import com.kaixuan.starrailchatbox.data.model.ImageGenerationModelConfig
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -319,33 +324,92 @@ private class FakeOpenAiRepository(
         lastModelTested = model
         return toolCallSupportResult
     }
+
+    override fun createPromptCompletion(
+        config: ModelConfig,
+        messages: List<AiMessage>
+    ): Flow<ApiResult<ChatCompletionResult>> = flow {
+        emit(ApiResult.UnexpectedError("Not used by settings tests."))
+    }
 }
 
 private class FakeModelConfigRepository(
     private val initial: ModelConfig? = null,
     private val initialMultimodal: ModelConfig? = null,
     private val initialVoice: ModelConfig? = null,
+    private val initialVoiceClone: ModelConfig? = null,
+    private val initialImageGeneration: ModelConfig? = null,
 ) : ModelConfigRepository {
+    private val _default = MutableStateFlow(initial)
+    private val _multimodal = MutableStateFlow(initialMultimodal)
+    private val _voice = MutableStateFlow(initialVoice)
+    private val _voiceClone = MutableStateFlow(initialVoiceClone)
+    private val _imageGeneration = MutableStateFlow(initialImageGeneration)
+
     var saved: ModelConfig? = null
     var savedMultimodal: ModelConfig? = null
     var savedVoice: ModelConfig? = null
+    var savedVoiceClone: ModelConfig? = null
+    var savedImageGeneration: ModelConfig? = null
 
-    override suspend fun getDefault(): ModelConfig? = initial
-
+    override suspend fun getDefault(): ModelConfig? = _default.value
+    override fun observeDefault(): Flow<ModelConfig?> = _default.asStateFlow()
     override suspend fun saveDefault(config: ModelConfig) {
         saved = config
+        _default.value = config
     }
 
-    override suspend fun getMultimodal(): ModelConfig? = initialMultimodal
-
+    override suspend fun getMultimodal(): ModelConfig? = _multimodal.value
+    override fun observeMultimodal(): Flow<ModelConfig?> = _multimodal.asStateFlow()
     override suspend fun saveMultimodal(config: ModelConfig) {
         savedMultimodal = config
+        _multimodal.value = config
     }
 
-    override suspend fun getVoice(): ModelConfig? = initialVoice
-
+    override suspend fun getVoice(): ModelConfig? = _voice.value
+    override fun observeVoice(): Flow<ModelConfig?> = _voice.asStateFlow()
     override suspend fun saveVoice(config: ModelConfig) {
         savedVoice = config
+        _voice.value = config
+    }
+
+    override suspend fun getVoiceClone(): ModelConfig? = _voiceClone.value
+    override fun observeVoiceClone(): Flow<ModelConfig?> = _voiceClone.asStateFlow()
+    override suspend fun saveVoiceClone(config: ModelConfig) {
+        savedVoiceClone = config
+        _voiceClone.value = config
+    }
+
+    override suspend fun getImageGeneration(): ModelConfig? = _imageGeneration.value
+    override fun observeImageGeneration(): Flow<ModelConfig?> = _imageGeneration.asStateFlow()
+    override suspend fun saveImageGeneration(config: ModelConfig) {
+        savedImageGeneration = config
+        _imageGeneration.value = config
+    }
+
+    override suspend fun deleteConfig(id: String) {
+        when (id) {
+            DefaultModelConfig.Id -> {
+                saved = null
+                _default.value = null
+            }
+            MultimodalModelConfig.Id -> {
+                savedMultimodal = null
+                _multimodal.value = null
+            }
+            "voice" -> {
+                savedVoice = null
+                _voice.value = null
+            }
+            "voice_clone" -> {
+                savedVoiceClone = null
+                _voiceClone.value = null
+            }
+            ImageGenerationModelConfig.Id -> {
+                savedImageGeneration = null
+                _imageGeneration.value = null
+            }
+        }
     }
 }
 

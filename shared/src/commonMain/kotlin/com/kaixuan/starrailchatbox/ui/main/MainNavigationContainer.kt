@@ -516,6 +516,16 @@ fun MainNavigationContainer(
                             isVoice = true,
                         )
                     }
+                    entry<Route.ImageGenerationApiSettings> {
+                        ApiSettingsScreen(
+                            state = settingsState,
+                            contentPadding = contentPadding,
+                            compact = compact,
+                            onMainAction = onMainAction,
+                            onSettingsAction = onSettingsAction,
+                            isImageGeneration = true,
+                        )
+                    }
                     entry<Route.Profile> {
                         ProfileScreen(
                             state = profileState,
@@ -641,7 +651,7 @@ private fun MainNavigationBar(
     ) {
         navigationItems.forEach { item ->
             val selected = when (item.route) {
-                Route.Settings -> currentRoute == Route.Settings || currentRoute == Route.ApiSettings || currentRoute == Route.MultimodalApiSettings || currentRoute == Route.VoiceApiSettings || currentRoute == Route.About || currentRoute == Route.Profile
+                Route.Settings -> currentRoute == Route.Settings || currentRoute == Route.ApiSettings || currentRoute == Route.MultimodalApiSettings || currentRoute == Route.VoiceApiSettings || currentRoute == Route.ImageGenerationApiSettings || currentRoute == Route.About || currentRoute == Route.Profile
                 else -> item.route == currentRoute
             }
             val label = stringResource(item.label)
@@ -678,7 +688,7 @@ private fun MainNavigationRail(
         Spacer(Modifier.height(StarRailSpacing.lg))
         navigationItems.forEach { item ->
             val selected = when (item.route) {
-                Route.Settings -> currentRoute == Route.Settings || currentRoute == Route.ApiSettings || currentRoute == Route.MultimodalApiSettings || currentRoute == Route.VoiceApiSettings || currentRoute == Route.About || currentRoute == Route.Profile
+                Route.Settings -> currentRoute == Route.Settings || currentRoute == Route.ApiSettings || currentRoute == Route.MultimodalApiSettings || currentRoute == Route.VoiceApiSettings || currentRoute == Route.ImageGenerationApiSettings || currentRoute == Route.About || currentRoute == Route.Profile
                 else -> item.route == currentRoute
             }
             val label = stringResource(item.label)

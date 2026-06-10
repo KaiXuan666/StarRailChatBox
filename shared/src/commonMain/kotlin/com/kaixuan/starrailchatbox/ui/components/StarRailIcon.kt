@@ -373,24 +373,52 @@ fun StarRailIcon(
             }
 
             StarRailIconKind.UPDATE -> {
-                drawArc(
-                    color = tint,
-                    startAngle = -30f,
-                    sweepAngle = 290f,
-                    useCenter = false,
-                    topLeft = point(0.2f, 0.2f),
-                    size = Size(side * 0.6f, side * 0.6f),
-                    style = stroke,
-                )
-                path.reset()
+                        // 1. 基础参数定义
+                        val strokeWidth = stroke.width
+                        val arcSize = side * 0.6f
+                        // 确保圆弧居中
+                        val arcTopLeft = Offset((size.width - arcSize) / 2, (size.height - arcSize) / 2)
 
-                path.apply {
-                    moveTo(size.width * 0.7f, size.height * 0.14f)
-                    lineTo(size.width * 0.82f, size.height * 0.34f)
-                    lineTo(size.width * 0.58f, size.height * 0.38f)
-                }
-                drawPath(path, tint, style = stroke)
-            }
+                        // 2. 画圆弧 (顺时针，从 0度开始，旋转 280度，缺口留在右上角)
+                        val startAngle = 0f
+                        val sweepAngle = 280f
+                        drawArc(
+                            color = tint,
+                            startAngle = startAngle,
+                            sweepAngle = sweepAngle,
+                            useCenter = false,
+                            topLeft = arcTopLeft,
+                            size = Size(arcSize, arcSize),
+                            style = stroke,
+                        )
+
+                        // 3. 计算圆弧终点的精确坐标 (Common 端安全的三角函数)
+                        // 角度转弧度公式：弧度 = 角度 * PI / 180
+                        val endAngleRad = (startAngle + sweepAngle) * PI / 180.0
+                        val radius = arcSize / 2
+                        val centerX = arcTopLeft.x + radius
+                        val centerY = arcTopLeft.y + radius
+
+                        // 因为 kotlin.math 的 sin/cos 接收 Double 或 Float，这里转为 Float 供 Offset 使用
+                        val endX = (centerX + radius * cos(endAngleRad)).toFloat()
+                        val endY = (centerY + radius * sin(endAngleRad)).toFloat()
+
+                        // 4. 在终点处绘制箭头
+                        path.reset()
+                        val arrowLength = side * 0.15f
+
+                        path.apply {
+                            // 移动到圆弧终点，精准衔接
+                            moveTo(endX, endY)
+                            // 绘制向下延伸的箭头翅膀
+                            lineTo(endX, endY + arrowLength)
+                            // 移动回终点，绘制向左延伸的箭头翅膀
+                            moveTo(endX, endY)
+                            lineTo(endX - arrowLength, endY)
+                        }
+
+                        drawPath(path, tint, style = stroke)
+                    }
 
             StarRailIconKind.BELL -> {
                 path.reset()

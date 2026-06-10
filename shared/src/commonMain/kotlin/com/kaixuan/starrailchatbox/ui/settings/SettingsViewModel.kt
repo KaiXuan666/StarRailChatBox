@@ -6,6 +6,7 @@ import com.kaixuan.starrailchatbox.data.ai.AiRepository
 import com.kaixuan.starrailchatbox.data.ai.OpenAiCompatibleProvider
 import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.model.DefaultModelConfig
+import com.kaixuan.starrailchatbox.data.model.ImageGenerationModelConfig
 import com.kaixuan.starrailchatbox.data.model.ModelConfig
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
 import com.kaixuan.starrailchatbox.data.model.MultimodalModelConfig
@@ -57,11 +58,16 @@ class SettingsViewModel(
             _uiState.update { it.copy(isVoiceConfigured = config?.apiKey?.isNotBlank() == true || voiceConfig?.apiKey?.isNotBlank() == true) }
         }.launchIn(scope())
 
+        modelConfigRepository.observeImageGeneration().onEach { config ->
+            _uiState.update { it.copy(isImageGenerationConfigured = config?.apiKey?.isNotBlank() == true) }
+        }.launchIn(scope())
+
         scope().launch {
             val settings = modelConfigRepository.getDefault()
             val mmSettings = modelConfigRepository.getMultimodal()
             val voiceSettings = modelConfigRepository.getVoice()
             val voiceCloneSettings = modelConfigRepository.getVoiceClone()
+            val imageGenSettings = modelConfigRepository.getImageGeneration()
             Napier.d { "settings=$settings" }
             Napier.d { "mmSettings=$mmSettings" }
             _uiState.update { state ->
@@ -84,6 +90,7 @@ class SettingsViewModel(
                 val mmModel = mmSettings?.modelName.orEmpty()
                 val voiceModel = voiceSettings?.modelName.orEmpty()
                 val voiceCloneModel = voiceCloneSettings?.modelName.orEmpty()
+                val imageGenModel = imageGenSettings?.modelName.orEmpty()
 
                 state.copy(
                     // 标准模型配置
@@ -103,7 +110,13 @@ class SettingsViewModel(
                     voiceApiKey = voiceSettings?.apiKey.resolveKey(),
                     voiceSelectedModel = voiceModel,
                     voiceSelectedCloneModel = voiceCloneModel,
-                    voiceModelsList = createModelList(voiceModel, voiceCloneModel)
+                    voiceModelsList = createModelList(voiceModel, voiceCloneModel),
+
+                    // 图片生成配置
+                    imageGenerationApiHost = imageGenSettings?.baseUrl.resolveHost(state.imageGenerationApiHost),
+                    imageGenerationApiKey = imageGenSettings?.apiKey.resolveKey(),
+                    imageGenerationSelectedModel = imageGenModel,
+                    imageGenerationModelsList = createModelList(imageGenModel)
                 )
             }
         }
@@ -116,6 +129,7 @@ class SettingsViewModel(
             is SettingsAction.ApiHostChanged -> {
                 _uiState.update { state ->
                     when {
+                        action.isImageGeneration -> state.copy(imageGenerationApiHost = action.host)
                         action.isVoice -> state.copy(voiceApiHost = action.host)
                         action.isMultimodal -> state.copy(multimodalApiHost = action.host)
                         else -> state.copy(apiHost = action.host)
@@ -126,6 +140,7 @@ class SettingsViewModel(
             is SettingsAction.ApiKeyChanged -> {
                 _uiState.update { state ->
                     when {
+                        action.isImageGeneration -> state.copy(imageGenerationApiKey = action.key)
                         action.isVoice -> state.copy(voiceApiKey = action.key)
                         action.isMultimodal -> state.copy(multimodalApiKey = action.key)
                         else -> state.copy(apiKey = action.key)
@@ -144,22 +159,31 @@ class SettingsViewModel(
             SettingsAction.ToggleVoiceApiKeyVisibility -> {
                 _uiState.update { it.copy(voiceShowApiKey = !it.voiceShowApiKey) }
             }
+
+            SettingsAction.ToggleImageGenerationApiKeyVisibility -> {
+                _uiState.update { it.copy(imageGenerationShowApiKey = !it.imageGenerationShowApiKey) }
+            }
             
             SettingsAction.FetchModelsClicked -> {
-                fetchModels(isMultimodal = false, isVoice = false)
+                fetchModels(isMultimodal = false, isVoice = false, isImageGeneration = false)
             }
             
             SettingsAction.FetchMultimodalModelsClicked -> {
-                fetchModels(isMultimodal = true, isVoice = false)
+                fetchModels(isMultimodal = true, isVoice = false, isImageGeneration = false)
             }
 
             SettingsAction.FetchVoiceModelsClicked -> {
-                fetchModels(isMultimodal = false, isVoice = true)
+                fetchModels(isMultimodal = false, isVoice = true, isImageGeneration = false)
+            }
+
+            SettingsAction.FetchImageGenerationModelsClicked -> {
+                fetchModels(isMultimodal = false, isVoice = false, isImageGeneration = true)
             }
             
             is SettingsAction.SelectModel -> {
                 _uiState.update { state ->
                     when {
+                        action.isImageGeneration -> state.copy(imageGenerationSelectedModel = action.model)
                         action.isVoiceClone -> state.copy(voiceSelectedCloneModel = action.model)
                         action.isVoice -> state.copy(voiceSelectedModel = action.model)
                         action.isMultimodal -> state.copy(multimodalSelectedModel = action.model)
@@ -169,19 +193,23 @@ class SettingsViewModel(
             }
             
             SettingsAction.SaveApiSettingsClicked -> {
-                saveApiSettings(isMultimodal = false, isVoice = false)
+                saveApiSettings(isMultimodal = false, isVoice = false, isImageGeneration = false)
             }
             
             SettingsAction.SaveMultimodalApiSettingsClicked -> {
-                saveApiSettings(isMultimodal = true, isVoice = false)
+                saveApiSettings(isMultimodal = true, isVoice = false, isImageGeneration = false)
             }
 
             SettingsAction.SaveVoiceApiSettingsClicked -> {
-                saveApiSettings(isMultimodal = false, isVoice = true)
+                saveApiSettings(isMultimodal = false, isVoice = true, isImageGeneration = false)
+            }
+
+            SettingsAction.SaveImageGenerationApiSettingsClicked -> {
+                saveApiSettings(isMultimodal = false, isVoice = false, isImageGeneration = true)
             }
 
             is SettingsAction.ClearApiSettingsClicked -> {
-                clearApiSettings(isMultimodal = action.isMultimodal, isVoice = action.isVoice)
+                clearApiSettings(isMultimodal = action.isMultimodal, isVoice = action.isVoice, isImageGeneration = action.isImageGeneration)
             }
 
             is SettingsAction.CopyToClipboard -> {
@@ -201,6 +229,9 @@ class SettingsViewModel(
             SettingsItem.MULTIMODAL_API_SETTINGS -> {
                 // 由框架层 MainAction 转发导航压栈
             }
+            SettingsItem.IMAGE_GENERATION_API_SETTINGS -> {
+                // 由框架层 MainAction 转发导航压栈
+            }
             SettingsItem.VOICE_API_SETTINGS -> {
                 // 由框架层 MainAction 转发导航压栈
             }
@@ -214,9 +245,10 @@ class SettingsViewModel(
         }
     }
 
-    private fun fetchModels(isMultimodal: Boolean, isVoice: Boolean = false) {
+    private fun fetchModels(isMultimodal: Boolean, isVoice: Boolean = false, isImageGeneration: Boolean = false) {
         val state = _uiState.value
         val isFetching = when {
+            isImageGeneration -> state.imageGenerationIsFetchingModels
             isVoice -> state.voiceIsFetchingModels
             isMultimodal -> state.multimodalIsFetchingModels
             else -> state.isFetchingModels
@@ -224,11 +256,13 @@ class SettingsViewModel(
         if (isFetching) return
 
         val apiHost = when {
+            isImageGeneration -> state.imageGenerationApiHost
             isVoice -> state.voiceApiHost
             isMultimodal -> state.multimodalApiHost
             else -> state.apiHost
         }
         val apiKey = when {
+            isImageGeneration -> state.imageGenerationApiKey
             isVoice -> state.voiceApiKey
             isMultimodal -> state.multimodalApiKey
             else -> state.apiKey
@@ -241,6 +275,7 @@ class SettingsViewModel(
 
         _uiState.update {
             when {
+                isImageGeneration -> it.copy(imageGenerationIsFetchingModels = true)
                 isVoice -> it.copy(voiceIsFetchingModels = true)
                 isMultimodal -> it.copy(multimodalIsFetchingModels = true)
                 else -> it.copy(isFetchingModels = true)
@@ -256,10 +291,11 @@ class SettingsViewModel(
                     providerId = OpenAiCompatibleProvider.Id,
                 )
             ) {
-                is ApiResult.Success -> handleModelsLoaded(result.value, isMultimodal, isVoice)
+                is ApiResult.Success -> handleModelsLoaded(result.value, isMultimodal, isVoice, isImageGeneration)
                 is ApiResult.HttpError -> {
                     _uiState.update {
                         when {
+                            isImageGeneration -> it.copy(imageGenerationIsFetchingModels = false)
                             isVoice -> it.copy(voiceIsFetchingModels = false)
                             isMultimodal -> it.copy(multimodalIsFetchingModels = false)
                             else -> it.copy(isFetchingModels = false)
@@ -278,6 +314,7 @@ class SettingsViewModel(
                 -> {
                     _uiState.update {
                         when {
+                            isImageGeneration -> it.copy(imageGenerationIsFetchingModels = false)
                             isVoice -> it.copy(voiceIsFetchingModels = false)
                             isMultimodal -> it.copy(multimodalIsFetchingModels = false)
                             else -> it.copy(isFetchingModels = false)
@@ -289,10 +326,11 @@ class SettingsViewModel(
         }
     }
 
-    private fun handleModelsLoaded(models: List<String>, isMultimodal: Boolean, isVoice: Boolean = false) {
+    private fun handleModelsLoaded(models: List<String>, isMultimodal: Boolean, isVoice: Boolean = false, isImageGeneration: Boolean = false) {
         if (models.isEmpty()) {
             _uiState.update {
                 when {
+                    isImageGeneration -> it.copy(imageGenerationIsFetchingModels = false, imageGenerationModelsList = emptyList())
                     isVoice -> it.copy(voiceIsFetchingModels = false, voiceModelsList = emptyList())
                     isMultimodal -> it.copy(multimodalIsFetchingModels = false, multimodalModelsList = emptyList())
                     else -> it.copy(isFetchingModels = false, modelsList = emptyList())
@@ -304,12 +342,21 @@ class SettingsViewModel(
 
         val sortedModels = if (isVoice) {
             models.sortedByDescending { it.contains("tts", ignoreCase = true) }
+        } else if (isImageGeneration) {
+            models.sortedByDescending { it.contains("dall-e", ignoreCase = true) || it.contains("flux", ignoreCase = true) }
         } else {
             models
         }
 
         _uiState.update { state ->
             when {
+                isImageGeneration -> {
+                    state.copy(
+                        imageGenerationIsFetchingModels = false,
+                        imageGenerationModelsList = sortedModels,
+                        imageGenerationSelectedModel = state.imageGenerationSelectedModel.takeIf(sortedModels::contains) ?: sortedModels.first(),
+                    )
+                }
                 isVoice -> {
                     state.copy(
                         voiceIsFetchingModels = false,
@@ -339,9 +386,10 @@ class SettingsViewModel(
         emitMessage(SettingsEffectMessage.SETTINGS_API_FETCH_SUCCESS)
     }
 
-    private fun saveApiSettings(isMultimodal: Boolean, isVoice: Boolean = false) {
+    private fun saveApiSettings(isMultimodal: Boolean, isVoice: Boolean = false, isImageGeneration: Boolean = false) {
         val state = _uiState.value
         val isSaving = when {
+            isImageGeneration -> state.imageGenerationIsSaving
             isVoice -> state.voiceIsSaving
             isMultimodal -> state.multimodalIsSaving
             else -> state.isSaving
@@ -349,16 +397,19 @@ class SettingsViewModel(
         if (isSaving) return
 
         val apiHost = when {
+            isImageGeneration -> state.imageGenerationApiHost
             isVoice -> state.voiceApiHost
             isMultimodal -> state.multimodalApiHost
             else -> state.apiHost
         }
         val apiKey = when {
+            isImageGeneration -> state.imageGenerationApiKey
             isVoice -> state.voiceApiKey
             isMultimodal -> state.multimodalApiKey
             else -> state.apiKey
         }
         val selectedModel = when {
+            isImageGeneration -> state.imageGenerationSelectedModel
             isVoice -> state.voiceSelectedModel
             isMultimodal -> state.multimodalSelectedModel
             else -> state.selectedModel
@@ -371,6 +422,7 @@ class SettingsViewModel(
 
         _uiState.update {
             when {
+                isImageGeneration -> it.copy(imageGenerationIsSaving = true)
                 isVoice -> it.copy(voiceIsSaving = true)
                 isMultimodal -> it.copy(multimodalIsSaving = true)
                 else -> it.copy(isSaving = true)
@@ -427,6 +479,25 @@ class SettingsViewModel(
                     } else {
                         modelConfigRepository.deleteConfig(VoiceCloneModelConfig.Id)
                     }
+                } else if (isImageGeneration) {
+                    modelConfigRepository.saveImageGeneration(
+                        ModelConfig(
+                            id = ImageGenerationModelConfig.Id,
+                            provider = ImageGenerationModelConfig.Provider,
+                            name = ImageGenerationModelConfig.Name,
+                            baseUrl = apiHost.trim().trimEnd('/'),
+                            apiKey = apiKey.trim(),
+                            modelName = selectedModel,
+                            contextWindow = ImageGenerationModelConfig.ContextWindow,
+                            maxOutputTokens = ImageGenerationModelConfig.MaxOutputTokens,
+                            supportVision = false,
+                            supportToolCall = false,
+                            supportReasoning = false,
+                            temperature = ImageGenerationModelConfig.Temperature,
+                            topP = ImageGenerationModelConfig.TopP,
+                            enabled = true,
+                        ),
+                    )
                 } else {
                     val supportToolCall = aiRepository.testToolCallSupport(
                         apiHost = apiHost,
@@ -477,6 +548,7 @@ class SettingsViewModel(
                 }
                 _uiState.update {
                     when {
+                        isImageGeneration -> it.copy(imageGenerationIsSaving = false)
                         isVoice -> it.copy(voiceIsSaving = false)
                         isMultimodal -> it.copy(multimodalIsSaving = false)
                         else -> it.copy(isSaving = false)
@@ -489,6 +561,7 @@ class SettingsViewModel(
                 t.printStackTrace()
                 _uiState.update {
                     when {
+                        isImageGeneration -> it.copy(imageGenerationIsSaving = false)
                         isVoice -> it.copy(voiceIsSaving = false)
                         isMultimodal -> it.copy(multimodalIsSaving = false)
                         else -> it.copy(isSaving = false)
@@ -499,10 +572,20 @@ class SettingsViewModel(
         }
     }
 
-    private fun clearApiSettings(isMultimodal: Boolean, isVoice: Boolean) {
+    private fun clearApiSettings(isMultimodal: Boolean, isVoice: Boolean, isImageGeneration: Boolean) {
         scope().launch {
             try {
                 when {
+                    isImageGeneration -> {
+                        modelConfigRepository.deleteConfig(ImageGenerationModelConfig.Id)
+                        _uiState.update {
+                            it.copy(
+                                imageGenerationApiKey = "",
+                                imageGenerationSelectedModel = "",
+                                imageGenerationModelsList = emptyList()
+                            )
+                        }
+                    }
                     isVoice -> {
                         modelConfigRepository.deleteConfig(VoiceModelConfig.Id)
                         modelConfigRepository.deleteConfig(VoiceCloneModelConfig.Id)

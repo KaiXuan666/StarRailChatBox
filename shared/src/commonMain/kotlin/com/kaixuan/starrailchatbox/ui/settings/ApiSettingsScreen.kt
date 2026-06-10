@@ -65,6 +65,7 @@ import starrailchatbox.shared.generated.resources.settings_api_model_selected
 import starrailchatbox.shared.generated.resources.settings_api_empty_models
 import starrailchatbox.shared.generated.resources.settings_api_title
 import starrailchatbox.shared.generated.resources.settings_multimodal_api_title
+import starrailchatbox.shared.generated.resources.settings_image_generation_api_title
 import starrailchatbox.shared.generated.resources.settings_voice_api_title
 import starrailchatbox.shared.generated.resources.settings_multimodal_api_tip
 import starrailchatbox.shared.generated.resources.settings_get
@@ -102,40 +103,48 @@ fun ApiSettingsScreen(
     modifier: Modifier = Modifier,
     isMultimodal: Boolean = false,
     isVoice: Boolean = false,
+    isImageGeneration: Boolean = false,
 ) {
     val colors = MaterialTheme.starRailColors
     
     val apiHost = when {
+        isImageGeneration -> state.imageGenerationApiHost
         isVoice -> state.voiceApiHost
         isMultimodal -> state.multimodalApiHost
         else -> state.apiHost
     }
     val apiKey = when {
+        isImageGeneration -> state.imageGenerationApiKey
         isVoice -> state.voiceApiKey
         isMultimodal -> state.multimodalApiKey
         else -> state.apiKey
     }
     val showApiKey = when {
+        isImageGeneration -> state.imageGenerationShowApiKey
         isVoice -> state.voiceShowApiKey
         isMultimodal -> state.multimodalShowApiKey
         else -> state.showApiKey
     }
     val isFetchingModels = when {
+        isImageGeneration -> state.imageGenerationIsFetchingModels
         isVoice -> state.voiceIsFetchingModels
         isMultimodal -> state.multimodalIsFetchingModels
         else -> state.isFetchingModels
     }
     val modelsList = when {
+        isImageGeneration -> state.imageGenerationModelsList
         isVoice -> state.voiceModelsList
         isMultimodal -> state.multimodalModelsList
         else -> state.modelsList
     }
     val selectedModel = when {
+        isImageGeneration -> state.imageGenerationSelectedModel
         isVoice -> state.voiceSelectedModel
         isMultimodal -> state.multimodalSelectedModel
         else -> state.selectedModel
     }
     val isSaving = when {
+        isImageGeneration -> state.imageGenerationIsSaving
         isVoice -> state.voiceIsSaving
         isMultimodal -> state.multimodalIsSaving
         else -> state.isSaving
@@ -165,6 +174,7 @@ fun ApiSettingsScreen(
 
         StarRailPageLayout(
             title = when {
+                isImageGeneration -> stringResource(Res.string.settings_image_generation_api_title)
                 isVoice -> stringResource(Res.string.settings_voice_api_title)
                 isMultimodal -> stringResource(Res.string.settings_multimodal_api_title)
                 else -> stringResource(Res.string.settings_api_title)
@@ -189,7 +199,7 @@ fun ApiSettingsScreen(
                 
                 ApiInputField(
                     value = apiHost,
-                    onValueChange = { onSettingsAction(SettingsAction.ApiHostChanged(it, isMultimodal = isMultimodal, isVoice = isVoice)) },
+                    onValueChange = { onSettingsAction(SettingsAction.ApiHostChanged(it, isMultimodal = isMultimodal, isVoice = isVoice, isImageGeneration = isImageGeneration)) },
                     placeholder = if (isVoice) "https://api.xiaomimimo.com/v1" else "https://api.openai.com/v1",
                     leadingIcon = StarRailIconKind.COMPASS,
                     compact = compact
@@ -210,7 +220,7 @@ fun ApiSettingsScreen(
                 
                 ApiInputField(
                     value = apiKey,
-                    onValueChange = { onSettingsAction(SettingsAction.ApiKeyChanged(it, isMultimodal = isMultimodal, isVoice = isVoice)) },
+                    onValueChange = { onSettingsAction(SettingsAction.ApiKeyChanged(it, isMultimodal = isMultimodal, isVoice = isVoice, isImageGeneration = isImageGeneration)) },
                     placeholder = "sk-",
                     leadingIcon = StarRailIconKind.KEY,
                     isPasswordField = true,
@@ -218,6 +228,7 @@ fun ApiSettingsScreen(
                     onPasswordToggle = { 
                         onSettingsAction(
                             when {
+                                isImageGeneration -> SettingsAction.ToggleImageGenerationApiKeyVisibility
                                 isVoice -> SettingsAction.ToggleVoiceApiKeyVisibility
                                 isMultimodal -> SettingsAction.ToggleMultimodalApiKeyVisibility
                                 else -> SettingsAction.ToggleApiKeyVisibility
@@ -254,6 +265,7 @@ fun ApiSettingsScreen(
                         onClick = { 
                             onSettingsAction(
                                 when {
+                                    isImageGeneration -> SettingsAction.FetchImageGenerationModelsClicked
                                     isVoice -> SettingsAction.FetchVoiceModelsClicked
                                     isMultimodal -> SettingsAction.FetchMultimodalModelsClicked
                                     else -> SettingsAction.FetchModelsClicked
@@ -343,13 +355,15 @@ fun ApiSettingsScreen(
                             StarRailDropdown(
                                 options = modelsList,
                                 selectedOption = selectedModel,
-                                onOptionSelected = { onSettingsAction(SettingsAction.SelectModel(it, isMultimodal = isMultimodal, isVoice = isVoice)) },
+                                onOptionSelected = { onSettingsAction(SettingsAction.SelectModel(it, isMultimodal = isMultimodal, isVoice = isVoice, isImageGeneration = isImageGeneration)) },
                                 compact = compact,
                                 placeholder = stringResource(Res.string.settings_api_model_selected),
+                                iconKind = if (isImageGeneration) StarRailIconKind.GALLERY else StarRailIconKind.CUBE,
                                 isFetching = isFetchingModels,
                                 onFetchRequest = {
                                     onSettingsAction(
                                         when {
+                                            isImageGeneration -> SettingsAction.FetchImageGenerationModelsClicked
                                             isMultimodal -> SettingsAction.FetchMultimodalModelsClicked
                                             else -> SettingsAction.FetchModelsClicked
                                         }
@@ -413,6 +427,7 @@ fun ApiSettingsScreen(
                 onClick = { 
                     onSettingsAction(
                         when {
+                            isImageGeneration -> SettingsAction.SaveImageGenerationApiSettingsClicked
                             isVoice -> SettingsAction.SaveVoiceApiSettingsClicked
                             isMultimodal -> SettingsAction.SaveMultimodalApiSettingsClicked
                             else -> SettingsAction.SaveApiSettingsClicked
@@ -425,7 +440,7 @@ fun ApiSettingsScreen(
             StarRailSecondaryButton(
                 text = stringResource(Res.string.settings_clear_config),
                 onClick = {
-                    onSettingsAction(SettingsAction.ClearApiSettingsClicked(isMultimodal = isMultimodal, isVoice = isVoice))
+                    onSettingsAction(SettingsAction.ClearApiSettingsClicked(isMultimodal = isMultimodal, isVoice = isVoice, isImageGeneration = isImageGeneration))
                 },
                 modifier = Modifier.fillMaxWidth()
             )

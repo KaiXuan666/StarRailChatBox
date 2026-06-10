@@ -34,6 +34,9 @@ sealed interface Route {
     // 语音合成 API 配置二级界面 (挂载在“我的”页面之下)
     data object VoiceApiSettings : Route
 
+    // 图片生成 API 配置二级界面 (挂载在“我的”页面之下)
+    data object ImageGenerationApiSettings : Route
+
     // 个人信息二级界面 (挂载在“我的”页面之下)
     data object Profile : Route
 

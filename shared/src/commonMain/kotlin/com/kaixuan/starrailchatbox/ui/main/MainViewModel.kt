@@ -73,6 +73,11 @@ class MainViewModel(private val settingsStore: AppSettingsStore) : ViewModel() {
                             state.copy(backStack = state.backStack + Route.MultimodalApiSettings)
                         }
                     }
+                    MainSettingsItem.IMAGE_GENERATION_API_SETTINGS -> {
+                        _uiState.update { state ->
+                            state.copy(backStack = state.backStack + Route.ImageGenerationApiSettings)
+                        }
+                    }
                     MainSettingsItem.VOICE_API_SETTINGS -> {
                         _uiState.update { state ->
                             state.copy(backStack = state.backStack + Route.VoiceApiSettings)

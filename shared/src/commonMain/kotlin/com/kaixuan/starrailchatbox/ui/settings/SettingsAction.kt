@@ -4,6 +4,7 @@ enum class SettingsItem {
     PROFILE,
     API_SETTINGS,
     MULTIMODAL_API_SETTINGS,
+    IMAGE_GENERATION_API_SETTINGS,
     VOICE_API_SETTINGS,
     CHECK_UPDATE,
     MESSAGE_NOTIFICATION,
@@ -17,25 +18,28 @@ sealed interface SettingsAction {
     data class SettingsItemClicked(val item: SettingsItem) : SettingsAction
     
     // API 设置修改
-    data class ApiHostChanged(val host: String, val isMultimodal: Boolean = false, val isVoice: Boolean = false) : SettingsAction
-    data class ApiKeyChanged(val key: String, val isMultimodal: Boolean = false, val isVoice: Boolean = false) : SettingsAction
+    data class ApiHostChanged(val host: String, val isMultimodal: Boolean = false, val isVoice: Boolean = false, val isImageGeneration: Boolean = false) : SettingsAction
+    data class ApiKeyChanged(val key: String, val isMultimodal: Boolean = false, val isVoice: Boolean = false, val isImageGeneration: Boolean = false) : SettingsAction
     data object ToggleApiKeyVisibility : SettingsAction
     data object ToggleMultimodalApiKeyVisibility : SettingsAction
     data object ToggleVoiceApiKeyVisibility : SettingsAction
+    data object ToggleImageGenerationApiKeyVisibility : SettingsAction
     
     // 模型拉取与选择
     data object FetchModelsClicked : SettingsAction
     data object FetchMultimodalModelsClicked : SettingsAction
     data object FetchVoiceModelsClicked : SettingsAction
-    data class SelectModel(val model: String, val isMultimodal: Boolean = false, val isVoice: Boolean = false, val isVoiceClone: Boolean = false) : SettingsAction
+    data object FetchImageGenerationModelsClicked : SettingsAction
+    data class SelectModel(val model: String, val isMultimodal: Boolean = false, val isVoice: Boolean = false, val isVoiceClone: Boolean = false, val isImageGeneration: Boolean = false) : SettingsAction
     
     // 点击保存 API 设置
     data object SaveApiSettingsClicked : SettingsAction
     data object SaveMultimodalApiSettingsClicked : SettingsAction
     data object SaveVoiceApiSettingsClicked : SettingsAction
+    data object SaveImageGenerationApiSettingsClicked : SettingsAction
 
     // 清空配置并退出
-    data class ClearApiSettingsClicked(val isMultimodal: Boolean = false, val isVoice: Boolean = false) : SettingsAction
+    data class ClearApiSettingsClicked(val isMultimodal: Boolean = false, val isVoice: Boolean = false, val isImageGeneration: Boolean = false) : SettingsAction
 
     // 复制到剪贴板
     data class CopyToClipboard(val text: String) : SettingsAction

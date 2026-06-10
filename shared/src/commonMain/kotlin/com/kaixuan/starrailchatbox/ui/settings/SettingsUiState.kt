@@ -34,9 +34,19 @@ data class SettingsUiState(
     val voiceIsFetchingModels: Boolean = false,
     val voiceIsSaving: Boolean = false,
 
+    // 图片生成 API 设置
+    val imageGenerationApiHost: String = "https://api.openai.com/v1",
+    val imageGenerationApiKey: String = "",
+    val imageGenerationShowApiKey: Boolean = false,
+    val imageGenerationModelsList: List<String> = emptyList(),
+    val imageGenerationSelectedModel: String = "",
+    val imageGenerationIsFetchingModels: Boolean = false,
+    val imageGenerationIsSaving: Boolean = false,
+
     // 配置状态（真实持久化状态）
     val isDefaultConfigured: Boolean = false,
     val isMultimodalConfigured: Boolean = false,
     val isVoiceConfigured: Boolean = false,
+    val isImageGenerationConfigured: Boolean = false,
 )
 

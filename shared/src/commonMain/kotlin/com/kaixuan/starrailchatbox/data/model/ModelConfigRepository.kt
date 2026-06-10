@@ -46,6 +46,12 @@ interface ModelConfigRepository {
 
     suspend fun saveVoiceClone(config: ModelConfig)
 
+    suspend fun getImageGeneration(): ModelConfig?
+
+    fun observeImageGeneration(): Flow<ModelConfig?>
+
+    suspend fun saveImageGeneration(config: ModelConfig)
+
     suspend fun deleteConfig(id: String)
 }
 
@@ -58,6 +64,7 @@ class InMemoryModelConfigRepository(
     private val _multimodalConfig = MutableStateFlow(initialMultimodal)
     private val _voiceConfig = MutableStateFlow(initialVoice)
     private val _voiceCloneConfig = MutableStateFlow<ModelConfig?>(null)
+    private val _imageGenerationConfig = MutableStateFlow<ModelConfig?>(null)
 
     override suspend fun getDefault(): ModelConfig? = _config.value
 
@@ -91,12 +98,21 @@ class InMemoryModelConfigRepository(
         _voiceCloneConfig.value = config
     }
 
+    override suspend fun getImageGeneration(): ModelConfig? = _imageGenerationConfig.value
+
+    override fun observeImageGeneration(): Flow<ModelConfig?> = _imageGenerationConfig.asStateFlow()
+
+    override suspend fun saveImageGeneration(config: ModelConfig) {
+        _imageGenerationConfig.value = config
+    }
+
     override suspend fun deleteConfig(id: String) {
         when (id) {
             DefaultModelConfig.Id -> _config.value = null
             MultimodalModelConfig.Id -> _multimodalConfig.value = null
             VoiceModelConfig.Id -> _voiceConfig.value = null
             VoiceCloneModelConfig.Id -> _voiceCloneConfig.value = null
+            ImageGenerationModelConfig.Id -> _imageGenerationConfig.value = null
         }
     }
 }
@@ -135,6 +151,16 @@ object VoiceCloneModelConfig {
     const val Id = "voice_clone"
     const val Provider = "xiaomimimo"
     const val Name = "音色克隆模型"
+    const val ContextWindow = 128_000
+    const val MaxOutputTokens = 4_096
+    const val Temperature = 0.7
+    const val TopP = 1.0
+}
+
+object ImageGenerationModelConfig {
+    const val Id = "image_generation"
+    const val Provider = "custom"
+    const val Name = "图片生成模型"
     const val ContextWindow = 128_000
     const val MaxOutputTokens = 4_096
     const val Temperature = 0.7
