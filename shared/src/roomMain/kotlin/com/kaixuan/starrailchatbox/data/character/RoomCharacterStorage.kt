@@ -75,7 +75,7 @@ class RoomCharacterStorage(
         val avatarUri = if (avatarSource != null) {
             val sourceUri = avatarSource.uri
             if (sourceUri.startsWith(fileManager.cacheDir.toString())) {
-                val extension = sourceUri.substringAfterLast('.', "webp")
+                val extension = avatarSource.extension ?: sourceUri.substringAfterLast('.', "png")
                 val safeId = characterSafeFileName(character.id)
                 val targetFileName = "${safeId}_${now}.$extension"
                 val targetPath = fileManager.appDataDir / "character_avatars".toPath() / targetFileName.toPath()
