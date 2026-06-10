@@ -12,17 +12,21 @@ import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
+import io.ktor.client.request.prepareGet
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
+import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.readRemaining
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.io.readByteArray
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -32,6 +36,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
+import okio.BufferedSink
 import okio.Path
 import okio.Path.Companion.toPath
 import kotlin.random.Random
@@ -217,24 +222,37 @@ class ImageGenerationTool(
                 ?.get("image")?.jsonPrimitive?.content
 
             if (!imageUrl.isNullOrBlank()) {
-                // 下载并保存图片到本地私有目录
-                val imageBytes = httpClient.get(imageUrl).body<ByteArray>()
                 val randomSuffix = (Random.nextLong() and 0x7FFFFFFFFFFFFFFF).toString(36)
-                
                 // 优先从 URL 提取后缀名
                 val extension = imageUrl.substringAfterLast('.', "png").let { ext ->
                     if (ext.contains('/') || ext.length > 5) "png" else ext
                 }
-                
                 val fileName = "gen_$randomSuffix.$extension"
                 val relativePath = "generated_images/$fileName"
-                fileManager.writeBytes(relativePath, imageBytes)
+                val fullPath = fileManager.appDataDir / relativePath
                 
-                val localPath = (fileManager.appDataDir / relativePath).toString()
-                Napier.d { "Image saved to: $localPath" }
+                // 确保父目录存在
+                fullPath.parent?.let { fileManager.createDirectories(it) }
+
+                // 流式下载并保存
+                httpClient.prepareGet(imageUrl).execute { httpResponse ->
+                    val channel: ByteReadChannel = httpResponse.body()
+                    fileManager.fileSystem.write(fullPath) {
+                        while (!channel.isClosedForRead) {
+                            val packet = channel.readRemaining(8192)
+                            while (!packet.exhausted()) {
+                                val bytes = packet.readByteArray()
+                                write(bytes)
+                            }
+                        }
+                    }
+                }
+                
+                val localPath = fullPath.toString()
+                Napier.d { "Image saved via stream to: $localPath" }
 
                 ToolResult.Terminal(
-                    content = "图片已生成并保存到本地。",
+                    content = "",
                     imageAttachmentUri = localPath
                 )
             } else {

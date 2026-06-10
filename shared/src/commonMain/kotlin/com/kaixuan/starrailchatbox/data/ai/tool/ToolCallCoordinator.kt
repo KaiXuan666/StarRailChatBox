@@ -21,6 +21,7 @@ data class CoordinatedCompletion(
     val usage: AiUsage,
     val voiceAttachmentUri: String? = null,
     val voiceDurationMs: Long? = null,
+    val imageAttachmentUri: String? = null,
 )
 
 /**
@@ -100,6 +101,7 @@ class ToolCallCoordinator(
             var terminalSuggestions = mutableListOf<String>()
             var terminalVoiceUri: String? = null
             var terminalVoiceDuration: Long? = null
+            var terminalImageUri: String? = null
             var hasTerminal = false
 
             for (call in calls) {
@@ -120,6 +122,9 @@ class ToolCallCoordinator(
                         if (result.voiceAttachmentUri != null) {
                             terminalVoiceUri = result.voiceAttachmentUri
                             terminalVoiceDuration = result.voiceDurationMs
+                        }
+                        if (result.imageAttachmentUri != null) {
+                            terminalImageUri = result.imageAttachmentUri
                         }
                         hasTerminal = true
                     }
@@ -148,6 +153,7 @@ class ToolCallCoordinator(
                         usage = usage,
                         voiceAttachmentUri = terminalVoiceUri,
                         voiceDurationMs = terminalVoiceDuration,
+                        imageAttachmentUri = terminalImageUri,
                     ),
                 )
             }
@@ -254,6 +260,7 @@ class ToolCallCoordinator(
                 var finalSuggestions = mutableListOf<String>()
                 var finalVoiceUri: String? = null
                 var finalVoiceDuration: Long? = null
+                var finalImageUri: String? = null
                 var hasTerminal = false
 
                 for (tool in tools) {
@@ -264,6 +271,9 @@ class ToolCallCoordinator(
                         if (res.voiceAttachmentUri != null) {
                             finalVoiceUri = res.voiceAttachmentUri
                             finalVoiceDuration = res.voiceDurationMs
+                        }
+                        if (res.imageAttachmentUri != null) {
+                            finalImageUri = res.imageAttachmentUri
                         }
                         hasTerminal = true
                     }
@@ -278,6 +288,7 @@ class ToolCallCoordinator(
                             usage = completion.usage,
                             voiceAttachmentUri = finalVoiceUri,
                             voiceDurationMs = finalVoiceDuration,
+                            imageAttachmentUri = finalImageUri,
                         ),
                     )
                 } else {

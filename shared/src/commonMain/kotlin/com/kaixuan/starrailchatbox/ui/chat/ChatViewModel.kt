@@ -1233,8 +1233,10 @@ class ChatViewModel(
         }
         val messageId = idGenerator("message")
         val now = currentTimeMillis()
-        val attachments = if (!result.voiceAttachmentUri.isNullOrEmpty()) {
-            listOf(
+        val attachments = mutableListOf<MessageAttachment>()
+        
+        if (!result.voiceAttachmentUri.isNullOrEmpty()) {
+            attachments.add(
                 MessageAttachment(
                     id = idGenerator("attachment"),
                     messageId = messageId,
@@ -1246,9 +1248,23 @@ class ChatViewModel(
                     durationMs = result.voiceDurationMs,
                 )
             )
-        } else {
-            emptyList()
         }
+        
+        if (!result.imageAttachmentUri.isNullOrEmpty()) {
+            val extension = result.imageAttachmentUri.substringAfterLast('.', "png")
+            attachments.add(
+                MessageAttachment(
+                    id = idGenerator("attachment"),
+                    messageId = messageId,
+                    name = "gen_$now.$extension",
+                    size = 0,
+                    mimeType = "image/$extension",
+                    uri = result.imageAttachmentUri,
+                    createdAt = now,
+                )
+            )
+        }
+
         chatSessionRepository.appendMessage(
             NewChatMessage(
                 id = messageId,
