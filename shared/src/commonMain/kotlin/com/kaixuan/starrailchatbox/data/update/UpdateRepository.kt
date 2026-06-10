@@ -25,7 +25,7 @@ class DefaultUpdateRepository(
 ) : UpdateRepository {
     override suspend fun checkUpdate(): ApiResult<UpdateResponse> {
         return try {
-            val response = httpClient.get("https://raw.githubusercontent.com/KaiXuan666/StarRailChatBox/refs/heads/main/update.json")
+            val response = httpClient.get("https://cdn.jsdelivr.net/gh/KaiXuan666/StarRailChatBox@main/update.json")
             if (response.status.value in 200..299) {
                 ApiResult.Success(response.body<UpdateResponse>())
             } else {

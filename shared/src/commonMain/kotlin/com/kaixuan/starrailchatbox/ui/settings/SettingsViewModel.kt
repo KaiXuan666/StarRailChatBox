@@ -13,6 +13,7 @@ import com.kaixuan.starrailchatbox.data.model.MultimodalModelConfig
 import com.kaixuan.starrailchatbox.data.model.VoiceCloneModelConfig
 import com.kaixuan.starrailchatbox.data.model.VoiceModelConfig
 import com.kaixuan.starrailchatbox.data.update.UpdateRepository
+import com.kaixuan.starrailchatbox.getPlatform
 import com.kaixuan.starrailchatbox.data.settings.ApiSettingsDefaults
 import com.kaixuan.starrailchatbox.data.settings.localApiSettingsDefaults
 import io.github.aakira.napier.Napier
@@ -251,16 +252,22 @@ class SettingsViewModel(
                     when (val result = updateRepository.checkUpdate()) {
                         is ApiResult.Success -> {
                             val info = result.value
-                            _uiState.update {
-                                it.copy(
-                                    showUpdateDialog = true,
-                                    updateInfo = UpdateInfo(
-                                        version = info.versionName,
-                                        description = info.updateLog,
-                                        downloadUrl = info.downloadUrl,
-                                        isForceUpdate = info.forceUpdate
+                            val currentVersionCode = getPlatform().versionCode
+                            Napier.d { "检测更新 currentVersionCode=$currentVersionCode versionCode=${info.versionCode}" }
+                            if (info.versionCode > currentVersionCode) {
+                                _uiState.update {
+                                    it.copy(
+                                        showUpdateDialog = true,
+                                        updateInfo = UpdateInfo(
+                                            version = info.versionName,
+                                            description = info.updateLog,
+                                            downloadUrl = info.downloadUrl,
+                                            isForceUpdate = info.forceUpdate
+                                        )
                                     )
-                                )
+                                }
+                            } else {
+                                emitMessage(SettingsEffectMessage.SETTINGS_UPDATE_CHECK)
                             }
                         }
                         else -> {
