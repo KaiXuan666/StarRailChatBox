@@ -26,10 +26,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalUriHandler
 import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.data.chat.MessageAttachment
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
+import com.kaixuan.starrailchatbox.platform.openUri
 import com.kaixuan.starrailchatbox.platform.rememberAudioPlayer
 import com.kaixuan.starrailchatbox.ui.character.CharacterAction
 import com.kaixuan.starrailchatbox.ui.character.CharactersUiState
@@ -108,8 +108,6 @@ fun ChatSessionScreen(
         initialPage = initialPage,
     ) { characters.size }
     
-    val uriHandler = LocalUriHandler.current
-
     val audioPlayer = rememberAudioPlayer()
     var playingAudioUri by remember { mutableStateOf<String?>(null) }
     DisposableEffect(audioPlayer) {
@@ -123,7 +121,7 @@ fun ChatSessionScreen(
             attachments = attachmentsToShow!!,
             onDismissRequest = { attachmentsToShow = null },
             onOpenAttachment = { attachment ->
-                uriHandler.openUri(attachment.uri)
+                openUri(attachment.uri, attachment.mimeType)
             }
         )
     }
@@ -283,7 +281,7 @@ fun ChatSessionScreen(
                         } else if (attachment.mimeType.startsWith("image/")) {
                             previewImageUri = attachment.uri
                         } else {
-                            uriHandler.openUri(attachment.uri)
+                            openUri(attachment.uri, attachment.mimeType)
                         }
                     },
                     onAvatarClick = {

@@ -48,7 +48,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -58,6 +57,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.tooling.preview.Preview
+import com.kaixuan.starrailchatbox.platform.openUri
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import starrailchatbox.shared.generated.resources.Res
@@ -255,7 +255,6 @@ fun SettingsScreen(
         }
 
         // Footer: QQ Group & Powered by StarRailChatBox
-        val uriHandler = LocalUriHandler.current
         val clipboardManager = LocalClipboardManager.current
         val qqGroupNumber = stringResource(Res.string.settings_qq_group_number)
         val qqGroupText = buildAnnotatedString {
@@ -331,7 +330,7 @@ fun SettingsScreen(
                     onClick = { offset ->
                         footerText.getStringAnnotations(tag = "URL", start = offset, end = offset)
                             .firstOrNull()?.let { annotation ->
-                                uriHandler.openUri(annotation.item)
+                                openUri(annotation.item)
                             }
                     }
                 )

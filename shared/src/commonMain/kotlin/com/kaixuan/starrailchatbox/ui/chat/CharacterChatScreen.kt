@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.data.chat.MessageAttachment
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
+import com.kaixuan.starrailchatbox.platform.openUri
 import com.kaixuan.starrailchatbox.platform.rememberAudioPlayer
 import com.kaixuan.starrailchatbox.ui.character.CharacterAction
 import com.kaixuan.starrailchatbox.ui.character.CharactersUiState
@@ -81,8 +82,6 @@ fun CharacterChatScreen(
         charactersState.characters.associateBy(Character::id)
     }
 
-    val uriHandler = LocalUriHandler.current
-
     val audioPlayer = rememberAudioPlayer()
     var playingAudioUri by remember { mutableStateOf<String?>(null) }
     DisposableEffect(audioPlayer) {
@@ -96,7 +95,7 @@ fun CharacterChatScreen(
             attachments = attachmentsToShow!!,
             onDismissRequest = { attachmentsToShow = null },
             onOpenAttachment = { attachment ->
-                uriHandler.openUri(attachment.uri)
+                openUri(attachment.uri, attachment.mimeType)
             }
         )
     }
@@ -206,7 +205,7 @@ fun CharacterChatScreen(
                                 } else if (attachment.mimeType.startsWith("image/")) {
                                     previewImageUri = attachment.uri
                                 } else {
-                                    uriHandler.openUri(attachment.uri)
+                                    openUri(attachment.uri, attachment.mimeType)
                                 }
                             },
                             onAvatarClick = {
