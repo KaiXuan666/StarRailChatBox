@@ -12,9 +12,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -61,11 +63,19 @@ fun MessageAttachments(
         attachments.forEach { attachment ->
             val isImage = attachment.mimeType.startsWith("image/")
             val isSingle = attachments.size == 1
+
             Box(
                 modifier = Modifier
                     .then(
-                        if (isSingle && isImage) Modifier.widthIn(max = 240.dp).aspectRatio(16f / 9f)
-                        else Modifier.size(if (compact) 80.dp else 100.dp)
+                        if (isSingle && isImage) {
+                            // 一张图片时：限制最大宽高，不固定比例，让内容自适应撑开
+                            Modifier
+                                .widthIn(max = 240.dp)
+                                .heightIn(max = 240.dp)
+                        } else {
+                            // 多张图或非图片时：固定九宫格大小
+                            Modifier.size(if (compact) 80.dp else 100.dp)
+                        }
                     )
                     .clip(MaterialTheme.shapes.medium)
                     .background(MaterialTheme.colorScheme.surfaceContainerLow)
@@ -76,8 +86,10 @@ fun MessageAttachments(
                     AsyncImage(
                         model = attachment.uri,
                         contentDescription = attachment.name,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
+                        // 一张图片时用 wrapContentSize 保持原样，多张时填满裁剪
+                        modifier = if (isSingle) Modifier.wrapContentSize() else Modifier.fillMaxSize(),
+                        // ContentScale.Fit 保持原比例，ContentScale.Crop 会裁剪
+                        contentScale = if (isSingle) ContentScale.Fit else ContentScale.Crop,
                     )
                 } else {
                     Column(
