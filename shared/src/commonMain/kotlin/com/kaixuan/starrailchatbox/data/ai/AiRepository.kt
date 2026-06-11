@@ -13,6 +13,19 @@ import kotlinx.coroutines.flow.flow
  * UI 和 ViewModel 只依赖此接口，不直接依赖具体 Provider 或传输协议模型。
  */
 interface AiRepository {
+    suspend fun discoverModels(
+        apiHost: String,
+        apiKey: String,
+        providerId: String = OpenAiCompatibleProvider.Id,
+    ): ApiResult<AiModelDiscovery> {
+        return when (val result = getModels(apiHost, apiKey, providerId)) {
+            is ApiResult.Success -> ApiResult.Success(AiModelDiscovery(result.value, apiHost))
+            is ApiResult.HttpError -> result
+            is ApiResult.NetworkError -> result
+            is ApiResult.UnexpectedError -> result
+        }
+    }
+
     suspend fun getModels(
         apiHost: String,
         apiKey: String,
@@ -72,14 +85,14 @@ class DefaultAiRepository(
     private val providerRegistry: AiProviderRegistry,
     private val toolCallCoordinator: ToolCallCoordinator,
 ) : AiRepository {
-    override suspend fun getModels(
+    override suspend fun discoverModels(
         apiHost: String,
         apiKey: String,
         providerId: String,
-    ): ApiResult<List<String>> {
+    ): ApiResult<AiModelDiscovery> {
         val provider = providerRegistry.find(providerId)
             ?: return ApiResult.UnexpectedError("Unknown AI provider: $providerId")
-        return provider.getModels(
+        return provider.discoverModels(
             AiProviderConfig(
                 providerId = providerId,
                 apiHost = apiHost,
@@ -87,6 +100,19 @@ class DefaultAiRepository(
                 model = "",
             ),
         )
+    }
+
+    override suspend fun getModels(
+        apiHost: String,
+        apiKey: String,
+        providerId: String,
+    ): ApiResult<List<String>> {
+        return when (val result = discoverModels(apiHost, apiKey, providerId)) {
+            is ApiResult.Success -> ApiResult.Success(result.value.models)
+            is ApiResult.HttpError -> result
+            is ApiResult.NetworkError -> result
+            is ApiResult.UnexpectedError -> result
+        }
     }
 
     override suspend fun createChatCompletion(

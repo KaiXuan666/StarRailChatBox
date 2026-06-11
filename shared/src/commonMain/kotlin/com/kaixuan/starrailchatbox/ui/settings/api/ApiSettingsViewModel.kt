@@ -5,7 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.kaixuan.starrailchatbox.data.ai.AiRepository
 import com.kaixuan.starrailchatbox.data.ai.AliBailian
 import com.kaixuan.starrailchatbox.data.ai.AliCompatibleProvider
+import com.kaixuan.starrailchatbox.data.ai.AiModelDiscovery
 import com.kaixuan.starrailchatbox.data.ai.OpenAiCompatibleProvider
+import com.kaixuan.starrailchatbox.data.ai.XiaomiMimo
+import com.kaixuan.starrailchatbox.data.ai.XiaomiMimoProvider
 import com.kaixuan.starrailchatbox.data.ai.image.AliImageProvider
 import com.kaixuan.starrailchatbox.data.ai.image.ImageGenerationProviderIds
 import com.kaixuan.starrailchatbox.data.ai.image.ImageGenerationProviderRegistry
@@ -78,10 +81,13 @@ class ApiSettingsViewModel(
                 val imageProviderId = config?.provider
                     ?.takeIf { isImageGeneration }
                     ?: ImageGenerationProviderIds.OpenAiCompatible
-                val apiProviderId = config?.provider
-                    ?.takeIf { !isImageGeneration && !isVoice && !isMultimodal }
-                    ?.takeIf { it == AliCompatibleProvider.Id || it == OpenAiCompatibleProvider.Id }
-                    ?: OpenAiCompatibleProvider.Id
+                val apiProviderId = when {
+                    isVoice -> XiaomiMimoProvider.Id
+                    isImageGeneration -> OpenAiCompatibleProvider.Id
+                    else -> config?.provider
+                        ?.takeIf(::isSupportedApiProvider)
+                        ?: OpenAiCompatibleProvider.Id
+                }
                 state.copy(
                     apiHost = if (
                         isImageGeneration &&
@@ -90,11 +96,16 @@ class ApiSettingsViewModel(
                         AliImageProvider.CompatibleModeBaseUrl.trimEnd('/')
                     } else if (
                         !isImageGeneration &&
-                        !isVoice &&
-                        !isMultimodal &&
                         apiProviderId == AliCompatibleProvider.Id
                     ) {
                         AliBailian.CompatibleModeBaseUrl
+                    } else if (
+                        !isImageGeneration &&
+                        apiProviderId == XiaomiMimoProvider.Id
+                    ) {
+                        config?.baseUrl
+                            ?.takeIf(String::isNotBlank)
+                            ?: XiaomiMimo.SubscriptionBaseUrl
                     } else {
                         config?.baseUrl ?: defaultHost
                     },
@@ -154,9 +165,10 @@ class ApiSettingsViewModel(
                         apiProviderId = action.providerId,
                         apiHost = when (action.providerId) {
                             AliCompatibleProvider.Id -> AliBailian.CompatibleModeBaseUrl
+                            XiaomiMimoProvider.Id -> XiaomiMimo.SubscriptionBaseUrl
                             else -> state.apiHost
-                                .takeUnless { it.trimEnd('/') == AliBailian.CompatibleModeBaseUrl }
-                                ?: defaultApiSettings.apiHost
+                                .takeUnless(::isManagedApiHost)
+                                ?: defaultHostForCurrentScreen()
                         },
                         modelsList = emptyList(),
                         selectedModel = "",
@@ -185,12 +197,33 @@ class ApiSettingsViewModel(
             }
             ApiSettingsAction.ConfirmSuggestDefaultConfig -> {
                 suggestDefaultConfig?.let { defaultConfig ->
-                    _uiState.update {
-                        it.copy(
-                            apiHost = defaultConfig.baseUrl,
-                            apiKey = defaultConfig.apiKey,
-                            showSuggestDefaultConfigDialog = false
-                        )
+                    _uiState.update { state ->
+                        when {
+                            isVoice -> state.copy(
+                                apiProviderId = XiaomiMimoProvider.Id,
+                                apiHost = XiaomiMimo.SubscriptionBaseUrl,
+                                apiKey = defaultConfig.apiKey,
+                                modelsList = emptyList(),
+                                selectedModel = "",
+                                selectedCloneModel = "",
+                                showSuggestDefaultConfigDialog = false,
+                            )
+                            isMultimodal -> state.copy(
+                                apiProviderId = defaultConfig.provider
+                                    .takeIf(::isSupportedApiProvider)
+                                    ?: OpenAiCompatibleProvider.Id,
+                                apiHost = defaultConfig.baseUrl,
+                                apiKey = defaultConfig.apiKey,
+                                modelsList = emptyList(),
+                                selectedModel = "",
+                                showSuggestDefaultConfigDialog = false,
+                            )
+                            else -> state.copy(
+                                apiHost = defaultConfig.baseUrl,
+                                apiKey = defaultConfig.apiKey,
+                                showSuggestDefaultConfigDialog = false,
+                            )
+                        }
                     }
                 }
             }
@@ -213,29 +246,37 @@ class ApiSettingsViewModel(
         emitMessage(SettingsEffectMessage.SETTINGS_API_FETCH_START)
 
         viewModelScope.launch {
-            val result = if (isImageGeneration) {
+            val result: ApiResult<AiModelDiscovery> = if (isImageGeneration) {
                 val provider = imageProviderRegistry.find(state.imageProviderId)
                 if (provider == null) {
                     ApiResult.UnexpectedError("Unsupported image generation provider.")
                 } else {
-                    provider.getModels(
+                    when (
+                        val imageResult = provider.getModels(
                         apiHost = state.apiHost,
                         apiKey = state.apiKey,
-                    )
+                        )
+                    ) {
+                        is ApiResult.Success -> ApiResult.Success(
+                            AiModelDiscovery(imageResult.value, state.apiHost),
+                        )
+                        is ApiResult.HttpError -> imageResult
+                        is ApiResult.NetworkError -> imageResult
+                        is ApiResult.UnexpectedError -> imageResult
+                    }
                 }
             } else {
-                aiRepository.getModels(
+                aiRepository.discoverModels(
                     apiHost = state.apiHost,
                     apiKey = state.apiKey,
-                    providerId = if (isDefaultApiSettings()) {
-                        state.apiProviderId
-                    } else {
-                        OpenAiCompatibleProvider.Id
-                    },
+                    providerId = state.apiProviderId,
                 )
             }
             when (result) {
-                is ApiResult.Success -> handleModelsLoaded(result.value)
+                is ApiResult.Success -> {
+                    _uiState.update { it.copy(apiHost = result.value.resolvedApiHost) }
+                    handleModelsLoaded(result.value.models)
+                }
                 is ApiResult.HttpError -> {
                     _uiState.update { it.copy(isFetchingModels = false) }
                     emitMessage(
@@ -398,18 +439,14 @@ class ApiSettingsViewModel(
             apiHost = state.apiHost,
             apiKey = state.apiKey,
             model = state.selectedModel,
-            providerId = if (isDefaultApiSettings()) {
-                state.apiProviderId
-            } else {
-                OpenAiCompatibleProvider.Id
-            },
+            providerId = state.apiProviderId,
         )
 
         if (isMultimodal) {
             modelConfigRepository.saveMultimodal(
                 ModelConfig(
                     id = MultimodalModelConfig.Id,
-                    provider = MultimodalModelConfig.Provider,
+                    provider = state.apiProviderId,
                     name = MultimodalModelConfig.Name,
                     baseUrl = state.apiHost.trim().trimEnd('/'),
                     apiKey = state.apiKey.trim(),
@@ -470,14 +507,44 @@ class ApiSettingsViewModel(
         if (isImageGeneration && state.imageProviderId == ImageGenerationProviderIds.Ali) {
             return true
         }
+        if (!isImageGeneration && state.apiProviderId in ManagedApiProviderIds) {
+            return true
+        }
         return state.apiHost.trim().startsWith("https://")
     }
 
-    private fun isDefaultApiSettings(): Boolean {
-        return !isImageGeneration && !isVoice && !isMultimodal
+    private fun defaultHostForCurrentScreen(): String {
+        return when {
+            isVoice -> XiaomiMimo.SubscriptionBaseUrl
+            isMultimodal -> defaultApiSettings.multimodalHost
+            else -> defaultApiSettings.apiHost
+        }
+    }
+
+    private fun isManagedApiHost(host: String): Boolean {
+        val normalized = host.trimEnd('/')
+        return normalized == AliBailian.CompatibleModeBaseUrl ||
+            normalized == XiaomiMimo.SubscriptionBaseUrl ||
+            normalized == XiaomiMimo.UsageBasedBaseUrl
+    }
+
+    private fun isSupportedApiProvider(providerId: String): Boolean {
+        return providerId in SupportedApiProviderIds
     }
 
     private fun emitMessage(message: SettingsEffectMessage) {
         _effects.trySend(ApiSettingsEffect.ShowMessage(message))
+    }
+
+    companion object {
+        private val SupportedApiProviderIds = setOf(
+            OpenAiCompatibleProvider.Id,
+            AliCompatibleProvider.Id,
+            XiaomiMimoProvider.Id,
+        )
+        private val ManagedApiProviderIds = setOf(
+            AliCompatibleProvider.Id,
+            XiaomiMimoProvider.Id,
+        )
     }
 }

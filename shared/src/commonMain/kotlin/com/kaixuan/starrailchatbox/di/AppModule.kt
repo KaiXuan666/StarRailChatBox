@@ -6,6 +6,7 @@ import com.kaixuan.starrailchatbox.data.ai.AiRepository
 import com.kaixuan.starrailchatbox.data.ai.AliCompatibleProvider
 import com.kaixuan.starrailchatbox.data.ai.DefaultAiRepository
 import com.kaixuan.starrailchatbox.data.ai.OpenAiCompatibleProvider
+import com.kaixuan.starrailchatbox.data.ai.XiaomiMimoProvider
 import com.kaixuan.starrailchatbox.data.ai.image.AliImageProvider
 import com.kaixuan.starrailchatbox.data.ai.image.ImageGenerationProvider
 import com.kaixuan.starrailchatbox.data.ai.image.ImageGenerationProviderRegistry
@@ -60,11 +61,13 @@ fun appModule(
     single { OpenAiCompatibleProvider(get()) }
     single<AiProvider>(named("OpenAiCompatible")) { get<OpenAiCompatibleProvider>() }
     single<AiProvider>(named("AliCompatible")) { AliCompatibleProvider(get()) }
+    single<AiProvider>(named("XiaomiMimo")) { XiaomiMimoProvider(get()) }
     single {
         AiProviderRegistry(
             listOf(
                 get(named("OpenAiCompatible")),
                 get(named("AliCompatible")),
+                get(named("XiaomiMimo")),
             ),
         )
     }

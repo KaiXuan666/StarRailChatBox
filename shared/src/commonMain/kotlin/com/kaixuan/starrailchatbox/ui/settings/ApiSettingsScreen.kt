@@ -59,6 +59,7 @@ import starrailchatbox.shared.generated.resources.settings_api_provider
 import starrailchatbox.shared.generated.resources.settings_image_provider
 import starrailchatbox.shared.generated.resources.settings_image_provider_ali
 import starrailchatbox.shared.generated.resources.settings_image_provider_openai
+import starrailchatbox.shared.generated.resources.settings_provider_xiaomi_mimo
 import starrailchatbox.shared.generated.resources.settings_api_model_selected
 import starrailchatbox.shared.generated.resources.settings_api_empty_models
 import starrailchatbox.shared.generated.resources.settings_api_title
@@ -85,6 +86,7 @@ import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
 import com.kaixuan.starrailchatbox.data.ai.AliCompatibleProvider
 import com.kaixuan.starrailchatbox.data.ai.OpenAiCompatibleProvider
+import com.kaixuan.starrailchatbox.data.ai.XiaomiMimoProvider
 import com.kaixuan.starrailchatbox.data.ai.image.ImageGenerationProviderIds
 import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
 import com.kaixuan.starrailchatbox.ui.components.StarRailPrimaryButton
@@ -150,23 +152,30 @@ fun ApiSettingsScreen(
             onBackClick = { onMainAction(MainAction.PopBackStack) },
             contentSpacing = StarRailSpacing.lg,
         ) {
-            if (!isImageGeneration && !isVoice && !isMultimodal) {
+            if (!isImageGeneration) {
                 val openAiLabel = stringResource(Res.string.settings_image_provider_openai)
                 val aliLabel = stringResource(Res.string.settings_image_provider_ali)
+                val xiaomiLabel = stringResource(Res.string.settings_provider_xiaomi_mimo)
+                val providerOptions = if (isVoice) {
+                    listOf(xiaomiLabel)
+                } else {
+                    listOf(openAiLabel, aliLabel, xiaomiLabel)
+                }
                 StarRailDropdown(
                     label = stringResource(Res.string.settings_api_provider),
-                    options = listOf(openAiLabel, aliLabel),
+                    options = providerOptions,
                     selectedOption = when (state.apiProviderId) {
                         AliCompatibleProvider.Id -> aliLabel
+                        XiaomiMimoProvider.Id -> xiaomiLabel
                         else -> openAiLabel
                     },
                     onOptionSelected = { label ->
                         onApiAction(
                             ApiSettingsAction.ApiProviderSelected(
-                                if (label == aliLabel) {
-                                    AliCompatibleProvider.Id
-                                } else {
-                                    OpenAiCompatibleProvider.Id
+                                when (label) {
+                                    aliLabel -> AliCompatibleProvider.Id
+                                    xiaomiLabel -> XiaomiMimoProvider.Id
+                                    else -> OpenAiCompatibleProvider.Id
                                 },
                             ),
                         )
@@ -224,8 +233,8 @@ fun ApiSettingsScreen(
                     compact = compact,
                     enabled = when {
                         isImageGeneration -> state.imageProviderId != ImageGenerationProviderIds.Ali
-                        !isVoice && !isMultimodal -> state.apiProviderId != AliCompatibleProvider.Id
-                        else -> true
+                        else -> state.apiProviderId != AliCompatibleProvider.Id &&
+                            state.apiProviderId != XiaomiMimoProvider.Id
                     },
                 )
             }

@@ -14,6 +14,20 @@ interface AiProvider {
 
     suspend fun getModels(config: AiProviderConfig): ApiResult<List<String>>
 
+    suspend fun discoverModels(config: AiProviderConfig): ApiResult<AiModelDiscovery> {
+        return when (val result = getModels(config)) {
+            is ApiResult.Success -> ApiResult.Success(
+                AiModelDiscovery(
+                    models = result.value,
+                    resolvedApiHost = config.apiHost,
+                ),
+            )
+            is ApiResult.HttpError -> result
+            is ApiResult.NetworkError -> result
+            is ApiResult.UnexpectedError -> result
+        }
+    }
+
     suspend fun complete(
         config: AiProviderConfig,
         request: AiChatRequest,
@@ -41,6 +55,11 @@ interface AiProvider {
 
     suspend fun supportsToolCalls(config: AiProviderConfig): Boolean
 }
+
+data class AiModelDiscovery(
+    val models: List<String>,
+    val resolvedApiHost: String,
+)
 
 /**
  * 根据持久化的 Provider ID 和显式兼容别名查找 Provider。

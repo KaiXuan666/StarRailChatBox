@@ -228,6 +228,7 @@
     <string name="settings_image_provider">图片服务商</string>
     <string name="settings_image_provider_openai">OpenAI 兼容</string>
     <string name="settings_image_provider_ali">阿里百炼</string>
+    <string name="settings_provider_xiaomi_mimo">小米 MiMo</string>
     <string name="settings_model_list">模型列表</string>
     <string name="settings_get">获取</string>
     <string name="settings_save_config">保存配置</string>
