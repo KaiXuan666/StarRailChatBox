@@ -8,6 +8,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.plugins.timeout
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
@@ -38,6 +39,10 @@ class AliImageProvider(
         request: ImageGenerationRequest,
     ): ApiResult<ImageGenerationOutput> = imageApiCall {
         val response = httpClient.post(GenerationEndpoint) {
+            timeout {
+                requestTimeoutMillis = ImageGenerationTimeoutMillis
+                socketTimeoutMillis = ImageGenerationTimeoutMillis
+            }
             header(HttpHeaders.Authorization, "Bearer ${config.apiKey.trim()}")
             header("api-key", config.apiKey.trim())
             contentType(ContentType.Application.Json)

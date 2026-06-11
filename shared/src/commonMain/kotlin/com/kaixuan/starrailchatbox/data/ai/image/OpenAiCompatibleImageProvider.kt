@@ -5,6 +5,7 @@ import com.kaixuan.starrailchatbox.data.model.ModelConfig
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.ResponseException
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -41,6 +42,10 @@ class OpenAiCompatibleImageProvider(
         request: ImageGenerationRequest,
     ): ApiResult<ImageGenerationOutput> = imageApiCall {
         val response = httpClient.post("${config.baseUrl.normalizedBaseUrl()}images/generations") {
+            timeout {
+                requestTimeoutMillis = ImageGenerationTimeoutMillis
+                socketTimeoutMillis = ImageGenerationTimeoutMillis
+            }
             header(HttpHeaders.Authorization, "Bearer ${config.apiKey.trim()}")
             contentType(ContentType.Application.Json)
             setBody(
@@ -101,6 +106,8 @@ private fun String.toOpenAiSize(): String = when (this) {
 internal fun String.normalizedBaseUrl(): String = "${trim().trimEnd('/')}/"
 
 internal class InvalidImageResponseException(message: String) : IllegalStateException(message)
+
+internal const val ImageGenerationTimeoutMillis = 300_000L
 
 internal suspend inline fun <T> imageApiCall(crossinline block: suspend () -> T): ApiResult<T> {
     return try {
