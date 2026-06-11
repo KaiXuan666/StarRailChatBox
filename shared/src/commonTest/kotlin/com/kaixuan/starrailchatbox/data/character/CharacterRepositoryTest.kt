@@ -1,5 +1,6 @@
 package com.kaixuan.starrailchatbox.data.character
 
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -62,7 +63,7 @@ class CharacterRepositoryTest {
             avatarSource = null
         )
 
-        val summary = repository.loadCharacterSummaries().single()
+        val summary = repository.observeCharacterSummaries().first().single()
         assertEquals("流萤", summary.name)
         assertEquals("", summary.avatarUri)
 

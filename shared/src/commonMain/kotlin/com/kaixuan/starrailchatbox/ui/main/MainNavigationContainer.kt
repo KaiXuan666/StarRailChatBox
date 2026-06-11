@@ -853,10 +853,6 @@ fun MainNavigationContainer(
                                 contentPadding = contentPadding,
                                 compact = compact,
                                 onMainAction = onMainAction,
-                                onCharactersChanged = {
-                                    onCharacterAction(CharacterAction.RefreshCharacters)
-                                    onChatCharacterAction(CharacterAction.RefreshCharacters)
-                                },
                                 snackbarHostState = snackbarHostState,
                                 effectMessages = characterEffectMessages,
                             )
@@ -1190,7 +1186,6 @@ private fun CharacterEditRoute(
     contentPadding: PaddingValues,
     compact: Boolean,
     onMainAction: (MainAction) -> Unit,
-    onCharactersChanged: () -> Unit,
     snackbarHostState: SnackbarHostState,
     effectMessages: Map<CharacterEffectMessage, String>,
 ) {
@@ -1224,12 +1219,10 @@ private fun CharacterEditRoute(
                     snackbarHostState.showSnackbar(effectMessages.getValue(effect.message))
                 }
                 CharacterEffect.CharacterSaved -> {
-                    onCharactersChanged()
                     snackbarHostState.showSnackbar(savedMessage)
                     onMainAction(MainAction.PopBackStack)
                 }
                 CharacterEffect.CharacterDeleted -> {
-                    onCharactersChanged()
                     snackbarHostState.showSnackbar(deletedMessage)
                     onMainAction(MainAction.PopBackStack)
                 }

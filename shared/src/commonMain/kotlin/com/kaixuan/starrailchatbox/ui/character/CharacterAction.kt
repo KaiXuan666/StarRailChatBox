@@ -5,7 +5,6 @@ import com.kaixuan.starrailchatbox.data.character.CharacterAvatarSource
 import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 
 sealed interface CharacterAction {
-    data object RefreshCharacters : CharacterAction
     data class CharacterSelected(val characterId: String) : CharacterAction
     data class CharacterEditOpened(val characterId: String?) : CharacterAction
     data class CharacterNameChanged(val name: String) : CharacterAction

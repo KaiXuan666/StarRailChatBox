@@ -13,6 +13,7 @@ import com.kaixuan.starrailchatbox.data.ai.ChatCompletionResult
 import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.data.character.CharacterRepository
+import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 import com.kaixuan.starrailchatbox.data.character.importer.StarRailCharacterCard
 import com.kaixuan.starrailchatbox.data.chat.ChatMessageStatus
 import com.kaixuan.starrailchatbox.data.chat.ChatRole
@@ -36,6 +37,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -98,41 +100,7 @@ class ChatViewModel(
                 _uiState.update { it.copy(userAvatarUri = profile?.customAvatarUri) }
             }
         }
-        viewModelScope.launch {
-            val characters = runCatching { characterRepository.loadCharacterSummaries() }
-                .getOrDefault(emptyList())
-            val selectedId = characters.firstOrNull { it.name == "流萤" }?.id
-                ?: characters.firstOrNull()?.id
-            val initialStates = characters.associate { character ->
-                character.id to CharacterChatState(
-                    activeSessionId = null,
-                    messages = emptyList(),
-                    messageDraft = "",
-                    isLoadingSession = character.id == selectedId,
-                    isSending = false,
-                )
-            }
-            _characterUiState.update {
-                it.copy(
-                    characters = characters,
-                    selectedCharacterId = selectedId,
-                    isLoadingCharacters = false,
-                )
-            }
-            _uiState.update {
-                it.copy(
-                    selectedCharacterId = selectedId,
-                    selectedCharacter = null,
-                    characterStates = initialStates,
-                )
-            }
-            selectedId?.let {
-                lastActiveMainCharacterId = it
-                loadSelectedCharacter(it)
-                observeSessions(it)
-                loadLatestSession(it)
-            }
-        }
+        observeCharacters()
     }
 
     fun onAction(action: ChatAction) {
@@ -310,37 +278,77 @@ class ChatViewModel(
 
     fun onCharacterAction(action: CharacterAction) {
         when (action) {
-            CharacterAction.RefreshCharacters -> refreshCharacters()
             is CharacterAction.CharacterSelected -> selectCharacter(action.characterId)
             else -> Unit
         }
     }
 
-    private fun refreshCharacters() {
+    private fun observeCharacters() {
         viewModelScope.launch {
-            val characters = runCatching { characterRepository.loadCharacterSummaries() }
-                .getOrDefault(emptyList())
-            val selectedId = _characterUiState.value.selectedCharacterId
-                ?.takeIf { id -> characters.any { it.id == id } }
-                ?: characters.firstOrNull()?.id
-            _characterUiState.update {
-                it.copy(
-                    characters = characters,
-                    selectedCharacterId = selectedId,
-                    isLoadingCharacters = false,
-                )
+            characterRepository.observeCharacterSummaries()
+                .catch { emit(emptyList()) }
+                .collect(::updateCharacters)
+        }
+    }
+
+    private fun updateCharacters(characters: List<CharacterSummary>) {
+        val previous = _characterUiState.value
+        val previousSelectedId = previous.selectedCharacterId
+        val selectedId = previousSelectedId
+            ?.takeIf { id -> characters.any { it.id == id } }
+            ?: characters.firstOrNull { it.name == "流萤" }?.id
+            ?: characters.firstOrNull()?.id
+        val selectedChanged = selectedId != previousSelectedId
+        val previousSelectedSummary = previous.characters.firstOrNull { it.id == selectedId }
+        val selectedSummary = characters.firstOrNull { it.id == selectedId }
+        val summariesUnchanged = !previous.isLoadingCharacters && characters == previous.characters
+        val selectedDetailsChanged = previousSelectedSummary?.let { old ->
+            selectedSummary?.let { current ->
+                summariesUnchanged ||
+                    old.name != current.name ||
+                    old.avatarUri != current.avatarUri
             }
-            _uiState.update { state ->
-                state.copy(
-                    selectedCharacterId = selectedId,
-                    selectedCharacter = state.selectedCharacter
-                        ?.takeIf { it.id == selectedId },
-                    characterStates = state.characterStates.filterKeys { id ->
-                        characters.any { it.id == id }
-                    },
-                )
+        } ?: (selectedSummary != null)
+
+        _characterUiState.update {
+            it.copy(
+                characters = characters,
+                selectedCharacterId = selectedId,
+                isLoadingCharacters = false,
+            )
+        }
+        _uiState.update { state ->
+            val existingStates = state.characterStates.filterKeys { id ->
+                characters.any { it.id == id }
             }
-            selectedId?.let(::loadSelectedCharacter)
+            val characterStates = characters.fold(existingStates) { states, character ->
+                if (character.id in states) {
+                    states
+                } else {
+                    states + (character.id to CharacterChatState(
+                        isLoadingSession = character.id == selectedId,
+                    ))
+                }
+            }
+            state.copy(
+                selectedCharacterId = selectedId,
+                selectedCharacter = state.selectedCharacter
+                    ?.takeIf { it.id == selectedId && !selectedDetailsChanged },
+                characterStates = characterStates,
+            )
+        }
+
+        if (selectedId == null) {
+            sessionJob?.cancel()
+            sessionListJob?.cancel()
+            activeSession = null
+        } else if (selectedChanged) {
+            lastActiveMainCharacterId = selectedId
+            loadSelectedCharacter(selectedId)
+            observeSessions(selectedId)
+            loadLatestSession(selectedId)
+        } else if (selectedDetailsChanged) {
+            loadSelectedCharacter(selectedId)
         }
     }
 

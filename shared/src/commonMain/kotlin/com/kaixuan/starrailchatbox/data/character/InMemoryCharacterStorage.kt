@@ -1,11 +1,13 @@
 package com.kaixuan.starrailchatbox.data.character
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
 
 class InMemoryCharacterStorage : CharacterStorage {
     private val characters = linkedMapOf<String, CharacterFiles>()
-    private val summaries = MutableStateFlow<List<CharacterSummary>>(emptyList())
+    private val summaries = MutableSharedFlow<List<CharacterSummary>>(replay = 1).apply {
+        tryEmit(emptyList())
+    }
     private var initialized = false
 
     override suspend fun initializeDefaults(defaults: List<DefaultCharacterAsset>) {
@@ -55,7 +57,7 @@ class InMemoryCharacterStorage : CharacterStorage {
             }
 
     private fun publishSummaries() {
-        summaries.value = currentSummaries()
+        summaries.tryEmit(currentSummaries())
     }
 
     override suspend fun getCharacter(id: String): CharacterFiles? {

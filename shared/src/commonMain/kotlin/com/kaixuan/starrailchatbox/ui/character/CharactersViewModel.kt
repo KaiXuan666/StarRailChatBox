@@ -31,7 +31,6 @@ class CharactersViewModel(
 
     fun onAction(action: CharacterAction) {
         when (action) {
-            CharacterAction.RefreshCharacters -> refresh()
             is CharacterAction.CharacterSelected -> {
                 _uiState.update { it.copy(selectedCharacterId = action.characterId) }
             }
@@ -49,23 +48,6 @@ class CharactersViewModel(
             }
             is CharacterAction.CharacterExportDirectorySelected -> exportSelected(action.directory)
             else -> Unit
-        }
-    }
-
-    fun refresh() {
-        viewModelScope.launch {
-            val summaries = runCatching { characterRepository.loadCharacterSummaries() }
-                .getOrDefault(emptyList())
-            _uiState.update { state ->
-                val selectedId = state.selectedCharacterId
-                    ?.takeIf { id -> summaries.any { it.id == id } }
-                    ?: summaries.firstOrNull()?.id
-                state.copy(
-                    characters = summaries,
-                    selectedCharacterId = selectedId,
-                    isLoadingCharacters = false,
-                )
-            }
         }
     }
 
@@ -110,7 +92,6 @@ class CharactersViewModel(
                     Clock.System.now().toEpochMilliseconds(),
                 )
             }.onSuccess {
-                refresh()
                 _effects.send(CharacterEffect.CharacterDeleted)
             }.onFailure {
                 _effects.send(

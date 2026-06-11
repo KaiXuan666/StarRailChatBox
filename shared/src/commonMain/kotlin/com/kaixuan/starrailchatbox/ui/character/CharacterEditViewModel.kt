@@ -105,7 +105,6 @@ class CharacterEditViewModel(
             is CharacterAction.CharacterExportDirectorySelected -> export(action.directory)
             is CharacterAction.CharacterEditOpened,
             CharacterAction.CharacterImportClicked,
-            CharacterAction.RefreshCharacters,
             is CharacterAction.CharacterSelected,
             is CharacterAction.CharactersReordered,
             -> Unit

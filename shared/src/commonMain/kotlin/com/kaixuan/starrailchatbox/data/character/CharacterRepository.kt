@@ -93,18 +93,15 @@ interface CharacterStorage {
 interface CharacterRepository {
     suspend fun loadCharacters(): List<Character>
 
-    suspend fun loadCharacterSummaries(): List<CharacterSummary> =
-        loadCharacters().map { character ->
+    fun observeCharacterSummaries(): Flow<List<CharacterSummary>> = flow {
+        emit(loadCharacters().map { character ->
             CharacterSummary(
                 id = character.id,
                 name = character.name,
                 avatarUri = character.avatarUri,
                 lastMessageAt = character.lastMessageAt,
             )
-        }
-
-    fun observeCharacterSummaries(): Flow<List<CharacterSummary>> = flow {
-        emit(loadCharacterSummaries())
+        })
     }
 
     suspend fun getCharacter(id: String): Character?
@@ -135,11 +132,6 @@ class DefaultCharacterRepository(
     override suspend fun loadCharacters(): List<Character> {
         storage.initializeDefaults(defaultAssets())
         return storage.loadCharacters().map(CharacterFiles::toCharacter)
-    }
-
-    override suspend fun loadCharacterSummaries(): List<CharacterSummary> {
-        storage.initializeDefaults(defaultAssets())
-        return storage.loadCharacterSummaries()
     }
 
     override fun observeCharacterSummaries(): Flow<List<CharacterSummary>> = flow {
