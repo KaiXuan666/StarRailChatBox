@@ -47,11 +47,13 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Alignment
@@ -119,6 +121,8 @@ import starrailchatbox.shared.generated.resources.character_edit_import_success
 import starrailchatbox.shared.generated.resources.character_edit_import_failed
 import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
+import io.github.aakira.napier.Napier
+import kotlin.time.Clock
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
 import com.kaixuan.starrailchatbox.ui.chat.ChatAction
@@ -276,6 +280,10 @@ fun MainRoute(
     val settings = SettingsRouteBinding(state = settingsState)
 
     val onMainAction: (MainAction) -> Unit = { action ->
+        navigationTrace(
+            event = "action",
+            detail = "${action.traceName()} before=${backStack.tracePath()}",
+        )
         when (action) {
             is MainAction.NavigationSelected -> {
                 selectedRootRoute = action.route
@@ -313,6 +321,10 @@ fun MainRoute(
             }
             else -> main.onAction(action)
         }
+        navigationTrace(
+            event = "action-applied",
+            detail = "${action.traceName()} after=${backStack.tracePath()}",
+        )
     }
     val coroutineScope = rememberCoroutineScope()
     val versionName = remember { getPlatform().versionName }
@@ -638,11 +650,13 @@ fun MainNavigationContainer(
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.starRailColors
+    val backStackPath = backStack.tracePath()
     val currentRoute = if (backStack.size <= 1) {
         selectedRootRoute
     } else {
         backStack.lastOrNull() as? Route ?: selectedRootRoute
     }
+    var presentedRoute by remember { mutableStateOf<Route>(Route.ChatSession) }
 
     var isRecording by remember { mutableStateOf(false) }
     var isCancelTargeted by remember { mutableStateOf(false) }
@@ -664,13 +678,24 @@ fun MainNavigationContainer(
     ) {
         val expanded = maxWidth >= 840.dp
         val compact = maxWidth < 480.dp
+        val rootPresented = presentedRoute == Route.ChatSession
+        val showRail = expanded && rootPresented
+
+        LaunchedEffect(backStackPath, selectedRootRoute, presentedRoute, showRail) {
+            navigationTrace(
+                event = "navigation-state",
+                detail = "stack=$backStackPath selected=${selectedRootRoute.traceName()} " +
+                    "presented=${presentedRoute.traceName()} " +
+                    "bottomBar=${rootPresented && !showRail} rail=$showRail",
+            )
+        }
+
         StarfieldBackground()
 
         Row(
             modifier = Modifier.fillMaxSize(),
             horizontalArrangement = Arrangement.Center,
         ) {
-            val showRail = expanded && backStack.size <= 1
             if (showRail) {
                 MainNavigationRail(
                     currentRoute = currentRoute,
@@ -694,9 +719,9 @@ fun MainNavigationContainer(
                 },
                 bottomBar = {
                     MainBottomArea(
-                        backStack = backStack,
                         currentRoute = selectedRootRoute,
                         showNavigationBar = !showRail,
+                        rootPresented = rootPresented,
                         compact = compact,
                         onMainAction = onMainAction,
                     )
@@ -704,54 +729,72 @@ fun MainNavigationContainer(
             ) { contentPadding ->
                 val entryProvider = entryProvider<NavKey> {
                     entry<Route.ChatSession> {
-                        RootTabsPager(
-                            selectedRoute = selectedRootRoute,
-                            mainState = mainState,
-                            charactersState = charactersState,
-                            chatCharactersState = chatCharactersState,
-                            chatState = chatState,
-                            settingsState = settingsState,
-                            contentPadding = contentPadding,
-                            applyNavigationBarInsets = showRail,
-                            compact = compact,
-                            chatSessionActive = backStack.size <= 1 &&
-                                selectedRootRoute == Route.ChatSession,
-                            onMainAction = onMainAction,
-                            onCharacterAction = onCharacterAction,
-                            onChatCharacterAction = onChatCharacterAction,
-                            onChatAction = onChatAction,
-                            onSettingsAction = onSettingsAction,
-                            isRecording = isRecording,
-                            isCancelTargeted = isCancelTargeted,
-                            onRecordingStateChanged = { recording, cancelTargeted ->
-                                isRecording = recording
-                                isCancelTargeted = cancelTargeted
-                            },
-                        )
+                        NavigationTraceDestination(
+                            route = Route.ChatSession,
+                            isPresented = presentedRoute == Route.ChatSession,
+                            onMounted = { presentedRoute = Route.ChatSession },
+                        ) {
+                            RootTabsPager(
+                                selectedRoute = selectedRootRoute,
+                                mainState = mainState,
+                                charactersState = charactersState,
+                                chatCharactersState = chatCharactersState,
+                                chatState = chatState,
+                                settingsState = settingsState,
+                                contentPadding = contentPadding,
+                                applyNavigationBarInsets = showRail,
+                                compact = compact,
+                                chatSessionActive = rootPresented &&
+                                    selectedRootRoute == Route.ChatSession,
+                                onMainAction = onMainAction,
+                                onCharacterAction = onCharacterAction,
+                                onChatCharacterAction = onChatCharacterAction,
+                                onChatAction = onChatAction,
+                                onSettingsAction = onSettingsAction,
+                                isRecording = isRecording,
+                                isCancelTargeted = isCancelTargeted,
+                                onRecordingStateChanged = { recording, cancelTargeted ->
+                                    isRecording = recording
+                                    isCancelTargeted = cancelTargeted
+                                },
+                            )
+                        }
                     }
                     entry<Route.ConversationManagement> {
-                        ConversationManagementScreen(
-                            state = chatState,
-                            contentPadding = contentPadding,
-                            compact = compact,
-                            onAction = onChatAction,
-                            onMainAction = onMainAction,
-                        )
+                        NavigationTraceDestination(
+                            route = Route.ConversationManagement,
+                            isPresented = presentedRoute == Route.ConversationManagement,
+                            onMounted = { presentedRoute = Route.ConversationManagement },
+                        ) {
+                            ConversationManagementScreen(
+                                state = chatState,
+                                contentPadding = contentPadding,
+                                compact = compact,
+                                onAction = onChatAction,
+                                onMainAction = onMainAction,
+                            )
+                        }
                     }
                     entry<Route.CharacterEdit> { entry ->
-                        CharacterEditRoute(
+                        NavigationTraceDestination(
                             route = entry,
-                            koin = koin,
-                            contentPadding = contentPadding,
-                            compact = compact,
-                            onMainAction = onMainAction,
-                            onCharactersChanged = {
-                                onCharacterAction(CharacterAction.RefreshCharacters)
-                                onChatCharacterAction(CharacterAction.RefreshCharacters)
-                            },
-                            snackbarHostState = snackbarHostState,
-                            effectMessages = characterEffectMessages,
-                        )
+                            isPresented = presentedRoute == entry,
+                            onMounted = { presentedRoute = entry },
+                        ) {
+                            CharacterEditRoute(
+                                route = entry,
+                                koin = koin,
+                                contentPadding = contentPadding,
+                                compact = compact,
+                                onMainAction = onMainAction,
+                                onCharactersChanged = {
+                                    onCharacterAction(CharacterAction.RefreshCharacters)
+                                    onChatCharacterAction(CharacterAction.RefreshCharacters)
+                                },
+                                snackbarHostState = snackbarHostState,
+                                effectMessages = characterEffectMessages,
+                            )
+                        }
                     }
                     entry<Route.Characters> {
                         CharactersScreen(
@@ -773,83 +816,131 @@ fun MainNavigationContainer(
                         )
                     }
                     entry<Route.ApiSettings> {
-                        ApiSettingsRoute(
-                            koin = koin,
-                            contentPadding = contentPadding,
-                            compact = compact,
-                            onMainAction = onMainAction,
-                            snackbarHostState = snackbarHostState,
-                            effectMessages = settingsEffectMessages,
-                        )
+                        NavigationTraceDestination(
+                            route = Route.ApiSettings,
+                            isPresented = presentedRoute == Route.ApiSettings,
+                            onMounted = { presentedRoute = Route.ApiSettings },
+                        ) {
+                            ApiSettingsRoute(
+                                koin = koin,
+                                contentPadding = contentPadding,
+                                compact = compact,
+                                onMainAction = onMainAction,
+                                snackbarHostState = snackbarHostState,
+                                effectMessages = settingsEffectMessages,
+                            )
+                        }
                     }
                     entry<Route.MultimodalApiSettings> {
-                        ApiSettingsRoute(
-                            koin = koin,
-                            contentPadding = contentPadding,
-                            compact = compact,
-                            onMainAction = onMainAction,
-                            snackbarHostState = snackbarHostState,
-                            effectMessages = settingsEffectMessages,
-                            isMultimodal = true,
-                        )
+                        NavigationTraceDestination(
+                            route = Route.MultimodalApiSettings,
+                            isPresented = presentedRoute == Route.MultimodalApiSettings,
+                            onMounted = { presentedRoute = Route.MultimodalApiSettings },
+                        ) {
+                            ApiSettingsRoute(
+                                koin = koin,
+                                contentPadding = contentPadding,
+                                compact = compact,
+                                onMainAction = onMainAction,
+                                snackbarHostState = snackbarHostState,
+                                effectMessages = settingsEffectMessages,
+                                isMultimodal = true,
+                            )
+                        }
                     }
                     entry<Route.VoiceApiSettings> {
-                        ApiSettingsRoute(
-                            koin = koin,
-                            contentPadding = contentPadding,
-                            compact = compact,
-                            onMainAction = onMainAction,
-                            snackbarHostState = snackbarHostState,
-                            effectMessages = settingsEffectMessages,
-                            isVoice = true,
-                        )
+                        NavigationTraceDestination(
+                            route = Route.VoiceApiSettings,
+                            isPresented = presentedRoute == Route.VoiceApiSettings,
+                            onMounted = { presentedRoute = Route.VoiceApiSettings },
+                        ) {
+                            ApiSettingsRoute(
+                                koin = koin,
+                                contentPadding = contentPadding,
+                                compact = compact,
+                                onMainAction = onMainAction,
+                                snackbarHostState = snackbarHostState,
+                                effectMessages = settingsEffectMessages,
+                                isVoice = true,
+                            )
+                        }
                     }
                     entry<Route.ImageGenerationApiSettings> {
-                        ApiSettingsRoute(
-                            koin = koin,
-                            contentPadding = contentPadding,
-                            compact = compact,
-                            onMainAction = onMainAction,
-                            snackbarHostState = snackbarHostState,
-                            effectMessages = settingsEffectMessages,
-                            isImageGeneration = true,
-                        )
+                        NavigationTraceDestination(
+                            route = Route.ImageGenerationApiSettings,
+                            isPresented = presentedRoute == Route.ImageGenerationApiSettings,
+                            onMounted = { presentedRoute = Route.ImageGenerationApiSettings },
+                        ) {
+                            ApiSettingsRoute(
+                                koin = koin,
+                                contentPadding = contentPadding,
+                                compact = compact,
+                                onMainAction = onMainAction,
+                                snackbarHostState = snackbarHostState,
+                                effectMessages = settingsEffectMessages,
+                                isImageGeneration = true,
+                            )
+                        }
                     }
                     entry<Route.Profile> {
-                        ProfileRoute(
-                            koin = koin,
-                            contentPadding = contentPadding,
-                            compact = compact,
-                            onMainAction = onMainAction,
-                            snackbarHostState = snackbarHostState,
-                            effectMessages = profileEffectMessages,
-                        )
+                        NavigationTraceDestination(
+                            route = Route.Profile,
+                            isPresented = presentedRoute == Route.Profile,
+                            onMounted = { presentedRoute = Route.Profile },
+                        ) {
+                            ProfileRoute(
+                                koin = koin,
+                                contentPadding = contentPadding,
+                                compact = compact,
+                                onMainAction = onMainAction,
+                                snackbarHostState = snackbarHostState,
+                                effectMessages = profileEffectMessages,
+                            )
+                        }
                     }
                     entry<Route.About> {
-                        AboutScreen(
-                            contentPadding = contentPadding,
-                            compact = compact,
-                            onMainAction = onMainAction,
-                        )
+                        NavigationTraceDestination(
+                            route = Route.About,
+                            isPresented = presentedRoute == Route.About,
+                            onMounted = { presentedRoute = Route.About },
+                        ) {
+                            AboutScreen(
+                                contentPadding = contentPadding,
+                                compact = compact,
+                                onMainAction = onMainAction,
+                            )
+                        }
                     }
                     entry<Route.PrivacyPolicy> {
-                        PrivacyPolicyScreen(
-                            contentPadding = contentPadding,
-                            compact = compact,
-                            onMainAction = onMainAction,
-                        )
+                        NavigationTraceDestination(
+                            route = Route.PrivacyPolicy,
+                            isPresented = presentedRoute == Route.PrivacyPolicy,
+                            onMounted = { presentedRoute = Route.PrivacyPolicy },
+                        ) {
+                            PrivacyPolicyScreen(
+                                contentPadding = contentPadding,
+                                compact = compact,
+                                onMainAction = onMainAction,
+                            )
+                        }
                     }
                     entry<Route.CharacterChat> { entry ->
-                        CharacterChatScreen(
-                            characterId = entry.characterId,
-                            state = chatState,
-                            charactersState = chatCharactersState,
-                            contentPadding = contentPadding,
-                            compact = compact,
-                            onAction = onChatAction,
-                            onCharacterAction = onCharacterAction,
-                            onMainAction = onMainAction,
-                        )
+                        NavigationTraceDestination(
+                            route = entry,
+                            isPresented = presentedRoute == entry,
+                            onMounted = { presentedRoute = entry },
+                        ) {
+                            CharacterChatScreen(
+                                characterId = entry.characterId,
+                                state = chatState,
+                                charactersState = chatCharactersState,
+                                contentPadding = contentPadding,
+                                compact = compact,
+                                onAction = onChatAction,
+                                onCharacterAction = onCharacterAction,
+                                onMainAction = onMainAction,
+                            )
+                        }
                     }
                 }
 
@@ -907,6 +998,7 @@ private fun RootTabsPager(
         initialPage = selectedPage,
         pageCount = { RootTabRoutes.size },
     )
+    var preloadRootPages by remember { mutableStateOf(false) }
 
     LaunchedEffect(selectedPage) {
         if (pagerState.currentPage != selectedPage) {
@@ -914,10 +1006,16 @@ private fun RootTabsPager(
         }
     }
 
+    LaunchedEffect(Unit) {
+        withFrameNanos { }
+        withFrameNanos { }
+        preloadRootPages = true
+    }
+
     HorizontalPager(
         state = pagerState,
         modifier = Modifier.fillMaxSize(),
-        beyondViewportPageCount = RootTabRoutes.lastIndex,
+        beyondViewportPageCount = if (preloadRootPages) RootTabRoutes.lastIndex else 0,
         userScrollEnabled = false,
     ) { page ->
         when (RootTabRoutes[page]) {
@@ -1174,13 +1272,13 @@ private fun ProfileRoute(
 
 @Composable
 private fun MainBottomArea(
-    backStack: List<NavKey>,
     currentRoute: Route,
     showNavigationBar: Boolean,
+    rootPresented: Boolean,
     compact: Boolean,
     onMainAction: (MainAction) -> Unit,
 ) {
-    if (backStack.size > 1 || !showNavigationBar) {
+    if (!rootPresented || !showNavigationBar) {
         return
     }
     Column {
@@ -1202,6 +1300,89 @@ private fun MainBottomArea(
         }
     }
 }
+
+@Composable
+private fun NavigationTraceDestination(
+    route: Route,
+    isPresented: Boolean,
+    onMounted: () -> Unit = {},
+    content: @Composable () -> Unit,
+) {
+    DisposableEffect(route) {
+        navigationTrace("entry-mounted", "route=${route.traceName()}")
+        onMounted()
+        onDispose {
+            navigationTrace("entry-disposed", "route=${route.traceName()}")
+        }
+    }
+
+    if (isPresented) {
+        NavigationTraceVisibleContent(route, content)
+    }
+}
+
+@Composable
+private fun NavigationTraceVisibleContent(
+    route: Route,
+    content: @Composable () -> Unit,
+) {
+    val composedAt = remember(route) {
+        Clock.System.now().toEpochMilliseconds().also {
+            navigationTrace("entry-compose", "route=${route.traceName()}")
+        }
+    }
+
+    LaunchedEffect(route) {
+        withFrameNanos { }
+        navigationTrace(
+            event = "entry-first-frame",
+            detail = "route=${route.traceName()} composeToFrameMs=" +
+                (Clock.System.now().toEpochMilliseconds() - composedAt),
+        )
+    }
+
+    content()
+}
+
+private fun navigationTrace(event: String, detail: String) {
+    Napier.d(
+        message = "${Clock.System.now().toEpochMilliseconds()} $event $detail",
+        tag = "NavPerf",
+    )
+}
+
+private fun MainAction.traceName(): String = when (this) {
+    is MainAction.NavigationSelected -> "NavigationSelected(${route.traceName()})"
+    is MainAction.NavigateTo -> "NavigateTo(${route.traceName()})"
+    MainAction.PopBackStack -> "PopBackStack"
+    is MainAction.SettingsItemClicked -> "SettingsItemClicked($item)"
+    is MainAction.ThemeDialogConfirm -> "ThemeDialogConfirm"
+    MainAction.ThemeDialogDismiss -> "ThemeDialogDismiss"
+    MainAction.UpdateDialogDismiss -> "UpdateDialogDismiss"
+    MainAction.UpdateDialogConfirm -> "UpdateDialogConfirm"
+    is MainAction.ShowMessage -> "ShowMessage"
+}
+
+private fun Route.traceName(): String = when (this) {
+    Route.ChatSession -> "ChatSession"
+    Route.ConversationManagement -> "ConversationManagement"
+    is Route.CharacterEdit -> "CharacterEdit"
+    Route.Characters -> "Characters"
+    Route.Settings -> "Settings"
+    Route.ApiSettings -> "ApiSettings"
+    Route.MultimodalApiSettings -> "MultimodalApiSettings"
+    Route.VoiceApiSettings -> "VoiceApiSettings"
+    Route.ImageGenerationApiSettings -> "ImageGenerationApiSettings"
+    Route.Profile -> "Profile"
+    Route.About -> "About"
+    Route.PrivacyPolicy -> "PrivacyPolicy"
+    is Route.CharacterChat -> "CharacterChat"
+}
+
+private fun List<NavKey>.tracePath(): String =
+    joinToString(prefix = "[", postfix = "]", separator = " > ") { key ->
+        (key as? Route)?.traceName() ?: "Unknown"
+    }
 
 private data class NavigationItem(
     val route: Route,
