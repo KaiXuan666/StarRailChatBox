@@ -69,6 +69,7 @@ enum class StarRailIconKind {
     EXPORT,
     PLAY,
     STOP,
+    CLOCK,
 }
 
 @Composable
@@ -745,6 +746,12 @@ fun StarRailIcon(
                     topLeft = point(0.3f, 0.3f),
                     size = Size(size.width * 0.4f, size.height * 0.4f)
                 )
+            }
+
+            StarRailIconKind.CLOCK -> {
+                drawCircle(tint, side * 0.38f, point(0.5f, 0.5f), style = stroke)
+                drawLine(tint, point(0.5f, 0.5f), point(0.5f, 0.28f), strokeWidth)
+                drawLine(tint, point(0.5f, 0.5f), point(0.66f, 0.6f), strokeWidth)
             }
                 }
             }

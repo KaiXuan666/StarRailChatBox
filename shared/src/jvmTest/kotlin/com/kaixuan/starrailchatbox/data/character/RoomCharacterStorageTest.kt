@@ -4,9 +4,12 @@ import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.kaixuan.starrailchatbox.data.database.StarRailDatabase
 import com.kaixuan.starrailchatbox.data.database.StarRailDatabaseConstructor
+import com.kaixuan.starrailchatbox.data.database.entity.ChatSessionEntity
 import com.kaixuan.starrailchatbox.platform.JvmFileManager
 import com.kaixuan.starrailchatbox.platform.KmpFileManager
 import java.nio.file.Files
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import okio.FileSystem
 import okio.Path
@@ -23,6 +26,65 @@ class RoomCharacterStorageTest {
         override val cacheDir: Path = cacheDir.toString().toPath()
         override val fileSystem: FileSystem = FileSystem.SYSTEM
         override suspend fun saveImageToGallery(bytes: ByteArray, name: String) {}
+    }
+
+    @Test
+    fun characterSummaryFlowUpdatesWhenSessionLastMessageChanges() = runTest {
+        val databasePath = Files.createTempFile("starrail-agent-role-flow", ".db")
+        val appDataDirectory = Files.createTempDirectory("starrail-agent-appdata-flow")
+        val cacheDirectory = Files.createTempDirectory("starrail-agent-cache-flow")
+        val database = Room.databaseBuilder<StarRailDatabase>(
+            name = databasePath.toString(),
+            factory = StarRailDatabaseConstructor::initialize,
+        )
+            .setDriver(BundledSQLiteDriver())
+            .build()
+        val storage = RoomCharacterStorage(
+            dao = database.agentRoleDao(),
+            fileManager = createMockFileManager(appDataDirectory, cacheDirectory),
+            currentTimeMillis = { 1_000L },
+        )
+
+        try {
+            storage.initializeDefaults(listOf(characterFiles("builtin:流萤", "流萤", "first")))
+            database.chatSessionDao().upsert(
+                ChatSessionEntity(
+                    id = "session-1",
+                    title = "测试会话",
+                    agentId = "builtin:流萤",
+                    systemPromptSnapshot = "prompt",
+                    maxContextMessageCount = 30,
+                    enableSummary = true,
+                    summaryThresholdTokens = 4_000,
+                    summaryThresholdMessageCount = 30,
+                    summaryRetainedMessageCount = 10,
+                    compactionSeq = 0L,
+                    lastMessageAt = 1_000L,
+                    pinned = false,
+                    archived = false,
+                    createdAt = 1_000L,
+                    updatedAt = 1_000L,
+                ),
+            )
+            val updatedSummary = async {
+                storage.observeCharacterSummaries().first { summaries ->
+                    summaries.single().lastMessageAt == 2_000L
+                }.single()
+            }
+
+            database.chatSessionDao().updateLastMessage(
+                sessionId = "session-1",
+                messageId = "message-1",
+                messageAt = 2_000L,
+            )
+
+            assertEquals(2_000L, updatedSummary.await().lastMessageAt)
+        } finally {
+            database.close()
+            Files.deleteIfExists(databasePath)
+            appDataDirectory.toFile().deleteRecursively()
+            cacheDirectory.toFile().deleteRecursively()
+        }
     }
 
     @Test

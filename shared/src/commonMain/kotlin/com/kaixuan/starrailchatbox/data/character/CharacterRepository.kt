@@ -1,5 +1,8 @@
 package com.kaixuan.starrailchatbox.data.character
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.Serializable
 import okio.Path.Companion.toPath
 import org.jetbrains.compose.resources.ExperimentalResourceApi
@@ -71,6 +74,10 @@ interface CharacterStorage {
 
     suspend fun loadCharacterSummaries(): List<CharacterSummary>
 
+    fun observeCharacterSummaries(): Flow<List<CharacterSummary>> = flow {
+        emit(loadCharacterSummaries())
+    }
+
     suspend fun getCharacter(id: String): CharacterFiles?
 
     suspend fun saveCharacter(
@@ -95,6 +102,10 @@ interface CharacterRepository {
                 lastMessageAt = character.lastMessageAt,
             )
         }
+
+    fun observeCharacterSummaries(): Flow<List<CharacterSummary>> = flow {
+        emit(loadCharacterSummaries())
+    }
 
     suspend fun getCharacter(id: String): Character?
 
@@ -129,6 +140,11 @@ class DefaultCharacterRepository(
     override suspend fun loadCharacterSummaries(): List<CharacterSummary> {
         storage.initializeDefaults(defaultAssets())
         return storage.loadCharacterSummaries()
+    }
+
+    override fun observeCharacterSummaries(): Flow<List<CharacterSummary>> = flow {
+        storage.initializeDefaults(defaultAssets())
+        emitAll(storage.observeCharacterSummaries())
     }
 
     override suspend fun getCharacter(id: String): Character? {

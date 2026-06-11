@@ -1,7 +1,11 @@
 package com.kaixuan.starrailchatbox.data.character
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+
 class InMemoryCharacterStorage : CharacterStorage {
     private val characters = linkedMapOf<String, CharacterFiles>()
+    private val summaries = MutableStateFlow<List<CharacterSummary>>(emptyList())
     private var initialized = false
 
     override suspend fun initializeDefaults(defaults: List<DefaultCharacterAsset>) {
@@ -23,6 +27,7 @@ class InMemoryCharacterStorage : CharacterStorage {
             }
         }
         initialized = true
+        publishSummaries()
     }
 
     override suspend fun loadCharacters(): List<CharacterFiles> {
@@ -32,7 +37,13 @@ class InMemoryCharacterStorage : CharacterStorage {
     }
 
     override suspend fun loadCharacterSummaries(): List<CharacterSummary> {
-        return characters.values
+        return currentSummaries()
+    }
+
+    override fun observeCharacterSummaries(): Flow<List<CharacterSummary>> = summaries
+
+    private fun currentSummaries(): List<CharacterSummary> =
+        characters.values
             .sortedWith(compareBy({ it.sortOrder }, { it.createdAt }))
             .map {
                 CharacterSummary(
@@ -42,6 +53,9 @@ class InMemoryCharacterStorage : CharacterStorage {
                     lastMessageAt = it.lastMessageAt,
                 )
             }
+
+    private fun publishSummaries() {
+        summaries.value = currentSummaries()
     }
 
     override suspend fun getCharacter(id: String): CharacterFiles? {
@@ -59,15 +73,18 @@ class InMemoryCharacterStorage : CharacterStorage {
             sortOrder = sortOrder,
         )
         characters[character.id] = saved
+        publishSummaries()
         return saved
     }
 
     override suspend fun updateSortOrder(id: String, sortOrder: Int) {
         val existing = characters[id] ?: throw IllegalArgumentException("Character does not exist: $id")
         characters[id] = existing.copy(sortOrder = sortOrder)
+        publishSummaries()
     }
 
     override suspend fun deleteCharacter(id: String, deletedAt: Long) {
         characters.remove(id)
+        publishSummaries()
     }
 }

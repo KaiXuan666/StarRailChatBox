@@ -16,12 +16,12 @@ actual fun formatHeaderDate(epochMilliseconds: Long): String {
 
     val isSameYear = now.get(Calendar.YEAR) == target.get(Calendar.YEAR)
     val isSameDay = isSameYear && now.get(Calendar.DAY_OF_YEAR) == target.get(Calendar.DAY_OF_YEAR)
-    
+
     if (isSameDay) return "今天"
 
     val yesterday = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
     val isYesterday = isSameYear && yesterday.get(Calendar.DAY_OF_YEAR) == target.get(Calendar.DAY_OF_YEAR)
-    
+
     if (isYesterday) return "昨天"
 
     return if (isSameYear) {
@@ -29,6 +29,20 @@ actual fun formatHeaderDate(epochMilliseconds: Long): String {
     } else {
         SimpleDateFormat("yyyy年M月d日 HH:mm", Locale.getDefault()).format(date)
     }
+}
+
+actual fun formatLastChatTime(epochMilliseconds: Long): String {
+    val date = Date(epochMilliseconds)
+    val now = Calendar.getInstance()
+    val target = Calendar.getInstance().apply { time = date }
+    val isSameYear = now.get(Calendar.YEAR) == target.get(Calendar.YEAR)
+    val isSameDay = isSameYear && now.get(Calendar.DAY_OF_YEAR) == target.get(Calendar.DAY_OF_YEAR)
+    val pattern = when {
+        isSameDay -> "HH:mm"
+        isSameYear -> "M月d日 HH:mm"
+        else -> "yyyy年M月d日 HH:mm"
+    }
+    return SimpleDateFormat(pattern, Locale.getDefault()).format(date)
 }
 
 actual fun isSameDay(time1: Long, time2: Long): Boolean {

@@ -4,6 +4,8 @@ import com.kaixuan.starrailchatbox.data.database.dao.AgentRoleDao
 import com.kaixuan.starrailchatbox.data.database.entity.AgentRoleEntity
 import com.kaixuan.starrailchatbox.platform.KmpFileManager
 import io.github.aakira.napier.Napier
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import okio.Path
 import okio.Path.Companion.toPath
 
@@ -59,15 +61,11 @@ class RoomCharacterStorage(
     }
 
     override suspend fun loadCharacterSummaries(): List<CharacterSummary> {
-        return dao.findAll().map {
-            CharacterSummary(
-                id = it.id,
-                name = it.name,
-                avatarUri = it.avatarUri,
-                lastMessageAt = it.lastMessageAt,
-            )
-        }
+        return dao.findAll().map { it.toCharacterSummary() }
     }
+
+    override fun observeCharacterSummaries(): Flow<List<CharacterSummary>> =
+        dao.observeAll().map { roles -> roles.map { it.toCharacterSummary() } }
 
     override suspend fun getCharacter(id: String): CharacterFiles? {
         return dao.findById(id)?.toCharacterFiles()
@@ -205,4 +203,12 @@ class RoomCharacterStorage(
         createdAt = createdAt,
         sortOrder = sortOrder,
     )
+
+    private fun com.kaixuan.starrailchatbox.data.database.entity.AgentRoleSummaryEntity.toCharacterSummary() =
+        CharacterSummary(
+            id = id,
+            name = name,
+            avatarUri = avatarUri,
+            lastMessageAt = lastMessageAt,
+        )
 }

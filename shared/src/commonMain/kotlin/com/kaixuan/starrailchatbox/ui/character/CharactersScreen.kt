@@ -58,7 +58,7 @@ import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
-import com.kaixuan.starrailchatbox.platform.formatLocalTime
+import com.kaixuan.starrailchatbox.platform.formatLastChatTime
 import com.kaixuan.starrailchatbox.ui.components.AvatarImage
 import com.kaixuan.starrailchatbox.ui.components.StarRailDialog
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
@@ -634,13 +634,26 @@ private fun CharacterCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    text = character.lastMessageAt?.let { "上次聊天：${formatLocalTime(it)}" }.orEmpty(),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                character.lastMessageAt?.let { lastMessageAt ->
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        StarRailIcon(
+                            kind = StarRailIconKind.CLOCK,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Text(
+                            text = formatLastChatTime(lastMessageAt),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
             }
 
             // 右侧操作按钮

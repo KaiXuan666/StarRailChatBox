@@ -3,12 +3,15 @@
 package com.kaixuan.starrailchatbox.data.character
 
 import kotlinx.browser.localStorage
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.io.encoding.Base64
 
 class JsCharacterStorage : CharacterStorage {
     private val key = "characters"
+    private val summaries = MutableStateFlow(loadCharacterSummariesFromStorage())
 
     private fun getStoredCharacters(): List<CharacterFiles> {
         val json = localStorage.getItem(key) ?: return emptyList()
@@ -22,6 +25,7 @@ class JsCharacterStorage : CharacterStorage {
     private fun saveStoredCharacters(characters: List<CharacterFiles>) {
         val json = Json.encodeToString(characters)
         localStorage.setItem(key, json)
+        summaries.value = characters.toSummaries()
     }
 
     override suspend fun initializeDefaults(defaults: List<DefaultCharacterAsset>) {
@@ -48,7 +52,15 @@ class JsCharacterStorage : CharacterStorage {
     override suspend fun loadCharacters(): List<CharacterFiles> = getStoredCharacters()
 
     override suspend fun loadCharacterSummaries(): List<CharacterSummary> =
-        getStoredCharacters().map {
+        loadCharacterSummariesFromStorage()
+
+    override fun observeCharacterSummaries(): Flow<List<CharacterSummary>> = summaries
+
+    private fun loadCharacterSummariesFromStorage(): List<CharacterSummary> =
+        getStoredCharacters().toSummaries()
+
+    private fun List<CharacterFiles>.toSummaries(): List<CharacterSummary> =
+        map {
             CharacterSummary(it.id, it.name, it.avatarUri, it.lastMessageAt)
         }
 

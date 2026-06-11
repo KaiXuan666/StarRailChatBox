@@ -23,16 +23,32 @@ actual fun formatHeaderDate(epochMilliseconds: Long): String {
     if (calendar.isDateInToday(date)) return "今天"
     if (calendar.isDateInYesterday(date)) return "昨天"
 
+    val isThisYear = calendar.component(platform.Foundation.NSCalendarUnitYear, fromDate = date) ==
+        calendar.component(platform.Foundation.NSCalendarUnitYear, fromDate = NSDate())
+
     val formatter = NSDateFormatter().apply {
         locale = NSLocale.currentLocale
-        // 判断是否是今年
-        val isThisYear = calendar.component(platform.Foundation.NSCalendarUnitYear, fromDate = date) ==
-            calendar.component(platform.Foundation.NSCalendarUnitYear, fromDate = NSDate())
-        
         dateFormat = if (isThisYear) {
             "M月d日 HH:mm"
         } else {
             "yyyy年M月d日 HH:mm"
+        }
+    }
+    return formatter.stringFromDate(date)
+}
+
+actual fun formatLastChatTime(epochMilliseconds: Long): String {
+    val date = NSDate.dateWithTimeIntervalSince1970(epochMilliseconds / 1_000.0)
+    val calendar = NSCalendar.currentCalendar
+    val isToday = calendar.isDateInToday(date)
+    val isThisYear = calendar.component(platform.Foundation.NSCalendarUnitYear, fromDate = date) ==
+        calendar.component(platform.Foundation.NSCalendarUnitYear, fromDate = NSDate())
+    val formatter = NSDateFormatter().apply {
+        locale = NSLocale.currentLocale
+        dateFormat = when {
+            isToday -> "HH:mm"
+            isThisYear -> "M月d日 HH:mm"
+            else -> "yyyy年M月d日 HH:mm"
         }
     }
     return formatter.stringFromDate(date)

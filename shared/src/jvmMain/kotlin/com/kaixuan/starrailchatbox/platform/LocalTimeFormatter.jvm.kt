@@ -31,6 +31,20 @@ actual fun formatHeaderDate(epochMilliseconds: Long): String {
     }
 }
 
+actual fun formatLastChatTime(epochMilliseconds: Long): String {
+    val date = Date(epochMilliseconds)
+    val now = Calendar.getInstance()
+    val target = Calendar.getInstance().apply { time = date }
+    val isSameYear = now.get(Calendar.YEAR) == target.get(Calendar.YEAR)
+    val isSameDay = isSameYear && now.get(Calendar.DAY_OF_YEAR) == target.get(Calendar.DAY_OF_YEAR)
+    val pattern = when {
+        isSameDay -> "HH:mm"
+        isSameYear -> "M月d日 HH:mm"
+        else -> "yyyy年M月d日 HH:mm"
+    }
+    return SimpleDateFormat(pattern, Locale.getDefault()).format(date)
+}
+
 actual fun isSameDay(time1: Long, time2: Long): Boolean {
     val cal1 = Calendar.getInstance().apply { timeInMillis = time1 }
     val cal2 = Calendar.getInstance().apply { timeInMillis = time2 }

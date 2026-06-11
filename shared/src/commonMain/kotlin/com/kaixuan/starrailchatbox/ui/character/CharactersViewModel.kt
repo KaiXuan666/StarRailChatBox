@@ -4,10 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.character.CharacterRepository
+import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 import com.kaixuan.starrailchatbox.data.character.importer.CharacterCardExporter
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -24,7 +26,7 @@ class CharactersViewModel(
     val effects = _effects.receiveAsFlow()
 
     init {
-        refresh()
+        observeCharacters()
     }
 
     fun onAction(action: CharacterAction) {
@@ -64,6 +66,27 @@ class CharactersViewModel(
                     isLoadingCharacters = false,
                 )
             }
+        }
+    }
+
+    private fun observeCharacters() {
+        viewModelScope.launch {
+            characterRepository.observeCharacterSummaries()
+                .catch { emit(emptyList()) }
+                .collect(::updateCharacters)
+        }
+    }
+
+    private fun updateCharacters(summaries: List<CharacterSummary>) {
+        _uiState.update { state ->
+            val selectedId = state.selectedCharacterId
+                ?.takeIf { id -> summaries.any { it.id == id } }
+                ?: summaries.firstOrNull()?.id
+            state.copy(
+                characters = summaries,
+                selectedCharacterId = selectedId,
+                isLoadingCharacters = false,
+            )
         }
     }
 
