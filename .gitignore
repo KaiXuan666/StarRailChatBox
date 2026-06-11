@@ -21,3 +21,4 @@ node_modules/
 /key/
 /log/
 /local/
+/.artifacts/
