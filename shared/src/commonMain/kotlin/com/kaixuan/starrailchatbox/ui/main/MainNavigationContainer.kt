@@ -455,8 +455,6 @@ fun MainRoute(
         CharacterEffectMessage.CHARACTER_IMPORT_SUCCESS to stringResource(Res.string.character_edit_import_success),
         CharacterEffectMessage.CHARACTER_IMPORT_FAILED to stringResource(Res.string.character_edit_import_failed),
     )
-    val characterSavedMessage = stringResource(Res.string.character_saved)
-    val characterDeletedMessage = stringResource(Res.string.character_deleted)
     val settingsEffectMessages = mapOf(
         SettingsEffectMessage.SETTINGS_API_NOT_READY to stringResource(Res.string.settings_api_not_ready),
         SettingsEffectMessage.SETTINGS_UPDATE_CHECK to stringResource(Res.string.settings_update_check, versionName),
@@ -486,6 +484,10 @@ fun MainRoute(
         MainEffectMessage.CHECKING_FOR_UPDATE to stringResource(Res.string.settings_update_checking),
         MainEffectMessage.UPDATE_CHECK_FAILED to stringResource(Res.string.settings_update_failed),
         MainEffectMessage.COPIED_SUCCESS to stringResource(Res.string.settings_update_cloud_storage_copied),
+        MainEffectMessage.CHARACTER_SAVED to stringResource(Res.string.character_saved),
+        MainEffectMessage.CHARACTER_DELETED to stringResource(Res.string.character_deleted),
+        MainEffectMessage.PROFILE_SAVED to stringResource(Res.string.profile_saved),
+        MainEffectMessage.API_SETTINGS_SAVED to stringResource(Res.string.settings_api_saved),
     )
 
     LaunchedEffect(main.effects, mainEffectMessages) {
@@ -512,8 +514,7 @@ fun MainRoute(
         }
     }
 
-    LaunchedEffect(characters.effects, characterEffectMessages, characterSavedMessage, characterDeletedMessage) {
-        val scope = this
+    LaunchedEffect(characters.effects, characterEffectMessages) {
         characters.effects.collectLatest { effect ->
             when (effect) {
                 is CharacterEffect.ShowMessage -> {
@@ -522,12 +523,12 @@ fun MainRoute(
                     )
                 }
                 CharacterEffect.CharacterSaved -> {
-                    scope.launch { snackbarHostState.showSnackbar(characterSavedMessage) }
                     onMainAction(MainAction.PopBackStack)
+                    onMainAction(MainAction.ShowMessage(MainEffectMessage.CHARACTER_SAVED))
                 }
                 CharacterEffect.CharacterDeleted -> {
-                    scope.launch { snackbarHostState.showSnackbar(characterDeletedMessage) }
                     onMainAction(MainAction.PopBackStack)
+                    onMainAction(MainAction.ShowMessage(MainEffectMessage.CHARACTER_DELETED))
                 }
                 CharacterEffect.RequestDirectoryPicker -> {
                     directoryPicker.launch()
@@ -536,8 +537,7 @@ fun MainRoute(
         }
     }
 
-    LaunchedEffect(chatCharacters.effects, characterEffectMessages, characterSavedMessage) {
-        val scope = this
+    LaunchedEffect(chatCharacters.effects, characterEffectMessages) {
         chatCharacters.effects.collectLatest { effect ->
             when (effect) {
                 is CharacterEffect.ShowMessage -> {
@@ -546,10 +546,13 @@ fun MainRoute(
                     )
                 }
                 CharacterEffect.CharacterSaved -> {
-                    scope.launch { snackbarHostState.showSnackbar(characterSavedMessage) }
                     onMainAction(MainAction.PopBackStack)
+                    onMainAction(MainAction.ShowMessage(MainEffectMessage.CHARACTER_SAVED))
                 }
-                CharacterEffect.CharacterDeleted -> onMainAction(MainAction.PopBackStack)
+                CharacterEffect.CharacterDeleted -> {
+                    onMainAction(MainAction.PopBackStack)
+                    onMainAction(MainAction.ShowMessage(MainEffectMessage.CHARACTER_DELETED))
+                }
                 CharacterEffect.RequestDirectoryPicker -> directoryPicker.launch()
             }
         }
@@ -1204,8 +1207,6 @@ private fun CharacterEditRoute(
         )
     }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val savedMessage = stringResource(Res.string.character_saved)
-    val deletedMessage = stringResource(Res.string.character_deleted)
     val directoryPicker = rememberDirectoryPickerLauncher { directory ->
         if (directory != null) {
             viewModel.onAction(CharacterAction.CharacterExportDirectorySelected(directory))
@@ -1219,12 +1220,12 @@ private fun CharacterEditRoute(
                     snackbarHostState.showSnackbar(effectMessages.getValue(effect.message))
                 }
                 CharacterEffect.CharacterSaved -> {
-                    snackbarHostState.showSnackbar(savedMessage)
                     onMainAction(MainAction.PopBackStack)
+                    onMainAction(MainAction.ShowMessage(MainEffectMessage.CHARACTER_SAVED))
                 }
                 CharacterEffect.CharacterDeleted -> {
-                    snackbarHostState.showSnackbar(deletedMessage)
                     onMainAction(MainAction.PopBackStack)
+                    onMainAction(MainAction.ShowMessage(MainEffectMessage.CHARACTER_DELETED))
                 }
                 CharacterEffect.RequestDirectoryPicker -> directoryPicker.launch()
             }
@@ -1267,9 +1268,7 @@ private fun ApiSettingsRoute(
                 }
                 ApiSettingsEffect.ApiSettingsSaved -> {
                     onMainAction(MainAction.PopBackStack)
-                    snackbarHostState.showSnackbar(
-                        effectMessages.getValue(SettingsEffectMessage.SETTINGS_API_SAVED),
-                    )
+                    onMainAction(MainAction.ShowMessage(MainEffectMessage.API_SETTINGS_SAVED))
                 }
                 ApiSettingsEffect.NavigateBack -> onMainAction(MainAction.PopBackStack)
             }
@@ -1307,10 +1306,8 @@ private fun ProfileRoute(
                     snackbarHostState.showSnackbar(effectMessages.getValue(effect.message))
                 }
                 ProfileEffect.ProfileSaved -> {
-                    snackbarHostState.showSnackbar(
-                        effectMessages.getValue(ProfileEffectMessage.PROFILE_SAVED),
-                    )
                     onMainAction(MainAction.PopBackStack)
+                    onMainAction(MainAction.ShowMessage(MainEffectMessage.PROFILE_SAVED))
                 }
                 ProfileEffect.NavigateBack -> onMainAction(MainAction.PopBackStack)
                 ProfileEffect.RestartApp -> {
