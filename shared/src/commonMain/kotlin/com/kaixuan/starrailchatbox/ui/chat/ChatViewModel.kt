@@ -950,57 +950,59 @@ class ChatViewModel(
         val previousSession = activeSession
         val now = currentTimeMillis()
 
-        val fullCharacter = characterRepository.getCharacter(character.id) ?: character
-        val session = previousSession ?: NewChatSession(
-            id = idGenerator("session"),
-            title = sessionTitleProvider(),
-            agentId = character.id,
-            modelConfigId = null, // Will be updated if config is known
-            systemPromptSnapshot = fullCharacter.prompt,
-            maxContextMessageCount = null,
-            createdAt = now,
-        ).let { newSession ->
-            val userMessageId = idGenerator("message")
-            val domainAttachments = attachments.map {
-                val persistedUri = KmpFileManager.Default.persistAttachment(it.uri, it.name)
-                val updatedAttachment = when (it) {
-                    is SelectedAttachment.File -> it.copy(uri = persistedUri)
-                    is SelectedAttachment.Image -> it.copy(uri = persistedUri)
-                    is SelectedAttachment.Voice -> it.copy(uri = persistedUri)
-                }
-                Napier.d { "sendMessage: updatedAttachment=${updatedAttachment.uri}." }
-                updatedAttachment.toMessageAttachment(userMessageId, now)
-            }
-            val userMessage = NewChatMessage(
-                id = userMessageId,
-                sessionId = newSession.id,
-                role = ChatRole.USER,
-                content = content,
-                status = ChatMessageStatus.COMPLETED,
-                modelConfigId = null,
-                modelNameSnapshot = null,
+        val session = previousSession ?: run {
+            val fullCharacter = characterRepository.getCharacter(character.id) ?: character
+            NewChatSession(
+                id = idGenerator("session"),
+                title = sessionTitleProvider(),
+                agentId = character.id,
+                modelConfigId = null, // Will be updated if config is known
+                systemPromptSnapshot = fullCharacter.prompt,
+                maxContextMessageCount = null,
                 createdAt = now,
-                attachments = domainAttachments,
-            )
-            val openingMessage = fullCharacter.openingMessage
-                .takeIf(String::isNotBlank)
-                ?.let {
-                    NewChatMessage(
-                        id = idGenerator("message"),
-                        sessionId = newSession.id,
-                        role = ChatRole.ASSISTANT,
-                        content = it,
-                        status = ChatMessageStatus.COMPLETED,
-                        modelConfigId = null,
-                        modelNameSnapshot = null,
-                        createdAt = now,
-                    )
+            ).let { newSession ->
+                val userMessageId = idGenerator("message")
+                val domainAttachments = attachments.map {
+                    val persistedUri = KmpFileManager.Default.persistAttachment(it.uri, it.name)
+                    val updatedAttachment = when (it) {
+                        is SelectedAttachment.File -> it.copy(uri = persistedUri)
+                        is SelectedAttachment.Image -> it.copy(uri = persistedUri)
+                        is SelectedAttachment.Voice -> it.copy(uri = persistedUri)
+                    }
+                    Napier.d { "sendMessage: updatedAttachment=${updatedAttachment.uri}." }
+                    updatedAttachment.toMessageAttachment(userMessageId, now)
                 }
-            val initialMessages = listOfNotNull(openingMessage, userMessage)
-            chatSessionRepository.createSessionWithMessages(newSession, initialMessages)
-            newSession.toDomain(lastMessageAt = now).also {
-                activeSession = it
-                observeCreatedSession(it, character.id)
+                val userMessage = NewChatMessage(
+                    id = userMessageId,
+                    sessionId = newSession.id,
+                    role = ChatRole.USER,
+                    content = content,
+                    status = ChatMessageStatus.COMPLETED,
+                    modelConfigId = null,
+                    modelNameSnapshot = null,
+                    createdAt = now,
+                    attachments = domainAttachments,
+                )
+                val openingMessage = fullCharacter.openingMessage
+                    .takeIf(String::isNotBlank)
+                    ?.let {
+                        NewChatMessage(
+                            id = idGenerator("message"),
+                            sessionId = newSession.id,
+                            role = ChatRole.ASSISTANT,
+                            content = it,
+                            status = ChatMessageStatus.COMPLETED,
+                            modelConfigId = null,
+                            modelNameSnapshot = null,
+                            createdAt = now,
+                        )
+                    }
+                val initialMessages = listOfNotNull(openingMessage, userMessage)
+                chatSessionRepository.createSessionWithMessages(newSession, initialMessages)
+                newSession.toDomain(lastMessageAt = now).also {
+                    activeSession = it
+                    observeCreatedSession(it, character.id)
+                }
             }
         }
 
