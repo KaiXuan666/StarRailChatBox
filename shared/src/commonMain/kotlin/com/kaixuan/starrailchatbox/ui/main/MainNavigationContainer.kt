@@ -92,6 +92,9 @@ import starrailchatbox.shared.generated.resources.settings_update_dialog_title
 import starrailchatbox.shared.generated.resources.settings_update_dialog_version
 import starrailchatbox.shared.generated.resources.settings_update_dialog_confirm
 import starrailchatbox.shared.generated.resources.settings_update_dialog_cancel
+import starrailchatbox.shared.generated.resources.settings_update_cloud_storage_title
+import starrailchatbox.shared.generated.resources.settings_update_cloud_storage_copy
+import starrailchatbox.shared.generated.resources.settings_update_cloud_storage_copied
 import starrailchatbox.shared.generated.resources.settings_notice_not_ready
 import starrailchatbox.shared.generated.resources.settings_about_desc_toast
 import starrailchatbox.shared.generated.resources.settings_privacy_not_ready
@@ -123,6 +126,8 @@ import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import io.github.aakira.napier.Napier
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import kotlin.time.Clock
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
@@ -477,6 +482,7 @@ fun MainRoute(
         MainEffectMessage.ALREADY_LATEST_VERSION to stringResource(Res.string.settings_update_check, versionName),
         MainEffectMessage.CHECKING_FOR_UPDATE to stringResource(Res.string.settings_update_checking),
         MainEffectMessage.UPDATE_CHECK_FAILED to stringResource(Res.string.settings_update_failed),
+        MainEffectMessage.COPIED_SUCCESS to stringResource(Res.string.settings_update_cloud_storage_copied),
     )
 
     LaunchedEffect(main.effects, mainEffectMessages) {
@@ -582,6 +588,7 @@ private fun UpdateDialog(
     modifier: Modifier = Modifier
 ) {
     val isForceUpdate = info.isForceUpdate
+    val clipboardManager = LocalClipboardManager.current
     StarRailDialog(
         title = stringResource(Res.string.settings_update_dialog_title),
         dismissText = if (isForceUpdate) null else stringResource(Res.string.settings_update_dialog_cancel),
@@ -629,6 +636,56 @@ private fun UpdateDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 22.sp
                 )
+            }
+
+            // Cloud Storage Update
+            if (!info.cloudStorageUpdateText.isNullOrBlank()) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.settings_update_cloud_storage_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Surface(
+                            onClick = {
+                                clipboardManager.setText(AnnotatedString(info.cloudStorageUpdateText))
+                                onMainAction(MainAction.ShowMessage(MainEffectMessage.COPIED_SUCCESS))
+                            },
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = stringResource(Res.string.settings_update_cloud_storage_copy),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.starRailColors.constellation.copy(alpha = 0.05f),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.starRailColors.constellation.copy(alpha = 0.15f))
+                    ) {
+                        Text(
+                            text = info.cloudStorageUpdateText,
+                            modifier = Modifier.padding(12.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                        )
+                    }
+                }
             }
         }
     }

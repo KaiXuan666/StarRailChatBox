@@ -53,6 +53,7 @@ class MainViewModel(
                                     version = info.versionName,
                                     description = info.updateLog,
                                     downloadUrl = info.downloadUrl,
+                                    cloudStorageUpdateText = info.cloudStorageUpdateText,
                                     isForceUpdate = info.forceUpdate
                                 )
                             )

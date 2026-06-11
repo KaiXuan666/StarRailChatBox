@@ -17,5 +17,6 @@ data class UpdateInfo(
     val version: String,
     val description: String,
     val downloadUrl: String,
+    val cloudStorageUpdateText: String? = null,
     val isForceUpdate: Boolean = false,
 )

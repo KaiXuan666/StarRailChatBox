@@ -160,6 +160,9 @@
     <string name="settings_update_dialog_version">版本：%1$s</string>
     <string name="settings_update_dialog_confirm">立即更新</string>
     <string name="settings_update_dialog_cancel">稍后再说</string>
+    <string name="settings_update_cloud_storage_title">网盘更新</string>
+    <string name="settings_update_cloud_storage_copy">复制信息</string>
+    <string name="settings_update_cloud_storage_copied">已复制网盘更新信息</string>
     <string name="settings_notice_title">消息通知</string>
     <string name="settings_notice_desc">管理消息提醒与通知方式</string>
     <string name="settings_theme_title">主题风格</string>

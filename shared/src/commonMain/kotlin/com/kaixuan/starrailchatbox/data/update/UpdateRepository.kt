@@ -13,6 +13,7 @@ data class UpdateResponse(
     @SerialName("versionName") val versionName: String,
     @SerialName("updateLog") val updateLog: String,
     @SerialName("downloadUrl") val downloadUrl: String,
+    @SerialName("cloudStorageUpdateText") val cloudStorageUpdateText: String? = null,
     @SerialName("forceUpdate") val forceUpdate: Boolean
 )
 
