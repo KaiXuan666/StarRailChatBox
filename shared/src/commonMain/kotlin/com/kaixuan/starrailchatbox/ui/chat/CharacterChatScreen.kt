@@ -39,7 +39,6 @@ import com.kaixuan.starrailchatbox.ui.navigation.Route
 import androidx.compose.ui.platform.LocalUriHandler
 
 import com.kaixuan.starrailchatbox.platform.KmpFileManager
-import com.kaixuan.starrailchatbox.platform.readUriAsBytes
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.foundation.shape.CircleShape
@@ -244,7 +243,7 @@ fun CharacterChatScreen(
                     previewAttachment = null
                     coroutineScope.launch {
                         try {
-                            val bytes = readUriAsBytes(attachment.uri)
+                            val bytes = KmpFileManager.Default.readSourceBytes(attachment.uri)
                             KmpFileManager.Default.saveImageToGallery(bytes, attachment.name)
                             onMainAction(MainAction.ShowMessage(MainEffectMessage.IMAGE_SAVED))
                         } catch (e: Exception) {

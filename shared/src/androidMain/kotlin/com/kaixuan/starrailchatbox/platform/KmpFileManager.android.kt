@@ -1,15 +1,22 @@
 package com.kaixuan.starrailchatbox.platform
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import com.kaixuan.starrailchatbox.data.database.AndroidContextHolder
 import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
 import android.content.ContentValues
+import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.os.Environment
+import io.github.aakira.napier.Napier
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
 
 import io.github.vinceglb.filekit.div
 
@@ -28,6 +35,72 @@ class AndroidFileManager : KmpFileManager {
             "Android context must be initialized before using KmpFileManager."
         }
         context.cacheDir.absolutePath.toPath()
+    }
+
+    override suspend fun readSourceBytes(source: String): ByteArray {
+        if (!source.startsWith("content://")) {
+            return super<KmpFileManager>.readSourceBytes(source)
+        }
+        val context = requireNotNull(AndroidContextHolder.context)
+        return withContext(Dispatchers.IO) {
+            try {
+                context.contentResolver.openInputStream(Uri.parse(source))?.use { input ->
+                    input.readBytes()
+                } ?: ByteArray(0)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                Napier.e("Failed to read source URI: $source", error)
+                ByteArray(0)
+            }
+        }
+    }
+
+    override suspend fun compressImageIfPossible(source: String): String = withContext(Dispatchers.IO) {
+        val context = requireNotNull(AndroidContextHolder.context)
+        try {
+            val uri = if (source.startsWith("/") && !source.startsWith("//")) {
+                Uri.fromFile(File(source))
+            } else {
+                Uri.parse(source)
+            }
+            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            context.contentResolver.openInputStream(uri)?.use {
+                BitmapFactory.decodeStream(it, null, options)
+            }
+            var sampleSize = 1
+            val maxDimension = 2048
+            if (options.outWidth > maxDimension || options.outHeight > maxDimension) {
+                val halfWidth = options.outWidth / 2
+                val halfHeight = options.outHeight / 2
+                while (
+                    halfWidth / sampleSize >= maxDimension ||
+                    halfHeight / sampleSize >= maxDimension
+                ) {
+                    sampleSize *= 2
+                }
+            }
+            options.inJustDecodeBounds = false
+            options.inSampleSize = sampleSize
+            val bitmap = context.contentResolver.openInputStream(uri)?.use {
+                BitmapFactory.decodeStream(it, null, options)
+            } ?: return@withContext source
+            val target = File(context.cacheDir, "compressed_${System.currentTimeMillis()}.jpg")
+            var quality = 90
+            var currentSize: Long
+            do {
+                FileOutputStream(target).use { output ->
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, quality, output)
+                }
+                currentSize = target.length()
+                quality -= 10
+            } while (currentSize > 1024 * 1024 && quality > 10)
+            bitmap.recycle()
+            Uri.fromFile(target).toString()
+        } catch (error: Exception) {
+            Napier.e("Failed to compress image: $source", error)
+            source
+        }
     }
 
     override suspend fun saveImageToGallery(bytes: ByteArray, name: String) {

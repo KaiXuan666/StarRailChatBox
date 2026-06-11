@@ -197,7 +197,7 @@
     <string name="privacy_policy_section_6_title">6. 隐私政策的更新</string>
     <string name="privacy_policy_section_6_content">我们可能会根据法律法规或产品功能的变化，适时更新隐私与安全说明。更新后我们会在应用内进行提示，请您定期查看。</string>
     <string name="privacy_policy_section_7_title">7. 联系我们</string>
-    <string name="privacy_policy_section_7_content">如您对本应用的隐私与安全政策有任何疑问、建议或投诉，欢迎通过应用内“反馈与建议”与我们联系。</string>
+    <string name="privacy_policy_section_7_content">如您对本应用的隐私与安全政策有任何疑问、建议或投诉，欢迎通过以下方式与我们联系。</string>
     <string name="privacy_policy_contact_email">联系邮箱：kaixuanapp@163.com</string>
     <string name="privacy_policy_github_link">GitHub：https://github.com/KaiXuan666/StarRailChatBox</string>
     <string name="settings_qq_group_prefix">QQ交流群：</string>

@@ -1,8 +1,12 @@
 package com.kaixuan.starrailchatbox.platform
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 
 /**
  * 跨平台文件管理器，提供对应用私有目录的文件操作能力。
@@ -78,6 +82,48 @@ interface KmpFileManager {
     }
     fun readBytes(relativeName: String): ByteArray {
         return readBytes(appDataDir / relativeName.toPath())
+    }
+
+    /**
+     * 读取文件路径、平台 URI 或 data URI。
+     */
+    @OptIn(ExperimentalEncodingApi::class)
+    suspend fun readSourceBytes(source: String): ByteArray {
+        if (source.startsWith("data:")) {
+            val encoded = source.substringAfter("base64,", missingDelimiterValue = "")
+            return if (encoded.isEmpty()) ByteArray(0) else Base64.decode(encoded)
+        }
+        val path = source.removePrefix("file://").toPath()
+        return withContext(Dispatchers.Default) {
+            readBytes(path)
+        }
+    }
+
+    @OptIn(ExperimentalEncodingApi::class)
+    suspend fun writeAudioBytesToCache(bytes: ByteArray, fileName: String): String {
+        if (!isSupported) {
+            return "data:audio/wav;base64,${Base64.encode(bytes)}"
+        }
+        val target = appDataDir / "chat_attachments".toPath() / fileName.toPath()
+        return withContext(Dispatchers.Default) {
+            writeBytes(target, bytes)
+            target.toString()
+        }
+    }
+
+    suspend fun compressImageIfPossible(source: String): String = source
+
+    suspend fun persistAttachment(source: String, fileName: String): String {
+        if (!isSupported) return source
+        val target = appDataDir / "chat_attachments".toPath() / fileName.toPath()
+        if (source.removePrefix("file://") == target.toString()) {
+            return target.toString()
+        }
+        val bytes = readSourceBytes(source)
+        return withContext(Dispatchers.Default) {
+            writeBytes(target, bytes)
+            target.toString()
+        }
     }
 
     fun writeText(path: Path, text: String) {

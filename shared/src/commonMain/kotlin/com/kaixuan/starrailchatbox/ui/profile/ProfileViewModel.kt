@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
-import com.kaixuan.starrailchatbox.platform.persistAttachment
 import kotlinx.coroutines.launch
 import okio.Path.Companion.toPath
 
@@ -48,7 +47,8 @@ class ProfileViewModel(
                 scope().launch {
                     val finalUri = if (action.avatarUri != null && action.name != null) {
                         try {
-                            val bytes = com.kaixuan.starrailchatbox.platform.readUriAsBytes(action.avatarUri)
+                            val bytes = com.kaixuan.starrailchatbox.platform.KmpFileManager.Default
+                                .readSourceBytes(action.avatarUri)
                             val extension = action.extension ?: action.avatarUri.substringAfterLast('.', "png")
                             val fileName = "temp_user_avatar_${kotlin.time.Clock.System.now().toEpochMilliseconds()}.$extension"
                             val cachePath = (com.kaixuan.starrailchatbox.platform.KmpFileManager.Default.cacheDir / fileName.toPath()).toString()

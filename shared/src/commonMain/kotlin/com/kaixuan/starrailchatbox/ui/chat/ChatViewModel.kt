@@ -7,8 +7,6 @@ import androidx.lifecycle.viewModelScope
 import com.kaixuan.starrailchatbox.data.ai.AiContentPart
 import com.kaixuan.starrailchatbox.data.ai.AiMessage
 import com.kaixuan.starrailchatbox.data.ai.AiRepository
-import com.kaixuan.starrailchatbox.platform.persistAttachment
-import com.kaixuan.starrailchatbox.platform.readUriAsBytes
 import com.kaixuan.starrailchatbox.data.ai.ChatCompletionResult
 import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.character.Character
@@ -964,7 +962,7 @@ class ChatViewModel(
         ).let { newSession ->
             val userMessageId = idGenerator("message")
             val domainAttachments = attachments.map {
-                val persistedUri = persistAttachment(it.uri, it.name)
+                val persistedUri = KmpFileManager.Default.persistAttachment(it.uri, it.name)
                 val updatedAttachment = when (it) {
                     is SelectedAttachment.File -> it.copy(uri = persistedUri)
                     is SelectedAttachment.Image -> it.copy(uri = persistedUri)
@@ -1009,7 +1007,7 @@ class ChatViewModel(
         if (previousSession != null) {
             val userMessageId = idGenerator("message")
             val domainAttachments = attachments.map {
-                val persistedUri = persistAttachment(it.uri, it.name)
+                val persistedUri = KmpFileManager.Default.persistAttachment(it.uri, it.name)
                 val updatedAttachment = when (it) {
                     is SelectedAttachment.File -> it.copy(uri = persistedUri)
                     is SelectedAttachment.Image -> it.copy(uri = persistedUri)
@@ -1205,7 +1203,9 @@ class ChatViewModel(
                 AiContentPart.FileUrl(attachment.uri, attachment.mimeType)
             }
         } else {
-            val bytes = runCatching { readUriAsBytes(attachment.uri) }.getOrNull()
+            val bytes = runCatching {
+                KmpFileManager.Default.readSourceBytes(attachment.uri)
+            }.getOrNull()
             Napier.d { "readAttachmentAsAiContentPart bytes=$bytes" }
             if (bytes != null && bytes.isNotEmpty()) {
                 val base64 = "data:${attachment.mimeType};base64,${kotlin.io.encoding.Base64.encode(bytes)}"

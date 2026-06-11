@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
@@ -81,6 +82,7 @@ import starrailchatbox.shared.generated.resources.character_edit_prompt_gen_btn
 import starrailchatbox.shared.generated.resources.character_edit_prompt_gen_title
 import starrailchatbox.shared.generated.resources.character_edit_prompt_gen_default_input
 import starrailchatbox.shared.generated.resources.character_edit_prompt_gen_generating
+import starrailchatbox.shared.generated.resources.character_edit_importing
 import starrailchatbox.shared.generated.resources.cancel
 import starrailchatbox.shared.generated.resources.confirm
 import starrailchatbox.shared.generated.resources.navigation_back
@@ -153,14 +155,13 @@ fun CharacterEditScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    StarRailIcon(
-                        kind = StarRailIconKind.UPDATE,
-                        tint = MaterialTheme.colorScheme.primary,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp)
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        strokeWidth = 3.dp,
                     )
                     Text(
-                        text = "正在导入角色卡...",
+                        text = stringResource(Res.string.character_edit_importing),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
@@ -960,6 +961,34 @@ private fun CharacterEditScreenDarkPreview() {
     StarRailTheme(darkThemeOverride = true) {
         CharacterEditScreen(
             state = characterEditPreviewState,
+            contentPadding = PaddingValues(0.dp),
+            compact = true,
+            onMainAction = {},
+            onAction = {},
+        )
+    }
+}
+
+@Preview(widthDp = 360, heightDp = 800)
+@Composable
+private fun CharacterEditScreenImportingLightPreview() {
+    StarRailTheme(darkThemeOverride = false) {
+        CharacterEditScreen(
+            state = CharacterEditUiState(isImporting = true),
+            contentPadding = PaddingValues(0.dp),
+            compact = true,
+            onMainAction = {},
+            onAction = {},
+        )
+    }
+}
+
+@Preview(widthDp = 360, heightDp = 800)
+@Composable
+private fun CharacterEditScreenImportingDarkPreview() {
+    StarRailTheme(darkThemeOverride = true) {
+        CharacterEditScreen(
+            state = CharacterEditUiState(isImporting = true),
             contentPadding = PaddingValues(0.dp),
             compact = true,
             onMainAction = {},

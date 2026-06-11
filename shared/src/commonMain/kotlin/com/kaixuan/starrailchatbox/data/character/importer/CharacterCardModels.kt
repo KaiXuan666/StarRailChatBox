@@ -1,5 +1,6 @@
 package com.kaixuan.starrailchatbox.data.character.importer
 
+import com.kaixuan.starrailchatbox.getPlatform
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -52,7 +53,7 @@ data class SillyTavernV3Data(
 @Serializable
 data class StarRailCharacterCard(
     val spec: String = "starrail_chat_box_character",
-    val specVersion: String = "1.0",
+    val specVersion: String = getPlatform().versionName,
     val name: String,
     val description: String = "",
     val systemPrompt: String,

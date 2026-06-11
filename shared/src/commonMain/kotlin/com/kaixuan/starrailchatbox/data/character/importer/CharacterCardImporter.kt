@@ -2,17 +2,15 @@ package com.kaixuan.starrailchatbox.data.character.importer
 
 import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.platform.KmpFileManager
-import com.kaixuan.starrailchatbox.platform.readUriAsBytes
 import io.github.aakira.napier.Napier
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import kotlin.time.Clock
-import okio.Buffer
-import okio.ByteString.Companion.decodeHex
-import okio.ByteString.Companion.toByteString
-import okio.Path
 import okio.Path.Companion.toPath
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
+import kotlin.time.Clock
 
 interface CharacterCardImporter {
     suspend fun importFromFile(
@@ -35,39 +33,33 @@ class DefaultCharacterCardImporter(
         path: String,
         name: String,
         extension: String
-    ): ApiResult<ImportedCharacterDraft> {
-        return try {
-            val bytes = readUriAsBytes(path)
+    ): ApiResult<ImportedCharacterDraft> = withContext(Dispatchers.Default) {
+        try {
+            val bytes = fileManager.readSourceBytes(path)
             if (bytes.isEmpty()) {
-                return ApiResult.UnexpectedError("File is empty or not found")
+                return@withContext ApiResult.UnexpectedError("File is empty or not found")
             }
 
             if (bytes.size > 20 * 1024 * 1024) { // 20MB limit
-                return ApiResult.UnexpectedError("File too large")
+                return@withContext ApiResult.UnexpectedError("File too large")
             }
-
-            // For PNG, we still need a path for the avatar draft in the UI
-            // But for parsing, we can use the bytes directly.
-            // Requirement: "Copy to cache first as per 0.md requirements"
-            val cacheFileName = "import_temp_${kotlin.time.Clock.System.now().toEpochMilliseconds()}.$extension"
-            val cachePath = fileManager.cacheDir / cacheFileName
-            fileManager.writeBytes(cachePath, bytes)
 
             when (extension.lowercase()) {
                 "json" -> parseJsonToDraft(bytes.decodeToString(), null)
-                "png" -> importFromPng(bytes, cachePath)
+                "png" -> importFromPng(bytes)
                 else -> ApiResult.UnexpectedError("Unsupported file extension")
             }
+        } catch (cancellation: CancellationException) {
+            throw cancellation
         } catch (e: Exception) {
             Napier.e("Failed to import character card", e)
             ApiResult.UnexpectedError(e.message ?: "Unknown error")
         }
     }
 
-    private fun importFromPng(bytes: ByteArray, cachePath: Path): ApiResult<ImportedCharacterDraft> {
+    private fun importFromPng(bytes: ByteArray): ApiResult<ImportedCharacterDraft> {
         val chunks = PngMetadataCodec.readChunks(bytes)
         Napier.d { "Import PNG: Found chunks: ${chunks.keys}" }
-        
         // Priority: starrail_chat_box_character -> ccv3 -> chara
         val projectData = chunks["starrail_chat_box_character"]
         if (projectData != null) {
@@ -79,7 +71,7 @@ class DefaultCharacterCardImporter(
                 Napier.e("Import PNG: Project card data corrupted (Base64 fail)", e)
                 return ApiResult.UnexpectedError("Project-specific card data is corrupted")
             }
-            return parseStarRailJsonToDraft(jsonStr, cachePath.toString())
+            return parseStarRailJsonToDraft(jsonStr, null).withPngAvatar(bytes)
         }
 
         val v3Data = chunks["ccv3"]
@@ -90,7 +82,7 @@ class DefaultCharacterCardImporter(
             } catch (e: Exception) {
                 return ApiResult.UnexpectedError("Invalid Base64 in PNG chunk (ccv3)")
             }
-            return parseJsonToDraft(jsonStr, cachePath.toString())
+            return parseJsonToDraft(jsonStr, null).withPngAvatar(bytes)
         }
 
         val v2Data = chunks["chara"]
@@ -101,17 +93,38 @@ class DefaultCharacterCardImporter(
             } catch (e: Exception) {
                 return ApiResult.UnexpectedError("Invalid Base64 in PNG chunk (chara)")
             }
-            return parseJsonToDraft(jsonStr, cachePath.toString())
+            return parseJsonToDraft(jsonStr, null).withPngAvatar(bytes)
         }
 
         return ApiResult.UnexpectedError("No character data found in PNG")
+    }
+
+    @OptIn(ExperimentalEncodingApi::class)
+    private fun createCleanAvatar(bytes: ByteArray): String {
+        val cleanPng = PngMetadataCodec.stripTextMetadata(bytes)
+        if (!fileManager.isSupported) {
+            return "data:image/png;base64,${Base64.encode(cleanPng)}"
+        }
+        val avatarPath = fileManager.cacheDir /
+            "import_avatar_${Clock.System.now().toEpochMilliseconds()}.png".toPath()
+        fileManager.writeBytes(avatarPath, cleanPng)
+        return avatarPath.toString()
+    }
+
+    private fun ApiResult<ImportedCharacterDraft>.withPngAvatar(
+        pngBytes: ByteArray,
+    ): ApiResult<ImportedCharacterDraft> = when (this) {
+        is ApiResult.Success -> ApiResult.Success(
+            value.copy(avatarUri = createCleanAvatar(pngBytes)),
+        )
+        else -> this
     }
 
     private fun parseStarRailJsonToDraft(
         jsonStr: String,
         avatarUri: String?
     ): ApiResult<ImportedCharacterDraft> {
-        Napier.d { "Import PNG: Parsing project JSON: $jsonStr" }
+        Napier.d { "Import PNG: Parsing project JSON (${jsonStr.length} chars)" }
         return try {
             val card = json.decodeFromString<StarRailCharacterCard>(jsonStr)
             Napier.d { "Import PNG: Project card parsed successfully: ${card.name}" }

@@ -3,7 +3,6 @@ package com.kaixuan.starrailchatbox.data.character.importer
 import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.platform.KmpFileManager
-import com.kaixuan.starrailchatbox.platform.readUriAsBytes
 import io.github.aakira.napier.Napier
 import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.div
@@ -28,7 +27,7 @@ class DefaultCharacterCardExporter(
         directory: PlatformFile
     ): ApiResult<Unit> {
         return try {
-            val avatarBytes = readUriAsBytes(character.avatarUri)
+            val avatarBytes = fileManager.readSourceBytes(character.avatarUri)
             if (avatarBytes.isEmpty()) {
                 return ApiResult.UnexpectedError("Failed to read character avatar")
             }
@@ -37,7 +36,7 @@ class DefaultCharacterCardExporter(
             val pngBytes = pngEncoder.toPng(avatarBytes)
 
             val voiceData = character.voiceSampleUri?.let { uri ->
-                val bytes = readUriAsBytes(uri)
+                val bytes = fileManager.readSourceBytes(uri)
                 if (bytes.isNotEmpty()) {
                     StarRailVoiceData(
                         fileName = uri.substringAfterLast('/'),

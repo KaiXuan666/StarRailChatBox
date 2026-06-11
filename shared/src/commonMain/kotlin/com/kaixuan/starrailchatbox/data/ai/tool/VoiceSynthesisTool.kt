@@ -4,7 +4,7 @@ import com.kaixuan.starrailchatbox.data.ai.AiMessage
 import com.kaixuan.starrailchatbox.data.ai.AiToolCall
 import com.kaixuan.starrailchatbox.data.ai.AiToolDefinition
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
-import com.kaixuan.starrailchatbox.platform.readUriAsBytes
+import com.kaixuan.starrailchatbox.platform.KmpFileManager
 import io.github.aakira.napier.Napier
 import io.ktor.client.HttpClient
 import io.ktor.client.request.header
@@ -176,7 +176,7 @@ class VoiceSynthesisTool(
 
         return try {
             val requestBody = if (isClone && !voiceSampleUri.isNullOrBlank()) {
-                val audioBytes = readUriAsBytes(voiceSampleUri)
+                val audioBytes = KmpFileManager.Default.readSourceBytes(voiceSampleUri)
                 @OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
                 val audioBase64 = kotlin.io.encoding.Base64.Default.encode(audioBytes)
                 val mimeType = when {
@@ -238,7 +238,7 @@ class VoiceSynthesisTool(
                 @OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
                 val audioBytes = kotlin.io.encoding.Base64.Default.decode(base64Data.trim())
                 val randomFileName = "tts_${kotlin.random.Random.nextInt(10000000)}.wav"
-                val uri = com.kaixuan.starrailchatbox.platform.writeAudioBytesToCache(audioBytes, randomFileName)
+                val uri = KmpFileManager.Default.writeAudioBytesToCache(audioBytes, randomFileName)
                 val durationMs = minOf(30000L, maxOf(1000L, (audioBytes.size.toLong() / 32000L) * 1000L))
                 ToolResult.Terminal(
                     content = aiResponse,

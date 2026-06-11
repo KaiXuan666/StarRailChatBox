@@ -13,7 +13,6 @@ import com.kaixuan.starrailchatbox.data.character.importer.CharacterCardImporter
 import com.kaixuan.starrailchatbox.data.chat.ChatRole
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
 import com.kaixuan.starrailchatbox.platform.KmpFileManager
-import com.kaixuan.starrailchatbox.platform.readUriAsBytes
 import io.github.aakira.napier.Napier
 import io.github.vinceglb.filekit.PlatformFile
 import kotlinx.coroutines.CancellationException
@@ -45,7 +44,12 @@ class CharacterEditViewModel(
     private val characterCardExporter: CharacterCardExporter,
     private val fileManager: KmpFileManager,
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(CharacterEditUiState(characterId = characterId))
+    private val _uiState = MutableStateFlow(
+        CharacterEditUiState(
+            characterId = characterId,
+            isImporting = importPath != null && importName != null && importExtension != null,
+        ),
+    )
     val uiState = _uiState.asStateFlow()
 
     private val _effects = Channel<CharacterEffect>(Channel.BUFFERED)
@@ -121,7 +125,7 @@ class CharacterEditViewModel(
             runCatching {
                 val extension = source.extension ?: uri.substringAfterLast('.', "png")
                 val path = fileManager.cacheDir / "temp_avatar_${now()}.$extension".toPath()
-                fileManager.writeBytes(path, readUriAsBytes(uri))
+                fileManager.writeBytes(path, fileManager.readSourceBytes(uri))
                 update {
                     it.copy(
                         avatarUri = path.toString(),
@@ -144,7 +148,7 @@ class CharacterEditViewModel(
             runCatching {
                 val suffix = extension ?: uri.substringAfterLast('.', "mp3")
                 val path = fileManager.cacheDir / "temp_voice_${now()}.$suffix".toPath()
-                fileManager.writeBytes(path, readUriAsBytes(uri))
+                fileManager.writeBytes(path, fileManager.readSourceBytes(uri))
                 update { it.copy(voiceSampleUri = path.toString()) }
             }.onFailure {
                 Napier.e("Failed to cache character voice sample", it)

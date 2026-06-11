@@ -43,7 +43,6 @@ import starrailchatbox.shared.generated.resources.Res
 import starrailchatbox.shared.generated.resources.app_title
 import starrailchatbox.shared.generated.resources.no_characters
 import com.kaixuan.starrailchatbox.platform.KmpFileManager
-import com.kaixuan.starrailchatbox.platform.readUriAsBytes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import com.kaixuan.starrailchatbox.ui.main.MainEffectMessage
 
@@ -335,7 +334,7 @@ fun ChatSessionScreen(
                     previewAttachment = null
                     coroutineScope.launch {
                         try {
-                            val bytes = readUriAsBytes(attachment.uri)
+                            val bytes = KmpFileManager.Default.readSourceBytes(attachment.uri)
                             KmpFileManager.Default.saveImageToGallery(bytes, attachment.name)
                             onMainAction(MainAction.ShowMessage(MainEffectMessage.IMAGE_SAVED))
                         } catch (e: Exception) {

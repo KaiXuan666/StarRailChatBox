@@ -16,7 +16,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
-import com.kaixuan.starrailchatbox.platform.compressImageIfPossible
+import com.kaixuan.starrailchatbox.platform.KmpFileManager
 import com.kaixuan.starrailchatbox.platform.restartApp
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -340,7 +340,7 @@ fun MainRoute(
     val imagePicker = rememberFilePickerLauncher(type = FileKitType.Image) { picked ->
         picked?.let { 
             coroutineScope.launch {
-                val compressedUri = compressImageIfPossible(it.path ?: "")
+                val compressedUri = KmpFileManager.Default.compressImageIfPossible(it.path ?: "")
                 chat.onAction(ChatAction.ImageSelected(compressedUri, it.name, it.extension))
             }
         }
@@ -351,30 +351,23 @@ fun MainRoute(
     val characterCardPicker = rememberFilePickerLauncher(
         type = FileKitType.File(listOf("png", "json"))
     ) { picked ->
-        picked?.let { 
-            coroutineScope.launch {
-                val bytes = com.kaixuan.starrailchatbox.platform.readUriAsBytes(it.path ?: "")
-                val cacheFileName = "import_raw_${kotlin.time.Clock.System.now().toEpochMilliseconds()}.${it.extension}"
-                val cachePath = com.kaixuan.starrailchatbox.platform.KmpFileManager.Default.cacheDir / cacheFileName
-                com.kaixuan.starrailchatbox.platform.KmpFileManager.Default.writeBytes(cachePath, bytes)
-                
-                onMainAction(
-                    MainAction.NavigateTo(
-                        Route.CharacterEdit(
-                            characterId = null,
-                            importPath = cachePath.toString(),
-                            importName = it.name,
-                            importExtension = it.extension,
-                        ),
+        picked?.let {
+            onMainAction(
+                MainAction.NavigateTo(
+                    Route.CharacterEdit(
+                        characterId = null,
+                        importPath = it.path ?: "",
+                        importName = it.name,
+                        importExtension = it.extension,
                     ),
-                )
-            }
+                ),
+            )
         }
     }
     val cameraLauncher = rememberCameraLauncher { captured ->
         captured?.let { 
             coroutineScope.launch {
-                val compressedUri = compressImageIfPossible(captured.uri)
+                val compressedUri = KmpFileManager.Default.compressImageIfPossible(captured.uri)
                 chat.onAction(ChatAction.ImageSelected(compressedUri, captured.name, captured.extension))
             }
         }

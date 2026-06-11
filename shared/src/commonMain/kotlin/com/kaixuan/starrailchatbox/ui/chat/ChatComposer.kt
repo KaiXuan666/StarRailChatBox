@@ -33,6 +33,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
+import com.kaixuan.starrailchatbox.platform.KmpFileManager
 import com.kaixuan.starrailchatbox.platform.rememberAudioRecorder
 import com.kaixuan.starrailchatbox.platform.rememberCameraLauncher
 import com.kaixuan.starrailchatbox.platform.rememberRecordAudioPermissionController
@@ -69,7 +70,7 @@ fun ChatSessionBottomBar(
     val imagePicker = rememberFilePickerLauncher(type = FileKitType.Image) { picked ->
         picked?.let { 
             coroutineScope.launch {
-                val compressedUri = com.kaixuan.starrailchatbox.platform.compressImageIfPossible(it.path ?: "")
+                val compressedUri = KmpFileManager.Default.compressImageIfPossible(it.path ?: "")
                 onAction(ChatAction.ImageSelected(compressedUri, it.name, it.extension))
             }
         }
@@ -80,7 +81,7 @@ fun ChatSessionBottomBar(
     val cameraLauncher = rememberCameraLauncher { picked ->
         picked?.let { 
             coroutineScope.launch {
-                val compressedUri = com.kaixuan.starrailchatbox.platform.compressImageIfPossible(picked.uri)
+                val compressedUri = KmpFileManager.Default.compressImageIfPossible(picked.uri)
                 onAction(ChatAction.ImageSelected(compressedUri, picked.name, picked.extension))
             }
         }

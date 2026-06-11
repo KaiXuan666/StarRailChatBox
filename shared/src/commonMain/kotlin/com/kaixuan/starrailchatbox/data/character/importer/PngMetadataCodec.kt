@@ -93,6 +93,28 @@ object PngMetadataCodec {
         return output.readByteArray()
     }
 
+    fun stripTextMetadata(pngBytes: ByteArray): ByteArray {
+        val input = Buffer().write(pngBytes)
+        val output = Buffer()
+        val signature = input.readByteString(8)
+        require(signature == PNG_SIGNATURE) { "Invalid PNG signature" }
+        output.write(signature)
+
+        while (!input.exhausted()) {
+            val length = input.readInt()
+            val type = input.readUtf8(4)
+            val data = input.readByteString(length.toLong())
+            val crc = input.readInt()
+            if (type !in TextChunkTypes) {
+                output.writeInt(length)
+                output.writeUtf8(type)
+                output.write(data)
+                output.writeInt(crc)
+            }
+        }
+        return output.readByteArray()
+    }
+
     private fun calculateCrc(type: String, data: ByteString): Int {
         val crc = Crc32()
         crc.update(type.encodeToByteArray())
@@ -122,4 +144,6 @@ object PngMetadataCodec {
             }
         }
     }
+
+    private val TextChunkTypes = setOf("tEXt", "iTXt", "zTXt")
 }
