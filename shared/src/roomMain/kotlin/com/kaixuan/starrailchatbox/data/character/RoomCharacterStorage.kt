@@ -2,7 +2,6 @@ package com.kaixuan.starrailchatbox.data.character
 
 import com.kaixuan.starrailchatbox.data.database.dao.AgentRoleDao
 import com.kaixuan.starrailchatbox.data.database.entity.AgentRoleEntity
-import com.kaixuan.starrailchatbox.data.database.entity.AgentRoleSummaryEntity
 import com.kaixuan.starrailchatbox.platform.KmpFileManager
 import io.github.aakira.napier.Napier
 import okio.Path
@@ -53,7 +52,20 @@ class RoomCharacterStorage(
     }
 
     override suspend fun loadCharacters(): List<CharacterFiles> {
-        return dao.findAll().map { entity -> entity.toCharacterFiles() }
+        return dao.findAll().mapNotNull { summary ->
+            dao.findById(summary.id)?.toCharacterFiles()?.copy(lastMessageAt = summary.lastMessageAt)
+        }
+    }
+
+    override suspend fun loadCharacterSummaries(): List<CharacterSummary> {
+        return dao.findAll().map {
+            CharacterSummary(
+                id = it.id,
+                name = it.name,
+                avatarUri = it.avatarUri,
+                lastMessageAt = it.lastMessageAt,
+            )
+        }
     }
 
     override suspend fun getCharacter(id: String): CharacterFiles? {
@@ -177,21 +189,6 @@ class RoomCharacterStorage(
         createdAt = createdAt,
         updatedAt = updatedAt,
         voiceSampleUri = voiceSampleUri,
-    )
-
-    private fun AgentRoleSummaryEntity.toCharacterFiles() = CharacterFiles(
-        id = id,
-        name = name,
-        description = description,
-        prompt = "", // Excluded from summary
-        openingMessage = openingMessage,
-        avatarUri = avatarUri,
-        voiceSampleUri = voiceSampleUri,
-        temperature = temperature,
-        topP = topP,
-        createdAt = createdAt,
-        sortOrder = sortOrder,
-        lastMessageAt = lastMessageAt,
     )
 
     private fun AgentRoleEntity.toCharacterFiles() = CharacterFiles(

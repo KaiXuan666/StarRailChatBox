@@ -2,6 +2,14 @@ package com.kaixuan.starrailchatbox.ui.settings
 
 import androidx.compose.runtime.Immutable
 
+@Immutable
+data class SettingsOverviewUiState(
+    val isDefaultConfigured: Boolean = false,
+    val isMultimodalConfigured: Boolean = false,
+    val isVoiceConfigured: Boolean = false,
+    val isImageGenerationConfigured: Boolean = false,
+)
+
 /**
  * 设置与 API 配置模块状态
  */
@@ -49,4 +57,3 @@ data class SettingsUiState(
     val isVoiceConfigured: Boolean = false,
     val isImageGenerationConfigured: Boolean = false,
 )
-

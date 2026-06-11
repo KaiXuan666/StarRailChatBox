@@ -16,6 +16,8 @@ import com.kaixuan.starrailchatbox.data.character.CharacterAvatarSource
 import com.kaixuan.starrailchatbox.data.character.CharacterRepository
 import com.kaixuan.starrailchatbox.data.character.importer.CharacterCardImporter
 import com.kaixuan.starrailchatbox.data.character.importer.CharacterCardExporter
+import com.kaixuan.starrailchatbox.data.character.importer.DefaultCharacterCardImporter
+import com.kaixuan.starrailchatbox.data.character.importer.getCharacterCardExporter
 import com.kaixuan.starrailchatbox.data.character.importer.StarRailCharacterCard
 import com.kaixuan.starrailchatbox.data.chat.ChatMessageStatus
 import com.kaixuan.starrailchatbox.data.chat.ChatRole
@@ -51,7 +53,7 @@ import com.kaixuan.starrailchatbox.platform.KmpFileManager
 import com.kaixuan.starrailchatbox.ui.character.CharacterAction
 import com.kaixuan.starrailchatbox.ui.character.CharacterEffect
 import com.kaixuan.starrailchatbox.ui.character.CharacterEffectMessage
-import com.kaixuan.starrailchatbox.ui.character.CharactersUiState
+import com.kaixuan.starrailchatbox.ui.character.ChatCharactersUiState
 import com.kaixuan.starrailchatbox.ui.character.CharacterEditUiState
 import com.kaixuan.starrailchatbox.ui.character.toEditUiState
 import okio.Path.Companion.toPath
@@ -62,9 +64,10 @@ class ChatViewModel(
     private val modelConfigRepository: ModelConfigRepository,
     private val aiRepository: AiRepository,
     private val profileStore: ProfileStore,
-    private val characterCardImporter: CharacterCardImporter,
-    private val characterCardExporter: CharacterCardExporter,
+    private val chatMessageSender: ChatMessageSender = ChatMessageSender(aiRepository),
     private val fileManager: KmpFileManager = KmpFileManager.Default,
+    private val characterCardImporter: CharacterCardImporter = DefaultCharacterCardImporter(fileManager),
+    private val characterCardExporter: CharacterCardExporter = getCharacterCardExporter(),
     private val chatSummaryCoordinator: ChatSummaryCoordinator = ChatSummaryCoordinator(
         chatSessionRepository = chatSessionRepository,
         aiRepository = aiRepository,
@@ -86,7 +89,7 @@ class ChatViewModel(
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState = _uiState.asStateFlow()
 
-    private val _characterUiState = MutableStateFlow(CharactersUiState())
+    private val _characterUiState = MutableStateFlow(ChatCharactersUiState())
     val characterUiState = _characterUiState.asStateFlow()
 
     private val _effects = Channel<ChatEffect>(Channel.BUFFERED)
@@ -318,6 +321,7 @@ class ChatViewModel(
 
     fun onCharacterAction(action: CharacterAction) {
         when (action) {
+            CharacterAction.RefreshCharacters -> refreshCharacters()
             is CharacterAction.CharacterSelected -> selectCharacter(action.characterId)
             is CharacterAction.CharacterEditOpened -> openCharacterEdit(action.characterId)
             is CharacterAction.CharacterNameChanged -> updateCharacterEdit { it.copy(name = action.name) }
@@ -484,7 +488,10 @@ class ChatViewModel(
                     }
                 }
             }
-            is CharacterAction.CharactersReordered -> reorderCharacters(action.orderedCharacters)
+            is CharacterAction.CharactersReordered -> {
+                val byId = characterUiState.value.characters.associateBy { it.id }
+                reorderCharacters(action.orderedCharacters.mapNotNull { byId[it.id] })
+            }
             CharacterAction.CharacterRestoreDefaultClicked -> {
                 val characterId = characterUiState.value.characterEdit.characterId ?: return
                 viewModelScope.launch {
@@ -528,6 +535,32 @@ class ChatViewModel(
             }
             is CharacterAction.CharacterExportDirectorySelected -> {
                 exportCharacter(action.directory)
+            }
+        }
+    }
+
+    private fun refreshCharacters() {
+        viewModelScope.launch {
+            val characters = runCatching { characterRepository.loadCharacters() }
+                .getOrDefault(emptyList())
+            val selectedId = _characterUiState.value.selectedCharacterId
+                ?.takeIf { id -> characters.any { it.id == id } }
+                ?: characters.firstOrNull()?.id
+            _characterUiState.update {
+                it.copy(
+                    characters = characters,
+                    selectedCharacterId = selectedId,
+                    isLoadingCharacters = false,
+                )
+            }
+            _uiState.update { state ->
+                state.copy(
+                    selectedCharacterId = selectedId,
+                    selectedCharacter = characters.firstOrNull { it.id == selectedId },
+                    characterStates = state.characterStates.filterKeys { id ->
+                        characters.any { it.id == id }
+                    },
+                )
             }
         }
     }
@@ -1308,7 +1341,14 @@ class ChatViewModel(
             historyMessageParts = historyMessageParts,
         )
 
-        when (val result = aiRepository.createChatCompletion(config, requestMessages, character.name, character.voiceSampleUri)) {
+        when (
+            val result = chatMessageSender.send(
+                config = config,
+                messages = requestMessages,
+                characterName = character.name,
+                voiceSampleUri = character.voiceSampleUri,
+            )
+        ) {
             is ApiResult.Success -> {
                 if (handleSuccess(session, config, result.value)) {
                     viewModelScope.launch {

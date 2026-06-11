@@ -47,7 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.kaixuan.starrailchatbox.data.character.Character
+import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
@@ -98,14 +98,12 @@ fun CharactersScreen(
     val cardHeightWithSpacing = if (compact) 96.dp else 104.dp
     val thresholdPx = with(density) { cardHeightWithSpacing.toPx() }
 
-    val sortedCharacters = remember(state.characters) {
-        state.characters.sortedWith(compareBy({ it.sortOrder }, { it.createdAt }))
-    }
+    val sortedCharacters = state.characters
 
     var draggingItemId by remember { mutableStateOf<String?>(null) }
     var dragOffsetY by remember { mutableStateOf(0f) }
     var currentList by remember(sortedCharacters) { mutableStateOf(sortedCharacters) }
-    var deleteTargetCharacter by remember { mutableStateOf<Character?>(null) }
+    var deleteTargetCharacter by remember { mutableStateOf<CharacterSummary?>(null) }
 
     LaunchedEffect(sortedCharacters) {
         if (draggingItemId == null) {
@@ -351,7 +349,7 @@ fun CharactersScreen(
 
 @Composable
 private fun SwipeableCharacterCard(
-    character: Character,
+    character: CharacterSummary,
     index: Int,
     compact: Boolean,
     onClick: () -> Unit,
@@ -481,7 +479,7 @@ private fun SwipeableCharacterCard(
 
 @Composable
 private fun CharacterCard(
-    character: Character,
+    character: CharacterSummary,
     index: Int,
     compact: Boolean,
     onClick: () -> Unit,
@@ -652,32 +650,24 @@ private fun CharactersScreenDarkPreview() {
 
 private val previewState = CharactersUiState(
     characters = listOf(
-        Character(
+        CharacterSummary(
             id = "builtin:三月七",
             name = "三月七",
-            prompt = "热情开朗，元气满满的少女。",
-            openingMessage = "今天想聊点什么呢？",
             avatarUri = ""
         ),
-        Character(
+        CharacterSummary(
             id = "builtin:黄泉",
             name = "黄泉",
-            prompt = "神秘优雅，掌控生死的使者。",
-            openingMessage = "你好。",
             avatarUri = ""
         ),
-        Character(
+        CharacterSummary(
             id = "builtin:流萤",
             name = "流萤",
-            prompt = "温柔坚韧，追寻光明的少女。",
-            openingMessage = "你好啊。",
             avatarUri = ""
         ),
-        Character(
+        CharacterSummary(
             id = "builtin:瑕蝶",
             name = "瑕蝶",
-            prompt = "梦幻灵动，守护记忆的使者。",
-            openingMessage = "欢迎回来。",
             avatarUri = ""
         )
     ),

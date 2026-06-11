@@ -28,7 +28,20 @@ class InMemoryCharacterStorage : CharacterStorage {
     override suspend fun loadCharacters(): List<CharacterFiles> {
         return characters.values
             .sortedWith(compareBy({ it.sortOrder }, { it.createdAt }))
-            .map { it.copy(prompt = it.prompt.take(20)) }
+            .toList()
+    }
+
+    override suspend fun loadCharacterSummaries(): List<CharacterSummary> {
+        return characters.values
+            .sortedWith(compareBy({ it.sortOrder }, { it.createdAt }))
+            .map {
+                CharacterSummary(
+                    id = it.id,
+                    name = it.name,
+                    avatarUri = it.avatarUri,
+                    lastMessageAt = it.lastMessageAt,
+                )
+            }
     }
 
     override suspend fun getCharacter(id: String): CharacterFiles? {

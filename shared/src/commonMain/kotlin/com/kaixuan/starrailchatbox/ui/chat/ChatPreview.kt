@@ -9,7 +9,7 @@ import androidx.compose.ui.unit.dp
 import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.data.chat.MessageAttachment
 import com.kaixuan.starrailchatbox.design.StarRailTheme
-import com.kaixuan.starrailchatbox.ui.character.CharactersUiState
+import com.kaixuan.starrailchatbox.ui.character.ChatCharactersUiState
 
 @Preview(widthDp = 360, heightDp = 800)
 @Composable
@@ -50,7 +50,7 @@ private val previewCharacters = listOf(
     previewCharacter("builtin:瑕蝶", "瑕蝶"),
 )
 
-val charactersPreviewState = CharactersUiState(
+val charactersPreviewState = ChatCharactersUiState(
     characters = previewCharacters,
     selectedCharacterId = "builtin:流萤",
     isLoadingCharacters = false,

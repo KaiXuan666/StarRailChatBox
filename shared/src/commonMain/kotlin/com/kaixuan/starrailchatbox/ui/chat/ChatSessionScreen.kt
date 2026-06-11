@@ -32,7 +32,7 @@ import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.platform.openUri
 import com.kaixuan.starrailchatbox.platform.rememberAudioPlayer
 import com.kaixuan.starrailchatbox.ui.character.CharacterAction
-import com.kaixuan.starrailchatbox.ui.character.CharactersUiState
+import com.kaixuan.starrailchatbox.ui.character.ChatCharactersUiState
 import com.kaixuan.starrailchatbox.ui.components.BackHandler
 import com.kaixuan.starrailchatbox.ui.main.MainAction
 import com.kaixuan.starrailchatbox.ui.navigation.Route
@@ -53,7 +53,7 @@ import com.kaixuan.starrailchatbox.ui.main.MainEffectMessage
 @Composable
 fun ChatSessionScreen(
     state: ChatUiState,
-    charactersState: CharactersUiState,
+    charactersState: ChatCharactersUiState,
     contentPadding: PaddingValues,
     compact: Boolean,
     onAction: (ChatAction) -> Unit,

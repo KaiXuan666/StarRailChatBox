@@ -116,7 +116,7 @@ private data class SettingsItemUiData(
 @Composable
 fun SettingsScreen(
     mainState: MainUiState,
-    settingsState: SettingsUiState,
+    settingsState: SettingsOverviewUiState,
     contentPadding: PaddingValues,
     compact: Boolean,
     onMainAction: (MainAction) -> Unit,
@@ -609,7 +609,7 @@ private fun SettingsScreenLightPreview() {
     StarRailTheme(darkThemeOverride = false) {
         SettingsScreen(
             mainState = MainUiState(),
-            settingsState = SettingsUiState(),
+            settingsState = SettingsOverviewUiState(),
             contentPadding = PaddingValues(0.dp),
             compact = true,
             onMainAction = {},
@@ -624,7 +624,7 @@ private fun SettingsScreenDarkPreview() {
     StarRailTheme(darkThemeOverride = true) {
         SettingsScreen(
             mainState = MainUiState(darkThemeOverride = true),
-            settingsState = SettingsUiState(),
+            settingsState = SettingsOverviewUiState(),
             contentPadding = PaddingValues(0.dp),
             compact = true,
             onMainAction = {},

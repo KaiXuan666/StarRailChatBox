@@ -3,6 +3,7 @@ package com.kaixuan.starrailchatbox.ui.character
 import androidx.compose.runtime.Immutable
 import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.data.character.CharacterAvatarSource
+import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 import com.kaixuan.starrailchatbox.data.character.importer.ImportedCharacterDraft
 
 @Immutable
@@ -34,6 +35,17 @@ data class CharacterEditUiState(
 
 @Immutable
 data class CharactersUiState(
+    val characters: List<CharacterSummary> = emptyList(),
+    val selectedCharacterId: String? = null,
+    val isLoadingCharacters: Boolean = true,
+) {
+    val selectedCharacter: CharacterSummary?
+        get() = characters.firstOrNull { it.id == selectedCharacterId }
+            ?: characters.firstOrNull()
+}
+
+@Immutable
+data class ChatCharactersUiState(
     val characters: List<Character> = emptyList(),
     val selectedCharacterId: String? = null,
     val characterEdit: CharacterEditUiState = CharacterEditUiState(),

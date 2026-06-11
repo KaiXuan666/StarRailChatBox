@@ -46,6 +46,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -55,6 +57,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.collectLatest
@@ -121,8 +124,12 @@ import com.kaixuan.starrailchatbox.ui.character.CharacterAction
 import com.kaixuan.starrailchatbox.ui.character.CharacterEffect
 import com.kaixuan.starrailchatbox.ui.character.CharacterEffectMessage
 import com.kaixuan.starrailchatbox.ui.character.CharactersUiState
+import com.kaixuan.starrailchatbox.ui.character.ChatCharactersUiState
 import com.kaixuan.starrailchatbox.ui.character.CharactersScreen
 import com.kaixuan.starrailchatbox.ui.character.CharacterEditScreen
+import com.kaixuan.starrailchatbox.ui.character.CharacterEditViewModel
+import com.kaixuan.starrailchatbox.ui.character.CharacterEditArgs
+import com.kaixuan.starrailchatbox.ui.character.CharactersViewModel
 import com.kaixuan.starrailchatbox.ui.chat.ChatUiState
 import com.kaixuan.starrailchatbox.ui.chat.CharacterChatState
 import com.kaixuan.starrailchatbox.ui.chat.ChatMessageUiModel
@@ -133,9 +140,17 @@ import com.kaixuan.starrailchatbox.ui.chat.RecordingOverlay
 import com.kaixuan.starrailchatbox.ui.components.NavigationPlaceholderScreen
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
-import com.kaixuan.starrailchatbox.ui.navigation.NavDisplay
 import com.kaixuan.starrailchatbox.ui.navigation.Route
-import com.kaixuan.starrailchatbox.ui.navigation.entryProvider
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.ui.NavDisplay
+import androidx.savedstate.serialization.SavedStateConfiguration
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
+import kotlinx.serialization.modules.subclass
 import com.kaixuan.starrailchatbox.ui.settings.ApiSettingsScreen
 import com.kaixuan.starrailchatbox.ui.settings.SettingsScreen
 import com.kaixuan.starrailchatbox.ui.settings.AboutScreen
@@ -143,12 +158,14 @@ import com.kaixuan.starrailchatbox.ui.settings.PrivacyPolicyScreen
 import com.kaixuan.starrailchatbox.ui.settings.SettingsAction
 import com.kaixuan.starrailchatbox.ui.settings.SettingsEffect
 import com.kaixuan.starrailchatbox.ui.settings.SettingsEffectMessage
-import com.kaixuan.starrailchatbox.ui.settings.SettingsUiState
+import com.kaixuan.starrailchatbox.ui.settings.SettingsOverviewUiState
+import com.kaixuan.starrailchatbox.ui.settings.SettingsViewModel
+import com.kaixuan.starrailchatbox.ui.settings.SettingsOverviewViewModel
 import com.kaixuan.starrailchatbox.ui.profile.ProfileScreen
 import com.kaixuan.starrailchatbox.ui.profile.ProfileAction
 import com.kaixuan.starrailchatbox.ui.profile.ProfileEffect
-import com.kaixuan.starrailchatbox.ui.profile.ProfileUiState
 import com.kaixuan.starrailchatbox.ui.profile.ProfileEffectMessage
+import com.kaixuan.starrailchatbox.ui.profile.ProfileViewModel
 import com.kaixuan.starrailchatbox.ui.components.StarRailDialog
 import com.kaixuan.starrailchatbox.platform.openUri
 import androidx.compose.foundation.BorderStroke
@@ -167,15 +184,132 @@ import starrailchatbox.shared.generated.resources.profile_export_success
 import starrailchatbox.shared.generated.resources.profile_import_success
 import starrailchatbox.shared.generated.resources.settings_copied_success
 import com.kaixuan.starrailchatbox.getPlatform
+import com.kaixuan.starrailchatbox.ui.chat.ChatViewModel
+import org.koin.core.Koin
+import org.koin.dsl.koinApplication
+import org.koin.core.parameter.parametersOf
+
+private val NavigationSavedStateConfiguration = SavedStateConfiguration {
+    serializersModule = SerializersModule {
+        polymorphic(NavKey::class) {
+            subclass(Route.ChatSession::class, Route.ChatSession.serializer())
+            subclass(Route.ConversationManagement::class, Route.ConversationManagement.serializer())
+            subclass(Route.CharacterEdit::class, Route.CharacterEdit.serializer())
+            subclass(Route.Characters::class, Route.Characters.serializer())
+            subclass(Route.Settings::class, Route.Settings.serializer())
+            subclass(Route.ApiSettings::class, Route.ApiSettings.serializer())
+            subclass(Route.MultimodalApiSettings::class, Route.MultimodalApiSettings.serializer())
+            subclass(Route.VoiceApiSettings::class, Route.VoiceApiSettings.serializer())
+            subclass(Route.ImageGenerationApiSettings::class, Route.ImageGenerationApiSettings.serializer())
+            subclass(Route.Profile::class, Route.Profile.serializer())
+            subclass(Route.About::class, Route.About.serializer())
+            subclass(Route.PrivacyPolicy::class, Route.PrivacyPolicy.serializer())
+            subclass(Route.CharacterChat::class, Route.CharacterChat.serializer())
+        }
+    }
+}
 
 @Composable
 fun MainRoute(
     main: MainRouteBinding,
-    characters: CharactersRouteBinding,
-    chat: ChatRouteBinding,
-    settings: SettingsRouteBinding,
-    profile: ProfileRouteBinding,
+    koin: Koin,
 ) {
+    val backStack = rememberNavBackStack(
+        NavigationSavedStateConfiguration,
+        Route.ChatSession,
+    )
+    val rootViewModelStoreOwner = checkNotNull(LocalViewModelStoreOwner.current)
+    var charactersVisited by remember { mutableStateOf(false) }
+    var settingsVisited by remember { mutableStateOf(false) }
+    val currentEntry = backStack.lastOrNull()
+    LaunchedEffect(currentEntry) {
+        when (currentEntry) {
+            Route.Characters -> charactersVisited = true
+            Route.Settings -> settingsVisited = true
+            else -> Unit
+        }
+    }
+
+    val chatViewModel = viewModel<ChatViewModel>(
+        viewModelStoreOwner = rootViewModelStoreOwner,
+        key = "root-chat",
+    ) { koin.get() }
+    val chatState by chatViewModel.uiState.collectAsStateWithLifecycle()
+    val chatCharacterState by chatViewModel.characterUiState.collectAsStateWithLifecycle()
+    val chat = ChatRouteBinding(
+        state = chatState,
+        effects = chatViewModel.effects,
+        onAction = chatViewModel::onAction,
+    )
+    val chatCharacters = ChatCharactersRouteBinding(
+        state = chatCharacterState,
+        effects = chatViewModel.characterEffects,
+        onAction = chatViewModel::onCharacterAction,
+    )
+
+    val charactersViewModel = if (charactersVisited) {
+        viewModel<CharactersViewModel>(
+            viewModelStoreOwner = rootViewModelStoreOwner,
+            key = "root-characters",
+        ) { koin.get() }
+    } else {
+        null
+    }
+    val charactersState = charactersViewModel?.uiState?.collectAsStateWithLifecycle()?.value
+        ?: CharactersUiState()
+    val characters = CharactersRouteBinding(
+        state = charactersState,
+        effects = charactersViewModel?.effects ?: emptyFlow(),
+        onAction = charactersViewModel?.let { it::onAction } ?: {},
+    )
+
+    val settingsViewModel = if (settingsVisited) {
+        viewModel<SettingsOverviewViewModel>(
+            viewModelStoreOwner = rootViewModelStoreOwner,
+            key = "root-settings-overview",
+        ) { koin.get() }
+    } else {
+        null
+    }
+    val settingsState = settingsViewModel?.uiState?.collectAsStateWithLifecycle()?.value
+        ?: SettingsOverviewUiState()
+    val settings = SettingsRouteBinding(state = settingsState)
+    val onMainAction: (MainAction) -> Unit = { action ->
+        when (action) {
+            is MainAction.NavigationSelected -> {
+                backStack.clear()
+                backStack.add(action.route)
+            }
+            is MainAction.NavigateTo -> {
+                if (backStack.lastOrNull() != action.route) {
+                    backStack.add(action.route)
+                }
+            }
+            MainAction.PopBackStack -> {
+                if (backStack.size > 1) {
+                    backStack.removeLastOrNull()
+                }
+            }
+            is MainAction.SettingsItemClicked -> {
+                val route = when (action.item) {
+                    MainSettingsItem.PROFILE -> Route.Profile
+                    MainSettingsItem.API_SETTINGS -> Route.ApiSettings
+                    MainSettingsItem.MULTIMODAL_API_SETTINGS -> Route.MultimodalApiSettings
+                    MainSettingsItem.IMAGE_GENERATION_API_SETTINGS -> Route.ImageGenerationApiSettings
+                    MainSettingsItem.VOICE_API_SETTINGS -> Route.VoiceApiSettings
+                    MainSettingsItem.ABOUT_US -> Route.About
+                    MainSettingsItem.PRIVACY_SECURITY -> Route.PrivacyPolicy
+                    else -> null
+                }
+                if (route != null) {
+                    backStack.add(route)
+                } else {
+                    main.onAction(action)
+                }
+            }
+            else -> main.onAction(action)
+        }
+    }
     val coroutineScope = rememberCoroutineScope()
     val versionName = remember { getPlatform().versionName }
     val imagePicker = rememberFilePickerLauncher(type = FileKitType.Image) { picked ->
@@ -199,8 +333,16 @@ fun MainRoute(
                 val cachePath = com.kaixuan.starrailchatbox.platform.KmpFileManager.Default.cacheDir / cacheFileName
                 com.kaixuan.starrailchatbox.platform.KmpFileManager.Default.writeBytes(cachePath, bytes)
                 
-                main.onAction(MainAction.NavigateTo(Route.CharacterEdit(null)))
-                characters.onAction(CharacterAction.CharacterImportFileSelected(cachePath.toString(), it.name, it.extension))
+                onMainAction(
+                    MainAction.NavigateTo(
+                        Route.CharacterEdit(
+                            characterId = null,
+                            importPath = cachePath.toString(),
+                            importName = it.name,
+                            importExtension = it.extension,
+                        ),
+                    ),
+                )
             }
         }
     }
@@ -236,7 +378,32 @@ fun MainRoute(
     val wrappedOnCharacterAction: (CharacterAction) -> Unit = { action ->
         when (action) {
             CharacterAction.CharacterImportClicked -> characterCardPicker.launch()
+            is CharacterAction.CharacterSelected -> {
+                characters.onAction(action)
+                chatCharacters.onAction(action)
+            }
             else -> characters.onAction(action)
+        }
+    }
+    val wrappedOnSettingsAction: (SettingsAction) -> Unit = { action ->
+        when (action) {
+            is SettingsAction.SettingsItemClicked -> {
+                val item = when (action.item) {
+                    com.kaixuan.starrailchatbox.ui.settings.SettingsItem.PROFILE -> MainSettingsItem.PROFILE
+                    com.kaixuan.starrailchatbox.ui.settings.SettingsItem.API_SETTINGS -> MainSettingsItem.API_SETTINGS
+                    com.kaixuan.starrailchatbox.ui.settings.SettingsItem.MULTIMODAL_API_SETTINGS -> MainSettingsItem.MULTIMODAL_API_SETTINGS
+                    com.kaixuan.starrailchatbox.ui.settings.SettingsItem.IMAGE_GENERATION_API_SETTINGS -> MainSettingsItem.IMAGE_GENERATION_API_SETTINGS
+                    com.kaixuan.starrailchatbox.ui.settings.SettingsItem.VOICE_API_SETTINGS -> MainSettingsItem.VOICE_API_SETTINGS
+                    com.kaixuan.starrailchatbox.ui.settings.SettingsItem.CHECK_UPDATE -> MainSettingsItem.CHECK_UPDATE
+                    com.kaixuan.starrailchatbox.ui.settings.SettingsItem.MESSAGE_NOTIFICATION -> MainSettingsItem.MESSAGE_NOTIFICATION
+                    com.kaixuan.starrailchatbox.ui.settings.SettingsItem.THEME_STYLE -> MainSettingsItem.THEME_STYLE
+                    com.kaixuan.starrailchatbox.ui.settings.SettingsItem.ABOUT_US -> MainSettingsItem.ABOUT_US
+                    com.kaixuan.starrailchatbox.ui.settings.SettingsItem.PRIVACY_SECURITY -> MainSettingsItem.PRIVACY_SECURITY
+                }
+                onMainAction(MainAction.SettingsItemClicked(item))
+            }
+            is SettingsAction.CopyToClipboard -> Unit
+            else -> Unit
         }
     }
 
@@ -330,11 +497,11 @@ fun MainRoute(
                 }
                 CharacterEffect.CharacterSaved -> {
                     scope.launch { snackbarHostState.showSnackbar(characterSavedMessage) }
-                    main.onAction(MainAction.PopBackStack)
+                    onMainAction(MainAction.PopBackStack)
                 }
                 CharacterEffect.CharacterDeleted -> {
                     scope.launch { snackbarHostState.showSnackbar(characterDeletedMessage) }
-                    main.onAction(MainAction.PopBackStack)
+                    onMainAction(MainAction.PopBackStack)
                 }
                 CharacterEffect.RequestDirectoryPicker -> {
                     directoryPicker.launch()
@@ -343,85 +510,49 @@ fun MainRoute(
         }
     }
 
-    LaunchedEffect(settings.effects, settingsEffectMessages) {
+    LaunchedEffect(chatCharacters.effects, characterEffectMessages, characterSavedMessage) {
         val scope = this
-        settings.effects.collectLatest { effect ->
+        chatCharacters.effects.collectLatest { effect ->
             when (effect) {
-                is SettingsEffect.ShowMessage -> {
+                is CharacterEffect.ShowMessage -> {
                     snackbarHostState.showSnackbar(
-                        settingsEffectMessages.getValue(effect.message),
+                        characterEffectMessages.getValue(effect.message),
                     )
                 }
-                SettingsEffect.ApiSettingsSaved -> {
-                    scope.launch {
-                        snackbarHostState.showSnackbar(
-                            settingsEffectMessages.getValue(SettingsEffectMessage.SETTINGS_API_SAVED),
-                        )
-                    }
-                    main.onAction(MainAction.PopBackStack)
+                CharacterEffect.CharacterSaved -> {
+                    scope.launch { snackbarHostState.showSnackbar(characterSavedMessage) }
+                    onMainAction(MainAction.PopBackStack)
                 }
-                SettingsEffect.NavigateBack -> {
-                    main.onAction(MainAction.PopBackStack)
-                }
-            }
-        }
-    }
-
-    LaunchedEffect(profile.effects, profileEffectMessages) {
-        val scope = this
-        profile.effects.collectLatest { effect ->
-            when (effect) {
-                is ProfileEffect.ShowMessage -> {
-                    snackbarHostState.showSnackbar(
-                        profileEffectMessages.getValue(effect.message),
-                    )
-                }
-                ProfileEffect.ProfileSaved -> {
-                    scope.launch {
-                        snackbarHostState.showSnackbar(
-                            profileEffectMessages.getValue(ProfileEffectMessage.PROFILE_SAVED),
-                        )
-                    }
-                    main.onAction(MainAction.PopBackStack)
-                }
-                ProfileEffect.NavigateBack -> {
-                    main.onAction(MainAction.PopBackStack)
-                }
-                ProfileEffect.RestartApp -> {
-                    scope.launch {
-                        snackbarHostState.showSnackbar(
-                            profileEffectMessages.getValue(ProfileEffectMessage.IMPORT_SUCCESS),
-                        )
-                        // Give some time for the snackbar to be seen if possible, 
-                        // but restartApp might be immediate.
-                        // Actually, importing is usually followed by a restart.
-                        kotlinx.coroutines.delay(1500)
-                        restartApp()
-                    }
-                }
+                CharacterEffect.CharacterDeleted -> onMainAction(MainAction.PopBackStack)
+                CharacterEffect.RequestDirectoryPicker -> directoryPicker.launch()
             }
         }
     }
 
     MainNavigationContainer(
         mainState = main.state,
+        backStack = backStack,
         charactersState = characters.state,
+        chatCharactersState = chatCharacters.state,
         chatState = chat.state,
         settingsState = settings.state,
-        profileState = profile.state,
         snackbarHostState = snackbarHostState,
-        onMainAction = main.onAction,
+        characterEffectMessages = characterEffectMessages,
+        settingsEffectMessages = settingsEffectMessages,
+        profileEffectMessages = profileEffectMessages,
+        koin = koin,
+        onMainAction = onMainAction,
         onCharacterAction = wrappedOnCharacterAction,
+        onChatCharacterAction = chatCharacters.onAction,
         onChatAction = wrappedOnChatAction,
-        onSettingsAction = settings.onAction,
-        onProfileAction = profile.onAction,
+        onSettingsAction = wrappedOnSettingsAction,
     )
 
     // Global Update Dialog
     if (main.state.showUpdateDialog && main.state.updateInfo != null) {
         UpdateDialog(
             info = main.state.updateInfo,
-            onMainAction = main.onAction
+            onMainAction = onMainAction
         )
     }
 }
@@ -483,20 +614,25 @@ private fun UpdateDialog(
 @Composable
 fun MainNavigationContainer(
     mainState: MainUiState,
+    backStack: List<NavKey>,
     charactersState: CharactersUiState,
+    chatCharactersState: ChatCharactersUiState,
     chatState: ChatUiState,
-    settingsState: SettingsUiState,
-    profileState: ProfileUiState,
+    settingsState: SettingsOverviewUiState,
     snackbarHostState: SnackbarHostState,
+    characterEffectMessages: Map<CharacterEffectMessage, String>,
+    settingsEffectMessages: Map<SettingsEffectMessage, String>,
+    profileEffectMessages: Map<ProfileEffectMessage, String>,
+    koin: Koin,
     onMainAction: (MainAction) -> Unit,
     onCharacterAction: (CharacterAction) -> Unit,
+    onChatCharacterAction: (CharacterAction) -> Unit,
     onChatAction: (ChatAction) -> Unit,
     onSettingsAction: (SettingsAction) -> Unit,
-    onProfileAction: (ProfileAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.starRailColors
-    val currentRoute = mainState.backStack.lastOrNull() ?: Route.ChatSession
+    val currentRoute = backStack.lastOrNull() as? Route ?: Route.ChatSession
 
     var isRecording by remember { mutableStateOf(false) }
     var isCancelTargeted by remember { mutableStateOf(false) }
@@ -524,7 +660,7 @@ fun MainNavigationContainer(
             modifier = Modifier.fillMaxSize(),
             horizontalArrangement = Arrangement.Center,
         ) {
-            val showRail = expanded && mainState.backStack.size <= 1
+            val showRail = expanded && backStack.size <= 1
             if (showRail) {
                 MainNavigationRail(
                     currentRoute = currentRoute,
@@ -549,6 +685,7 @@ fun MainNavigationContainer(
                 bottomBar = {
                     MainBottomArea(
                         mainState = mainState,
+                        backStack = backStack,
                         chatState = chatState,
                         showNavigationBar = !showRail,
                         compact = compact,
@@ -561,11 +698,11 @@ fun MainNavigationContainer(
                     )
                 },
             ) { contentPadding ->
-                val entryProvider = entryProvider<Route> {
+                val entryProvider = entryProvider<NavKey> {
                     entry<Route.ChatSession> {
                         ChatSessionScreen(
                             state = chatState,
-                            charactersState = charactersState,
+                            charactersState = chatCharactersState,
                             contentPadding = contentPadding,
                             compact = compact,
                             onAction = onChatAction,
@@ -585,13 +722,18 @@ fun MainNavigationContainer(
                         )
                     }
                     entry<Route.CharacterEdit> { entry ->
-                        CharacterEditScreen(
-                            characterId = entry.characterId,
-                            state = charactersState,
+                        CharacterEditRoute(
+                            route = entry,
+                            koin = koin,
                             contentPadding = contentPadding,
                             compact = compact,
                             onMainAction = onMainAction,
-                            onAction = onCharacterAction,
+                            onCharactersChanged = {
+                                onCharacterAction(CharacterAction.RefreshCharacters)
+                                onChatCharacterAction(CharacterAction.RefreshCharacters)
+                            },
+                            snackbarHostState = snackbarHostState,
+                            effectMessages = characterEffectMessages,
                         )
                     }
                     entry<Route.Characters> {
@@ -614,51 +756,56 @@ fun MainNavigationContainer(
                         )
                     }
                     entry<Route.ApiSettings> {
-                        ApiSettingsScreen(
-                            state = settingsState,
+                        ApiSettingsRoute(
+                            koin = koin,
                             contentPadding = contentPadding,
                             compact = compact,
                             onMainAction = onMainAction,
-                            onSettingsAction = onSettingsAction,
+                            snackbarHostState = snackbarHostState,
+                            effectMessages = settingsEffectMessages,
                         )
                     }
                     entry<Route.MultimodalApiSettings> {
-                        ApiSettingsScreen(
-                            state = settingsState,
+                        ApiSettingsRoute(
+                            koin = koin,
                             contentPadding = contentPadding,
                             compact = compact,
                             onMainAction = onMainAction,
-                            onSettingsAction = onSettingsAction,
+                            snackbarHostState = snackbarHostState,
+                            effectMessages = settingsEffectMessages,
                             isMultimodal = true,
                         )
                     }
                     entry<Route.VoiceApiSettings> {
-                        ApiSettingsScreen(
-                            state = settingsState,
+                        ApiSettingsRoute(
+                            koin = koin,
                             contentPadding = contentPadding,
                             compact = compact,
                             onMainAction = onMainAction,
-                            onSettingsAction = onSettingsAction,
+                            snackbarHostState = snackbarHostState,
+                            effectMessages = settingsEffectMessages,
                             isVoice = true,
                         )
                     }
                     entry<Route.ImageGenerationApiSettings> {
-                        ApiSettingsScreen(
-                            state = settingsState,
+                        ApiSettingsRoute(
+                            koin = koin,
                             contentPadding = contentPadding,
                             compact = compact,
                             onMainAction = onMainAction,
-                            onSettingsAction = onSettingsAction,
+                            snackbarHostState = snackbarHostState,
+                            effectMessages = settingsEffectMessages,
                             isImageGeneration = true,
                         )
                     }
                     entry<Route.Profile> {
-                        ProfileScreen(
-                            state = profileState,
+                        ProfileRoute(
+                            koin = koin,
                             contentPadding = contentPadding,
                             compact = compact,
                             onMainAction = onMainAction,
-                            onAction = onProfileAction,
+                            snackbarHostState = snackbarHostState,
+                            effectMessages = profileEffectMessages,
                         )
                     }
                     entry<Route.About> {
@@ -679,7 +826,7 @@ fun MainNavigationContainer(
                         CharacterChatScreen(
                             characterId = entry.characterId,
                             state = chatState,
-                            charactersState = charactersState,
+                            charactersState = chatCharactersState,
                             contentPadding = contentPadding,
                             compact = compact,
                             onAction = onChatAction,
@@ -690,8 +837,17 @@ fun MainNavigationContainer(
                 }
 
                 NavDisplay(
-                    backstack = mainState.backStack,
-                    entryProvider = entryProvider
+                    backStack = backStack,
+                    onBack = {
+                        if (backStack.size > 1) {
+                            onMainAction(MainAction.PopBackStack)
+                        }
+                    },
+                    entryDecorators = listOf(
+                        rememberSaveableStateHolderNavEntryDecorator(),
+                        rememberViewModelStoreNavEntryDecorator(),
+                    ),
+                    entryProvider = entryProvider,
                 )
             }
         }
@@ -699,8 +855,162 @@ fun MainNavigationContainer(
 }
 
 @Composable
+private fun CharacterEditRoute(
+    route: Route.CharacterEdit,
+    koin: Koin,
+    contentPadding: PaddingValues,
+    compact: Boolean,
+    onMainAction: (MainAction) -> Unit,
+    onCharactersChanged: () -> Unit,
+    snackbarHostState: SnackbarHostState,
+    effectMessages: Map<CharacterEffectMessage, String>,
+) {
+    val viewModel = viewModel {
+        koin.get<CharacterEditViewModel>(
+            parameters = {
+                parametersOf(
+                    CharacterEditArgs(
+                        characterId = route.characterId,
+                        importPath = route.importPath,
+                        importName = route.importName,
+                        importExtension = route.importExtension,
+                    ),
+                )
+            },
+        )
+    }
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val savedMessage = stringResource(Res.string.character_saved)
+    val deletedMessage = stringResource(Res.string.character_deleted)
+    val directoryPicker = rememberDirectoryPickerLauncher { directory ->
+        if (directory != null) {
+            viewModel.onAction(CharacterAction.CharacterExportDirectorySelected(directory))
+        }
+    }
+
+    LaunchedEffect(viewModel) {
+        viewModel.effects.collectLatest { effect ->
+            when (effect) {
+                is CharacterEffect.ShowMessage -> {
+                    snackbarHostState.showSnackbar(effectMessages.getValue(effect.message))
+                }
+                CharacterEffect.CharacterSaved -> {
+                    onCharactersChanged()
+                    snackbarHostState.showSnackbar(savedMessage)
+                    onMainAction(MainAction.PopBackStack)
+                }
+                CharacterEffect.CharacterDeleted -> {
+                    onCharactersChanged()
+                    snackbarHostState.showSnackbar(deletedMessage)
+                    onMainAction(MainAction.PopBackStack)
+                }
+                CharacterEffect.RequestDirectoryPicker -> directoryPicker.launch()
+            }
+        }
+    }
+
+    CharacterEditScreen(
+        state = state,
+        contentPadding = contentPadding,
+        compact = compact,
+        onMainAction = onMainAction,
+        onAction = viewModel::onAction,
+    )
+}
+
+@Composable
+private fun ApiSettingsRoute(
+    koin: Koin,
+    contentPadding: PaddingValues,
+    compact: Boolean,
+    onMainAction: (MainAction) -> Unit,
+    snackbarHostState: SnackbarHostState,
+    effectMessages: Map<SettingsEffectMessage, String>,
+    isMultimodal: Boolean = false,
+    isVoice: Boolean = false,
+    isImageGeneration: Boolean = false,
+) {
+    val viewModel = viewModel { koin.get<SettingsViewModel>() }
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(viewModel) {
+        viewModel.effects.collectLatest { effect ->
+            when (effect) {
+                is SettingsEffect.ShowMessage -> {
+                    snackbarHostState.showSnackbar(effectMessages.getValue(effect.message))
+                }
+                SettingsEffect.ApiSettingsSaved -> {
+                    snackbarHostState.showSnackbar(
+                        effectMessages.getValue(SettingsEffectMessage.SETTINGS_API_SAVED),
+                    )
+                    onMainAction(MainAction.PopBackStack)
+                }
+                SettingsEffect.NavigateBack -> onMainAction(MainAction.PopBackStack)
+            }
+        }
+    }
+
+    ApiSettingsScreen(
+        state = state,
+        contentPadding = contentPadding,
+        compact = compact,
+        onMainAction = onMainAction,
+        onSettingsAction = viewModel::onAction,
+        isMultimodal = isMultimodal,
+        isVoice = isVoice,
+        isImageGeneration = isImageGeneration,
+    )
+}
+
+@Composable
+private fun ProfileRoute(
+    koin: Koin,
+    contentPadding: PaddingValues,
+    compact: Boolean,
+    onMainAction: (MainAction) -> Unit,
+    snackbarHostState: SnackbarHostState,
+    effectMessages: Map<ProfileEffectMessage, String>,
+) {
+    val viewModel = viewModel { koin.get<ProfileViewModel>() }
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(viewModel) {
+        viewModel.effects.collectLatest { effect ->
+            when (effect) {
+                is ProfileEffect.ShowMessage -> {
+                    snackbarHostState.showSnackbar(effectMessages.getValue(effect.message))
+                }
+                ProfileEffect.ProfileSaved -> {
+                    snackbarHostState.showSnackbar(
+                        effectMessages.getValue(ProfileEffectMessage.PROFILE_SAVED),
+                    )
+                    onMainAction(MainAction.PopBackStack)
+                }
+                ProfileEffect.NavigateBack -> onMainAction(MainAction.PopBackStack)
+                ProfileEffect.RestartApp -> {
+                    snackbarHostState.showSnackbar(
+                        effectMessages.getValue(ProfileEffectMessage.IMPORT_SUCCESS),
+                    )
+                    kotlinx.coroutines.delay(1500)
+                    restartApp()
+                }
+            }
+        }
+    }
+
+    ProfileScreen(
+        state = state,
+        contentPadding = contentPadding,
+        compact = compact,
+        onMainAction = onMainAction,
+        onAction = viewModel::onAction,
+    )
+}
+
+@Composable
 private fun MainBottomArea(
     mainState: MainUiState,
+    backStack: List<NavKey>,
     chatState: ChatUiState,
     showNavigationBar: Boolean,
     compact: Boolean,
@@ -708,10 +1018,10 @@ private fun MainBottomArea(
     onChatAction: (ChatAction) -> Unit,
     onRecordingStateChanged: (Boolean, Boolean) -> Unit = { _, _ -> },
 ) {
-    if (mainState.backStack.size > 1) {
+    if (backStack.size > 1) {
         return
     }
-    val currentRoute = mainState.backStack.lastOrNull() ?: Route.ChatSession
+    val currentRoute = backStack.lastOrNull() as? Route ?: Route.ChatSession
     val isChat = currentRoute == Route.ChatSession
     if (!isChat && !showNavigationBar) {
         return
@@ -733,7 +1043,7 @@ private fun MainBottomArea(
                         onRecordingStateChanged = onRecordingStateChanged,
                     )
                 }
-                if (showNavigationBar && mainState.backStack.size <= 1) {
+                if (showNavigationBar && backStack.size <= 1) {
                     MainNavigationBar(
                         currentRoute = currentRoute,
                         compact = compact,
@@ -1011,6 +1321,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDecorativeSpark
 @Preview(widthDp = 360, heightDp = 800)
 @Composable
 private fun MainContainerLightPreview() {
+    val previewKoin = remember { koinApplication {} }
     StarRailTheme(darkThemeOverride = false) {
         MainRoute(
             main = MainRouteBinding(
@@ -1018,26 +1329,7 @@ private fun MainContainerLightPreview() {
                 effects = emptyFlow(),
                 onAction = {},
             ),
-            characters = CharactersRouteBinding(
-                state = previewCharactersState,
-                effects = emptyFlow(),
-                onAction = {},
-            ),
-            chat = ChatRouteBinding(
-                state = previewChatState,
-                effects = emptyFlow(),
-                onAction = {},
-            ),
-            settings = SettingsRouteBinding(
-                state = SettingsUiState(),
-                effects = emptyFlow(),
-                onAction = {},
-            ),
-            profile = ProfileRouteBinding(
-                state = ProfileUiState(),
-                effects = emptyFlow(),
-                onAction = {},
-            ),
+            koin = previewKoin.koin,
         )
     }
 }
@@ -1045,6 +1337,7 @@ private fun MainContainerLightPreview() {
 @Preview(widthDp = 360, heightDp = 800)
 @Composable
 private fun MainContainerDarkPreview() {
+    val previewKoin = remember { koinApplication {} }
     StarRailTheme(darkThemeOverride = true) {
         MainRoute(
             main = MainRouteBinding(
@@ -1052,26 +1345,7 @@ private fun MainContainerDarkPreview() {
                 effects = emptyFlow(),
                 onAction = {},
             ),
-            characters = CharactersRouteBinding(
-                state = previewCharactersState,
-                effects = emptyFlow(),
-                onAction = {},
-            ),
-            chat = ChatRouteBinding(
-                state = previewChatState,
-                effects = emptyFlow(),
-                onAction = {},
-            ),
-            settings = SettingsRouteBinding(
-                state = SettingsUiState(),
-                effects = emptyFlow(),
-                onAction = {},
-            ),
-            profile = ProfileRouteBinding(
-                state = ProfileUiState(),
-                effects = emptyFlow(),
-                onAction = {},
-            ),
+            koin = previewKoin.koin,
         )
     }
 }
@@ -1085,6 +1359,18 @@ private val previewCharacter = Character(
 )
 
 private val previewCharactersState = CharactersUiState(
+    characters = listOf(
+        com.kaixuan.starrailchatbox.data.character.CharacterSummary(
+            id = previewCharacter.id,
+            name = previewCharacter.name,
+            avatarUri = previewCharacter.avatarUri,
+        ),
+    ),
+    selectedCharacterId = "builtin:流萤",
+    isLoadingCharacters = false,
+)
+
+private val previewChatCharactersState = ChatCharactersUiState(
     characters = listOf(previewCharacter),
     selectedCharacterId = "builtin:流萤",
     isLoadingCharacters = false,

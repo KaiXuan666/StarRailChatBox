@@ -52,7 +52,7 @@ class CharacterRepositoryTest {
     }
 
     @Test
-    fun loadedCharactersHaveTruncatedPromptButGetCharacterReturnsFullPrompt() = runTest {
+    fun summaryQueryDoesNotRequireLoadingOrTruncatingPrompt() = runTest {
         val repository = DefaultCharacterRepository(InMemoryCharacterStorage()) { emptyList() }
 
         val longPrompt = "12345678901234567890_extra_long_prompt"
@@ -62,13 +62,16 @@ class CharacterRepositoryTest {
             avatarSource = null
         )
 
-        val loaded = repository.loadCharacters().first { it.name == "流萤" }
-        assertEquals("12345678901234567890", loaded.prompt)
-        assertEquals(20, loaded.prompt.length)
+        val summary = repository.loadCharacterSummaries().single()
+        assertEquals("流萤", summary.name)
+        assertEquals("", summary.avatarUri)
 
-        val full = repository.getCharacter(loaded.id)
+        val full = repository.getCharacter(summary.id)
         assertNotNull(full)
         assertEquals(longPrompt, full.prompt)
+
+        val loaded = repository.loadCharacters().single()
+        assertEquals(longPrompt, loaded.prompt)
     }
 }
 

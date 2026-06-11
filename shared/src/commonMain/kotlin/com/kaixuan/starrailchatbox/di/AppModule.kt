@@ -31,9 +31,14 @@ import com.kaixuan.starrailchatbox.data.settings.AppSettingsStore
 import com.kaixuan.starrailchatbox.data.settings.ProfileStore
 import com.kaixuan.starrailchatbox.platform.KmpFileManager
 import com.kaixuan.starrailchatbox.ui.settings.SettingsViewModel
+import com.kaixuan.starrailchatbox.ui.settings.SettingsOverviewViewModel
 import com.kaixuan.starrailchatbox.ui.profile.ProfileViewModel
 import com.kaixuan.starrailchatbox.ui.chat.ChatViewModel
+import com.kaixuan.starrailchatbox.ui.chat.ChatMessageSender
 import com.kaixuan.starrailchatbox.ui.main.MainViewModel
+import com.kaixuan.starrailchatbox.ui.character.CharactersViewModel
+import com.kaixuan.starrailchatbox.ui.character.CharacterEditViewModel
+import com.kaixuan.starrailchatbox.ui.character.CharacterEditArgs
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
@@ -68,7 +73,37 @@ fun appModule(
     single<KmpFileManager> { KmpFileManager.Default }
     single<UpdateRepository> { DefaultUpdateRepository(get()) }
     factory { MainViewModel(get(), get()) }
-    factory { ChatViewModel(get(), get(), get(), get(), get(), get(), get()) }
+    factory { ChatMessageSender(get()) }
+    factory { CharactersViewModel(get(), get()) }
+    factory { parameters ->
+        val args = parameters.get<CharacterEditArgs>()
+        CharacterEditViewModel(
+            characterId = args.characterId,
+            importPath = args.importPath,
+            importName = args.importName,
+            importExtension = args.importExtension,
+            characterRepository = get(),
+            modelConfigRepository = get(),
+            aiRepository = get(),
+            characterCardImporter = get(),
+            characterCardExporter = get(),
+            fileManager = get(),
+        )
+    }
+    factory {
+        ChatViewModel(
+            characterRepository = get(),
+            chatSessionRepository = get(),
+            modelConfigRepository = get(),
+            aiRepository = get(),
+            profileStore = get(),
+            chatMessageSender = get(),
+            fileManager = get(),
+            characterCardImporter = get(),
+            characterCardExporter = get(),
+        )
+    }
     factory { SettingsViewModel(aiRepository = get(), modelConfigRepository = get()) }
+    factory { SettingsOverviewViewModel(get()) }
     factory { ProfileViewModel(get(), get()) }
 }

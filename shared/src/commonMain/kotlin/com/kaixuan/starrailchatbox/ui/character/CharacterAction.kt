@@ -2,8 +2,10 @@ package com.kaixuan.starrailchatbox.ui.character
 
 import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.data.character.CharacterAvatarSource
+import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 
 sealed interface CharacterAction {
+    data object RefreshCharacters : CharacterAction
     data class CharacterSelected(val characterId: String) : CharacterAction
     data class CharacterEditOpened(val characterId: String?) : CharacterAction
     data class CharacterNameChanged(val name: String) : CharacterAction
@@ -26,7 +28,7 @@ sealed interface CharacterAction {
     data object CharacterPromptGenConfirmClicked : CharacterAction
     data object CharacterPromptGenCancelClicked : CharacterAction
     data object CharacterRestoreDefaultClicked : CharacterAction
-    data class CharactersReordered(val orderedCharacters: List<Character>) : CharacterAction
+    data class CharactersReordered(val orderedCharacters: List<CharacterSummary>) : CharacterAction
     
     // Export
     data object CharacterExportClicked : CharacterAction

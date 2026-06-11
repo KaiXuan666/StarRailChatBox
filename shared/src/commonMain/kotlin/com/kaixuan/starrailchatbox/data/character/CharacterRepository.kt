@@ -10,10 +10,10 @@ import kotlin.time.Clock
 data class Character(
     val id: String,
     val name: String,
-    val description: String = "",
     val prompt: String,
     val openingMessage: String,
     val avatarUri: String,
+    val description: String = "",
     val voiceSampleUri: String? = null,
     val temperature: Double = 0.85,
     val topP: Double = 0.9,
@@ -26,10 +26,10 @@ data class Character(
 data class CharacterFiles(
     val id: String,
     val name: String,
-    val description: String = "",
     val prompt: String,
     val openingMessage: String,
     val avatarUri: String,
+    val description: String = "",
     val voiceSampleUri: String? = null,
     val temperature: Double = 0.85,
     val topP: Double = 0.9,
@@ -42,6 +42,14 @@ data class CharacterAvatarSource(
     val uri: String,
     val name: String? = null,
     val extension: String? = null,
+)
+
+@Serializable
+data class CharacterSummary(
+    val id: String,
+    val name: String,
+    val avatarUri: String,
+    val lastMessageAt: Long? = null,
 )
 
 data class DefaultCharacterAsset(
@@ -61,6 +69,8 @@ interface CharacterStorage {
 
     suspend fun loadCharacters(): List<CharacterFiles>
 
+    suspend fun loadCharacterSummaries(): List<CharacterSummary>
+
     suspend fun getCharacter(id: String): CharacterFiles?
 
     suspend fun saveCharacter(
@@ -75,6 +85,16 @@ interface CharacterStorage {
 
 interface CharacterRepository {
     suspend fun loadCharacters(): List<Character>
+
+    suspend fun loadCharacterSummaries(): List<CharacterSummary> =
+        loadCharacters().map { character ->
+            CharacterSummary(
+                id = character.id,
+                name = character.name,
+                avatarUri = character.avatarUri,
+                lastMessageAt = character.lastMessageAt,
+            )
+        }
 
     suspend fun getCharacter(id: String): Character?
 
@@ -104,6 +124,11 @@ class DefaultCharacterRepository(
     override suspend fun loadCharacters(): List<Character> {
         storage.initializeDefaults(defaultAssets())
         return storage.loadCharacters().map(CharacterFiles::toCharacter)
+    }
+
+    override suspend fun loadCharacterSummaries(): List<CharacterSummary> {
+        storage.initializeDefaults(defaultAssets())
+        return storage.loadCharacterSummaries()
     }
 
     override suspend fun getCharacter(id: String): Character? {

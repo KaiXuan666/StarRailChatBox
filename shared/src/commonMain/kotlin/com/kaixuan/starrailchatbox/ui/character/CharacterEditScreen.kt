@@ -105,23 +105,18 @@ private const val MaxOpeningMessageLength = 3000
 
 @Composable
 fun CharacterEditScreen(
-    characterId: String?,
-    state: CharactersUiState,
+    state: CharacterEditUiState,
     contentPadding: PaddingValues,
     compact: Boolean,
     onMainAction: (MainAction) -> Unit,
     onAction: (CharacterAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    LaunchedEffect(characterId) {
-        onAction(CharacterAction.CharacterEditOpened(characterId))
-    }
-
     BackHandler {
         onMainAction(MainAction.PopBackStack)
     }
 
-    val editState = state.characterEdit
+    val editState = state
     val imagePicker = rememberFilePickerLauncher(
         type = FileKitType.Image,
     ) { image ->
@@ -993,7 +988,6 @@ private fun Double.sliderLabel(): String {
 private fun CharacterEditScreenLightPreview() {
     StarRailTheme(darkThemeOverride = false) {
         CharacterEditScreen(
-            characterId = characterEditPreviewCharacter.id,
             state = characterEditPreviewState,
             contentPadding = PaddingValues(0.dp),
             compact = true,
@@ -1008,7 +1002,6 @@ private fun CharacterEditScreenLightPreview() {
 private fun CharacterEditScreenDarkPreview() {
     StarRailTheme(darkThemeOverride = true) {
         CharacterEditScreen(
-            characterId = characterEditPreviewCharacter.id,
             state = characterEditPreviewState,
             contentPadding = PaddingValues(0.dp),
             compact = true,
@@ -1028,19 +1021,14 @@ private val characterEditPreviewCharacter = Character(
     topP = 0.9,
 )
 
-private val characterEditPreviewState = CharactersUiState(
-    characters = listOf(characterEditPreviewCharacter),
-    selectedCharacterId = characterEditPreviewCharacter.id,
-    characterEdit = characterEditPreviewCharacter.run {
-        CharacterEditUiState(
-            characterId = id,
-            name = name,
-            prompt = prompt,
-            openingMessage = openingMessage,
-            avatarUri = avatarUri,
-            temperature = temperature,
-            topP = topP,
-        )
-    },
-    isLoadingCharacters = false,
-)
+private val characterEditPreviewState = characterEditPreviewCharacter.run {
+    CharacterEditUiState(
+        characterId = id,
+        name = name,
+        prompt = prompt,
+        openingMessage = openingMessage,
+        avatarUri = avatarUri,
+        temperature = temperature,
+        topP = topP,
+    )
+}

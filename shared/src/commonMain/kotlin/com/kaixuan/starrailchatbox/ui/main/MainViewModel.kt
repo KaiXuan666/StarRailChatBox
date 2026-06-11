@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
-import com.kaixuan.starrailchatbox.ui.navigation.Route
 import kotlinx.coroutines.launch
 
 class MainViewModel(
@@ -73,71 +72,23 @@ class MainViewModel(
 
     fun onAction(action: MainAction) {
         when (action) {
-            is MainAction.NavigationSelected -> {
-                _uiState.update {
-                    it.copy(backStack = listOf(action.route))
-                }
-            }
-
-            is MainAction.NavigateTo -> {
-                _uiState.update { state ->
-                    if (state.backStack.lastOrNull() == action.route) {
-                        state
-                    } else {
-                        state.copy(backStack = state.backStack + action.route)
-                    }
-                }
-            }
-
-            MainAction.PopBackStack -> {
-                _uiState.update { state ->
-                    if (state.backStack.size > 1) {
-                        state.copy(backStack = state.backStack.dropLast(1))
-                    } else {
-                        state
-                    }
-                }
-            }
+            is MainAction.NavigationSelected,
+            is MainAction.NavigateTo,
+            MainAction.PopBackStack,
+            -> Unit
 
             is MainAction.SettingsItemClicked -> {
                 when (action.item) {
-                    MainSettingsItem.PROFILE -> {
-                        _uiState.update { state ->
-                            state.copy(backStack = state.backStack + Route.Profile)
-                        }
-                    }
-                    MainSettingsItem.API_SETTINGS -> {
-                        _uiState.update { state ->
-                            state.copy(backStack = state.backStack + Route.ApiSettings)
-                        }
-                    }
-                    MainSettingsItem.MULTIMODAL_API_SETTINGS -> {
-                        _uiState.update { state ->
-                            state.copy(backStack = state.backStack + Route.MultimodalApiSettings)
-                        }
-                    }
-                    MainSettingsItem.IMAGE_GENERATION_API_SETTINGS -> {
-                        _uiState.update { state ->
-                            state.copy(backStack = state.backStack + Route.ImageGenerationApiSettings)
-                        }
-                    }
-                    MainSettingsItem.VOICE_API_SETTINGS -> {
-                        _uiState.update { state ->
-                            state.copy(backStack = state.backStack + Route.VoiceApiSettings)
-                        }
-                    }
+                    MainSettingsItem.PROFILE,
+                    MainSettingsItem.API_SETTINGS,
+                    MainSettingsItem.MULTIMODAL_API_SETTINGS,
+                    MainSettingsItem.IMAGE_GENERATION_API_SETTINGS,
+                    MainSettingsItem.VOICE_API_SETTINGS,
+                    MainSettingsItem.ABOUT_US,
+                    MainSettingsItem.PRIVACY_SECURITY,
+                    -> Unit
                     MainSettingsItem.THEME_STYLE -> {
                         _uiState.update { it.copy(showThemeDialog = true) }
-                    }
-                    MainSettingsItem.ABOUT_US -> {
-                        _uiState.update { state ->
-                            state.copy(backStack = state.backStack + Route.About)
-                        }
-                    }
-                    MainSettingsItem.PRIVACY_SECURITY -> {
-                        _uiState.update { state ->
-                            state.copy(backStack = state.backStack + Route.PrivacyPolicy)
-                        }
                     }
                     MainSettingsItem.CHECK_UPDATE -> {
                         checkUpdate(isManual = true)

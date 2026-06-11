@@ -4,7 +4,6 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.RewriteQueriesToDropUnusedColumns
 import androidx.room.Upsert
 import com.kaixuan.starrailchatbox.data.database.entity.AgentRoleEntity
 import com.kaixuan.starrailchatbox.data.database.entity.AgentRoleSummaryEntity
@@ -18,18 +17,18 @@ interface AgentRoleDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertIfMissing(roles: List<AgentRoleEntity>)
 
-    @RewriteQueriesToDropUnusedColumns
     @Query("""
-        SELECT *, (SELECT MAX(last_message_at) FROM chat_session WHERE agent_id = agent_role.id AND deleted_at IS NULL) as last_message_at 
+        SELECT id, name, avatar_uri,
+            (SELECT MAX(last_message_at) FROM chat_session WHERE agent_id = agent_role.id AND deleted_at IS NULL) AS last_message_at
         FROM agent_role 
         WHERE deleted_at IS NULL 
         ORDER BY sort_order, created_at
     """)
     suspend fun findAll(): List<AgentRoleSummaryEntity>
 
-    @RewriteQueriesToDropUnusedColumns
     @Query("""
-        SELECT *, (SELECT MAX(last_message_at) FROM chat_session WHERE agent_id = agent_role.id AND deleted_at IS NULL) as last_message_at
+        SELECT id, name, avatar_uri,
+            (SELECT MAX(last_message_at) FROM chat_session WHERE agent_id = agent_role.id AND deleted_at IS NULL) AS last_message_at
         FROM agent_role 
         WHERE deleted_at IS NULL 
         ORDER BY sort_order, created_at

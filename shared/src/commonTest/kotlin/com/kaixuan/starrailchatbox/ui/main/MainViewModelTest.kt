@@ -4,7 +4,6 @@ import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.settings.InMemoryAppSettingsStore
 import com.kaixuan.starrailchatbox.data.update.UpdateRepository
 import com.kaixuan.starrailchatbox.data.update.UpdateResponse
-import com.kaixuan.starrailchatbox.ui.navigation.Route
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -26,65 +25,26 @@ class MainViewModelTest {
         val viewModel = MainViewModel(InMemoryAppSettingsStore(), mockUpdateRepository)
         val state = viewModel.uiState.value
 
-        assertEquals(listOf(Route.ChatSession), state.backStack)
         assertNull(state.darkThemeOverride)
         assertFalse(state.showThemeDialog)
     }
 
     @Test
-    fun navigationSelectedUpdatesBackStack() {
+    fun navigationActionsDoNotCreatePageStateInMainViewModel() {
         val viewModel = MainViewModel(InMemoryAppSettingsStore(), mockUpdateRepository)
+        val initial = viewModel.uiState.value
 
-        viewModel.onAction(MainAction.NavigationSelected(Route.Settings))
-
-        assertEquals(listOf(Route.Settings), viewModel.uiState.value.backStack)
-    }
-
-    @Test
-    fun navigateToPushesSecondaryRoute() {
-        val viewModel = MainViewModel(InMemoryAppSettingsStore(), mockUpdateRepository)
-
-        viewModel.onAction(MainAction.NavigateTo(Route.ConversationManagement))
-
-        assertEquals(
-            listOf(Route.ChatSession, Route.ConversationManagement),
-            viewModel.uiState.value.backStack,
-        )
-        viewModel.onAction(MainAction.PopBackStack)
-        assertEquals(listOf(Route.ChatSession), viewModel.uiState.value.backStack)
-    }
-
-    @Test
-    fun popBackStackDoesNothingWhenOnlyOneElement() {
-        val viewModel = MainViewModel(InMemoryAppSettingsStore(), mockUpdateRepository)
-
+        viewModel.onAction(MainAction.NavigationSelected(com.kaixuan.starrailchatbox.ui.navigation.Route.Settings))
+        viewModel.onAction(MainAction.NavigateTo(com.kaixuan.starrailchatbox.ui.navigation.Route.ConversationManagement))
         viewModel.onAction(MainAction.PopBackStack)
 
-        assertEquals(listOf(Route.ChatSession), viewModel.uiState.value.backStack)
-    }
-
-    @Test
-    fun popBackStackRemovesLastElement() {
-        val viewModel = MainViewModel(InMemoryAppSettingsStore(), mockUpdateRepository)
-
-        // 压入一个
-        viewModel.onAction(MainAction.SettingsItemClicked(MainSettingsItem.API_SETTINGS))
-        assertEquals(2, viewModel.uiState.value.backStack.size)
-
-        // 弹出
-        viewModel.onAction(MainAction.PopBackStack)
-        assertEquals(listOf(Route.ChatSession), viewModel.uiState.value.backStack)
+        assertEquals(initial, viewModel.uiState.value)
     }
 
     @Test
     fun settingsItemClickedTriggersCorrectFlow() {
         val viewModel = MainViewModel(InMemoryAppSettingsStore(), mockUpdateRepository)
 
-        // 点击 API 设置
-        viewModel.onAction(MainAction.SettingsItemClicked(MainSettingsItem.API_SETTINGS))
-        assertEquals(listOf(Route.ChatSession, Route.ApiSettings), viewModel.uiState.value.backStack)
-
-        // 点击主题样式
         viewModel.onAction(MainAction.SettingsItemClicked(MainSettingsItem.THEME_STYLE))
         assertTrue(viewModel.uiState.value.showThemeDialog)
     }
