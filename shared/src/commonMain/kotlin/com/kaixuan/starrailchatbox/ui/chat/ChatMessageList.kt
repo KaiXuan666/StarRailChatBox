@@ -123,12 +123,12 @@ fun ChatMessageList(
             Surface(
                 onClick = {
                     coroutineScope.launch {
-                        if (isAtTop) {
-                            // 如果在顶部，点击滚动到底部 (index 0)
-                            listState.scrollToItem(0)
-                        } else {
-                            // 否则滚动到顶部 (最后一个 item)
+                        if (isAtBottom) {
+                            // 如果在底部，点击滚动到最顶部 (最后一个 item)
                             listState.scrollToItem(listState.layoutInfo.totalItemsCount - 1)
+                        } else {
+                            // 否则滚动到最底部 (index 0)
+                            listState.scrollToItem(0)
                         }
                     }
                 },
@@ -151,12 +151,12 @@ fun ChatMessageList(
                 Box(contentAlignment = Alignment.Center) {
                     StarRailIcon(
                         kind = StarRailIconKind.ARROW_UP,
-                        contentDescription = if (isAtTop) "滚动到底部" else "滚动到最顶部",
+                        contentDescription = if (isAtBottom) "滚动到最顶部" else "滚动到最底部",
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier
                             .size(if (compact) 20.dp else 24.dp)
                             .graphicsLayer {
-                                if (isAtTop) rotationZ = 180f
+                                if (!isAtBottom) rotationZ = 180f
                             },
                     )
                 }
