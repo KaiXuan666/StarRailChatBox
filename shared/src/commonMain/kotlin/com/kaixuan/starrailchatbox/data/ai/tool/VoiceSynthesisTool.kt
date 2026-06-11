@@ -238,7 +238,7 @@ class VoiceSynthesisTool(
                 @OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
                 val audioBytes = kotlin.io.encoding.Base64.Default.decode(base64Data.trim())
                 val randomFileName = "tts_${kotlin.random.Random.nextInt(10000000)}.wav"
-                val uri = KmpFileManager.Default.writeAudioBytesToCache(audioBytes, randomFileName)
+                val uri = KmpFileManager.Default.persistAudioAttachment(audioBytes, randomFileName)
                 val durationMs = minOf(30000L, maxOf(1000L, (audioBytes.size.toLong() / 32000L) * 1000L))
                 ToolResult.Terminal(
                     content = aiResponse,

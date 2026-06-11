@@ -100,7 +100,7 @@ interface KmpFileManager {
     }
 
     @OptIn(ExperimentalEncodingApi::class)
-    suspend fun writeAudioBytesToCache(bytes: ByteArray, fileName: String): String {
+    suspend fun persistAudioAttachment(bytes: ByteArray, fileName: String): String {
         if (!isSupported) {
             return "data:audio/wav;base64,${Base64.encode(bytes)}"
         }
