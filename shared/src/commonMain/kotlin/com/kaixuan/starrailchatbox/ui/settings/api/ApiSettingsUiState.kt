@@ -12,4 +12,5 @@ data class ApiSettingsUiState(
     val selectedCloneModel: String = "", // 仅用于语音模式
     val isFetchingModels: Boolean = false,
     val isSaving: Boolean = false,
+    val showSuggestDefaultConfigDialog: Boolean = false,
 )

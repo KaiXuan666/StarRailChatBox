@@ -9,4 +9,6 @@ sealed interface ApiSettingsAction {
     data object SaveSettingsClicked : ApiSettingsAction
     data object ClearSettingsClicked : ApiSettingsAction
     data class CopyToClipboard(val text: String) : ApiSettingsAction
+    data object ConfirmSuggestDefaultConfig : ApiSettingsAction
+    data object DismissSuggestDefaultConfig : ApiSettingsAction
 }

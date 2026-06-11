@@ -70,6 +70,10 @@ import starrailchatbox.shared.generated.resources.settings_voice_generation_mode
 import starrailchatbox.shared.generated.resources.settings_voice_clone_models
 import starrailchatbox.shared.generated.resources.settings_voice_clone_tip
 import starrailchatbox.shared.generated.resources.settings_voice_clone_none
+import starrailchatbox.shared.generated.resources.settings_api_suggest_title
+import starrailchatbox.shared.generated.resources.settings_api_suggest_message
+import starrailchatbox.shared.generated.resources.settings_api_suggest_confirm
+import starrailchatbox.shared.generated.resources.settings_api_suggest_cancel
 import starrailchatbox.shared.generated.resources.settings_clear_config
 import starrailchatbox.shared.generated.resources.navigation_back
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
@@ -81,6 +85,7 @@ import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import com.kaixuan.starrailchatbox.ui.components.BackHandler
 import com.kaixuan.starrailchatbox.ui.components.StarRailSecondaryButton
+import com.kaixuan.starrailchatbox.ui.components.StarRailDialog
 import com.kaixuan.starrailchatbox.ui.main.MainAction
 import com.kaixuan.starrailchatbox.ui.settings.api.ApiSettingsAction
 import com.kaixuan.starrailchatbox.ui.settings.api.ApiSettingsUiState
@@ -357,6 +362,22 @@ fun ApiSettingsScreen(
                 onClick = { onApiAction(ApiSettingsAction.ClearSettingsClicked) },
                 modifier = Modifier.fillMaxWidth()
             )
+        }
+
+        if (state.showSuggestDefaultConfigDialog) {
+            StarRailDialog(
+                title = stringResource(Res.string.settings_api_suggest_title),
+                confirmText = stringResource(Res.string.settings_api_suggest_confirm),
+                dismissText = stringResource(Res.string.settings_api_suggest_cancel),
+                onConfirm = { onApiAction(ApiSettingsAction.ConfirmSuggestDefaultConfig) },
+                onDismissRequest = { onApiAction(ApiSettingsAction.DismissSuggestDefaultConfig) }
+            ) {
+                Text(
+                    text = stringResource(Res.string.settings_api_suggest_message),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            }
         }
     }
 }

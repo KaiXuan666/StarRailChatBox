@@ -248,6 +248,10 @@
     <string name="settings_clear_config">清空配置</string>
     <string name="settings_clear_confirm_title">清空配置</string>
     <string name="settings_clear_confirm_message">确定清空当前 API 配置吗？此操作将删除已保存的接口主机和密钥。</string>
+    <string name="settings_api_suggest_title">发现已配置的 API</string>
+    <string name="settings_api_suggest_message">检测到您已在“默认模型”中配置过 API 密钥，是否要将其填入当前配置项？</string>
+    <string name="settings_api_suggest_confirm">填入</string>
+    <string name="settings_api_suggest_cancel">取消</string>
 
     <!-- 角色列表界面 -->
     <string name="character_list_title">角色列表</string>

@@ -37,6 +37,8 @@ class ApiSettingsViewModel(
     private val _effects = Channel<ApiSettingsEffect>(Channel.BUFFERED)
     val effects = _effects.receiveAsFlow()
 
+    private var suggestDefaultConfig: ModelConfig? = null
+
     init {
         loadSettings()
     }
@@ -78,6 +80,17 @@ class ApiSettingsViewModel(
                     ).distinct()
                 )
             }
+
+            // 检测如果默认的API已经配置了，但当前API未配置，弹窗询问用户是否填入已配置过的API设置
+            val isCurrentConfigEmpty = config == null
+            val isNotDefaultScreen = isImageGeneration || isVoice || isMultimodal
+            if (isCurrentConfigEmpty && isNotDefaultScreen) {
+                val defaultConfig = modelConfigRepository.getDefault()
+                if (defaultConfig != null && hasValidApiSettings(defaultConfig.baseUrl, defaultConfig.apiKey)) {
+                    suggestDefaultConfig = defaultConfig
+                    _uiState.update { it.copy(showSuggestDefaultConfigDialog = true) }
+                }
+            }
         }
     }
 
@@ -106,6 +119,20 @@ class ApiSettingsViewModel(
             ApiSettingsAction.ClearSettingsClicked -> clearSettings()
             is ApiSettingsAction.CopyToClipboard -> {
                 emitMessage(SettingsEffectMessage.SETTINGS_COPIED_SUCCESS)
+            }
+            ApiSettingsAction.ConfirmSuggestDefaultConfig -> {
+                suggestDefaultConfig?.let { defaultConfig ->
+                    _uiState.update {
+                        it.copy(
+                            apiHost = defaultConfig.baseUrl,
+                            apiKey = defaultConfig.apiKey,
+                            showSuggestDefaultConfigDialog = false
+                        )
+                    }
+                }
+            }
+            ApiSettingsAction.DismissSuggestDefaultConfig -> {
+                _uiState.update { it.copy(showSuggestDefaultConfigDialog = false) }
             }
         }
     }
