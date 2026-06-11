@@ -10,6 +10,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -33,6 +34,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -222,14 +225,18 @@ fun MainRoute(
         Route.ChatSession,
     )
     val rootViewModelStoreOwner = checkNotNull(LocalViewModelStoreOwner.current)
-    var charactersVisited by remember { mutableStateOf(false) }
-    var settingsVisited by remember { mutableStateOf(false) }
-    val currentEntry = backStack.lastOrNull()
-    LaunchedEffect(currentEntry) {
-        when (currentEntry) {
-            Route.Characters -> charactersVisited = true
-            Route.Settings -> settingsVisited = true
-            else -> Unit
+    var selectedRootRoute by remember {
+        mutableStateOf(
+            (backStack.lastOrNull() as? Route)
+                ?.takeIf { it in RootTabRoutes }
+                ?: Route.ChatSession,
+        )
+    }
+
+    LaunchedEffect(Unit) {
+        if (backStack.size == 1 && backStack.lastOrNull() != Route.ChatSession) {
+            backStack.clear()
+            backStack.add(Route.ChatSession)
         }
     }
 
@@ -250,38 +257,32 @@ fun MainRoute(
         onAction = chatViewModel::onCharacterAction,
     )
 
-    val charactersViewModel = if (charactersVisited) {
-        viewModel<CharactersViewModel>(
-            viewModelStoreOwner = rootViewModelStoreOwner,
-            key = "root-characters",
-        ) { koin.get() }
-    } else {
-        null
-    }
-    val charactersState = charactersViewModel?.uiState?.collectAsStateWithLifecycle()?.value
-        ?: CharactersUiState()
+    val charactersViewModel = viewModel<CharactersViewModel>(
+        viewModelStoreOwner = rootViewModelStoreOwner,
+        key = "root-characters",
+    ) { koin.get() }
+    val charactersState by charactersViewModel.uiState.collectAsStateWithLifecycle()
     val characters = CharactersRouteBinding(
         state = charactersState,
-        effects = charactersViewModel?.effects ?: emptyFlow(),
-        onAction = charactersViewModel?.let { it::onAction } ?: {},
+        effects = charactersViewModel.effects,
+        onAction = charactersViewModel::onAction,
     )
 
-    val settingsViewModel = if (settingsVisited) {
-        viewModel<SettingsOverviewViewModel>(
-            viewModelStoreOwner = rootViewModelStoreOwner,
-            key = "root-settings-overview",
-        ) { koin.get() }
-    } else {
-        null
-    }
-    val settingsState = settingsViewModel?.uiState?.collectAsStateWithLifecycle()?.value
-        ?: SettingsOverviewUiState()
+    val settingsViewModel = viewModel<SettingsOverviewViewModel>(
+        viewModelStoreOwner = rootViewModelStoreOwner,
+        key = "root-settings-overview",
+    ) { koin.get() }
+    val settingsState by settingsViewModel.uiState.collectAsStateWithLifecycle()
     val settings = SettingsRouteBinding(state = settingsState)
+
     val onMainAction: (MainAction) -> Unit = { action ->
         when (action) {
             is MainAction.NavigationSelected -> {
-                backStack.clear()
-                backStack.add(action.route)
+                selectedRootRoute = action.route
+                if (backStack.size > 1 || backStack.lastOrNull() != Route.ChatSession) {
+                    backStack.clear()
+                    backStack.add(Route.ChatSession)
+                }
             }
             is MainAction.NavigateTo -> {
                 if (backStack.lastOrNull() != action.route) {
@@ -535,6 +536,7 @@ fun MainRoute(
     MainNavigationContainer(
         mainState = main.state,
         backStack = backStack,
+        selectedRootRoute = selectedRootRoute,
         charactersState = characters.state,
         chatCharactersState = chatCharacters.state,
         chatState = chat.state,
@@ -618,6 +620,7 @@ private fun UpdateDialog(
 fun MainNavigationContainer(
     mainState: MainUiState,
     backStack: List<NavKey>,
+    selectedRootRoute: Route,
     charactersState: CharactersUiState,
     chatCharactersState: ChatCharactersUiState,
     chatState: ChatUiState,
@@ -635,7 +638,11 @@ fun MainNavigationContainer(
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.starRailColors
-    val currentRoute = backStack.lastOrNull() as? Route ?: Route.ChatSession
+    val currentRoute = if (backStack.size <= 1) {
+        selectedRootRoute
+    } else {
+        backStack.lastOrNull() as? Route ?: selectedRootRoute
+    }
 
     var isRecording by remember { mutableStateOf(false) }
     var isCancelTargeted by remember { mutableStateOf(false) }
@@ -688,6 +695,7 @@ fun MainNavigationContainer(
                 bottomBar = {
                     MainBottomArea(
                         backStack = backStack,
+                        currentRoute = selectedRootRoute,
                         showNavigationBar = !showRail,
                         compact = compact,
                         onMainAction = onMainAction,
@@ -696,15 +704,20 @@ fun MainNavigationContainer(
             ) { contentPadding ->
                 val entryProvider = entryProvider<NavKey> {
                     entry<Route.ChatSession> {
-                        ChatSessionRoute(
-                            state = chatState,
-                            charactersState = chatCharactersState,
-                            navigationBarPadding = contentPadding,
+                        RootTabsPager(
+                            selectedRoute = selectedRootRoute,
+                            mainState = mainState,
+                            charactersState = charactersState,
+                            chatCharactersState = chatCharactersState,
+                            chatState = chatState,
+                            settingsState = settingsState,
+                            contentPadding = contentPadding,
                             applyNavigationBarInsets = showRail,
                             compact = compact,
-                            onAction = onChatAction,
-                            onCharacterAction = onCharacterAction,
                             onMainAction = onMainAction,
+                            onCharacterAction = onCharacterAction,
+                            onChatAction = onChatAction,
+                            onSettingsAction = onSettingsAction,
                             isRecording = isRecording,
                             isCancelTargeted = isCancelTargeted,
                             onRecordingStateChanged = { recording, cancelTargeted ->
@@ -860,6 +873,84 @@ fun MainNavigationContainer(
                     entryProvider = entryProvider,
                 )
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun RootTabsPager(
+    selectedRoute: Route,
+    mainState: MainUiState,
+    charactersState: CharactersUiState,
+    chatCharactersState: ChatCharactersUiState,
+    chatState: ChatUiState,
+    settingsState: SettingsOverviewUiState,
+    contentPadding: PaddingValues,
+    applyNavigationBarInsets: Boolean,
+    compact: Boolean,
+    onMainAction: (MainAction) -> Unit,
+    onCharacterAction: (CharacterAction) -> Unit,
+    onChatAction: (ChatAction) -> Unit,
+    onSettingsAction: (SettingsAction) -> Unit,
+    isRecording: Boolean,
+    isCancelTargeted: Boolean,
+    onRecordingStateChanged: (Boolean, Boolean) -> Unit,
+) {
+    val selectedPage = RootTabRoutes.indexOf(selectedRoute).coerceAtLeast(0)
+    val pagerState = rememberPagerState(
+        initialPage = selectedPage,
+        pageCount = { RootTabRoutes.size },
+    )
+
+    LaunchedEffect(selectedPage) {
+        if (pagerState.currentPage != selectedPage) {
+            pagerState.scrollToPage(selectedPage)
+        }
+    }
+
+    HorizontalPager(
+        state = pagerState,
+        modifier = Modifier.fillMaxSize(),
+        beyondViewportPageCount = RootTabRoutes.lastIndex,
+        userScrollEnabled = false,
+    ) { page ->
+        when (RootTabRoutes[page]) {
+            Route.Characters -> {
+                CharactersScreen(
+                    state = charactersState,
+                    contentPadding = contentPadding,
+                    compact = compact,
+                    onMainAction = onMainAction,
+                    onAction = onCharacterAction,
+                )
+            }
+            Route.ChatSession -> {
+                ChatSessionRoute(
+                    state = chatState,
+                    charactersState = chatCharactersState,
+                    navigationBarPadding = contentPadding,
+                    applyNavigationBarInsets = applyNavigationBarInsets,
+                    compact = compact,
+                    onAction = onChatAction,
+                    onCharacterAction = onCharacterAction,
+                    onMainAction = onMainAction,
+                    isRecording = isRecording,
+                    isCancelTargeted = isCancelTargeted,
+                    onRecordingStateChanged = onRecordingStateChanged,
+                )
+            }
+            Route.Settings -> {
+                SettingsScreen(
+                    mainState = mainState,
+                    settingsState = settingsState,
+                    contentPadding = contentPadding,
+                    compact = compact,
+                    onMainAction = onMainAction,
+                    onSettingsAction = onSettingsAction,
+                )
+            }
+            else -> Unit
         }
     }
 }
@@ -1076,6 +1167,7 @@ private fun ProfileRoute(
 @Composable
 private fun MainBottomArea(
     backStack: List<NavKey>,
+    currentRoute: Route,
     showNavigationBar: Boolean,
     compact: Boolean,
     onMainAction: (MainAction) -> Unit,
@@ -1083,8 +1175,6 @@ private fun MainBottomArea(
     if (backStack.size > 1 || !showNavigationBar) {
         return
     }
-    val currentRoute = backStack.lastOrNull() as? Route ?: Route.ChatSession
-
     Column {
         Surface(
             color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.97f),
@@ -1417,6 +1507,8 @@ private val previewCharactersState = CharactersUiState(
     selectedCharacterId = "builtin:流萤",
     isLoadingCharacters = false,
 )
+
+private val RootTabRoutes = navigationItems.map(NavigationItem::route)
 
 private val previewChatCharactersState = ChatCharactersUiState(
     characters = listOf(

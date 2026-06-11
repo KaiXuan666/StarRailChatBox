@@ -132,13 +132,14 @@ shared/src/commonMain/kotlin/com/kaixuan/starrailchatbox/
 
 - 主导航使用 Navigation 3，`Route` 必须是可序列化 `NavKey`，back stack 由
   `rememberNavBackStack` 管理。
-- 对话、角色、设置三个外层 Tab 的 ViewModel 首次访问时按需创建，创建后允许在根
-  `ViewModelStore` 中常驻。
+- 对话、角色、设置三个外层 Tab 的 ViewModel 在根 `ViewModelStore` 中创建并常驻。
+  三个根页面由同一个 `HorizontalPager` 承载，并通过
+  `beyondViewportPageCount = 2` 保持全部页面的组合、滚动和纯 UI 状态。
 - 角色编辑、API 配置、个人资料等拥有独立 ViewModel 的二级页面必须绑定导航 entry；
   entry 出栈后不得继续由根 Composable 收集其状态。对话管理页当前复用常驻聊天状态，
   不得额外复制一份会话 `UiState`。
-- 外层 Tab 切换必须把导航栈重置为目标根 Route，使已移除二级页面的 ViewModel、协程
-  和临时 `UiState` 能被释放。
+- 外层 Tab 切换只改变根 Pager 页码，并把 Navigation 3 栈重置到主页面容器 entry；
+  已移除二级页面的 ViewModel、协程和临时 `UiState` 必须被释放。
 - 页面级输入草稿、导入导出状态和临时文件归对应 entry-scoped ViewModel 所有，不得
   放进 `MainViewModel` 或其他常驻 ViewModel。
 - 角色 Tab 和聊天角色选择器只持有 `CharacterSummary`；完整角色 prompt、开场白、
@@ -459,18 +460,20 @@ val StarRailShapes = Shapes(
 ```text
 根 Scaffold
 ├── Navigation 3 NavDisplay
-│   └── ChatSession Route Scaffold
-│       ├── 背景与星空装饰
-│       ├── HorizontalPager (无切换动画，不启用 beyondViewportPageCount 预载)
-│       │   └── Page (每个角色)
-│       │       └── LazyColumn (独立保存滚动状态)
-│       │           ├── ChatHeader
-│       │           ├── CharacterSelector (吸顶 stickyHeader)
-│       │           ├── DateDivider
-│       │           └── MessageList
-│       └── ChatSessionBottomBar
-│           ├── QuickReplyRow
-│           └── MessageComposer
+│   ├── 主页面容器 entry
+│   │   └── RootTabsPager (角色、对话、设置三页全部缓存)
+│   │       └── ChatSession Route Scaffold
+│   │           ├── 背景与星空装饰
+│   │           ├── 角色 HorizontalPager (不预载角色页)
+│   │           │   └── LazyColumn (独立保存滚动状态)
+│   │           │       ├── ChatHeader
+│   │           │       ├── CharacterSelector
+│   │           │       ├── DateDivider
+│   │           │       └── MessageList
+│   │           └── ChatSessionBottomBar
+│   │               ├── QuickReplyRow
+│   │               └── MessageComposer
+│   └── 二级页面 entry（角色编辑、API 配置、个人资料等）
 └── 主 NavigationBar（Compact/Medium）或 NavigationRail（Expanded）
 ```
 
@@ -570,7 +573,8 @@ sealed interface ChatMessageUiModel {
 当前项同时通过图标状态和标签颜色强调。不要只显示颜色变化。
 
 桌面和大屏可以将底部导航替换为 `NavigationRail`，但目的地、顺序与语义保持一致。
-切换外层 Tab 时直接重置到目标根 Route，不保留前一 Tab 的二级页面栈。
+切换外层 Tab 时直接切换根 Pager 页码，并清理前一 Tab 的二级页面栈。根页面自身始终
+保持缓存。
 
 ---
 
@@ -657,7 +661,10 @@ sealed interface ChatMessageUiModel {
 推荐动效：
 
 - 主题切换：颜色渐变 200-300ms。
-- 角色切换：Tab 选中瞬间直接跳转，无滑动或淡入动画，以实现即时高响应的秒切切换体验。此外，底层 `HorizontalPager` 不得配置任何预加载机制（如启用 `beyondViewportPageCount`），必须采用默认懒加载，以完全规避多页面同步测量与滚动带来的卡顿（Jank）。
+- 角色切换：选中后直接跳转，无滑动或淡入动画。聊天内部的角色
+  `HorizontalPager` 不得配置预加载，避免多个重度消息列表同步组合。
+- 主 Tab 切换：角色、对话、设置使用独立的根 `HorizontalPager`，关闭手势滑动并通过
+  `scrollToPage` 瞬时切页；设置 `beyondViewportPageCount = 2` 缓存全部三页。
 - Navigation 3 页面切换：外层 Tab 与二级页面当前均使用
   `EnterTransition.None togetherWith ExitTransition.None`，不得添加渐隐渐现效果。
 - 新消息：轻微淡入和位移 160-220ms。

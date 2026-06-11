@@ -300,7 +300,10 @@ UI --Action--> ViewModel --StateFlow<UiState>--> UI
 - 不在 Composable 中执行业务请求、持久化或不可重复的副作用；使用
   `LaunchedEffect` 仅处理与 Compose 生命周期相关的 Effect 收集或 UI 行为。
 - `remember` 只保存纯 UI 的短暂状态；业务状态必须提升到 `UiState`。
-- 在 `HorizontalPager` 中加载包含重度 `LazyColumn` 和复杂图文排版的子页面时，**禁止**开启预载参数（如 `beyondViewportPageCount` 大于 0），必须保持默认的按需懒加载。这可规避因从其他 Bottom Tab 路由切回该界面时一帧内同步渲染组合多个重度页面导致的主线程卡顿（Jank）。
+- 聊天界面内部用于切换角色的 `HorizontalPager` 包含重度 `LazyColumn` 和复杂图文排版，
+  **禁止**开启预载参数（如 `beyondViewportPageCount` 大于 0），必须保持默认按需加载。
+  外层角色、对话、设置三个主 Tab 的根 Pager 是唯一例外：必须缓存全部三页，以保证
+  Tab 瞬时切换且保留页面组合与滚动状态。
 
 ### 模块状态解耦与状态拆分规范
 
@@ -330,11 +333,15 @@ UI --Action--> ViewModel --StateFlow<UiState>--> UI
   `rememberViewModelStoreNavEntryDecorator`。拥有独立 ViewModel 的二级页面必须在
   对应 entry 中创建并收集状态；entry 出栈后，其 ViewModel、协程和临时 `UiState`
   应随之释放。
-- `ChatViewModel` 在根 `ViewModelStore` 中常驻，以保留多角色聊天草稿、消息状态和
-  后台 AI 请求。`CharactersViewModel` 与 `SettingsOverviewViewModel` 首次访问
-  对应 Tab 时按需创建，创建后允许常驻。
-- 点击外层 Tab 时必须将 back stack 重置为目标根 Route。已被移除的角色编辑、API
-  配置、个人资料等二级页面不得继续在根部持有或收集状态。
+- `ChatViewModel`、`CharactersViewModel` 与 `SettingsOverviewViewModel` 都在根
+  `ViewModelStore` 中创建并常驻。三个根页面由同一个 `HorizontalPager` 承载，并使用
+  `beyondViewportPageCount = 2` 缓存全部页面；聊天状态继续保留多角色草稿、消息状态
+  和后台 AI 请求。
+- 在根页面之间切换 Tab 时不得修改 back stack，只切换根 Pager 页码；从二级页面点击
+  Tab 时才将 back stack 清理回主页面容器 entry。已被移除的角色编辑、API 配置、
+  个人资料等二级页面不得继续在根部持有或收集状态。
+- 根 back stack 固定使用主页面容器 entry；当前 Tab 由根 Pager 状态管理。Navigation 3
+  只负责二级页面入栈和出栈，不得再用三个根 Route 互相替换主页面。
 - `MainViewModel` 只持有主题、版本检查和应用级弹窗，不持有导航栈或页面输入状态。
 - Navigation 3 页面切换当前不使用淡入淡出动画。`ChatSessionBottomBar` 必须与
   `ChatSessionScreen` 位于同一个聊天 entry 中同步进入和退出，不得在
