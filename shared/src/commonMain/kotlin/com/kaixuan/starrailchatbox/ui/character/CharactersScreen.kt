@@ -96,6 +96,9 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 
+/**
+ * 角色列表界面，展示所有已创建或导入的角色，支持排序、删除和导出操作。
+ */
 @Composable
 fun CharactersScreen(
     state: CharactersUiState,

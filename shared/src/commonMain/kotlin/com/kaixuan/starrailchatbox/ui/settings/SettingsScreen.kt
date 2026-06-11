@@ -1,33 +1,26 @@
 package com.kaixuan.starrailchatbox.ui.settings
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.ClickableText
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -40,13 +33,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -54,11 +42,19 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import com.kaixuan.starrailchatbox.design.StarRailSpacing
+import com.kaixuan.starrailchatbox.design.StarRailTheme
+import com.kaixuan.starrailchatbox.design.starRailColors
+import com.kaixuan.starrailchatbox.getPlatform
 import com.kaixuan.starrailchatbox.platform.openUri
+import com.kaixuan.starrailchatbox.ui.components.StarRailDialog
+import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
+import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
+import com.kaixuan.starrailchatbox.ui.main.MainAction
+import com.kaixuan.starrailchatbox.ui.main.MainSettingsItem
+import com.kaixuan.starrailchatbox.ui.main.MainUiState
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import starrailchatbox.shared.generated.resources.Res
@@ -66,42 +62,32 @@ import starrailchatbox.shared.generated.resources.cancel
 import starrailchatbox.shared.generated.resources.confirm
 import starrailchatbox.shared.generated.resources.settings_about_desc
 import starrailchatbox.shared.generated.resources.settings_about_title
-import starrailchatbox.shared.generated.resources.settings_api_desc
-import starrailchatbox.shared.generated.resources.settings_api_title
 import starrailchatbox.shared.generated.resources.settings_api_configured
+import starrailchatbox.shared.generated.resources.settings_api_desc
 import starrailchatbox.shared.generated.resources.settings_api_not_configured
-import starrailchatbox.shared.generated.resources.settings_multimodal_api_desc
-import starrailchatbox.shared.generated.resources.settings_multimodal_api_title
+import starrailchatbox.shared.generated.resources.settings_api_title
 import starrailchatbox.shared.generated.resources.settings_image_generation_api_desc
 import starrailchatbox.shared.generated.resources.settings_image_generation_api_title
-import starrailchatbox.shared.generated.resources.settings_voice_api_title
-import starrailchatbox.shared.generated.resources.settings_voice_api_desc
-import starrailchatbox.shared.generated.resources.settings_profile_desc
-import starrailchatbox.shared.generated.resources.settings_profile_title
+import starrailchatbox.shared.generated.resources.settings_multimodal_api_desc
+import starrailchatbox.shared.generated.resources.settings_multimodal_api_title
 import starrailchatbox.shared.generated.resources.settings_privacy_desc
 import starrailchatbox.shared.generated.resources.settings_privacy_title
-import starrailchatbox.shared.generated.resources.settings_qq_group_prefix
+import starrailchatbox.shared.generated.resources.settings_profile_desc
+import starrailchatbox.shared.generated.resources.settings_profile_title
 import starrailchatbox.shared.generated.resources.settings_qq_group_number
+import starrailchatbox.shared.generated.resources.settings_qq_group_prefix
 import starrailchatbox.shared.generated.resources.settings_qq_group_suffix
 import starrailchatbox.shared.generated.resources.settings_theme_desc
 import starrailchatbox.shared.generated.resources.settings_theme_title
 import starrailchatbox.shared.generated.resources.settings_title
-import starrailchatbox.shared.generated.resources.settings_update_desc
 import starrailchatbox.shared.generated.resources.settings_update_available
+import starrailchatbox.shared.generated.resources.settings_update_desc
 import starrailchatbox.shared.generated.resources.settings_update_title
+import starrailchatbox.shared.generated.resources.settings_voice_api_desc
+import starrailchatbox.shared.generated.resources.settings_voice_api_title
 import starrailchatbox.shared.generated.resources.theme_dark
 import starrailchatbox.shared.generated.resources.theme_follow_system
 import starrailchatbox.shared.generated.resources.theme_light
-import com.kaixuan.starrailchatbox.design.StarRailSpacing
-import com.kaixuan.starrailchatbox.design.StarRailTheme
-import com.kaixuan.starrailchatbox.design.starRailColors
-import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
-import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
-import com.kaixuan.starrailchatbox.ui.components.StarRailDialog
-import com.kaixuan.starrailchatbox.ui.main.MainAction
-import com.kaixuan.starrailchatbox.ui.main.MainSettingsItem
-import com.kaixuan.starrailchatbox.ui.main.MainUiState
-import com.kaixuan.starrailchatbox.getPlatform
 
 private data class SettingsItemUiData(
     val item: SettingsItem,
@@ -113,6 +99,9 @@ private data class SettingsItemUiData(
     val getDescColor: @Composable () -> Color? = { null }
 )
 
+/**
+ * 设置概览界面，提供应用设置、API配置、个人资料、关于等功能的入口。
+ */
 @Composable
 fun SettingsScreen(
     mainState: MainUiState,

@@ -64,6 +64,9 @@ import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
 import com.kaixuan.starrailchatbox.ui.main.MainAction
 import kotlin.time.Clock
 
+/**
+ * 会话管理界面，用于查看、创建、切换和删除与特定角色的历史对话会话。
+ */
 @Composable
 fun ConversationManagementScreen(
     state: ChatUiState,

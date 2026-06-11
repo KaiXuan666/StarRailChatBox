@@ -99,6 +99,9 @@ private const val MaxCharacterNameLength = 40
 private const val MaxPromptLength = 10000
 private const val MaxOpeningMessageLength = 3000
 
+/**
+ * 角色编辑界面，用于创建新角色或修改现有角色的详细信息（名称、提示词、头像、语音等）。
+ */
 @Composable
 fun CharacterEditScreen(
     state: CharacterEditUiState,

@@ -20,9 +20,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
+import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.platform.openUri
 import com.kaixuan.starrailchatbox.ui.components.BackHandler
 import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
@@ -50,6 +52,9 @@ import starrailchatbox.shared.generated.resources.privacy_policy_section_7_title
 import starrailchatbox.shared.generated.resources.privacy_policy_subtitle
 import starrailchatbox.shared.generated.resources.settings_privacy_title
 
+/**
+ * 隐私政策界面，向用户说明应用如何处理其个人数据。
+ */
 @Composable
 fun PrivacyPolicyScreen(
     contentPadding: PaddingValues,
@@ -205,6 +210,30 @@ private fun PrivacySection(title: String, content: String) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
             lineHeight = 22.sp
+        )
+    }
+}
+
+@Preview(widthDp = 360, heightDp = 800)
+@Composable
+private fun PrivacyPolicyScreenLightPreview() {
+    StarRailTheme(darkThemeOverride = false) {
+        PrivacyPolicyScreen(
+            contentPadding = PaddingValues(0.dp),
+            compact = true,
+            onMainAction = {}
+        )
+    }
+}
+
+@Preview(widthDp = 360, heightDp = 800)
+@Composable
+private fun PrivacyPolicyScreenDarkPreview() {
+    StarRailTheme(darkThemeOverride = true) {
+        PrivacyPolicyScreen(
+            contentPadding = PaddingValues(0.dp),
+            compact = true,
+            onMainAction = {}
         )
     }
 }

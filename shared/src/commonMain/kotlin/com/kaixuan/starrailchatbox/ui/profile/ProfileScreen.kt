@@ -74,6 +74,9 @@ import io.github.vinceglb.filekit.extension
 import io.github.vinceglb.filekit.name
 import io.github.vinceglb.filekit.path
 
+/**
+ * 个人资料界面，用于管理用户的头像以及应用内的一些全局数据开关（如数据导入导出）。
+ */
 @Composable
 fun ProfileScreen(
     state: ProfileUiState,

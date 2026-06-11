@@ -48,7 +48,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import com.kaixuan.starrailchatbox.ui.main.MainEffectMessage
 
 /**
- * 聊天会话主屏组件 (原 ChatContent 模块)
+ * 聊天会话主屏组件，支持多角色分页切换和消息列表展示。
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

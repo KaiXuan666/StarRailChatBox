@@ -93,6 +93,9 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
+/**
+ * API 设置界面，用于配置模型服务提供商的 Host、API Key 以及选择具体的模型。
+ */
 @Composable
 fun ApiSettingsScreen(
     state: ApiSettingsUiState,

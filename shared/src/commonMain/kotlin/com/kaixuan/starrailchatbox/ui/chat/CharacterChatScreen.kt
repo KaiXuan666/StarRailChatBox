@@ -43,6 +43,8 @@ import com.kaixuan.starrailchatbox.platform.readUriAsBytes
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.tooling.preview.Preview
+import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.ui.main.MainEffectMessage
 
 /**
@@ -255,3 +257,50 @@ fun CharacterChatScreen(
         }
     }
 }
+
+@Preview(widthDp = 360, heightDp = 800)
+@Composable
+private fun CharacterChatScreenLightPreview() {
+    StarRailTheme(darkThemeOverride = false) {
+        CharacterChatScreen(
+            characterId = "builtin:流萤",
+            state = previewChatUiState,
+            charactersState = previewChatCharactersUiState,
+            contentPadding = PaddingValues(0.dp),
+            compact = true,
+            onAction = {},
+            onCharacterAction = {},
+            onMainAction = {}
+        )
+    }
+}
+
+private val previewCharacterSummary = CharacterSummary(
+    id = "builtin:流萤",
+    name = "流萤",
+    avatarUri = "",
+    lastMessageAt = 0L
+)
+
+private val previewChatCharactersUiState = ChatCharactersUiState(
+    characters = listOf(previewCharacterSummary),
+    selectedCharacterId = "builtin:流萤",
+    isLoadingCharacters = false
+)
+
+private val previewChatUiState = ChatUiState(
+    selectedCharacterId = "builtin:流萤",
+    characterStates = mapOf(
+        "builtin:流萤" to CharacterChatState(
+            messages = listOf(
+                ChatMessageUiModel.Received(
+                    id = "1",
+                    content = MessageContent.Custom("你好呀，开拓者！"),
+                    timestamp = "10:00",
+                    senderId = "builtin:流萤",
+                    createdAt = 0L
+                )
+            )
+        )
+    )
+)

@@ -32,9 +32,11 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
+import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
 import com.kaixuan.starrailchatbox.ui.components.BackHandler
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
@@ -64,6 +66,9 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
+/**
+ * 关于我们界面，展示应用描述、免责声明和捐赠信息。
+ */
 @Composable
 fun AboutScreen(
     contentPadding: PaddingValues,
@@ -418,4 +423,28 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCompassDecor(
         }
     }
     drawPath(pathDiag, subColor)
+}
+
+@Preview(widthDp = 360, heightDp = 800)
+@Composable
+private fun AboutScreenLightPreview() {
+    StarRailTheme(darkThemeOverride = false) {
+        AboutScreen(
+            contentPadding = PaddingValues(0.dp),
+            compact = true,
+            onMainAction = {}
+        )
+    }
+}
+
+@Preview(widthDp = 360, heightDp = 800)
+@Composable
+private fun AboutScreenDarkPreview() {
+    StarRailTheme(darkThemeOverride = true) {
+        AboutScreen(
+            contentPadding = PaddingValues(0.dp),
+            compact = true,
+            onMainAction = {}
+        )
+    }
 }
