@@ -40,6 +40,7 @@ enum class StarRailIconKind {
     CONVERSATION,
     PERSON,
     COMPASS,
+    API_PROVIDER,
     CHECK,
     CUBE,
     UPDATE,
@@ -322,6 +323,15 @@ fun StarRailIcon(
                     close()
                 }
                 drawPath(path, tint, style = stroke)
+            }
+
+            StarRailIconKind.API_PROVIDER -> {
+                drawLine(tint, point(0.28f, 0.32f), point(0.72f, 0.32f), strokeWidth)
+                drawLine(tint, point(0.28f, 0.32f), point(0.5f, 0.72f), strokeWidth)
+                drawLine(tint, point(0.72f, 0.32f), point(0.5f, 0.72f), strokeWidth)
+                drawCircle(tint, side * 0.12f, point(0.28f, 0.32f), style = stroke)
+                drawCircle(tint, side * 0.12f, point(0.72f, 0.32f), style = stroke)
+                drawCircle(tint, side * 0.12f, point(0.5f, 0.72f), style = stroke)
             }
 
             StarRailIconKind.CHECK -> {

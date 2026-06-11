@@ -6,13 +6,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
-import com.kaixuan.starrailchatbox.data.database.createPersistentRepositories
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        val repositories = createPersistentRepositories(this)
+        val repositories = (application as StarRailApplication).repositories
 
         setContent {
             App(

@@ -2,6 +2,7 @@ package com.kaixuan.starrailchatbox.ui.settings.api
 
 sealed interface ApiSettingsAction {
     data class ApiHostChanged(val host: String) : ApiSettingsAction
+    data class XiaomiHostSelected(val host: String) : ApiSettingsAction
     data class ApiKeyChanged(val key: String) : ApiSettingsAction
     data object ToggleApiKeyVisibility : ApiSettingsAction
     data object FetchModelsClicked : ApiSettingsAction

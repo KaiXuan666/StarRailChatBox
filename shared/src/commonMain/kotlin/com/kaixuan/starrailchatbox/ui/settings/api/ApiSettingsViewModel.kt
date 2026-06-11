@@ -129,7 +129,8 @@ class ApiSettingsViewModel(
                 if (
                     defaultConfig != null &&
                     defaultConfig.apiKey.isNotBlank() &&
-                    defaultConfig.baseUrl.trim().startsWith("https://")
+                    defaultConfig.baseUrl.trim().startsWith("https://") &&
+                    (!isVoice || defaultConfig.provider == XiaomiMimoProvider.Id)
                 ) {
                     suggestDefaultConfig = defaultConfig
                     _uiState.update { it.copy(showSuggestDefaultConfigDialog = true) }
@@ -142,6 +143,16 @@ class ApiSettingsViewModel(
         when (action) {
             is ApiSettingsAction.ApiHostChanged -> {
                 _uiState.update { it.copy(apiHost = action.host) }
+            }
+            is ApiSettingsAction.XiaomiHostSelected -> {
+                _uiState.update {
+                    it.copy(
+                        apiHost = action.host,
+                        modelsList = emptyList(),
+                        selectedModel = "",
+                        selectedCloneModel = "",
+                    )
+                }
             }
             is ApiSettingsAction.ApiKeyChanged -> {
                 _uiState.update { it.copy(apiKey = action.key) }
@@ -313,17 +324,40 @@ class ApiSettingsViewModel(
         }
 
         _uiState.update { state ->
+            val preferredVoiceModel = if (
+                isVoice &&
+                state.apiProviderId == XiaomiMimoProvider.Id
+            ) {
+                sortedModels.firstOrNull {
+                    it.equals(XiaomiMimo.VoiceDesignModel, ignoreCase = true)
+                }
+            } else {
+                null
+            }
+            val preferredCloneModel = if (
+                isVoice &&
+                state.apiProviderId == XiaomiMimoProvider.Id
+            ) {
+                sortedModels.firstOrNull {
+                    it.equals(XiaomiMimo.VoiceCloneModel, ignoreCase = true)
+                }
+            } else {
+                null
+            }
             state.copy(
                 isFetchingModels = false,
                 modelsList = sortedModels,
-                selectedModel = state.selectedModel.takeIf(sortedModels::contains)
+                selectedModel = preferredVoiceModel
+                    ?: state.selectedModel.takeIf(sortedModels::contains)
                     ?: if (isVoice) {
                         sortedModels.firstOrNull { !it.contains("clone") && !it.contains("design") }
                             ?: sortedModels.first()
                     } else {
                         sortedModels.first()
                     },
-                selectedCloneModel = state.selectedCloneModel.takeIf(sortedModels::contains) ?: "",
+                selectedCloneModel = preferredCloneModel
+                    ?: state.selectedCloneModel.takeIf(sortedModels::contains)
+                    ?: "",
             )
         }
         emitMessage(SettingsEffectMessage.SETTINGS_API_FETCH_SUCCESS)

@@ -30,7 +30,9 @@ class XiaomiMimoProviderTest {
             },
         )
 
-        val result = provider.discoverModels(config())
+        val result = provider.discoverModels(
+            config(apiHost = XiaomiMimo.UsageBasedBaseUrl),
+        )
 
         val discovery = assertIs<ApiResult.Success<AiModelDiscovery>>(result).value
         assertEquals(listOf("mimo-v2"), discovery.models)

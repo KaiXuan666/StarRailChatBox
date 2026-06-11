@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.Flow
 object XiaomiMimo {
     const val SubscriptionBaseUrl = "https://token-plan-cn.xiaomimimo.com/v1"
     const val UsageBasedBaseUrl = "https://api.xiaomimimo.com/v1"
+    const val VoiceDesignModel = "mimo-v2.5-tts-voicedesign"
+    const val VoiceCloneModel = "mimo-v2.5-tts-voiceclone"
 }
 
 /**

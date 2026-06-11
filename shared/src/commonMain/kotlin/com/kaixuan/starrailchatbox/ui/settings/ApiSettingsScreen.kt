@@ -86,6 +86,7 @@ import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
 import com.kaixuan.starrailchatbox.data.ai.AliCompatibleProvider
 import com.kaixuan.starrailchatbox.data.ai.OpenAiCompatibleProvider
+import com.kaixuan.starrailchatbox.data.ai.XiaomiMimo
 import com.kaixuan.starrailchatbox.data.ai.XiaomiMimoProvider
 import com.kaixuan.starrailchatbox.data.ai.image.ImageGenerationProviderIds
 import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
@@ -181,7 +182,7 @@ fun ApiSettingsScreen(
                         )
                     },
                     compact = compact,
-                    iconKind = StarRailIconKind.COMPASS,
+                    iconKind = StarRailIconKind.API_PROVIDER,
                 )
             }
 
@@ -209,34 +210,53 @@ fun ApiSettingsScreen(
                         )
                     },
                     compact = compact,
-                    iconKind = StarRailIconKind.COMPASS,
+                    iconKind = StarRailIconKind.API_PROVIDER,
                 )
             }
 
             // --- API Host Section ---
-            Column(
-                verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs)
+            if (
+                !isImageGeneration &&
+                state.apiProviderId == XiaomiMimoProvider.Id
             ) {
-                Text(
-                    text = stringResource(Res.string.settings_api_host),
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.9f),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(start = 4.dp)
-                )
-                
-                ApiInputField(
-                    value = state.apiHost,
-                    onValueChange = { onApiAction(ApiSettingsAction.ApiHostChanged(it)) },
-                    placeholder = if (isVoice) "https://api.xiaomimimo.com/v1" else "https://api.openai.com/v1",
-                    leadingIcon = StarRailIconKind.COMPASS,
-                    compact = compact,
-                    enabled = when {
-                        isImageGeneration -> state.imageProviderId != ImageGenerationProviderIds.Ali
-                        else -> state.apiProviderId != AliCompatibleProvider.Id &&
-                            state.apiProviderId != XiaomiMimoProvider.Id
+                StarRailDropdown(
+                    label = stringResource(Res.string.settings_api_host),
+                    options = listOf(
+                        XiaomiMimo.SubscriptionBaseUrl,
+                        XiaomiMimo.UsageBasedBaseUrl,
+                    ),
+                    selectedOption = state.apiHost,
+                    onOptionSelected = {
+                        onApiAction(ApiSettingsAction.XiaomiHostSelected(it))
                     },
+                    compact = compact,
+                    iconKind = StarRailIconKind.GLOBE,
                 )
+            } else {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs)
+                ) {
+                    Text(
+                        text = stringResource(Res.string.settings_api_host),
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.9f),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(start = 4.dp)
+                    )
+
+                    ApiInputField(
+                        value = state.apiHost,
+                        onValueChange = { onApiAction(ApiSettingsAction.ApiHostChanged(it)) },
+                        placeholder = "https://api.openai.com/v1",
+                        leadingIcon = StarRailIconKind.COMPASS,
+                        compact = compact,
+                        enabled = when {
+                            isImageGeneration ->
+                                state.imageProviderId != ImageGenerationProviderIds.Ali
+                            else -> state.apiProviderId != AliCompatibleProvider.Id
+                        },
+                    )
+                }
             }
 
             // --- API Key Section ---
@@ -473,11 +493,29 @@ private fun ApiInputField(
     compact: Boolean = false,
     enabled: Boolean = true,
 ) {
+    val containerColor = if (enabled) {
+        MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.7f)
+    } else {
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+    }
+    val contentColor = if (enabled) {
+        MaterialTheme.colorScheme.onSurface
+    } else {
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+    }
+    val iconColor = if (enabled) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+    }
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.7f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f))
+        color = containerColor,
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = if (enabled) 0.8f else 0.5f),
+        ),
     ) {
         Row(
             modifier = Modifier
@@ -488,7 +526,7 @@ private fun ApiInputField(
             StarRailIcon(
                 kind = leadingIcon,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = iconColor,
                 modifier = Modifier.size(if (compact) 18.dp else 22.dp)
             )
             
@@ -501,7 +539,11 @@ private fun ApiInputField(
                 if (value.isEmpty()) {
                     Text(
                         text = placeholder,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        color = if (enabled) {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        } else {
+                            contentColor
+                        },
                         style = MaterialTheme.typography.bodyLarge,
                         maxLines = 1
                     )
@@ -513,7 +555,7 @@ private fun ApiInputField(
                     enabled = enabled,
                     modifier = Modifier.fillMaxWidth(),
                     textStyle = TextStyle(
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = contentColor,
                         fontSize = 16.sp,
                         fontFamily = MaterialTheme.typography.bodyLarge.fontFamily
                     ),

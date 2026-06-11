@@ -1273,10 +1273,10 @@ private fun ApiSettingsRoute(
                     snackbarHostState.showSnackbar(effectMessages.getValue(effect.message))
                 }
                 ApiSettingsEffect.ApiSettingsSaved -> {
+                    onMainAction(MainAction.PopBackStack)
                     snackbarHostState.showSnackbar(
                         effectMessages.getValue(SettingsEffectMessage.SETTINGS_API_SAVED),
                     )
-                    onMainAction(MainAction.PopBackStack)
                 }
                 ApiSettingsEffect.NavigateBack -> onMainAction(MainAction.PopBackStack)
             }
