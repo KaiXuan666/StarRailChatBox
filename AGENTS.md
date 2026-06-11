@@ -134,6 +134,13 @@ driver、provider 和日志出口等边界。
   头像复制到应用私有目录 `character_avatars`，数据库仅在 `avatar_uri` 中保存
   对应路径。领域模型只暴露 `avatarUri`，公共 UI 使用 Coil 加载该 URI；不得在
   领域模型或 UI 状态中长期持有头像 `ByteArray`。
+- 角色 Tab 和聊天角色选择器必须使用轻量 `CharacterSummary`，当前只包含角色 ID、
+  名称、头像 URI 和最近会话时间。不得把 prompt、开场白、模型参数、语音样本或编辑
+  草稿加入摘要模型。
+- Room 的角色摘要必须由 DAO 投影直接查询所需列，禁止先全量读取 `AgentRoleEntity`
+  或完整 `Character` 再映射。`RoomCharacterStorage.loadCharacters()` 会加载所有角色
+  的完整 prompt，已属于废弃兼容 API；列表和选择器必须使用
+  `loadCharacterSummaries()`，进入聊天、编辑或导出时再按 ID 调用 `getCharacter(id)`。
 
 ### AI 上下文编排规范
 
@@ -178,7 +185,11 @@ driver、provider 和日志出口等边界。
   通过各源码集提供的 `PlatformToolExecutor` 接入，公共工具代码不得引用平台类型。
 - API Host、API Key 和所选模型通过 `ModelConfigRepository` 读取和保存。Android、
   iOS 与 Desktop 使用 Room 的 `model_config` 表；JS/WasmJS 当前使用内存实现。
-- 当前设置页维护四组独立的模型配置记录：固定 ID 为 `default` 的默认普通模型、固定 ID 为 `multimodal` 的多模态模型（`supportVision = true`）、固定 ID 为 `voice` 的语音合成模型以及固定 ID 为 `voice_clone` 的音色克隆模型。后续扩展多模型配置时应继续通过 `ModelConfigRepository`。
+- 当前设置页维护五组独立的模型配置记录：固定 ID 为 `default` 的默认普通模型、固定
+  ID 为 `multimodal` 的多模态模型（`supportVision = true`）、固定 ID 为 `voice`
+  的语音合成模型、固定 ID 为 `voice_clone` 的音色克隆模型，以及图片生成模型。
+  设置概览只保留默认、多模态、语音（合并普通语音与音色克隆）和图片生成四类
+  “是否已配置”状态。后续扩展多模型配置时应继续通过 `ModelConfigRepository`。
 - API Key 持久化必须使用 `cryptography-kotlin` 的 AES-GCM 加密，`model_config`
   中只保存带版本标识的密文；DataStore 仅保存加密密钥，不得增加明文兼容字段或
   明文回退存储。
@@ -295,10 +306,39 @@ UI --Action--> ViewModel --StateFlow<UiState>--> UI
 
 - **状态细粒度拆分**：为防止单个 `UiState` 或 `Action` 过于臃肿导致状态互锁或无效重组，应按照业务模块进行细粒度拆分。例如将角色管理与聊天会话完全解耦。
 - **解耦结构**：
-  - **角色包 (`ui/character`)**：管理 `CharactersUiState`（内含角色列表、加载标志及 `CharacterEditUiState` 编辑状态）和 `CharacterAction`/`CharacterEffect`。
-  - **聊天包 (`ui/chat`)**：管理 `ChatUiState`（仅保留当前聊天角色的缓存 `selectedCharacter`、`selectedCharacterId` 与多角色会话状态 map）和 `ChatAction`/`ChatEffect`。
-- **双状态与双 Action 接收**：在 `ChatViewModel` 等承载复合业务的 ViewModel 中，通过分别公开 `uiState` 与 `characterUiState` 双状态流来独立暴露，并在 ViewModel 内部实现 `onAction(ChatAction)` 与 `onCharacterAction(CharacterAction)` 双入口，从业务逻辑上进行清晰解耦。
-- **主路由与分发**：主路由导航挂载四个绑定节点：角色 (`CharactersRouteBinding`)、会话 (`ChatRouteBinding`)、设置 (`SettingsRouteBinding`) 和个人信息 (`ProfileRouteBinding`)。在路由导航层 (`MainNavigationContainer`) 进行状态和事件回调的解耦分发。
+  - **角色包 (`ui/character`)**：`CharactersViewModel` 只管理
+    `CharactersUiState`（`List<CharacterSummary>`、选择 ID 和加载状态）；
+    `CharacterEditViewModel` 独立管理完整角色、编辑草稿、导入导出、文件缓存和提示词
+    生成状态。
+  - **聊天包 (`ui/chat`)**：`ChatUiState` 按
+    `characterStates: Map<String, CharacterChatState>` 隔离各角色消息、输入草稿和
+    发送状态；角色选择列表使用独立的 `ChatCharactersUiState`，只保存
+    `CharacterSummary`。
+- **聊天动作边界**：`ChatViewModel` 可分别公开聊天状态与轻量角色选择状态，并提供
+  `onAction(ChatAction)`、`onCharacterAction(CharacterAction)`；角色编辑、删除、
+  导入导出等管理逻辑不得重新放回 `ChatViewModel`。AI 调用通过
+  `ChatMessageSender` 委托给 `AiRepository`。
+- **主路由与分发**：外层根 Route 为角色、对话、设置三个 Tab。
+  `MainNavigationContainer` 负责绑定状态和分发事件；个人资料、角色编辑、API 配置等
+  都是二级 Route，不是常驻根绑定节点。
+
+### Navigation 3 与页面状态生命周期
+
+- 主导航使用 Navigation 3。`Route` 必须实现可序列化 `NavKey`，导航栈由
+  `rememberNavBackStack` 管理，不得重新放入 `MainViewModel`。
+- 必须配置 `rememberSaveableStateHolderNavEntryDecorator` 和
+  `rememberViewModelStoreNavEntryDecorator`。拥有独立 ViewModel 的二级页面必须在
+  对应 entry 中创建并收集状态；entry 出栈后，其 ViewModel、协程和临时 `UiState`
+  应随之释放。
+- `ChatViewModel` 在根 `ViewModelStore` 中常驻，以保留多角色聊天草稿、消息状态和
+  后台 AI 请求。`CharactersViewModel` 与 `SettingsOverviewViewModel` 首次访问
+  对应 Tab 时按需创建，创建后允许常驻。
+- 点击外层 Tab 时必须将 back stack 重置为目标根 Route。已被移除的角色编辑、API
+  配置、个人资料等二级页面不得继续在根部持有或收集状态。
+- `MainViewModel` 只持有主题、版本检查和应用级弹窗，不持有导航栈或页面输入状态。
+- Navigation 3 页面切换当前不使用淡入淡出动画。`ChatSessionBottomBar` 必须与
+  `ChatSessionScreen` 位于同一个聊天 entry 中同步进入和退出，不得在
+  `NavDisplay` 外根据已更新的 back stack 提前隐藏。
 
 
 ## Kotlin Multiplatform 依赖规则

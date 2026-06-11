@@ -558,7 +558,7 @@ private fun CharacterCard(
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         StarRailIcon(
-                            kind = StarRailIconKind.FILE,
+                            kind = StarRailIconKind.EXPORT,
                             contentDescription = stringResource(Res.string.character_edit_export),
                             tint = MaterialTheme.colorScheme.secondary,
                             modifier = Modifier.size(if (compact) 16.dp else 18.dp)

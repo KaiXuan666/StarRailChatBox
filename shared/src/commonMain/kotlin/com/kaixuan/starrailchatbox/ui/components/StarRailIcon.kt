@@ -68,6 +68,7 @@ enum class StarRailIconKind {
     RETRY,
     DATABASE,
     DOWNLOAD,
+    EXPORT,
     PLAY,
     STOP,
 }
@@ -773,6 +774,19 @@ fun StarRailIcon(
                 drawLine(tint, point(0.5f, 0.66f), point(0.32f, 0.48f), strokeWidth)
                 drawLine(tint, point(0.5f, 0.66f), point(0.68f, 0.48f), strokeWidth)
                 drawLine(tint, point(0.24f, 0.82f), point(0.76f, 0.82f), strokeWidth)
+            }
+
+            StarRailIconKind.EXPORT -> {
+                drawRoundRect(
+                    color = tint,
+                    topLeft = point(0.16f, 0.38f),
+                    size = Size(size.width * 0.52f, size.height * 0.46f),
+                    cornerRadius = CornerRadius(side * 0.07f),
+                    style = stroke,
+                )
+                drawLine(tint, point(0.46f, 0.54f), point(0.82f, 0.18f), strokeWidth)
+                drawLine(tint, point(0.58f, 0.18f), point(0.82f, 0.18f), strokeWidth)
+                drawLine(tint, point(0.82f, 0.18f), point(0.82f, 0.42f), strokeWidth)
             }
 
             StarRailIconKind.PLAY -> {
