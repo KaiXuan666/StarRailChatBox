@@ -15,9 +15,6 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
 
 private const val RetryStartAngle = 35f
 private const val RetrySweepAngle = 285f
@@ -156,40 +153,14 @@ fun StarRailIcon(
             }
 
             StarRailIconKind.SETTINGS -> {
-                path.reset()
-                val teeth = 8
-                val outerRadius = side * 0.46f
-                val innerRadius = side * 0.32f
-                val holeRadius = side * 0.16f
-                val halfStep = (PI / teeth).toFloat()
-                val toothWidth = halfStep * 0.5f
-                val fullStep = (2.0 * PI / teeth).toFloat()
-
-                for (i in 0 until teeth) {
-                    val angle = i * fullStep
-
-                    val x1 = size.width * 0.5f + cos(angle - toothWidth) * innerRadius
-                    val y1 = size.height * 0.5f + sin(angle - toothWidth) * innerRadius
-                    val x2 = size.width * 0.5f + cos(angle - toothWidth) * outerRadius
-                    val y2 = size.height * 0.5f + sin(angle - toothWidth) * outerRadius
-                    val x3 = size.width * 0.5f + cos(angle + toothWidth) * outerRadius
-                    val y3 = size.height * 0.5f + sin(angle + toothWidth) * outerRadius
-                    val x4 = size.width * 0.5f + cos(angle + toothWidth) * innerRadius
-                    val y4 = size.height * 0.5f + sin(angle + toothWidth) * innerRadius
-
-                    if (i == 0) path.moveTo(x1, y1) else path.lineTo(x1, y1)
-                    path.lineTo(x2, y2)
-                    path.lineTo(x3, y3)
-                    path.lineTo(x4, y4)
-
-                    val nextAngle = (i + 1) * fullStep
-                    val x5 = size.width * 0.5f + cos(nextAngle - toothWidth) * innerRadius
-                    val y5 = size.height * 0.5f + sin(nextAngle - toothWidth) * innerRadius
-                    path.lineTo(x5, y5)
-                }
-                path.close()
-                drawPath(path, tint, style = stroke)
-                drawCircle(tint, holeRadius, point(0.5f, 0.5f), style = stroke)
+                drawCircle(tint, side * 0.29f, point(0.5f, 0.5f), style = stroke)
+                drawCircle(tint, side * 0.1f, point(0.5f, 0.5f), style = stroke)
+                drawLine(tint, point(0.5f, 0.08f), point(0.5f, 0.21f), strokeWidth)
+                drawLine(tint, point(0.5f, 0.79f), point(0.5f, 0.92f), strokeWidth)
+                drawLine(tint, point(0.14f, 0.29f), point(0.25f, 0.36f), strokeWidth)
+                drawLine(tint, point(0.75f, 0.64f), point(0.86f, 0.71f), strokeWidth)
+                drawLine(tint, point(0.14f, 0.71f), point(0.25f, 0.64f), strokeWidth)
+                drawLine(tint, point(0.75f, 0.36f), point(0.86f, 0.29f), strokeWidth)
             }
 
             StarRailIconKind.HEART -> {
@@ -377,52 +348,12 @@ fun StarRailIcon(
             }
 
             StarRailIconKind.UPDATE -> {
-                        // 1. 基础参数定义
-                        val strokeWidth = stroke.width
-                        val arcSize = side * 0.6f
-                        // 确保圆弧居中
-                        val arcTopLeft = Offset((size.width - arcSize) / 2, (size.height - arcSize) / 2)
-
-                        // 2. 画圆弧 (顺时针，从 0度开始，旋转 280度，缺口留在右上角)
-                        val startAngle = 0f
-                        val sweepAngle = 280f
-                        drawArc(
-                            color = tint,
-                            startAngle = startAngle,
-                            sweepAngle = sweepAngle,
-                            useCenter = false,
-                            topLeft = arcTopLeft,
-                            size = Size(arcSize, arcSize),
-                            style = stroke,
-                        )
-
-                        // 3. 计算圆弧终点的精确坐标 (Common 端安全的三角函数)
-                        // 角度转弧度公式：弧度 = 角度 * PI / 180
-                        val endAngleRad = (startAngle + sweepAngle) * PI / 180.0
-                        val radius = arcSize / 2
-                        val centerX = arcTopLeft.x + radius
-                        val centerY = arcTopLeft.y + radius
-
-                        // 因为 kotlin.math 的 sin/cos 接收 Double 或 Float，这里转为 Float 供 Offset 使用
-                        val endX = (centerX + radius * cos(endAngleRad)).toFloat()
-                        val endY = (centerY + radius * sin(endAngleRad)).toFloat()
-
-                        // 4. 在终点处绘制箭头
-                        path.reset()
-                        val arrowLength = side * 0.15f
-
-                        path.apply {
-                            // 移动到圆弧终点，精准衔接
-                            moveTo(endX, endY)
-                            // 绘制向下延伸的箭头翅膀
-                            lineTo(endX, endY + arrowLength)
-                            // 移动回终点，绘制向左延伸的箭头翅膀
-                            moveTo(endX, endY)
-                            lineTo(endX - arrowLength, endY)
-                        }
-
-                        drawPath(path, tint, style = stroke)
-                    }
+                // 极简更新设计：圆环中心带有一个向上的箭头，象征升级与更新，风格统一
+                drawCircle(tint, side * 0.38f, point(0.5f, 0.5f), style = stroke)
+                drawLine(tint, point(0.5f, 0.68f), point(0.5f, 0.32f), strokeWidth)
+                drawLine(tint, point(0.36f, 0.46f), point(0.5f, 0.32f), strokeWidth)
+                drawLine(tint, point(0.64f, 0.46f), point(0.5f, 0.32f), strokeWidth)
+            }
 
             StarRailIconKind.BELL -> {
                 path.reset()
