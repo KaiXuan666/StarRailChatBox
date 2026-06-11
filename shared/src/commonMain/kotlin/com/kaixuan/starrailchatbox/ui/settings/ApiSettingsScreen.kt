@@ -55,6 +55,7 @@ import starrailchatbox.shared.generated.resources.Res
 import starrailchatbox.shared.generated.resources.settings_api_fetching
 import starrailchatbox.shared.generated.resources.settings_api_host
 import starrailchatbox.shared.generated.resources.settings_api_key
+import starrailchatbox.shared.generated.resources.settings_api_provider
 import starrailchatbox.shared.generated.resources.settings_image_provider
 import starrailchatbox.shared.generated.resources.settings_image_provider_ali
 import starrailchatbox.shared.generated.resources.settings_image_provider_openai
@@ -82,6 +83,8 @@ import starrailchatbox.shared.generated.resources.navigation_back
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
+import com.kaixuan.starrailchatbox.data.ai.AliCompatibleProvider
+import com.kaixuan.starrailchatbox.data.ai.OpenAiCompatibleProvider
 import com.kaixuan.starrailchatbox.data.ai.image.ImageGenerationProviderIds
 import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
 import com.kaixuan.starrailchatbox.ui.components.StarRailPrimaryButton
@@ -147,6 +150,32 @@ fun ApiSettingsScreen(
             onBackClick = { onMainAction(MainAction.PopBackStack) },
             contentSpacing = StarRailSpacing.lg,
         ) {
+            if (!isImageGeneration && !isVoice && !isMultimodal) {
+                val openAiLabel = stringResource(Res.string.settings_image_provider_openai)
+                val aliLabel = stringResource(Res.string.settings_image_provider_ali)
+                StarRailDropdown(
+                    label = stringResource(Res.string.settings_api_provider),
+                    options = listOf(openAiLabel, aliLabel),
+                    selectedOption = when (state.apiProviderId) {
+                        AliCompatibleProvider.Id -> aliLabel
+                        else -> openAiLabel
+                    },
+                    onOptionSelected = { label ->
+                        onApiAction(
+                            ApiSettingsAction.ApiProviderSelected(
+                                if (label == aliLabel) {
+                                    AliCompatibleProvider.Id
+                                } else {
+                                    OpenAiCompatibleProvider.Id
+                                },
+                            ),
+                        )
+                    },
+                    compact = compact,
+                    iconKind = StarRailIconKind.COMPASS,
+                )
+            }
+
             if (isImageGeneration) {
                 val openAiLabel = stringResource(Res.string.settings_image_provider_openai)
                 val aliLabel = stringResource(Res.string.settings_image_provider_ali)
@@ -193,7 +222,11 @@ fun ApiSettingsScreen(
                     placeholder = if (isVoice) "https://api.xiaomimimo.com/v1" else "https://api.openai.com/v1",
                     leadingIcon = StarRailIconKind.COMPASS,
                     compact = compact,
-                    enabled = !isImageGeneration || state.imageProviderId != ImageGenerationProviderIds.Ali,
+                    enabled = when {
+                        isImageGeneration -> state.imageProviderId != ImageGenerationProviderIds.Ali
+                        !isVoice && !isMultimodal -> state.apiProviderId != AliCompatibleProvider.Id
+                        else -> true
+                    },
                 )
             }
 

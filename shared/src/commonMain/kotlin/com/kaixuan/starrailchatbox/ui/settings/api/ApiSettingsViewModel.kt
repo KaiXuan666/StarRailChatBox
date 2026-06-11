@@ -3,6 +3,8 @@ package com.kaixuan.starrailchatbox.ui.settings.api
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kaixuan.starrailchatbox.data.ai.AiRepository
+import com.kaixuan.starrailchatbox.data.ai.AliBailian
+import com.kaixuan.starrailchatbox.data.ai.AliCompatibleProvider
 import com.kaixuan.starrailchatbox.data.ai.OpenAiCompatibleProvider
 import com.kaixuan.starrailchatbox.data.ai.image.AliImageProvider
 import com.kaixuan.starrailchatbox.data.ai.image.ImageGenerationProviderIds
@@ -76,18 +78,30 @@ class ApiSettingsViewModel(
                 val imageProviderId = config?.provider
                     ?.takeIf { isImageGeneration }
                     ?: ImageGenerationProviderIds.OpenAiCompatible
+                val apiProviderId = config?.provider
+                    ?.takeIf { !isImageGeneration && !isVoice && !isMultimodal }
+                    ?.takeIf { it == AliCompatibleProvider.Id || it == OpenAiCompatibleProvider.Id }
+                    ?: OpenAiCompatibleProvider.Id
                 state.copy(
                     apiHost = if (
                         isImageGeneration &&
                         imageProviderId == ImageGenerationProviderIds.Ali
                     ) {
                         AliImageProvider.CompatibleModeBaseUrl.trimEnd('/')
+                    } else if (
+                        !isImageGeneration &&
+                        !isVoice &&
+                        !isMultimodal &&
+                        apiProviderId == AliCompatibleProvider.Id
+                    ) {
+                        AliBailian.CompatibleModeBaseUrl
                     } else {
                         config?.baseUrl ?: defaultHost
                     },
                     apiKey = config?.apiKey ?: defaultKey,
                     selectedModel = config?.modelName.orEmpty(),
                     selectedCloneModel = voiceCloneConfig?.modelName.orEmpty(),
+                    apiProviderId = apiProviderId,
                     imageProviderId = imageProviderId,
                     modelsList = listOfNotNull(
                         config?.modelName?.takeIf { it.isNotBlank() },
@@ -132,6 +146,21 @@ class ApiSettingsViewModel(
                     } else {
                         state.copy(selectedModel = action.model)
                     }
+                }
+            }
+            is ApiSettingsAction.ApiProviderSelected -> {
+                _uiState.update { state ->
+                    state.copy(
+                        apiProviderId = action.providerId,
+                        apiHost = when (action.providerId) {
+                            AliCompatibleProvider.Id -> AliBailian.CompatibleModeBaseUrl
+                            else -> state.apiHost
+                                .takeUnless { it.trimEnd('/') == AliBailian.CompatibleModeBaseUrl }
+                                ?: defaultApiSettings.apiHost
+                        },
+                        modelsList = emptyList(),
+                        selectedModel = "",
+                    )
                 }
             }
             is ApiSettingsAction.ImageProviderSelected -> {
@@ -198,7 +227,11 @@ class ApiSettingsViewModel(
                 aiRepository.getModels(
                     apiHost = state.apiHost,
                     apiKey = state.apiKey,
-                    providerId = OpenAiCompatibleProvider.Id,
+                    providerId = if (isDefaultApiSettings()) {
+                        state.apiProviderId
+                    } else {
+                        OpenAiCompatibleProvider.Id
+                    },
                 )
             }
             when (result) {
@@ -365,7 +398,11 @@ class ApiSettingsViewModel(
             apiHost = state.apiHost,
             apiKey = state.apiKey,
             model = state.selectedModel,
-            providerId = OpenAiCompatibleProvider.Id,
+            providerId = if (isDefaultApiSettings()) {
+                state.apiProviderId
+            } else {
+                OpenAiCompatibleProvider.Id
+            },
         )
 
         if (isMultimodal) {
@@ -391,7 +428,7 @@ class ApiSettingsViewModel(
             modelConfigRepository.saveDefault(
                 ModelConfig(
                     id = DefaultModelConfig.Id,
-                    provider = DefaultModelConfig.Provider,
+                    provider = state.apiProviderId,
                     name = DefaultModelConfig.Name,
                     baseUrl = state.apiHost.trim().trimEnd('/'),
                     apiKey = state.apiKey.trim(),
@@ -434,6 +471,10 @@ class ApiSettingsViewModel(
             return true
         }
         return state.apiHost.trim().startsWith("https://")
+    }
+
+    private fun isDefaultApiSettings(): Boolean {
+        return !isImageGeneration && !isVoice && !isMultimodal
     }
 
     private fun emitMessage(message: SettingsEffectMessage) {

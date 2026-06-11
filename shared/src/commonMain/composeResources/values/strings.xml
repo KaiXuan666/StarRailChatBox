@@ -224,6 +224,7 @@
     <!-- API设置界面相关 -->
     <string name="settings_api_host">API主机</string>
     <string name="settings_api_key">API密钥</string>
+    <string name="settings_api_provider">服务商</string>
     <string name="settings_image_provider">图片服务商</string>
     <string name="settings_image_provider_openai">OpenAI 兼容</string>
     <string name="settings_image_provider_ali">阿里百炼</string>

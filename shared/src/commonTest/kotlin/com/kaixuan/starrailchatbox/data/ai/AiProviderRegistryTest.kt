@@ -9,11 +9,13 @@ class AiProviderRegistryTest {
     @Test
     fun resolvesKnownProviderAndExplicitAliasesOnly() {
         val provider = StubProvider(OpenAiCompatibleProvider.Id)
-        val registry = AiProviderRegistry(listOf(provider))
+        val aliProvider = StubProvider(AliCompatibleProvider.Id)
+        val registry = AiProviderRegistry(listOf(provider, aliProvider))
 
         assertEquals(provider, registry.find(OpenAiCompatibleProvider.Id))
         assertEquals(provider, registry.find("custom"))
         assertEquals(provider, registry.find("openai"))
+        assertEquals(aliProvider, registry.find(AliCompatibleProvider.Id))
         assertNull(registry.find("typo"))
     }
 }

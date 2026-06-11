@@ -3,6 +3,7 @@ package com.kaixuan.starrailchatbox.di
 import com.kaixuan.starrailchatbox.data.ai.AiProvider
 import com.kaixuan.starrailchatbox.data.ai.AiProviderRegistry
 import com.kaixuan.starrailchatbox.data.ai.AiRepository
+import com.kaixuan.starrailchatbox.data.ai.AliCompatibleProvider
 import com.kaixuan.starrailchatbox.data.ai.DefaultAiRepository
 import com.kaixuan.starrailchatbox.data.ai.OpenAiCompatibleProvider
 import com.kaixuan.starrailchatbox.data.ai.image.AliImageProvider
@@ -56,8 +57,17 @@ fun appModule(
     databaseManager: DatabaseManager,
 ) = module {
     single { createPlatformHttpClient() }
-    single<AiProvider> { OpenAiCompatibleProvider(get()) }
-    single { AiProviderRegistry(getAll()) }
+    single { OpenAiCompatibleProvider(get()) }
+    single<AiProvider>(named("OpenAiCompatible")) { get<OpenAiCompatibleProvider>() }
+    single<AiProvider>(named("AliCompatible")) { AliCompatibleProvider(get()) }
+    single {
+        AiProviderRegistry(
+            listOf(
+                get(named("OpenAiCompatible")),
+                get(named("AliCompatible")),
+            ),
+        )
+    }
     single<ImageGenerationProvider>(named("OpenAiCompatibleImage")) {
         OpenAiCompatibleImageProvider(get())
     }

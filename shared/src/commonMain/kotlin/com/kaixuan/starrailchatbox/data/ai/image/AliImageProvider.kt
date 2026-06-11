@@ -1,6 +1,7 @@
 package com.kaixuan.starrailchatbox.data.ai.image
 
 import com.kaixuan.starrailchatbox.data.api.ApiResult
+import com.kaixuan.starrailchatbox.data.ai.AliBailian
 import com.kaixuan.starrailchatbox.data.model.ModelConfig
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -24,7 +25,7 @@ class AliImageProvider(
         apiHost: String,
         apiKey: String,
     ): ApiResult<List<String>> = imageApiCall {
-        httpClient.get("${CompatibleModeBaseUrl}models") {
+        httpClient.get("${AliBailian.CompatibleModeBaseUrl}/models") {
             header(HttpHeaders.Authorization, "Bearer ${apiKey.trim()}")
         }.body<AliModelsResponse>().data
             .map(AliModel::id)
@@ -77,7 +78,7 @@ class AliImageProvider(
     }
 
     companion object {
-        const val CompatibleModeBaseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1/"
+        const val CompatibleModeBaseUrl = AliBailian.CompatibleModeBaseUrl
         const val GenerationEndpoint =
             "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation"
     }

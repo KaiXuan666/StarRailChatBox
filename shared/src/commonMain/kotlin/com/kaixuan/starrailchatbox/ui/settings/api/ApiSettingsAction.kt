@@ -6,6 +6,7 @@ sealed interface ApiSettingsAction {
     data object ToggleApiKeyVisibility : ApiSettingsAction
     data object FetchModelsClicked : ApiSettingsAction
     data class SelectModel(val model: String, val isCloneModel: Boolean = false) : ApiSettingsAction
+    data class ApiProviderSelected(val providerId: String) : ApiSettingsAction
     data class ImageProviderSelected(val providerId: String) : ApiSettingsAction
     data object SaveSettingsClicked : ApiSettingsAction
     data object ClearSettingsClicked : ApiSettingsAction
