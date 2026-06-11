@@ -1,3 +1,15 @@
 # Copy these entries into the ignored local.properties file for local API testing.
 OPENAI_API_HOST=https://api.openai.com/v1
 OPENAI_API_KEY=
+
+# Multimodal API
+MULTIMODAL_API_HOST=https://api.openai.com/v1
+MULTIMODAL_API_KEY=
+
+# Voice API
+VOICE_API_HOST=https://api.openai.com/v1
+VOICE_API_KEY=
+
+# Image Generation API
+IMAGE_GENERATION_API_HOST=https://dashscope.aliyuncs.com/compatible-mode/v1
+IMAGE_GENERATION_API_KEY=

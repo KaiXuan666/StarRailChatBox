@@ -72,15 +72,15 @@ class SettingsViewModel(
             Napier.d { "mmSettings=$mmSettings" }
             _uiState.update { state ->
                 // 1. 提取 Host 解析逻辑
-                fun resolveHost(dbHost: String?, currentHost: String, useDefaultHost: Boolean = false) =
+                fun resolveHost(dbHost: String?, currentHost: String, defaultHost: String = "") =
                     dbHost?.takeIf(String::isNotBlank)
-                        ?: (if (useDefaultHost) defaultApiSettings.apiHost.takeIf(String::isNotBlank) else null)
+                        ?: defaultHost.takeIf(String::isNotBlank)
                         ?: currentHost
 
                 // 2. 提取 Key 提取逻辑
-                fun resolveKey(dbKey: String?, currentKey: String, useDefaultKey: Boolean = false) =
+                fun resolveKey(dbKey: String?, currentKey: String, defaultKey: String = "") =
                     dbKey?.takeIf(String::isNotBlank)
-                        ?: (if (useDefaultKey) defaultApiSettings.apiKey.takeIf(String::isNotBlank) else null)
+                        ?: defaultKey.takeIf(String::isNotBlank)
                         ?: currentKey
 
                 // 4. 提取 Model 列表过滤逻辑
@@ -95,27 +95,27 @@ class SettingsViewModel(
 
                 state.copy(
                     // 标准模型配置
-                    apiHost = resolveHost(settings?.baseUrl, state.apiHost, useDefaultHost = true),
-                    apiKey = resolveKey(settings?.apiKey, state.apiKey, useDefaultKey = true),
+                    apiHost = resolveHost(settings?.baseUrl, state.apiHost, defaultApiSettings.apiHost),
+                    apiKey = resolveKey(settings?.apiKey, state.apiKey, defaultApiSettings.apiKey),
                     selectedModel = model,
                     modelsList = createModelList(model),
 
                     // 多模态模型配置
-                    multimodalApiHost = resolveHost(mmSettings?.baseUrl, state.multimodalApiHost),
-                    multimodalApiKey = resolveKey(mmSettings?.apiKey, state.multimodalApiKey),
+                    multimodalApiHost = resolveHost(mmSettings?.baseUrl, state.multimodalApiHost, defaultApiSettings.multimodalHost),
+                    multimodalApiKey = resolveKey(mmSettings?.apiKey, state.multimodalApiKey, defaultApiSettings.multimodalKey),
                     multimodalSelectedModel = mmModel,
                     multimodalModelsList = createModelList(mmModel),
 
                     // 语音模型配置
-                    voiceApiHost = resolveHost(voiceSettings?.baseUrl, state.voiceApiHost),
-                    voiceApiKey = resolveKey(voiceSettings?.apiKey, state.voiceApiKey),
+                    voiceApiHost = resolveHost(voiceSettings?.baseUrl, state.voiceApiHost, defaultApiSettings.voiceHost),
+                    voiceApiKey = resolveKey(voiceSettings?.apiKey, state.voiceApiKey, defaultApiSettings.voiceKey),
                     voiceSelectedModel = voiceModel,
                     voiceSelectedCloneModel = voiceCloneModel,
                     voiceModelsList = createModelList(voiceModel, voiceCloneModel),
 
                     // 图片生成配置
-                    imageGenerationApiHost = resolveHost(imageGenSettings?.baseUrl, state.imageGenerationApiHost),
-                    imageGenerationApiKey = resolveKey(imageGenSettings?.apiKey, state.imageGenerationApiKey),
+                    imageGenerationApiHost = resolveHost(imageGenSettings?.baseUrl, state.imageGenerationApiHost, defaultApiSettings.imageHost),
+                    imageGenerationApiKey = resolveKey(imageGenSettings?.apiKey, state.imageGenerationApiKey, defaultApiSettings.imageKey),
                     imageGenerationSelectedModel = imageGenModel,
                     imageGenerationModelsList = createModelList(imageGenModel)
                 )

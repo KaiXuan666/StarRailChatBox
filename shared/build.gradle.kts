@@ -1,7 +1,6 @@
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
-import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.Optional
@@ -23,12 +22,6 @@ abstract class GenerateLocalApiSettingsTask : DefaultTask() {
 
     @get:OutputDirectory
     abstract val outputDirectory: DirectoryProperty
-
-    @get:Input
-    abstract val hostPropertyName: Property<String>
-
-    @get:Input
-    abstract val keyPropertyName: Property<String>
 
     @TaskAction
     fun generate() {
@@ -56,8 +49,14 @@ abstract class GenerateLocalApiSettingsTask : DefaultTask() {
             package com.kaixuan.starrailchatbox.data.settings
 
             internal object LocalApiSettings {
-                const val apiHost = "${propertyValue(hostPropertyName.get())}"
-                const val apiKey = "${propertyValue(keyPropertyName.get())}"
+                const val apiHost = "${propertyValue("OPENAI_API_HOST")}"
+                const val apiKey = "${propertyValue("OPENAI_API_KEY")}"
+                const val multimodalHost = "${propertyValue("MULTIMODAL_API_HOST")}"
+                const val multimodalKey = "${propertyValue("MULTIMODAL_API_KEY")}"
+                const val voiceHost = "${propertyValue("VOICE_API_HOST")}"
+                const val voiceKey = "${propertyValue("VOICE_API_KEY")}"
+                const val imageHost = "${propertyValue("IMAGE_GENERATION_API_HOST")}"
+                const val imageKey = "${propertyValue("IMAGE_GENERATION_API_KEY")}"
             }
             """.trimIndent() + "\n",
             Charsets.UTF_8,
@@ -72,8 +71,6 @@ val generatedLocalApiSettingsDirectory =
 val generateLocalApiSettings by tasks.registering(GenerateLocalApiSettingsTask::class) {
     localPropertiesFile.set(rootLocalPropertiesFile)
     outputDirectory.set(generatedLocalApiSettingsDirectory)
-    hostPropertyName.set("OPENAI_API_HOST")
-    keyPropertyName.set("OPENAI_API_KEY")
 }
 
 plugins {
