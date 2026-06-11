@@ -100,19 +100,28 @@ driver、provider 和日志出口等边界。
 - 编写跨平台代码前，如果有比较成熟的第三方库，优先使用第三方库，不要自行实现功能。
 
 ### 文件处理规范
-- 选择文件优先使用FileKit，文件读写采用Okio 封装类 `KmpFileManager`，对于文件操作，不要自己写各平台实现。
+- 用户选择头像或文件时，优先使用 FileKit，文件读写采用Okio 封装类 `KmpFileManager`，对于文件操作，不要自己写各平台实现。
+- 对于 Android、iOS 和 Desktop，将返回的 `PlatformFile` 通过 `KmpFileManager` 处理并复制到应用私有目录。
+- 对于 JS/WasmJS，直接使用 `PlatformFile` 提供的 Data URL (Base64) 或内存 URI，避免复杂的平台持久化。
 - 注意FileKit选择出来的文件，可能路径会很奇怪，比如“content://media/picker/0/com.android.providers.media.photopicker/media/1000125767”
   所以拿到FileKit返回的path后，除了path，我们还需要传递image.name 和 image.extension给调用方，避免调用方拿不到扩展名，导致存储下来无扩展名的文件。
+- 修改头像或删除角色时，应清理由应用私有目录下的旧头像文件。
+- 头像文件名必须由角色 ID 经过跨平台安全编码生成，不直接使用角色名、中文、
+  冒号或路径分隔符作为文件名。
+- 内置角色资源来自 `shared/src/commonMain/composeResources/files/characters`。
+  `DefaultCharacterRepository` 首次加载时将缺失角色幂等导入 `agent_role`；已存在
+  或已软删除的相同 ID 不得被重新导入或覆盖头像。
+- JS/WasmJS 不使用 Room，当前角色使用浏览器存储并以可加载的 `data:` URI 表示头像，
+  模型配置使用内存实现；公共 UI 和业务代码不得直接依赖 Room 实体、DAO 或平台文件路径。
 
 #### 两阶段落盘法 (Cache ➔ Files)
-当出现用户选择文件 → 后续可以保存入库的情况时，（比如 `AgentRoleEntity` 中的 `avatarUri`和 `voiceSampleUri`，`MessageAttachmentEntity`里面的uri，还有 `AttachmentPanel`，用户选择添加附件）
+当出现用户选择文件 → 后续可以保存入库(uri入库)的情况时，（比如 `AgentRoleEntity` 中的 `avatarUri`和 `voiceSampleUri`，`MessageAttachmentEntity`里面的uri，还有 `AttachmentPanel`，用户选择添加附件）
 应采用“临时缓存 -> 确认入库”的策略：
 1. **阶段一（选择即缓存）：** 当用户选完文件后，立即将文件拷贝到 App 沙盒的【临时缓存目录 (Cache Dir)】中，并生成一个临时路径。
 2. **阶段二（确认才入库）：** 只有当用户在 UI 上真正点击了“保存/提交”按钮时，将文件从【临时缓存目录】移动到【正式私有目录 (Files Dir)】，并完成数据库入库。
 
 
-### Room 数据库与持久化
-
+### Room 数据库
 - 数据库统一使用 `StarRailDatabase`。Android、iOS 和 Desktop 启动时只创建一个
   Room 实例，并从该实例提供模型配置、角色、会话和消息相关 DAO 或 Repository；
   不要为不同 Repository 重复打开同一路径的数据库。
@@ -125,18 +134,6 @@ driver、provider 和日志出口等边界。
   头像复制到应用私有目录 `character_avatars`，数据库仅在 `avatar_uri` 中保存
   对应路径。领域模型只暴露 `avatarUri`，公共 UI 使用 Coil 加载该 URI；不得在
   领域模型或 UI 状态中长期持有头像 `ByteArray`。
-- 用户选择头像或文件时，优先使用 FileKit：
-  - 调用 `FileKit.pickImage` 或 `FileKit.pickFile` 唤起系统选择器。
-  - 对于 Android、iOS 和 Desktop，将返回的 `PlatformFile` 通过 Okio 或 `UriReader` 处理并复制到应用私有目录。
-  - 对于 JS/WasmJS，直接使用 `PlatformFile` 提供的 Data URL (Base64) 或内存 URI，避免复杂的平台持久化。
-- 修改头像或删除角色时，应清理由应用拥有的旧头像文件。
-- 头像文件名必须由角色 ID 经过跨平台安全编码生成，不直接使用角色名、中文、
-  冒号或路径分隔符作为文件名。
-- 内置角色资源来自 `shared/src/commonMain/composeResources/files/characters`。
-  `DefaultCharacterRepository` 首次加载时将缺失角色幂等导入 `agent_role`；已存在
-  或已软删除的相同 ID 不得被重新导入或覆盖头像。
-- JS/WasmJS 不使用 Room，当前角色使用浏览器存储并以可加载的 `data:` URI 表示头像，
-  模型配置使用内存实现；公共 UI 和业务代码不得直接依赖 Room 实体、DAO 或平台文件路径。
 
 ### AI 上下文编排规范
 
@@ -200,12 +197,8 @@ driver、provider 和日志出口等边界。
 ### 多模态输入与跨平台附件读取
 
 - **多模态模型选择**：当发送的消息中包含图片附件，或者在不启用文本拼接的情况下包含任意文件附件时，系统必须选用多模态模型配置（`id = "multimodal"`，其 `supportVision` 为 `true`）发起请求；否则默认使用普通模型配置。
-- **跨平台附件读取 (`UriReader`)**：由于不同目标平台读取 URI 字节流方式各异，使用 `expect/actual` 机制声明 `UriReader.readUriAsBytes(uri: String): ByteArray` 提供统一抽象。
-  - Android：使用 `ContentResolver` 打开输入流并读取字节。
-  - Desktop/JVM：作为本地文件路径通过 Java I/O 直接读取。
-  - Web (JS/WasmJS)：在图片/文件选择器中直接使用 `data:` Base64 格式的 Data URL 赋值给 URI，底层当检测到 `uri.startsWith("data:")` 时直接跳过字节读取，使用该 URI 往后传输。
-  - iOS/JS/WasmJS 上的其他常规 URI 读取，目前提供空或占位实现。
-- **常规文件传输与文本拼接可选方案**：常规文件（包括文本文件，如 `.txt`, `.kt`, `.pdf` 等）优先使用常规多模态文件传输方式，即通过 `UriReader` 读取字节并转换为 Base64 编码的 Data URL（带有相应的 MIME 类型），封装为多模态内容（`AiContentPart.FileUrl`）进行传输。之前的文本拼接方案保留作为可选方案（由 `enableFileAppend` 开关控制，默认不启用），该方案将非图片文本文件以特殊格式拼接到用户 Prompt 尾部并持久化至数据库。
+- **跨平台附件读取使用`KmpFileManager`，不得自行编写各平台实现。
+- **常规文件传输与文本拼接可选方案**：常规文件（包括文本文件，如 `.txt`, `.kt`, `.pdf` 等）优先使用常规多模态文件传输方式，即通过 `KmpFileManager` 读取字节并转换为 Base64 编码的 Data URL（带有相应的 MIME 类型），封装为多模态内容（`AiContentPart.FileUrl`）进行传输。之前的文本拼接方案保留作为可选方案（由 `enableFileAppend` 开关控制，默认不启用），该方案将非图片文本文件以特殊格式拼接到用户 Prompt 尾部并持久化至数据库。
 - **Base64 编码**：多模态图片的 Base64 转换统一使用 Kotlin 1.9.0+ 标准库提供的 `kotlin.io.encoding.Base64`。
 
 ### 网络日志
@@ -358,7 +351,7 @@ UI --Action--> ViewModel --StateFlow<UiState>--> UI
 - 避免通配符导入、无意义包装层、全局可变状态和不必要的单例。
 - 协程不得使用 `GlobalScope`，也不要吞掉 `CancellationException`。
 - 不在公共代码中使用 JVM、Android 或 Java 专属类型。
-- 将头像、文件等尽量不要使用 `ByteArray`、`byte` 或 Base64 存储在变量/内存中，尽量使用文件路径（或 URI）传递，除非在特定平台环境（例如 Web 端持久化）中不得不使用。
+- 将头像、文件等尽量不要使用 `ByteArray`、`byte` 或 Base64 存储在变量/内存中，尽量使用`KmpFileManager`操作文件， `okio.Path`传递路径。
 - 修改保持聚焦，不顺带格式化或重构无关文件。
 
 ## 测试要求
