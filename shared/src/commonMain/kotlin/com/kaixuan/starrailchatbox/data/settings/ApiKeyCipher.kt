@@ -52,11 +52,9 @@ class ApiKeyCipher(
                 ciphertext = Base64.decode(encodedCiphertext),
                 associatedData = AssociatedData,
             )
-            Napier.e { "ApiKeyCipher plaintext=${plaintext} decodeToString=${plaintext.decodeToString()}" }
             return plaintext.decodeToString()
         } catch (e: Exception) {
-            Napier.e { "ApiKeyCipher e=${e.message}" }
-            e.printStackTrace()
+            Napier.e(e) { "ApiKeyCipher decryption failed" }
         }
         return ""
     }

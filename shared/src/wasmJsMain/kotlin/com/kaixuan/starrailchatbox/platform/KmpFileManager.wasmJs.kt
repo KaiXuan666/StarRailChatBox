@@ -20,3 +20,4 @@ class WasmJsFileManager : KmpFileManager {
 }
 
 actual fun getPlatformFileManager(): KmpFileManager = WasmJsFileManager()
+

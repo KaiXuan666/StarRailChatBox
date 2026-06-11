@@ -34,7 +34,7 @@ class RoomCharacterStorage(
                     id = character.id,
                     name = character.name,
                     avatarUri = avatarUri,
-                    description = "",
+                    description = character.description,
                     systemPrompt = character.prompt,
                     openingMessage = character.openingMessage,
                     temperature = character.temperature,
@@ -167,7 +167,7 @@ class RoomCharacterStorage(
         id = id,
         name = name,
         avatarUri = avatarUri,
-        description = "",
+        description = description,
         systemPrompt = prompt,
         openingMessage = openingMessage,
         temperature = temperature,
@@ -182,6 +182,7 @@ class RoomCharacterStorage(
     private fun AgentRoleSummaryEntity.toCharacterFiles() = CharacterFiles(
         id = id,
         name = name,
+        description = description,
         prompt = "", // Excluded from summary
         openingMessage = openingMessage,
         avatarUri = avatarUri,
@@ -196,6 +197,7 @@ class RoomCharacterStorage(
     private fun AgentRoleEntity.toCharacterFiles() = CharacterFiles(
         id = id,
         name = name,
+        description = description,
         prompt = systemPrompt,
         openingMessage = openingMessage,
         avatarUri = avatarUri,

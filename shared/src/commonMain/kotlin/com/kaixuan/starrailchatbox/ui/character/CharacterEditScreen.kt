@@ -55,6 +55,7 @@ import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
 import com.kaixuan.starrailchatbox.ui.components.StarRailPrimaryButton
 import com.kaixuan.starrailchatbox.ui.main.MainAction
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
+import io.github.vinceglb.filekit.dialogs.compose.rememberDirectoryPickerLauncher
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.extension
 import io.github.vinceglb.filekit.name
@@ -67,6 +68,9 @@ import starrailchatbox.shared.generated.resources.character_edit_delete
 import starrailchatbox.shared.generated.resources.character_edit_delete_confirm_action
 import starrailchatbox.shared.generated.resources.character_edit_delete_confirm_message
 import starrailchatbox.shared.generated.resources.character_edit_delete_confirm_title
+import starrailchatbox.shared.generated.resources.character_edit_description
+import starrailchatbox.shared.generated.resources.character_edit_description_hint
+import starrailchatbox.shared.generated.resources.character_edit_export
 import starrailchatbox.shared.generated.resources.character_edit_name
 import starrailchatbox.shared.generated.resources.character_edit_opening_message
 import starrailchatbox.shared.generated.resources.character_edit_save
@@ -222,6 +226,7 @@ fun CharacterEditScreen(
             state = editState,
             compact = compact,
             onPickAvatar = { imagePicker.launch() },
+            onAction = onAction,
             onNameChanged = { name ->
                 onAction(CharacterAction.CharacterNameChanged(name.take(MaxCharacterNameLength)))
             },
@@ -311,6 +316,39 @@ fun CharacterEditScreen(
             state = editState,
             onAction = onAction
         )
+
+        if (editState.characterId != null) {
+            Surface(
+                onClick = { onAction(CharacterAction.CharacterExportClicked) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                shape = MaterialTheme.shapes.extraLarge,
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
+                enabled = !editState.isExporting
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        StarRailIcon(
+                            kind = if (editState.isExporting) StarRailIconKind.UPDATE else StarRailIconKind.FILE,
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                            contentDescription = null
+                        )
+                        Text(
+                            text = if (editState.isExporting) "正在导出..." else stringResource(Res.string.character_edit_export),
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            }
+        }
 
         if (editState.characterId?.startsWith("builtin:") == true) {
             Surface(
@@ -511,6 +549,7 @@ private fun CharacterIdentityCard(
     state: CharacterEditUiState,
     compact: Boolean,
     onPickAvatar: () -> Unit,
+    onAction: (CharacterAction) -> Unit,
     onNameChanged: (String) -> Unit,
 ) {
     Surface(
@@ -574,6 +613,13 @@ private fun CharacterIdentityCard(
                     value = state.name,
                     onValueChange = onNameChanged,
                     singleLine = true,
+                )
+                LabeledTextField(
+                    label = stringResource(Res.string.character_edit_description),
+                    value = state.description,
+                    onValueChange = { onAction(CharacterAction.CharacterDescriptionChanged(it)) },
+                    singleLine = true,
+                    supportingText = stringResource(Res.string.character_edit_description_hint),
                 )
             }
         }

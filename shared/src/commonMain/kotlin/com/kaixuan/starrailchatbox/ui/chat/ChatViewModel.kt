@@ -15,6 +15,8 @@ import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.data.character.CharacterAvatarSource
 import com.kaixuan.starrailchatbox.data.character.CharacterRepository
 import com.kaixuan.starrailchatbox.data.character.importer.CharacterCardImporter
+import com.kaixuan.starrailchatbox.data.character.importer.CharacterCardExporter
+import com.kaixuan.starrailchatbox.data.character.importer.StarRailCharacterCard
 import com.kaixuan.starrailchatbox.data.chat.ChatMessageStatus
 import com.kaixuan.starrailchatbox.data.chat.ChatRole
 import com.kaixuan.starrailchatbox.data.chat.ChatSession
@@ -61,6 +63,7 @@ class ChatViewModel(
     private val aiRepository: AiRepository,
     private val profileStore: ProfileStore,
     private val characterCardImporter: CharacterCardImporter,
+    private val characterCardExporter: CharacterCardExporter,
     private val fileManager: KmpFileManager = KmpFileManager.Default,
     private val chatSummaryCoordinator: ChatSummaryCoordinator = ChatSummaryCoordinator(
         chatSessionRepository = chatSessionRepository,
@@ -318,6 +321,7 @@ class ChatViewModel(
             is CharacterAction.CharacterSelected -> selectCharacter(action.characterId)
             is CharacterAction.CharacterEditOpened -> openCharacterEdit(action.characterId)
             is CharacterAction.CharacterNameChanged -> updateCharacterEdit { it.copy(name = action.name) }
+            is CharacterAction.CharacterDescriptionChanged -> updateCharacterEdit { it.copy(description = action.description) }
             is CharacterAction.CharacterPromptChanged -> updateCharacterEdit { it.copy(prompt = action.prompt) }
             is CharacterAction.CharacterOpeningMessageChanged -> updateCharacterEdit {
                 it.copy(openingMessage = action.openingMessage)
@@ -517,6 +521,43 @@ class ChatViewModel(
                     ) 
                 }
             }
+            CharacterAction.CharacterExportClicked -> {
+                viewModelScope.launch {
+                    _characterEffects.send(CharacterEffect.RequestDirectoryPicker)
+                }
+            }
+            is CharacterAction.CharacterExportDirectorySelected -> {
+                exportCharacter(action.directory)
+            }
+        }
+    }
+
+    private fun exportCharacter(directory: io.github.vinceglb.filekit.PlatformFile) {
+        val selected = characterUiState.value.selectedCharacter ?: return
+        
+        updateCharacterEdit { it.copy(isExporting = true, exportError = null) }
+        viewModelScope.launch {
+            try {
+                val character = characterRepository.getCharacter(selected.id) ?: selected
+                when (val result = characterCardExporter.exportToPng(character, directory)) {
+                    is ApiResult.Success<Unit> -> {
+                        updateCharacterEdit { it.copy(isExporting = false) }
+                        emitCharacterMessage(CharacterEffectMessage.CHARACTER_EXPORT_SUCCESS)
+                    }
+                    is ApiResult.UnexpectedError -> {
+                        updateCharacterEdit { it.copy(isExporting = false, exportError = result.message) }
+                        emitCharacterMessage(CharacterEffectMessage.CHARACTER_EXPORT_FAILED)
+                    }
+                    else -> {
+                        updateCharacterEdit { it.copy(isExporting = false) }
+                        emitCharacterMessage(CharacterEffectMessage.CHARACTER_EXPORT_FAILED)
+                    }
+                }
+            } catch (e: Exception) {
+                Napier.e("Export failed during data fetching", e)
+                updateCharacterEdit { it.copy(isExporting = false, exportError = e.message) }
+                emitCharacterMessage(CharacterEffectMessage.CHARACTER_EXPORT_FAILED)
+            }
         }
     }
 
@@ -531,14 +572,19 @@ class ChatViewModel(
                             isImporting = false,
                             importDraft = draft,
                             name = draft.name,
+                            description = draft.description,
                             prompt = draft.prompt,
                             openingMessage = draft.openingMessage,
+                            temperature = draft.temperature,
+                            topP = draft.topP,
                             avatarUri = draft.avatarUri ?: it.avatarUri,
+                            voiceSampleUri = draft.voice?.let { v -> "data:${v.mimeType};base64,${v.base64Content}" } ?: it.voiceSampleUri,
                             pendingAvatarSource = draft.avatarUri?.let { uri ->
                                 CharacterAvatarSource(uri, name, extension)
                             } ?: it.pendingAvatarSource
                         )
                     }
+                    emitCharacterMessage(CharacterEffectMessage.CHARACTER_IMPORT_SUCCESS)
                 }
                 is ApiResult.HttpError -> {
                     updateCharacterEdit {
@@ -547,6 +593,7 @@ class ChatViewModel(
                             importError = "导入失败: HTTP ${result.statusCode}"
                         )
                     }
+                    emitCharacterMessage(CharacterEffectMessage.CHARACTER_IMPORT_FAILED)
                 }
                 is ApiResult.NetworkError -> {
                     updateCharacterEdit {
@@ -555,6 +602,7 @@ class ChatViewModel(
                             importError = "导入失败: 网络错误"
                         )
                     }
+                    emitCharacterMessage(CharacterEffectMessage.CHARACTER_IMPORT_FAILED)
                 }
                 is ApiResult.UnexpectedError -> {
                     updateCharacterEdit {
@@ -563,6 +611,7 @@ class ChatViewModel(
                             importError = "导入失败: ${result.message}"
                         )
                     }
+                    emitCharacterMessage(CharacterEffectMessage.CHARACTER_IMPORT_FAILED)
                 }
             }
         }
@@ -602,6 +651,7 @@ class ChatViewModel(
                     characterEdit = CharacterEditUiState(
                         characterId = null,
                         name = "",
+                        description = "",
                         prompt = "",
                         openingMessage = "",
                         avatarUri = "",
@@ -650,6 +700,7 @@ class ChatViewModel(
                     val newCharacter = Character(
                         id = newId,
                         name = editState.name.trim(),
+                        description = editState.description,
                         prompt = editState.prompt,
                         openingMessage = editState.openingMessage,
                         avatarUri = finalAvatarUri,
@@ -665,6 +716,7 @@ class ChatViewModel(
                     characterRepository.updateCharacter(
                         original.copy(
                             name = editState.name.trim(),
+                            description = editState.description,
                             prompt = editState.prompt,
                             openingMessage = editState.openingMessage,
                             avatarUri = finalAvatarUri,

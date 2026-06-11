@@ -11,6 +11,8 @@ import android.os.Environment
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+import io.github.vinceglb.filekit.div
+
 class AndroidFileManager : KmpFileManager {
     override val fileSystem: FileSystem = FileSystem.SYSTEM
 
@@ -64,3 +66,4 @@ class AndroidFileManager : KmpFileManager {
 }
 
 actual fun getPlatformFileManager(): KmpFileManager = AndroidFileManager()
+

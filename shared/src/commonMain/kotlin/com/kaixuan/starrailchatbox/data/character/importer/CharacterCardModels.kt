@@ -49,11 +49,35 @@ data class SillyTavernV3Data(
     @SerialName("post_history_instructions") val postHistoryInstructions: String = "",
 )
 
+@Serializable
+data class StarRailCharacterCard(
+    val spec: String = "starrail_chat_box_character",
+    val specVersion: String = "1.0",
+    val name: String,
+    val description: String = "",
+    val systemPrompt: String,
+    val openingMessage: String,
+    val temperature: Double,
+    val topP: Double,
+    val voice: StarRailVoiceData? = null
+)
+
+@Serializable
+data class StarRailVoiceData(
+    val fileName: String,
+    val mimeType: String,
+    val base64Content: String
+)
+
 data class ImportedCharacterDraft(
     val name: String,
+    val description: String = "",
     val prompt: String,
     val openingMessage: String,
     val avatarUri: String? = null,
+    val temperature: Double = 0.85,
+    val topP: Double = 0.9,
+    val voice: StarRailVoiceData? = null,
     val sourceVersion: String,
     val warnings: List<ImportWarning> = emptyList(),
 )

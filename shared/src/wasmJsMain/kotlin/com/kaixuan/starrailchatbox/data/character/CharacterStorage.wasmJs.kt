@@ -31,6 +31,7 @@ class WasmJsCharacterStorage : CharacterStorage {
                 CharacterFiles(
                     id = d.id,
                     name = d.name,
+                    description = d.description,
                     prompt = d.prompt,
                     openingMessage = d.openingMessage,
                     avatarUri = "data:image/webp;base64," + Base64.encode(d.avatarContent),

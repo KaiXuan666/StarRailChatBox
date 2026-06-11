@@ -20,3 +20,4 @@ class JsFileManager : KmpFileManager {
 }
 
 actual fun getPlatformFileManager(): KmpFileManager = JsFileManager()
+

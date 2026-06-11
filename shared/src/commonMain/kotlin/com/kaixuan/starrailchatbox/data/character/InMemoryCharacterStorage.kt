@@ -11,6 +11,7 @@ class InMemoryCharacterStorage : CharacterStorage {
                 characters[it.id] = CharacterFiles(
                     id = it.id,
                     name = it.name,
+                    description = it.description,
                     prompt = it.prompt,
                     openingMessage = it.openingMessage,
                     avatarUri = "memory:${it.id}",

@@ -84,6 +84,8 @@
     <string name="character_edit_avatar">头像</string>
     <string name="character_edit_change_avatar">更换头像</string>
     <string name="character_edit_name">角色名称</string>
+    <string name="character_edit_description">角色描述</string>
+    <string name="character_edit_description_hint">一句话简介，会显示在角色列表和预览中。</string>
     <string name="character_edit_system_prompt">系统提示词</string>
     <string name="character_edit_opening_message">开场白</string>
     <string name="character_edit_temperature">Temperature</string>
@@ -105,7 +107,16 @@
     <string name="character_edit_delete_confirm_title">删除角色？</string>
     <string name="character_edit_delete_confirm_message">确定删除“%1$s”吗？</string>
     <string name="character_edit_delete_confirm_action">删除</string>
-    
+    <string name="character_edit_export">导出角色卡</string>
+    <string name="character_edit_export_success">角色卡导出成功</string>
+    <string name="character_edit_export_failed">角色卡导出失败</string>
+    <string name="character_edit_importing">正在导入角色卡...</string>
+    <string name="character_edit_import_success">角色卡导入成功</string>
+    <string name="character_edit_import_failed">角色卡导入失败</string>
+    <string name="character_edit_import_source">来源版本：%1$s</string>
+    <string name="character_edit_import_warning">导入警告</string>
+    <string name="character_edit_import_warning_dismiss">我知道了</string>
+
     <!-- 个人信息界面 (全局设置) -->
     <string name="settings_profile_title">全局设置</string>
     <string name="settings_profile_desc">修改头像、通用偏好及数据管理</string>

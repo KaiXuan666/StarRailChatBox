@@ -104,6 +104,10 @@ import starrailchatbox.shared.generated.resources.character_name_empty
 import starrailchatbox.shared.generated.resources.character_save_failed
 import starrailchatbox.shared.generated.resources.character_edit_prompt_gen_failed
 import starrailchatbox.shared.generated.resources.character_name_required
+import starrailchatbox.shared.generated.resources.character_edit_export_success
+import starrailchatbox.shared.generated.resources.character_edit_export_failed
+import starrailchatbox.shared.generated.resources.character_edit_import_success
+import starrailchatbox.shared.generated.resources.character_edit_import_failed
 import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
@@ -153,6 +157,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
+import io.github.vinceglb.filekit.dialogs.compose.rememberDirectoryPickerLauncher
 import io.github.vinceglb.filekit.extension
 import io.github.vinceglb.filekit.name
 import io.github.vinceglb.filekit.path
@@ -208,6 +213,12 @@ fun MainRoute(
         }
     }
 
+    val directoryPicker = rememberDirectoryPickerLauncher { directory ->
+        if (directory != null) {
+            characters.onAction(CharacterAction.CharacterExportDirectorySelected(directory))
+        }
+    }
+
     val wrappedOnChatAction: (ChatAction) -> Unit = { action ->
         when (action) {
             is ChatAction.ComposerActionClicked -> {
@@ -247,6 +258,10 @@ fun MainRoute(
         CharacterEffectMessage.CHARACTER_NAME_REQUIRED to stringResource(Res.string.character_name_required),
         CharacterEffectMessage.MODEL_CONFIG_REQUIRED to stringResource(Res.string.chat_model_config_required),
         CharacterEffectMessage.CHARACTER_DELETE_BUILTIN_RESTRICTED to stringResource(Res.string.character_delete_builtin_restricted),
+        CharacterEffectMessage.CHARACTER_EXPORT_SUCCESS to stringResource(Res.string.character_edit_export_success),
+        CharacterEffectMessage.CHARACTER_EXPORT_FAILED to stringResource(Res.string.character_edit_export_failed),
+        CharacterEffectMessage.CHARACTER_IMPORT_SUCCESS to stringResource(Res.string.character_edit_import_success),
+        CharacterEffectMessage.CHARACTER_IMPORT_FAILED to stringResource(Res.string.character_edit_import_failed),
     )
     val characterSavedMessage = stringResource(Res.string.character_saved)
     val characterDeletedMessage = stringResource(Res.string.character_deleted)
@@ -320,6 +335,9 @@ fun MainRoute(
                 CharacterEffect.CharacterDeleted -> {
                     scope.launch { snackbarHostState.showSnackbar(characterDeletedMessage) }
                     main.onAction(MainAction.PopBackStack)
+                }
+                CharacterEffect.RequestDirectoryPicker -> {
+                    directoryPicker.launch()
                 }
             }
         }

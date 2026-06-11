@@ -9,6 +9,7 @@ import com.kaixuan.starrailchatbox.data.character.importer.ImportedCharacterDraf
 data class CharacterEditUiState(
     val characterId: String? = null,
     val name: String = "",
+    val description: String = "",
     val prompt: String = "",
     val openingMessage: String = "",
     val avatarUri: String = "",
@@ -20,6 +21,10 @@ data class CharacterEditUiState(
     val isPromptGenDialogOpen: Boolean = false,
     val promptGenInputText: String = "",
     val isGeneratingPrompt: Boolean = false,
+    
+    // Export status
+    val isExporting: Boolean = false,
+    val exportError: String? = null,
     
     // Import status
     val importDraft: ImportedCharacterDraft? = null,
@@ -42,6 +47,7 @@ data class CharactersUiState(
 fun Character.toEditUiState() = CharacterEditUiState(
     characterId = id,
     name = name,
+    description = description,
     prompt = prompt,
     openingMessage = openingMessage,
     avatarUri = avatarUri,

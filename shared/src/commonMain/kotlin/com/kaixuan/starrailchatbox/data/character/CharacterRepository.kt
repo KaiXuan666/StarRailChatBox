@@ -10,6 +10,7 @@ import kotlin.time.Clock
 data class Character(
     val id: String,
     val name: String,
+    val description: String = "",
     val prompt: String,
     val openingMessage: String,
     val avatarUri: String,
@@ -25,6 +26,7 @@ data class Character(
 data class CharacterFiles(
     val id: String,
     val name: String,
+    val description: String = "",
     val prompt: String,
     val openingMessage: String,
     val avatarUri: String,
@@ -45,6 +47,7 @@ data class CharacterAvatarSource(
 data class DefaultCharacterAsset(
     val id: String,
     val name: String,
+    val description: String = "",
     val prompt: String,
     val openingMessage: String,
     val avatarContent: ByteArray,
@@ -120,6 +123,7 @@ class DefaultCharacterRepository(
         val files = CharacterFiles(
             id = normalizedName,
             name = normalizedName,
+            description = "",
             prompt = prompt,
             openingMessage = "",
             avatarUri = avatarSource?.uri.orEmpty(),
@@ -139,6 +143,7 @@ class DefaultCharacterRepository(
         val files = CharacterFiles(
             id = character.id,
             name = normalizedName,
+            description = character.description,
             prompt = character.prompt,
             openingMessage = character.openingMessage,
             avatarUri = character.avatarUri,
@@ -180,6 +185,7 @@ class DefaultCharacterRepository(
         return Character(
             id = asset.id,
             name = asset.name,
+            description = asset.description,
             prompt = asset.prompt,
             openingMessage = asset.openingMessage,
             avatarUri = avatarUri,
@@ -193,6 +199,7 @@ class DefaultCharacterRepository(
 private fun CharacterFiles.toCharacter() = Character(
     id = id,
     name = name,
+    description = description,
     prompt = prompt,
     openingMessage = openingMessage,
     avatarUri = avatarUri,
@@ -218,6 +225,11 @@ private suspend fun loadDefaultCharacterAssets(): List<DefaultCharacterAsset> {
         DefaultCharacterAsset(
             id = "builtin:$name",
             name = name,
+            description = try {
+                Res.readBytes("files/characters/$name.txt").decodeToString().trim()
+            } catch (_: Exception) {
+                ""
+            },
             prompt = Res.readBytes("files/characters/$name.md").decodeToString(),
             openingMessage = openingMessage,
             avatarContent = Res.readBytes("files/characters/$name.png"),

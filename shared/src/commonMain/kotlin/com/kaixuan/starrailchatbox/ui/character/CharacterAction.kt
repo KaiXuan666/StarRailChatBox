@@ -7,6 +7,7 @@ sealed interface CharacterAction {
     data class CharacterSelected(val characterId: String) : CharacterAction
     data class CharacterEditOpened(val characterId: String?) : CharacterAction
     data class CharacterNameChanged(val name: String) : CharacterAction
+    data class CharacterDescriptionChanged(val description: String) : CharacterAction
     data class CharacterPromptChanged(val prompt: String) : CharacterAction
     data class CharacterOpeningMessageChanged(val openingMessage: String) : CharacterAction
     data class CharacterAvatarChanged(val avatarSource: CharacterAvatarSource) : CharacterAction
@@ -26,6 +27,10 @@ sealed interface CharacterAction {
     data object CharacterPromptGenCancelClicked : CharacterAction
     data object CharacterRestoreDefaultClicked : CharacterAction
     data class CharactersReordered(val orderedCharacters: List<Character>) : CharacterAction
+    
+    // Export
+    data object CharacterExportClicked : CharacterAction
+    data class CharacterExportDirectorySelected(val directory: io.github.vinceglb.filekit.PlatformFile) : CharacterAction
     
     // Import
     data object CharacterImportClicked : CharacterAction

@@ -5,6 +5,8 @@ import okio.Path
 import okio.Path.Companion.toPath
 import java.io.File
 
+import io.github.vinceglb.filekit.div
+
 class JvmFileManager : KmpFileManager {
     override val fileSystem: FileSystem = FileSystem.SYSTEM
 
@@ -37,3 +39,4 @@ class JvmFileManager : KmpFileManager {
 }
 
 actual fun getPlatformFileManager(): KmpFileManager = JvmFileManager()
+

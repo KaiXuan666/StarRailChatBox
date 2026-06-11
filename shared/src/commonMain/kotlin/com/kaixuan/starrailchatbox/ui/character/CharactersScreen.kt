@@ -78,6 +78,7 @@ import com.kaixuan.starrailchatbox.ui.components.StarRailDialog
 import starrailchatbox.shared.generated.resources.cancel
 import starrailchatbox.shared.generated.resources.confirm
 import starrailchatbox.shared.generated.resources.character_edit_delete_confirm_title
+import starrailchatbox.shared.generated.resources.character_edit_export
 import starrailchatbox.shared.generated.resources.character_edit_delete_confirm_message
 import starrailchatbox.shared.generated.resources.character_edit_delete_confirm_action
 import kotlinx.coroutines.launch
@@ -307,6 +308,12 @@ fun CharactersScreen(
                                     deleteTargetCharacter = character
                                 }
                             },
+                            onExportClick = {
+                                if (draggingItemId == null) {
+                                    onAction(CharacterAction.CharacterSelected(character.id))
+                                    onAction(CharacterAction.CharacterExportClicked)
+                                }
+                            },
                             dragModifier = dragModifier,
                             isDragging = isDragging,
                             isAnyDragging = draggingItemId != null
@@ -350,6 +357,7 @@ private fun SwipeableCharacterCard(
     onClick: () -> Unit,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
+    onExportClick: () -> Unit,
     dragModifier: Modifier,
     isDragging: Boolean,
     isAnyDragging: Boolean,
@@ -460,6 +468,11 @@ private fun SwipeableCharacterCard(
                     if (offsetX.value == 0f) {
                         onEditClick()
                     }
+                },
+                onExportClick = {
+                    if (offsetX.value == 0f) {
+                        onExportClick()
+                    }
                 }
             )
         }
@@ -473,6 +486,7 @@ private fun CharacterCard(
     compact: Boolean,
     onClick: () -> Unit,
     onEditClick: () -> Unit,
+    onExportClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(
@@ -532,20 +546,43 @@ private fun CharacterCard(
                 )
             }
 
-            // 右侧编辑按钮
-            Surface(
-                onClick = onEditClick,
-                modifier = Modifier.size(if (compact) 36.dp else 40.dp),
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f)
+            // 右侧操作按钮
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    StarRailIcon(
-                        kind = StarRailIconKind.EDIT,
-                        contentDescription = stringResource(Res.string.character_list_edit_desc),
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(if (compact) 16.dp else 18.dp)
-                    )
+                // 导出按钮
+                Surface(
+                    onClick = onExportClick,
+                    modifier = Modifier.size(if (compact) 36.dp else 40.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.28f)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        StarRailIcon(
+                            kind = StarRailIconKind.FILE,
+                            contentDescription = stringResource(Res.string.character_edit_export),
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(if (compact) 16.dp else 18.dp)
+                        )
+                    }
+                }
+
+                // 编辑按钮
+                Surface(
+                    onClick = onEditClick,
+                    modifier = Modifier.size(if (compact) 36.dp else 40.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        StarRailIcon(
+                            kind = StarRailIconKind.EDIT,
+                            contentDescription = stringResource(Res.string.character_list_edit_desc),
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(if (compact) 16.dp else 18.dp)
+                        )
+                    }
                 }
             }
         }

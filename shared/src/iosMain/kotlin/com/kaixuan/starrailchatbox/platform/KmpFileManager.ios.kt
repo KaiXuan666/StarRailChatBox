@@ -8,6 +8,8 @@ import platform.Foundation.NSDocumentDirectory
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSUserDomainMask
 
+import io.github.vinceglb.filekit.div
+
 class IosFileManager : KmpFileManager {
     override val fileSystem: FileSystem = FileSystem.SYSTEM
 
@@ -47,3 +49,4 @@ class IosFileManager : KmpFileManager {
 }
 
 actual fun getPlatformFileManager(): KmpFileManager = IosFileManager()
+
