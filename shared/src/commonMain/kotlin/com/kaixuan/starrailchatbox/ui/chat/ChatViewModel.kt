@@ -12,7 +12,9 @@ import com.kaixuan.starrailchatbox.platform.readUriAsBytes
 import com.kaixuan.starrailchatbox.data.ai.ChatCompletionResult
 import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.character.Character
+import com.kaixuan.starrailchatbox.data.character.CharacterAvatarSource
 import com.kaixuan.starrailchatbox.data.character.CharacterRepository
+import com.kaixuan.starrailchatbox.data.character.importer.CharacterCardImporter
 import com.kaixuan.starrailchatbox.data.chat.ChatMessageStatus
 import com.kaixuan.starrailchatbox.data.chat.ChatRole
 import com.kaixuan.starrailchatbox.data.chat.ChatSession
@@ -58,6 +60,7 @@ class ChatViewModel(
     private val modelConfigRepository: ModelConfigRepository,
     private val aiRepository: AiRepository,
     private val profileStore: ProfileStore,
+    private val characterCardImporter: CharacterCardImporter,
     private val fileManager: KmpFileManager = KmpFileManager.Default,
     private val chatSummaryCoordinator: ChatSummaryCoordinator = ChatSummaryCoordinator(
         chatSessionRepository = chatSessionRepository,
@@ -496,6 +499,72 @@ class ChatViewModel(
                     }
                 }
             }
+            CharacterAction.CharacterImportClicked -> {
+                // UI 层面会触发文件选择器
+            }
+            is CharacterAction.CharacterImportFileSelected -> {
+                handleCharacterImport(action.path, action.name, action.extension)
+            }
+            CharacterAction.CharacterImportWarningDismissed -> {
+                updateCharacterEdit { it.copy(importDraft = it.importDraft?.copy(warnings = emptyList())) }
+            }
+            CharacterAction.CharacterImportCancelled -> {
+                updateCharacterEdit { 
+                    it.copy(
+                        importDraft = null,
+                        isImporting = false,
+                        importError = null 
+                    ) 
+                }
+            }
+        }
+    }
+
+    private fun handleCharacterImport(path: String, name: String, extension: String) {
+        updateCharacterEdit { it.copy(isImporting = true, importError = null) }
+        viewModelScope.launch {
+            when (val result = characterCardImporter.importFromFile(path, name, extension)) {
+                is ApiResult.Success -> {
+                    val draft = result.value
+                    updateCharacterEdit {
+                        it.copy(
+                            isImporting = false,
+                            importDraft = draft,
+                            name = draft.name,
+                            prompt = draft.prompt,
+                            openingMessage = draft.openingMessage,
+                            avatarUri = draft.avatarUri ?: it.avatarUri,
+                            pendingAvatarSource = draft.avatarUri?.let { uri ->
+                                CharacterAvatarSource(uri, name, extension)
+                            } ?: it.pendingAvatarSource
+                        )
+                    }
+                }
+                is ApiResult.HttpError -> {
+                    updateCharacterEdit {
+                        it.copy(
+                            isImporting = false,
+                            importError = "导入失败: HTTP ${result.statusCode}"
+                        )
+                    }
+                }
+                is ApiResult.NetworkError -> {
+                    updateCharacterEdit {
+                        it.copy(
+                            isImporting = false,
+                            importError = "导入失败: 网络错误"
+                        )
+                    }
+                }
+                is ApiResult.UnexpectedError -> {
+                    updateCharacterEdit {
+                        it.copy(
+                            isImporting = false,
+                            importError = "导入失败: ${result.message}"
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -524,8 +593,12 @@ class ChatViewModel(
 
     private fun openCharacterEdit(characterId: String?) {
         if (characterId == null) {
-            _characterUiState.update {
-                it.copy(
+            _characterUiState.update { state ->
+                // If we are currently importing a new character, don't reset the state
+                if (state.characterEdit.characterId == null && (state.characterEdit.isImporting || state.characterEdit.importDraft != null)) {
+                    return@update state
+                }
+                state.copy(
                     characterEdit = CharacterEditUiState(
                         characterId = null,
                         name = "",

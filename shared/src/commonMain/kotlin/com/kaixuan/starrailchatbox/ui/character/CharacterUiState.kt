@@ -3,6 +3,7 @@ package com.kaixuan.starrailchatbox.ui.character
 import androidx.compose.runtime.Immutable
 import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.data.character.CharacterAvatarSource
+import com.kaixuan.starrailchatbox.data.character.importer.ImportedCharacterDraft
 
 @Immutable
 data class CharacterEditUiState(
@@ -19,6 +20,11 @@ data class CharacterEditUiState(
     val isPromptGenDialogOpen: Boolean = false,
     val promptGenInputText: String = "",
     val isGeneratingPrompt: Boolean = false,
+    
+    // Import status
+    val importDraft: ImportedCharacterDraft? = null,
+    val isImporting: Boolean = false,
+    val importError: String? = null,
 )
 
 @Immutable

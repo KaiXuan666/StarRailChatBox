@@ -2,6 +2,7 @@ package com.kaixuan.starrailchatbox.ui.character
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,6 +40,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kaixuan.starrailchatbox.data.character.CharacterAvatarSource
 import com.kaixuan.starrailchatbox.data.character.Character
+import com.kaixuan.starrailchatbox.data.character.importer.ImportedCharacterDraft
+import com.kaixuan.starrailchatbox.data.character.importer.ImportWarning
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
@@ -94,7 +97,7 @@ import kotlin.math.roundToInt
 
 private const val MaxCharacterNameLength = 40
 private const val MaxPromptLength = 10000
-private const val MaxOpeningMessageLength = 1000
+private const val MaxOpeningMessageLength = 3000
 
 @Composable
 fun CharacterEditScreen(
@@ -140,6 +143,81 @@ fun CharacterEditScreen(
         modifier = modifier,
         contentSpacing = StarRailSpacing.md,
     ) {
+        if (editState.isImporting) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
+                shape = MaterialTheme.shapes.large,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    StarRailIcon(
+                        kind = StarRailIconKind.UPDATE,
+                        tint = MaterialTheme.colorScheme.primary,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Text(
+                        text = "正在导入角色卡...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+        }
+
+        if (editState.importDraft != null) {
+            CharacterImportBanner(
+                draft = editState.importDraft,
+                onDismiss = { onAction(CharacterAction.CharacterImportCancelled) },
+                onClearWarnings = { onAction(CharacterAction.CharacterImportWarningDismissed) }
+            )
+        }
+
+        if (editState.importError != null) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f),
+                shape = MaterialTheme.shapes.large,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    StarRailIcon(
+                        kind = StarRailIconKind.INFO,
+                        tint = MaterialTheme.colorScheme.error,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Text(
+                        text = editState.importError,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Surface(
+                        onClick = { onAction(CharacterAction.CharacterImportCancelled) },
+                        shape = CircleShape,
+                        color = Color.Transparent
+                    ) {
+                        StarRailIcon(
+                            kind = StarRailIconKind.CLOSE,
+                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp).padding(4.dp)
+                        )
+                    }
+                }
+            }
+        }
+
         CharacterIdentityCard(
             state = editState,
             compact = compact,
@@ -299,28 +377,134 @@ fun CharacterEditScreen(
                 ),
                 onClick = { onAction(CharacterAction.CharacterSaveClicked) },
                 modifier = Modifier.weight(1f),
-                enabled = !editState.isSaving,
+                enabled = !editState.isSaving && editState.name.length <= MaxCharacterNameLength && editState.prompt.length <= MaxPromptLength,
             )
+        }
+
+        if (editState.isPromptGenDialogOpen) {
+            StarRailDialog(
+                title = stringResource(Res.string.character_edit_prompt_gen_title),
+                dismissText = stringResource(Res.string.cancel),
+                confirmText = stringResource(Res.string.confirm),
+                onDismissRequest = { onAction(CharacterAction.CharacterPromptGenCancelClicked) },
+                onConfirm = { onAction(CharacterAction.CharacterPromptGenConfirmClicked) },
+            ) {
+                LabeledTextField(
+                    value = editState.promptGenInputText,
+                    onValueChange = { text ->
+                        onAction(CharacterAction.CharacterPromptGenInputChanged(text))
+                    },
+                    minLines = 4,
+                )
+            }
         }
     }
+}
 
-    if (editState.isPromptGenDialogOpen) {
-        StarRailDialog(
-            title = stringResource(Res.string.character_edit_prompt_gen_title),
-            dismissText = stringResource(Res.string.cancel),
-            confirmText = stringResource(Res.string.confirm),
-            onDismissRequest = { onAction(CharacterAction.CharacterPromptGenCancelClicked) },
-            onConfirm = { onAction(CharacterAction.CharacterPromptGenConfirmClicked) },
-        ) {
-            LabeledTextField(
-                value = editState.promptGenInputText,
-                onValueChange = { text ->
-                    onAction(CharacterAction.CharacterPromptGenInputChanged(text))
-                },
-                minLines = 4,
-            )
+@Composable
+private fun CharacterImportBanner(
+    draft: ImportedCharacterDraft,
+    onDismiss: () -> Unit,
+    onClearWarnings: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f),
+        shape = MaterialTheme.shapes.large,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                StarRailIcon(
+                    kind = StarRailIconKind.FILE,
+                    tint = MaterialTheme.colorScheme.secondary,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp)
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "角色卡已导入",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Text(
+                        text = "来源版本: ${draft.sourceVersion}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                    )
+                }
+                Surface(
+                    onClick = onDismiss,
+                    shape = CircleShape,
+                    color = Color.Transparent
+                ) {
+                    StarRailIcon(
+                        kind = StarRailIconKind.CLOSE,
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp).padding(4.dp)
+                    )
+                }
+            }
+
+            if (draft.warnings.isNotEmpty()) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            StarRailIcon(
+                                kind = StarRailIconKind.INFO,
+                                tint = MaterialTheme.starRailColors.warmSparkle,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "导入警告",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.starRailColors.warmSparkle
+                            )
+                        }
+                        draft.warnings.forEach { warning ->
+                            val text = when (warning) {
+                                ImportWarning.UNSUPPORTED_V3_FIELDS -> "部分 V3 专属字段暂不支持，已忽略。"
+                                ImportWarning.UNSUPPORTED_ALTERNATE_GREETINGS -> "备选开场白未导入。"
+                                ImportWarning.UNSUPPORTED_CHARACTER_BOOK -> "世界书（Lorebook）未导入。"
+                                ImportWarning.UNSUPPORTED_TAGS -> "标签未导入。"
+                                ImportWarning.UNSUPPORTED_CREATOR_NOTES -> "作者备注未导入。"
+                                ImportWarning.OTHER_EXTENSIONS_IGNORED -> "其他扩展字段已忽略。"
+                            }
+                            Text(
+                                text = "• $text",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        
+                        Text(
+                            text = "我知道了",
+                            modifier = Modifier
+                                .align(Alignment.End)
+                                .clickable { onClearWarnings() }
+                                .padding(top = 4.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
         }
-    }}
+    }
+}
 
 @Composable
 private fun CharacterIdentityCard(

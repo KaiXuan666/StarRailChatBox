@@ -26,4 +26,10 @@ sealed interface CharacterAction {
     data object CharacterPromptGenCancelClicked : CharacterAction
     data object CharacterRestoreDefaultClicked : CharacterAction
     data class CharactersReordered(val orderedCharacters: List<Character>) : CharacterAction
+    
+    // Import
+    data object CharacterImportClicked : CharacterAction
+    data class CharacterImportFileSelected(val path: String, val name: String, val extension: String) : CharacterAction
+    data object CharacterImportWarningDismissed : CharacterAction
+    data object CharacterImportCancelled : CharacterAction
 }

@@ -184,6 +184,21 @@ fun MainRoute(
     val filePicker = rememberFilePickerLauncher(type = FileKitType.File()) { picked ->
         picked?.let { chat.onAction(ChatAction.FileSelected(it.path ?: "", it.name, it.extension)) }
     }
+    val characterCardPicker = rememberFilePickerLauncher(
+        type = FileKitType.File(listOf("png", "json"))
+    ) { picked ->
+        picked?.let { 
+            coroutineScope.launch {
+                val bytes = com.kaixuan.starrailchatbox.platform.readUriAsBytes(it.path ?: "")
+                val cacheFileName = "import_raw_${kotlin.time.Clock.System.now().toEpochMilliseconds()}.${it.extension}"
+                val cachePath = com.kaixuan.starrailchatbox.platform.KmpFileManager.Default.cacheDir / cacheFileName
+                com.kaixuan.starrailchatbox.platform.KmpFileManager.Default.writeBytes(cachePath, bytes)
+                
+                main.onAction(MainAction.NavigateTo(Route.CharacterEdit(null)))
+                characters.onAction(CharacterAction.CharacterImportFileSelected(cachePath.toString(), it.name, it.extension))
+            }
+        }
+    }
     val cameraLauncher = rememberCameraLauncher { captured ->
         captured?.let { 
             coroutineScope.launch {
@@ -204,6 +219,13 @@ fun MainRoute(
                 }
             }
             else -> chat.onAction(action)
+        }
+    }
+
+    val wrappedOnCharacterAction: (CharacterAction) -> Unit = { action ->
+        when (action) {
+            CharacterAction.CharacterImportClicked -> characterCardPicker.launch()
+            else -> characters.onAction(action)
         }
     }
 
@@ -371,7 +393,7 @@ fun MainRoute(
         profileState = profile.state,
         snackbarHostState = snackbarHostState,
         onMainAction = main.onAction,
-        onCharacterAction = characters.onAction,
+        onCharacterAction = wrappedOnCharacterAction,
         onChatAction = wrappedOnChatAction,
         onSettingsAction = settings.onAction,
         onProfileAction = profile.onAction,
