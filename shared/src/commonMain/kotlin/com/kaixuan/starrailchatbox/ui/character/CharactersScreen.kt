@@ -45,6 +45,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.kaixuan.starrailchatbox.data.character.CharacterSummary
@@ -61,6 +65,13 @@ import org.jetbrains.compose.resources.stringResource
 import starrailchatbox.shared.generated.resources.Res
 import starrailchatbox.shared.generated.resources.character_list_title
 import starrailchatbox.shared.generated.resources.character_list_my_characters
+import starrailchatbox.shared.generated.resources.character_list_help_title
+import starrailchatbox.shared.generated.resources.character_list_help_what_is_card
+import starrailchatbox.shared.generated.resources.character_list_help_card_desc
+import starrailchatbox.shared.generated.resources.character_list_help_import_title
+import starrailchatbox.shared.generated.resources.character_list_help_import_desc
+import starrailchatbox.shared.generated.resources.character_list_help_export_title
+import starrailchatbox.shared.generated.resources.character_list_help_export_desc
 import starrailchatbox.shared.generated.resources.character_list_create_btn
 import starrailchatbox.shared.generated.resources.character_list_edit_desc
 import starrailchatbox.shared.generated.resources.character_list_empty
@@ -104,6 +115,7 @@ fun CharactersScreen(
     var dragOffsetY by remember { mutableStateOf(0f) }
     var currentList by remember(sortedCharacters) { mutableStateOf(sortedCharacters) }
     var deleteTargetCharacter by remember { mutableStateOf<CharacterSummary?>(null) }
+    var showHelpDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(sortedCharacters) {
         if (draggingItemId == null) {
@@ -138,70 +150,96 @@ fun CharactersScreen(
                     horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.xs)
                 ) {
 
-                Surface(
-                    onClick = {
-                        onAction(CharacterAction.CharacterImportClicked)
-                    },
-                    shape = RoundedCornerShape(50),
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    modifier = Modifier.height(34.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Surface(
+                        onClick = {
+                            onAction(CharacterAction.CharacterImportClicked)
+                        },
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        modifier = Modifier.height(34.dp)
                     ) {
-                        Text(
-                            text = "导入角色卡",
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                        StarRailIcon(
-                            kind = StarRailIconKind.FILE,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.size(12.dp)
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "导入角色卡",
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            StarRailIcon(
+                                kind = StarRailIconKind.FILE,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
                     }
-                }
 
-                Surface(
-                    onClick = {
-                        onMainAction(MainAction.NavigateTo(Route.CharacterEdit(null)))
-                    },
-                    shape = RoundedCornerShape(50),
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.height(34.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Surface(
+                        onClick = { showHelpDialog = true },
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        modifier = Modifier.height(34.dp)
                     ) {
-                        Text(
-                            text = stringResource(Res.string.character_list_create_btn),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                        StarRailIcon(
-                            kind = StarRailIconKind.ADD,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(12.dp)
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "帮助",
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            StarRailIcon(
+                                kind = StarRailIconKind.INFO,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
+                    }
+
+                    Surface(
+                        onClick = {
+                            onMainAction(MainAction.NavigateTo(Route.CharacterEdit(null)))
+                        },
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.height(34.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(Res.string.character_list_create_btn),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            StarRailIcon(
+                                kind = StarRailIconKind.ADD,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
                     }
                 }
             }
-        }
 
-        Text(
-            text = stringResource(Res.string.character_list_drag_tip),
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
-            style = MaterialTheme.typography.bodySmall
-        )
-    }
+            Text(
+                text = stringResource(Res.string.character_list_drag_tip),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
 
         // 角色卡片列表
         if (currentList.isEmpty() && !state.isLoadingCharacters) {
@@ -229,7 +267,7 @@ fun CharactersScreen(
                 ) { character ->
                     val isDragging = character.id == draggingItemId
                     val cardIndex = currentList.indexOfFirst { it.id == character.id }
-                    
+
                     val dragModifier = Modifier.pointerInput(character.id) {
                         detectDragGesturesAfterLongPress(
                             onDragStart = {
@@ -239,7 +277,7 @@ fun CharactersScreen(
                             onDrag = { change, dragAmount ->
                                 change.consume()
                                 dragOffsetY += dragAmount.y
-                                
+
                                 val index = currentList.indexOfFirst { it.id == draggingItemId }
                                 if (index != -1) {
                                     if (dragOffsetY > thresholdPx && index < currentList.lastIndex) {
@@ -344,6 +382,70 @@ fun CharactersScreen(
                 )
             }
         }
+
+        if (showHelpDialog) {
+            StarRailDialog(
+                title = stringResource(Res.string.character_list_help_title),
+                confirmText = stringResource(Res.string.confirm),
+                onDismissRequest = { showHelpDialog = false },
+                onConfirm = { showHelpDialog = false },
+            ) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
+                    modifier = Modifier.padding(bottom = StarRailSpacing.sm)
+                ) {
+                    HelpSection(
+                        title = stringResource(Res.string.character_list_help_what_is_card),
+                        description = stringResource(Res.string.character_list_help_card_desc)
+                    )
+                    HelpSection(
+                        title = stringResource(Res.string.character_list_help_import_title),
+                        description = stringResource(Res.string.character_list_help_import_desc)
+                    )
+                    HelpSection(
+                        title = stringResource(Res.string.character_list_help_export_title),
+                        description = stringResource(Res.string.character_list_help_export_desc),
+                        boldPart = "以文件形式发送，或发送图片时勾选原图"
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HelpSection(
+    title: String,
+    description: String,
+    boldPart: String? = null,
+) {
+    val descriptionAnnotated = remember(description, boldPart) {
+        if (boldPart != null && description.contains(boldPart)) {
+            val startIndex = description.indexOf(boldPart)
+            buildAnnotatedString {
+                append(description.substring(0, startIndex))
+                withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                    append(boldPart)
+                }
+                append(description.substring(startIndex + boldPart.length))
+            }
+        } else {
+            AnnotatedString(description)
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Text(
+            text = descriptionAnnotated,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

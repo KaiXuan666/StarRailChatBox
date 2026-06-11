@@ -256,6 +256,13 @@
     <string name="character_list_edit_desc">编辑</string>
     <string name="character_list_empty">暂无自定义角色</string>
     <string name="character_list_drag_tip">长按角色卡可拖动排序，左滑可删除角色</string>
+    <string name="character_list_help_title">角色卡说明</string>
+    <string name="character_list_help_what_is_card">什么是角色卡？</string>
+    <string name="character_list_help_card_desc">角色卡包含了 AI 的性格、背景设定、开场白。通过导入/导出功能，您可以轻松备份自己调教好的角色，或与他人分享。</string>
+    <string name="character_list_help_import_title">导入角色卡</string>
+    <string name="character_list_help_import_desc">你可以导入其他用户分享给你的角色卡。</string>
+    <string name="character_list_help_export_title">导出角色卡</string>
+    <string name="character_list_help_export_desc">你可以导出角色卡，以分享给其他用户，切记请以文件形式发送，或发送图片时勾选原图，否则导出的角色卡会失效。</string>
     <string name="view_attachments">查看附件</string>
     <string name="attachments_title">消息附件</string>
     <string name="open_file">打开</string>
