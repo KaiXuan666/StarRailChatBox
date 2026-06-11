@@ -131,14 +131,13 @@ fun CharactersScreen(
         Column(verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = stringResource(Res.string.character_list_drag_tip),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
-                    style = MaterialTheme.typography.bodySmall
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.xs)
+                ) {
 
                 Surface(
                     onClick = {
@@ -168,8 +167,6 @@ fun CharactersScreen(
                     }
                 }
 
-                Spacer(Modifier.width(StarRailSpacing.xs))
-
                 Surface(
                     onClick = {
                         onMainAction(MainAction.NavigateTo(Route.CharacterEdit(null)))
@@ -198,9 +195,14 @@ fun CharactersScreen(
                     }
                 }
             }
-
-
         }
+
+        Text(
+            text = stringResource(Res.string.character_list_drag_tip),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+            style = MaterialTheme.typography.bodySmall
+        )
+    }
 
         // 角色卡片列表
         if (currentList.isEmpty() && !state.isLoadingCharacters) {
