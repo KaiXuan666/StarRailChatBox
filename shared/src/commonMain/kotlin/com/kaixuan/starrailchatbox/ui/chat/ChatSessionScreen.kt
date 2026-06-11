@@ -56,6 +56,7 @@ fun ChatSessionScreen(
     charactersState: ChatCharactersUiState,
     contentPadding: PaddingValues,
     compact: Boolean,
+    isActive: Boolean,
     onAction: (ChatAction) -> Unit,
     onCharacterAction: (CharacterAction) -> Unit,
     onMainAction: (MainAction) -> Unit,
@@ -64,6 +65,9 @@ fun ChatSessionScreen(
     isCancelTargeted: Boolean = false,
 ) {
     val characters = charactersState.characters
+    val pagerCharacters = remember(characters, compact) {
+        chatPagerCharacters(characters, compact)
+    }
     val selectedCharacter = charactersState.selectedCharacter
     val coroutineScope = rememberCoroutineScope()
 
@@ -102,14 +106,14 @@ fun ChatSessionScreen(
         return
     }
 
-    val initialPage = remember(characters, selectedCharacter) {
-        val index = characters.indexOfFirst { it.id == selectedCharacter?.id }
+    val initialPage = remember(pagerCharacters, selectedCharacter) {
+        val index = pagerCharacters.indexOfFirst { it.id == selectedCharacter?.id }
         if (index != -1) index else 0
     }
 
     val pagerState = rememberPagerState(
         initialPage = initialPage,
-    ) { characters.size }
+    ) { pagerCharacters.size }
     
     val audioPlayer = rememberAudioPlayer()
     var playingAudioUri by remember { mutableStateOf<String?>(null) }
@@ -131,8 +135,8 @@ fun ChatSessionScreen(
 
     // 缓存每个角色的 LazyListState
     val pageListStates = remember { mutableMapOf<String, LazyListState>() }
-    val currentStates = remember(characters) {
-        characters.associate { character ->
+    val currentStates = remember(pagerCharacters) {
+        pagerCharacters.associate { character ->
             character.id to pageListStates.getOrPut(character.id) {
                 LazyListState()
             }
@@ -140,27 +144,34 @@ fun ChatSessionScreen(
     }
     val initiallyPositionedCharacterIds = remember { mutableSetOf<String>() }
 
-    LaunchedEffect(selectedCharacter?.id) {
-        val targetPage = characters.indexOfFirst { it.id == selectedCharacter?.id }
+    LaunchedEffect(isActive, selectedCharacter?.id, pagerCharacters) {
+        if (!isActive) return@LaunchedEffect
+        val targetPage = pagerCharacters.indexOfFirst { it.id == selectedCharacter?.id }
         if (targetPage != -1 && pagerState.currentPage != targetPage) {
             pagerState.scrollToPage(targetPage)
         }
     }
 
-    LaunchedEffect(pagerState.currentPage) {
-        val targetCharacter = characters.getOrNull(pagerState.currentPage)
+    LaunchedEffect(isActive, pagerState.currentPage, pagerCharacters, selectedCharacter?.id) {
+        if (!isActive) return@LaunchedEffect
+        if (selectedCharacter != null &&
+            pagerCharacters.none { it.id == selectedCharacter.id }
+        ) {
+            return@LaunchedEffect
+        }
+        val targetCharacter = pagerCharacters.getOrNull(pagerState.currentPage)
         if (targetCharacter != null && targetCharacter.id != selectedCharacter?.id) {
             onCharacterAction(CharacterAction.CharacterSelected(targetCharacter.id))
         }
     }
 
-    LaunchedEffect(characters, selectedCharacter) {
-        if (selectedCharacter != null) {
-            val isTopFour = characters.take(4)
-                .any { it.id == selectedCharacter.id }
-            if (!isTopFour) {
-                onAction(ChatAction.RestoreMainCharacter)
-            }
+    LaunchedEffect(isActive, compact, pagerCharacters, selectedCharacter?.id) {
+        if (isActive &&
+            compact &&
+            selectedCharacter != null &&
+            pagerCharacters.none { it.id == selectedCharacter.id }
+        ) {
+            onAction(ChatAction.RestoreMainCharacter)
         }
     }
 
@@ -193,11 +204,11 @@ fun ChatSessionScreen(
                 .padding(vertical = StarRailSpacing.sm)
         ) {
             CharacterSelector(
-                characters = characters,
+                characters = pagerCharacters,
                 selectedCharacterId = selectedCharacter?.id,
                 compact = compact,
                 onCharacterSelected = { characterId ->
-                    val index = characters.indexOfFirst { it.id == characterId }
+                    val index = pagerCharacters.indexOfFirst { it.id == characterId }
                     if (index != -1) {
                         coroutineScope.launch {
                             if (pagerState.currentPage != index) {
@@ -218,7 +229,7 @@ fun ChatSessionScreen(
             state = pagerState,
             modifier = Modifier.weight(1f),
         ) { page ->
-            val pageCharacter = characters[page]
+            val pageCharacter = pagerCharacters[page]
             val pageState = state.characterStates[pageCharacter.id] ?: CharacterChatState()
             val charactersById = remember(characters) {
                 characters.associateBy(CharacterSummary::id)
@@ -335,3 +346,8 @@ fun ChatSessionScreen(
         }
     }
 }
+
+internal fun chatPagerCharacters(
+    characters: List<CharacterSummary>,
+    compact: Boolean,
+): List<CharacterSummary> = if (compact) characters.take(4) else characters

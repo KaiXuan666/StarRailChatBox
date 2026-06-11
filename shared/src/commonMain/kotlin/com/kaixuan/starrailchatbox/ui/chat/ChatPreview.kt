@@ -21,6 +21,7 @@ fun ChatSessionScreenLightPreview() {
             charactersState = charactersPreviewState,
             contentPadding = PaddingValues(0.dp),
             compact = true,
+            isActive = true,
             onAction = {},
             onCharacterAction = {},
             onMainAction = {}
@@ -37,6 +38,7 @@ fun ChatSessionScreenDarkPreview() {
             charactersState = charactersPreviewState,
             contentPadding = PaddingValues(0.dp),
             compact = true,
+            isActive = true,
             onAction = {},
             onCharacterAction = {},
             onMainAction = {}
