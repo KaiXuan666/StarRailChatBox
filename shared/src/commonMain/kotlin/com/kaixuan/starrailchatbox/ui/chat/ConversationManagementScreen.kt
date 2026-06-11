@@ -34,6 +34,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
 import starrailchatbox.shared.generated.resources.Res
+import starrailchatbox.shared.generated.resources.action_character_edit
 import starrailchatbox.shared.generated.resources.cancel
 import starrailchatbox.shared.generated.resources.conversation_management_count
 import starrailchatbox.shared.generated.resources.conversation_management_companion_days
@@ -62,6 +63,7 @@ import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
 import com.kaixuan.starrailchatbox.ui.main.MainAction
+import com.kaixuan.starrailchatbox.ui.navigation.Route
 import kotlin.time.Clock
 
 /**
@@ -102,6 +104,9 @@ fun ConversationManagementScreen(
                     now = Clock.System.now().toEpochMilliseconds(),
                 ),
                 compact = compact,
+                onEditClick = {
+                    onMainAction(MainAction.NavigateTo(Route.CharacterEdit(characterId = character.id)))
+                },
             )
         }
 
@@ -201,6 +206,7 @@ private fun CharacterConversationCard(
     sessionCount: Int,
     companionDays: Int,
     compact: Boolean,
+    onEditClick: () -> Unit,
 ) {
     val shape = MaterialTheme.shapes.large
     Box(
@@ -268,11 +274,22 @@ private fun CharacterConversationCard(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                 )
-//                Text(
-//                    text = stringResource(Res.string.conversation_management_count, sessionCount),
-//                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-//                    style = MaterialTheme.typography.bodyMedium,
-//                )
+                Surface(
+                    onClick = onEditClick,
+                    modifier = Modifier.size(40.dp),
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        StarRailIcon(
+                            kind = StarRailIconKind.EDIT,
+                            contentDescription = stringResource(Res.string.action_character_edit),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
             }
         }
     }
