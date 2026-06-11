@@ -55,6 +55,9 @@ import starrailchatbox.shared.generated.resources.Res
 import starrailchatbox.shared.generated.resources.settings_api_fetching
 import starrailchatbox.shared.generated.resources.settings_api_host
 import starrailchatbox.shared.generated.resources.settings_api_key
+import starrailchatbox.shared.generated.resources.settings_image_provider
+import starrailchatbox.shared.generated.resources.settings_image_provider_ali
+import starrailchatbox.shared.generated.resources.settings_image_provider_openai
 import starrailchatbox.shared.generated.resources.settings_api_model_selected
 import starrailchatbox.shared.generated.resources.settings_api_empty_models
 import starrailchatbox.shared.generated.resources.settings_api_title
@@ -79,6 +82,7 @@ import starrailchatbox.shared.generated.resources.navigation_back
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
+import com.kaixuan.starrailchatbox.data.ai.image.ImageGenerationProviderIds
 import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
 import com.kaixuan.starrailchatbox.ui.components.StarRailPrimaryButton
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
@@ -143,6 +147,34 @@ fun ApiSettingsScreen(
             onBackClick = { onMainAction(MainAction.PopBackStack) },
             contentSpacing = StarRailSpacing.lg,
         ) {
+            if (isImageGeneration) {
+                val openAiLabel = stringResource(Res.string.settings_image_provider_openai)
+                val aliLabel = stringResource(Res.string.settings_image_provider_ali)
+                val providerLabels = listOf(openAiLabel, aliLabel)
+                val selectedProviderLabel = when (state.imageProviderId) {
+                    ImageGenerationProviderIds.Ali -> aliLabel
+                    else -> openAiLabel
+                }
+                StarRailDropdown(
+                    label = stringResource(Res.string.settings_image_provider),
+                    options = providerLabels,
+                    selectedOption = selectedProviderLabel,
+                    onOptionSelected = { label ->
+                        onApiAction(
+                            ApiSettingsAction.ImageProviderSelected(
+                                if (label == aliLabel) {
+                                    ImageGenerationProviderIds.Ali
+                                } else {
+                                    ImageGenerationProviderIds.OpenAiCompatible
+                                },
+                            ),
+                        )
+                    },
+                    compact = compact,
+                    iconKind = StarRailIconKind.COMPASS,
+                )
+            }
+
             // --- API Host Section ---
             Column(
                 verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs)
@@ -160,7 +192,8 @@ fun ApiSettingsScreen(
                     onValueChange = { onApiAction(ApiSettingsAction.ApiHostChanged(it)) },
                     placeholder = if (isVoice) "https://api.xiaomimimo.com/v1" else "https://api.openai.com/v1",
                     leadingIcon = StarRailIconKind.COMPASS,
-                    compact = compact
+                    compact = compact,
+                    enabled = !isImageGeneration || state.imageProviderId != ImageGenerationProviderIds.Ali,
                 )
             }
 
@@ -395,7 +428,8 @@ private fun ApiInputField(
     isPasswordField: Boolean = false,
     passwordVisible: Boolean = false,
     onPasswordToggle: () -> Unit = {},
-    compact: Boolean = false
+    compact: Boolean = false,
+    enabled: Boolean = true,
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -434,6 +468,7 @@ private fun ApiInputField(
                 BasicTextField(
                     value = value,
                     onValueChange = onValueChange,
+                    enabled = enabled,
                     modifier = Modifier.fillMaxWidth(),
                     textStyle = TextStyle(
                         color = MaterialTheme.colorScheme.onSurface,

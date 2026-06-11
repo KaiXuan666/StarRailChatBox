@@ -3,24 +3,21 @@ package com.kaixuan.starrailchatbox.data.ai.tool
 import com.kaixuan.starrailchatbox.data.ai.AiMessage
 import com.kaixuan.starrailchatbox.data.ai.AiToolCall
 import com.kaixuan.starrailchatbox.data.ai.AiToolDefinition
+import com.kaixuan.starrailchatbox.data.ai.image.ImageGenerationOutput
+import com.kaixuan.starrailchatbox.data.ai.image.ImageGenerationProviderRegistry
+import com.kaixuan.starrailchatbox.data.ai.image.ImageGenerationRequest
+import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
 import com.kaixuan.starrailchatbox.platform.KmpFileManager
 import io.github.aakira.napier.Napier
-import io.github.vinceglb.filekit.FileKit
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
-import io.ktor.client.request.get
-import io.ktor.client.request.header
-import io.ktor.client.request.post
 import io.ktor.client.request.prepareGet
-import io.ktor.client.request.setBody
-import io.ktor.client.statement.bodyAsText
-import io.ktor.http.ContentType
-import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.readRemaining
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
@@ -30,15 +27,12 @@ import kotlinx.io.readByteArray
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
-import okio.BufferedSink
-import okio.Path
-import okio.Path.Companion.toPath
+import kotlin.io.encoding.Base64
 import kotlin.random.Random
 
 /**
@@ -47,6 +41,7 @@ import kotlin.random.Random
  */
 class ImageGenerationTool(
     private val modelConfigRepository: ModelConfigRepository,
+    private val providerRegistry: ImageGenerationProviderRegistry,
     private val httpClient: HttpClient,
     private val fileManager: KmpFileManager,
     private val json: Json = Json { ignoreUnknownKeys = true },
@@ -64,7 +59,12 @@ class ImageGenerationTool(
             while (isActive) {
                 try {
                     val config = modelConfigRepository.getImageGeneration()
-                    cachedIsAvailable = config != null && config.baseUrl.isNotBlank() && config.apiKey.isNotBlank()
+                    cachedIsAvailable = config != null &&
+                        config.enabled &&
+                        config.baseUrl.isNotBlank() &&
+                        config.apiKey.isNotBlank() &&
+                        config.modelName.isNotBlank() &&
+                        providerRegistry.find(config.provider) != null
                 } catch (_: Throwable) {
                     cachedIsAvailable = false
                 }
@@ -125,6 +125,8 @@ class ImageGenerationTool(
             val attachedText = arguments["attached_text"]?.jsonPrimitive?.content ?: "喏，你要的图片。"
 
             generateImage(prompt, aspectRatio, attachedText)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
         } catch (t: Throwable) {
             t.printStackTrace()
             ToolResult.Error("invalid_tool_arguments", "Failed to parse arguments: ${t.message}")
@@ -181,6 +183,8 @@ class ImageGenerationTool(
                     ToolResult.Terminal(content = plainText)
                 }
             }
+        } catch (cancellation: CancellationException) {
+            throw cancellation
         } catch (t: Throwable) {
             t.printStackTrace()
             ToolResult.Terminal(content = plainText)
@@ -197,96 +201,110 @@ class ImageGenerationTool(
             return ToolResult.Error("invalid_config", "Image generation config is incomplete")
         }
 
+        val provider = providerRegistry.find(config.provider)
+            ?: return ToolResult.Error(
+                "unsupported_provider",
+                "Unsupported image generation provider: ${config.provider}",
+            )
+
+        return when (
+            val result = provider.generate(
+                config = config,
+                request = ImageGenerationRequest(
+                    prompt = prompt,
+                    aspectRatio = aspectRatio,
+                ),
+            )
+        ) {
+            is ApiResult.Success -> saveGeneratedImage(result.value, attachedText)
+            is ApiResult.HttpError -> ToolResult.Error(
+                "http_${result.statusCode}",
+                "Image generation request failed.",
+            )
+            is ApiResult.NetworkError -> ToolResult.Error(
+                "network_error",
+                "Image generation network request failed.",
+            )
+            is ApiResult.UnexpectedError -> ToolResult.Error(
+                "generation_failed",
+                result.message ?: "Image generation returned an invalid response.",
+            )
+        }
+    }
+
+    private suspend fun saveGeneratedImage(
+        output: ImageGenerationOutput,
+        attachedText: String,
+    ): ToolResult {
         return try {
-            val size = when (aspectRatio) {
-                "4:3" -> "1280*960"
-                "3:4" -> "960*1280"
-                "16:9" -> "1440*810"
-                "9:16" -> "810*1440"
-                else -> "1024*1024"
-            }
-
-            val requestBody = buildJsonObject {
-                put("model", config.modelName.takeIf(String::isNotBlank) ?: "z-image-turbo")
-                putJsonObject("input") {
-                    putJsonArray("messages") {
-                        add(buildJsonObject {
-                            put("role", "user")
-                            putJsonArray("content") {
-                                add(buildJsonObject {
-                                    put("text", prompt)
-                                })
-                            }
-                        })
-                    }
-                }
-                putJsonObject("parameters") {
-                    put("size", size)
-                    put("prompt_extend", false)
-                }
-            }
-//https://dashscope.aliyuncs.com/compatible-mode/v1
-            //https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
-            Napier.d { "config.baseUrl=${config.baseUrl}" }
-//            val response = httpClient.post("${config.baseUrl.trimEnd('/')}/images/generations") {
-            val response = httpClient.post("https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation") {
-                header(HttpHeaders.Authorization, "Bearer ${config.apiKey.trim()}")
-                header("api-key", config.apiKey.trim())
-                contentType(ContentType.Application.Json)
-                setBody(requestBody)
-            }
-
-            val responseText = response.bodyAsText()
-            val jsonObject = json.parseToJsonElement(responseText).jsonObject
-            
-            // 解析 DashScope 格式: output.choices[0].message.content[0].image
-            val imageUrl = jsonObject["output"]?.jsonObject
-                ?.get("choices")?.jsonArray?.getOrNull(0)?.jsonObject
-                ?.get("message")?.jsonObject
-                ?.get("content")?.jsonArray?.getOrNull(0)?.jsonObject
-                ?.get("image")?.jsonPrimitive?.content
-
-            if (!imageUrl.isNullOrBlank()) {
-                val randomSuffix = (Random.nextLong() and 0x7FFFFFFFFFFFFFFF).toString(36)
-                // 优先从 URL 提取后缀名
-                val extension = imageUrl.substringAfterLast('.', "png").let { ext ->
-                    if (ext.contains('/') || ext.length > 5) "png" else ext
-                }
-                val fileName = "gen_$randomSuffix.$extension"
-                val relativePath = "generated_images/$fileName"
-                val fullPath = fileManager.appDataDir / relativePath
-                
-                // 确保父目录存在
-                fullPath.parent?.let { fileManager.createDirectories(it) }
-
-                // 流式下载并保存
-                httpClient.prepareGet(imageUrl).execute { httpResponse ->
-                    val channel: ByteReadChannel = httpResponse.body()
-                    fileManager.fileSystem.write(fullPath) {
-                        while (!channel.isClosedForRead) {
-                            val packet = channel.readRemaining(8192)
-                            while (!packet.exhausted()) {
-                                val bytes = packet.readByteArray()
-                                write(bytes)
+            val randomSuffix = (Random.nextLong() and Long.MAX_VALUE).toString(36)
+            val fullPath = when (output) {
+                is ImageGenerationOutput.Url -> {
+                    httpClient.prepareGet(output.url).execute { response ->
+                        val extension = output.extension(response.contentType()?.toString())
+                        val path = generatedImagePath(randomSuffix, extension)
+                        path.parent?.let(fileManager::createDirectories)
+                        val channel: ByteReadChannel = response.body()
+                        fileManager.fileSystem.write(path) {
+                            while (!channel.isClosedForRead) {
+                                val packet = channel.readRemaining(8192)
+                                while (!packet.exhausted()) {
+                                    write(packet.readByteArray())
+                                }
                             }
                         }
+                        path
                     }
                 }
-                
-                val localPath = fullPath.toString()
-                Napier.d { "Image saved via stream to: $localPath" }
-
-                ToolResult.Terminal(
-                    content = attachedText,
-                    imageAttachmentUri = localPath
-                )
-            } else {
-                ToolResult.Error("generation_failed", "Failed to extract image URL from response: $responseText")
+                is ImageGenerationOutput.Base64 -> {
+                    val extension = output.extension(output.data.dataUrlMimeType())
+                    val path = generatedImagePath(randomSuffix, extension)
+                    path.parent?.let(fileManager::createDirectories)
+                    val encoded = output.data.substringAfter("base64,", output.data).trim()
+                    fileManager.fileSystem.write(path) {
+                        write(Base64.Default.decode(encoded))
+                    }
+                    path
+                }
             }
+
+            val localPath = fullPath.toString()
+            Napier.d { "Image saved to: $localPath" }
+            ToolResult.Terminal(
+                content = attachedText,
+                imageAttachmentUri = localPath,
+            )
+        } catch (cancellation: CancellationException) {
+            throw cancellation
         } catch (t: Throwable) {
-            t.printStackTrace()
-            ToolResult.Error("execution_error", "Error during image generation: ${t.message}")
+            ToolResult.Error(
+                "image_save_failed",
+                "Generated image could not be saved.",
+            )
         }
+    }
+
+    private fun generatedImagePath(randomSuffix: String, extension: String) =
+        fileManager.appDataDir / "generated_images/gen_$randomSuffix.$extension"
+
+    private fun ImageGenerationOutput.extension(detectedMimeType: String?): String {
+        val mimeExtension = when ((detectedMimeType ?: mimeType)?.substringBefore(';')?.lowercase()) {
+            "image/jpeg" -> "jpg"
+            "image/webp" -> "webp"
+            "image/gif" -> "gif"
+            "image/png" -> "png"
+            else -> null
+        }
+        if (mimeExtension != null) return mimeExtension
+        if (this !is ImageGenerationOutput.Url) return "png"
+
+        val candidate = url.substringBefore('?').substringAfterLast('.', "").lowercase()
+        return candidate.takeIf { it in SupportedImageExtensions } ?: "png"
+    }
+
+    private fun String.dataUrlMimeType(): String? {
+        if (!startsWith("data:", ignoreCase = true)) return null
+        return substringAfter("data:").substringBefore(';').takeIf(String::isNotBlank)
     }
 
     companion object {
@@ -295,5 +313,6 @@ class ImageGenerationTool(
             pattern = "<image_generation\\s*>([\\s\\S]*?)(?:</image_generation\\s*>|$)",
             option = RegexOption.IGNORE_CASE,
         )
+        private val SupportedImageExtensions = setOf("png", "jpg", "jpeg", "webp", "gif")
     }
 }

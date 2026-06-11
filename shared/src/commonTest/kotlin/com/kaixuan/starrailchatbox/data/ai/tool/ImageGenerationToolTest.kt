@@ -2,6 +2,9 @@ package com.kaixuan.starrailchatbox.data.ai.tool
 
 import com.kaixuan.starrailchatbox.data.ai.AiMessage
 import com.kaixuan.starrailchatbox.data.ai.AiToolCall
+import com.kaixuan.starrailchatbox.data.ai.image.AliImageProvider
+import com.kaixuan.starrailchatbox.data.ai.image.ImageGenerationProviderIds
+import com.kaixuan.starrailchatbox.data.ai.image.ImageGenerationProviderRegistry
 import com.kaixuan.starrailchatbox.data.model.InMemoryModelConfigRepository
 import com.kaixuan.starrailchatbox.data.model.ModelConfig
 import com.kaixuan.starrailchatbox.data.model.ImageGenerationModelConfig
@@ -47,7 +50,13 @@ class ImageGenerationToolTest {
         val repo = InMemoryModelConfigRepository()
         val engine = MockEngine { respond("") }
         val client = testClient(engine)
-        val tool = ImageGenerationTool(repo, client, mockFileManager, coroutineScope = backgroundScope)
+        val tool = ImageGenerationTool(
+            repo,
+            ImageGenerationProviderRegistry(listOf(AliImageProvider(client))),
+            client,
+            mockFileManager,
+            coroutineScope = backgroundScope,
+        )
 
         runCurrent()
         assertFalse(tool.isAvailable())
@@ -55,7 +64,7 @@ class ImageGenerationToolTest {
         repo.saveImageGeneration(
             ModelConfig(
                 id = ImageGenerationModelConfig.Id,
-                provider = ImageGenerationModelConfig.Provider,
+                provider = ImageGenerationProviderIds.Ali,
                 name = ImageGenerationModelConfig.Name,
                 baseUrl = "https://api.dashscope.aliyuncs.com/api/v1/services/aigc/text2image",
                 apiKey = "test-key",
@@ -85,7 +94,7 @@ class ImageGenerationToolTest {
         repo.saveImageGeneration(
             ModelConfig(
                 id = ImageGenerationModelConfig.Id,
-                provider = ImageGenerationModelConfig.Provider,
+                provider = ImageGenerationProviderIds.Ali,
                 name = ImageGenerationModelConfig.Name,
                 baseUrl = "https://api.dashscope.aliyuncs.com/api/v1/services/aigc/text2image",
                 apiKey = "test-key",
@@ -102,30 +111,6 @@ class ImageGenerationToolTest {
         )
 
         val engine = MockEngine { request ->
-            // Check either the legacy path or the actual DashScope path used in code
-            assertTrue(request.url.encodedPath.contains("/api/v1/services/aigc/multimodal-generation/generation") || 
-                       request.url.encodedPath.contains("/api/v1/services/aigc/text2image/chat/completions"))
-            assertEquals("Bearer test-key", request.headers[HttpHeaders.Authorization])
-            respond(
-                content = """
-                    {
-                      "output": {
-                        "choices": [{
-                          "message": {
-                            "role": "assistant",
-                            "content": [
-                              { "image": "https://example.com/image.png" },
-                              { "text": "generated image prompt" }
-                            ]
-                          }
-                        }]
-                      }
-                    }
-                """.trimIndent(),
-                status = HttpStatusCode.OK,
-                headers = headersOf(HttpHeaders.ContentType, "application/json")
-            )
-            // Mock image download response
             if (request.url.toString() == "https://example.com/image.png") {
                 respond(
                     content = ByteArray(10),
@@ -133,6 +118,8 @@ class ImageGenerationToolTest {
                     headers = headersOf(HttpHeaders.ContentType, "image/png")
                 )
             } else {
+                assertTrue(request.url.encodedPath.contains("/api/v1/services/aigc/multimodal-generation/generation"))
+                assertEquals("Bearer test-key", request.headers[HttpHeaders.Authorization])
                 respond(
                     content = """{"output": {"choices": [{"message": {"role": "assistant", "content": [{"image": "https://example.com/image.png"}, {"text": "generated image prompt"}]}}]}}""",
                     status = HttpStatusCode.OK,
@@ -142,7 +129,13 @@ class ImageGenerationToolTest {
         }
 
         val client = testClient(engine)
-        val tool = ImageGenerationTool(repo, client, mockFileManager, coroutineScope = backgroundScope)
+        val tool = ImageGenerationTool(
+            repo,
+            ImageGenerationProviderRegistry(listOf(AliImageProvider(client))),
+            client,
+            mockFileManager,
+            coroutineScope = backgroundScope,
+        )
 
         val result = tool.execute(
             AiToolCall(
@@ -171,7 +164,7 @@ class ImageGenerationToolTest {
         repo.saveImageGeneration(
              ModelConfig(
                 id = ImageGenerationModelConfig.Id,
-                provider = ImageGenerationModelConfig.Provider,
+                provider = ImageGenerationProviderIds.Ali,
                 name = ImageGenerationModelConfig.Name,
                 baseUrl = "https://api.dashscope.aliyuncs.com/api/v1/services/aigc/text2image",
                 apiKey = "test-key",
@@ -217,7 +210,13 @@ class ImageGenerationToolTest {
         }
 
         val client = testClient(engine)
-        val tool = ImageGenerationTool(repo, client, mockFileManager, coroutineScope = backgroundScope)
+        val tool = ImageGenerationTool(
+            repo,
+            ImageGenerationProviderRegistry(listOf(AliImageProvider(client))),
+            client,
+            mockFileManager,
+            coroutineScope = backgroundScope,
+        )
 
         val messages = tool.prepareFallbackMessages(
             listOf(AiMessage("system", "保持人设"), AiMessage("user", "画个图")),

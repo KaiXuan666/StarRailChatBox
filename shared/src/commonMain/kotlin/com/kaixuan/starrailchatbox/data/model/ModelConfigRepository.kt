@@ -159,11 +159,10 @@ object VoiceCloneModelConfig {
 
 object ImageGenerationModelConfig {
     const val Id = "image_generation"
-    const val Provider = "custom"
+    const val Provider = "openai-compatible-image"
     const val Name = "图片生成模型"
     const val ContextWindow = 128_000
     const val MaxOutputTokens = 4_096
     const val Temperature = 0.7
     const val TopP = 1.0
 }
-

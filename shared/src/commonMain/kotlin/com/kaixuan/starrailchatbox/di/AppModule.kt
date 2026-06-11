@@ -5,6 +5,10 @@ import com.kaixuan.starrailchatbox.data.ai.AiProviderRegistry
 import com.kaixuan.starrailchatbox.data.ai.AiRepository
 import com.kaixuan.starrailchatbox.data.ai.DefaultAiRepository
 import com.kaixuan.starrailchatbox.data.ai.OpenAiCompatibleProvider
+import com.kaixuan.starrailchatbox.data.ai.image.AliImageProvider
+import com.kaixuan.starrailchatbox.data.ai.image.ImageGenerationProvider
+import com.kaixuan.starrailchatbox.data.ai.image.ImageGenerationProviderRegistry
+import com.kaixuan.starrailchatbox.data.ai.image.OpenAiCompatibleImageProvider
 import com.kaixuan.starrailchatbox.data.ai.tool.AiTool
 import com.kaixuan.starrailchatbox.data.ai.tool.QuickRepliesTool
 import com.kaixuan.starrailchatbox.data.ai.tool.VoiceSynthesisTool
@@ -54,9 +58,23 @@ fun appModule(
     single { createPlatformHttpClient() }
     single<AiProvider> { OpenAiCompatibleProvider(get()) }
     single { AiProviderRegistry(getAll()) }
+    single<ImageGenerationProvider>(named("OpenAiCompatibleImage")) {
+        OpenAiCompatibleImageProvider(get())
+    }
+    single<ImageGenerationProvider>(named("AliImage")) {
+        AliImageProvider(get())
+    }
+    single {
+        ImageGenerationProviderRegistry(
+            listOf(
+                get(named("OpenAiCompatibleImage")),
+                get(named("AliImage")),
+            ),
+        )
+    }
     single<AiTool>(named("QuickReplies")) { QuickRepliesTool() }
     single<AiTool>(named("VoiceSynthesis")) { VoiceSynthesisTool(get(), get()) }
-    single<AiTool>(named("ImageGeneration")) { ImageGenerationTool(get(), get(), get()) }
+    single<AiTool>(named("ImageGeneration")) { ImageGenerationTool(get(), get(), get(), get()) }
     single<AiTool>(named("BochaSearch")) { BochaSearchTool(get(), get()) }
     single { ToolRegistry(getAll()) }
     single<ToolApprovalGateway> { RiskBasedToolApprovalGateway }
@@ -109,7 +127,8 @@ fun appModule(
             isVoice = parameters.get<Boolean>(1),
             isImageGeneration = parameters.get<Boolean>(2),
             aiRepository = get(),
-            modelConfigRepository = get()
+            modelConfigRepository = get(),
+            imageProviderRegistry = get(),
         )
     }
     factory { SettingsOverviewViewModel(get()) }

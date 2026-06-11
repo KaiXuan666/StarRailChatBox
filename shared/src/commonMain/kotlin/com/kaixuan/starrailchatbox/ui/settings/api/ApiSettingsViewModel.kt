@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kaixuan.starrailchatbox.data.ai.AiRepository
 import com.kaixuan.starrailchatbox.data.ai.OpenAiCompatibleProvider
+import com.kaixuan.starrailchatbox.data.ai.image.AliImageProvider
+import com.kaixuan.starrailchatbox.data.ai.image.ImageGenerationProviderIds
+import com.kaixuan.starrailchatbox.data.ai.image.ImageGenerationProviderRegistry
 import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.model.DefaultModelConfig
 import com.kaixuan.starrailchatbox.data.model.ImageGenerationModelConfig
@@ -29,6 +32,7 @@ class ApiSettingsViewModel(
     private val isImageGeneration: Boolean = false,
     private val aiRepository: AiRepository,
     private val modelConfigRepository: ModelConfigRepository,
+    private val imageProviderRegistry: ImageGenerationProviderRegistry,
     private val defaultApiSettings: ApiSettingsDefaults = localApiSettingsDefaults(),
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ApiSettingsUiState())
@@ -69,11 +73,22 @@ class ApiSettingsViewModel(
             val voiceCloneConfig = if (isVoice) modelConfigRepository.getVoiceClone() else null
 
             _uiState.update { state ->
+                val imageProviderId = config?.provider
+                    ?.takeIf { isImageGeneration }
+                    ?: ImageGenerationProviderIds.OpenAiCompatible
                 state.copy(
-                    apiHost = config?.baseUrl ?: defaultHost,
+                    apiHost = if (
+                        isImageGeneration &&
+                        imageProviderId == ImageGenerationProviderIds.Ali
+                    ) {
+                        AliImageProvider.CompatibleModeBaseUrl.trimEnd('/')
+                    } else {
+                        config?.baseUrl ?: defaultHost
+                    },
                     apiKey = config?.apiKey ?: defaultKey,
                     selectedModel = config?.modelName.orEmpty(),
                     selectedCloneModel = voiceCloneConfig?.modelName.orEmpty(),
+                    imageProviderId = imageProviderId,
                     modelsList = listOfNotNull(
                         config?.modelName?.takeIf { it.isNotBlank() },
                         voiceCloneConfig?.modelName?.takeIf { it.isNotBlank() }
@@ -86,7 +101,11 @@ class ApiSettingsViewModel(
             val isNotDefaultScreen = isImageGeneration || isVoice || isMultimodal
             if (isCurrentConfigEmpty && isNotDefaultScreen) {
                 val defaultConfig = modelConfigRepository.getDefault()
-                if (defaultConfig != null && hasValidApiSettings(defaultConfig.baseUrl, defaultConfig.apiKey)) {
+                if (
+                    defaultConfig != null &&
+                    defaultConfig.apiKey.isNotBlank() &&
+                    defaultConfig.baseUrl.trim().startsWith("https://")
+                ) {
                     suggestDefaultConfig = defaultConfig
                     _uiState.update { it.copy(showSuggestDefaultConfigDialog = true) }
                 }
@@ -115,6 +134,21 @@ class ApiSettingsViewModel(
                     }
                 }
             }
+            is ApiSettingsAction.ImageProviderSelected -> {
+                _uiState.update { state ->
+                    state.copy(
+                        imageProviderId = action.providerId,
+                        apiHost = when (action.providerId) {
+                            ImageGenerationProviderIds.Ali -> AliImageProvider.CompatibleModeBaseUrl.trimEnd('/')
+                            else -> state.apiHost
+                                .takeUnless { it.trimEnd('/') == AliImageProvider.CompatibleModeBaseUrl.trimEnd('/') }
+                                ?: defaultApiSettings.imageHost
+                        },
+                        modelsList = emptyList(),
+                        selectedModel = "",
+                    )
+                }
+            }
             ApiSettingsAction.SaveSettingsClicked -> saveSettings()
             ApiSettingsAction.ClearSettingsClicked -> clearSettings()
             is ApiSettingsAction.CopyToClipboard -> {
@@ -141,7 +175,7 @@ class ApiSettingsViewModel(
         val state = _uiState.value
         if (state.isFetchingModels) return
 
-        if (!hasValidApiSettings(state.apiHost, state.apiKey)) {
+        if (!hasValidApiSettings(state)) {
             emitMessage(SettingsEffectMessage.SETTINGS_API_INVALID)
             return
         }
@@ -150,13 +184,24 @@ class ApiSettingsViewModel(
         emitMessage(SettingsEffectMessage.SETTINGS_API_FETCH_START)
 
         viewModelScope.launch {
-            when (
-                val result = aiRepository.getModels(
+            val result = if (isImageGeneration) {
+                val provider = imageProviderRegistry.find(state.imageProviderId)
+                if (provider == null) {
+                    ApiResult.UnexpectedError("Unsupported image generation provider.")
+                } else {
+                    provider.getModels(
+                        apiHost = state.apiHost,
+                        apiKey = state.apiKey,
+                    )
+                }
+            } else {
+                aiRepository.getModels(
                     apiHost = state.apiHost,
                     apiKey = state.apiKey,
                     providerId = OpenAiCompatibleProvider.Id,
                 )
-            ) {
+            }
+            when (result) {
                 is ApiResult.Success -> handleModelsLoaded(result.value)
                 is ApiResult.HttpError -> {
                     _uiState.update { it.copy(isFetchingModels = false) }
@@ -214,7 +259,7 @@ class ApiSettingsViewModel(
         val state = _uiState.value
         if (state.isSaving) return
 
-        if (!hasValidApiSettings(state.apiHost, state.apiKey)) {
+        if (!hasValidApiSettings(state)) {
             emitMessage(SettingsEffectMessage.SETTINGS_API_INVALID)
             return
         }
@@ -298,7 +343,7 @@ class ApiSettingsViewModel(
         modelConfigRepository.saveImageGeneration(
             ModelConfig(
                 id = ImageGenerationModelConfig.Id,
-                provider = ImageGenerationModelConfig.Provider,
+                provider = state.imageProviderId,
                 name = ImageGenerationModelConfig.Name,
                 baseUrl = state.apiHost.trim().trimEnd('/'),
                 apiKey = state.apiKey.trim(),
@@ -383,9 +428,12 @@ class ApiSettingsViewModel(
         }
     }
 
-    private fun hasValidApiSettings(host: String, key: String): Boolean {
-        val normalizedHost = host.trim()
-        return key.isNotBlank() && normalizedHost.startsWith("https://")
+    private fun hasValidApiSettings(state: ApiSettingsUiState): Boolean {
+        if (state.apiKey.isBlank()) return false
+        if (isImageGeneration && state.imageProviderId == ImageGenerationProviderIds.Ali) {
+            return true
+        }
+        return state.apiHost.trim().startsWith("https://")
     }
 
     private fun emitMessage(message: SettingsEffectMessage) {
