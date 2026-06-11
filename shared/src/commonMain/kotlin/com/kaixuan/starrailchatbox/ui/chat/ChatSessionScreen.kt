@@ -26,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 import com.kaixuan.starrailchatbox.data.chat.MessageAttachment
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
@@ -190,10 +191,11 @@ fun ChatSessionScreen(
             } else {
                 MaterialTheme.typography.headlineLarge
             },
+            fontWeight = FontWeight.Bold,
             maxLines = 1,
             modifier = Modifier
                 .padding(horizontal = if (compact) StarRailSpacing.sm else StarRailSpacing.md)
-                .padding(top = StarRailSpacing.md)
+                .padding(top = StarRailSpacing.lg)
         )
 
         // 固定顶部的角色选择器

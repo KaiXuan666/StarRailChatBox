@@ -104,7 +104,7 @@ fun StarRailPageHeader(
             style = if (compact) {
                 MaterialTheme.typography.headlineSmall
             } else {
-                MaterialTheme.typography.headlineMedium
+                MaterialTheme.typography.headlineLarge
             },
             fontWeight = FontWeight.Bold,
             maxLines = 1,
