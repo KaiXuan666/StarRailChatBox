@@ -33,24 +33,29 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
 
 @Composable
 fun StarRailDialog(
     title: String,
-    dismissText: String,
     confirmText: String,
-    onDismissRequest: () -> Unit,
     onConfirm: () -> Unit,
     modifier: Modifier = Modifier,
+    dismissText: String? = null,
+    onDismissRequest: () -> Unit = {},
     neutralText: String? = null,
     onNeutral: (() -> Unit)? = null,
     destructive: Boolean = false,
+    properties: DialogProperties = DialogProperties(),
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = MaterialTheme.starRailColors
-    Dialog(onDismissRequest = onDismissRequest) {
+    Dialog(
+        onDismissRequest = onDismissRequest,
+        properties = properties,
+    ) {
         Surface(
             modifier = modifier
                 .fillMaxWidth()
@@ -112,12 +117,14 @@ fun StarRailDialog(
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                     }
-                    DialogActionButton(
-                        text = dismissText,
-                        onClick = onDismissRequest,
-                        primary = false,
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
+                    if (dismissText != null) {
+                        DialogActionButton(
+                            text = dismissText,
+                            onClick = onDismissRequest,
+                            primary = false,
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                    }
                     DialogActionButton(
                         text = confirmText,
                         onClick = onConfirm,

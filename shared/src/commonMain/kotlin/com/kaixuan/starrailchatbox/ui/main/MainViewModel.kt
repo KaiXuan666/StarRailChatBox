@@ -100,11 +100,17 @@ class MainViewModel(
             }
 
             MainAction.UpdateDialogDismiss -> {
-                _uiState.update { it.copy(showUpdateDialog = false) }
+                val isForceUpdate = _uiState.value.updateInfo?.isForceUpdate == true
+                if (!isForceUpdate) {
+                    _uiState.update { it.copy(showUpdateDialog = false) }
+                }
             }
 
             MainAction.UpdateDialogConfirm -> {
-                _uiState.update { it.copy(showUpdateDialog = false) }
+                val isForceUpdate = _uiState.value.updateInfo?.isForceUpdate == true
+                if (!isForceUpdate) {
+                    _uiState.update { it.copy(showUpdateDialog = false) }
+                }
             }
 
             is MainAction.ThemeDialogConfirm -> {

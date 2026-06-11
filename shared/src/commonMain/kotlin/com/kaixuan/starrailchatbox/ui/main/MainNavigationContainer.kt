@@ -122,6 +122,7 @@ import starrailchatbox.shared.generated.resources.character_edit_import_failed
 import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import io.github.aakira.napier.Napier
+import androidx.compose.ui.window.DialogProperties
 import kotlin.time.Clock
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
@@ -580,15 +581,20 @@ private fun UpdateDialog(
     onMainAction: (MainAction) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isForceUpdate = info.isForceUpdate
     StarRailDialog(
         title = stringResource(Res.string.settings_update_dialog_title),
-        dismissText = stringResource(Res.string.settings_update_dialog_cancel),
+        dismissText = if (isForceUpdate) null else stringResource(Res.string.settings_update_dialog_cancel),
         confirmText = stringResource(Res.string.settings_update_dialog_confirm),
         onDismissRequest = { onMainAction(MainAction.UpdateDialogDismiss) },
         onConfirm = {
             openUri(info.downloadUrl)
             onMainAction(MainAction.UpdateDialogConfirm)
         },
+        properties = DialogProperties(
+            dismissOnBackPress = !isForceUpdate,
+            dismissOnClickOutside = !isForceUpdate
+        ),
         modifier = modifier,
     ) {
         Column(
