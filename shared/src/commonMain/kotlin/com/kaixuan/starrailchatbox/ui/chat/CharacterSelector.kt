@@ -31,7 +31,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.kaixuan.starrailchatbox.data.character.Character
+import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.starRailColors
 import com.kaixuan.starrailchatbox.ui.components.AvatarImage
@@ -43,14 +43,13 @@ import starrailchatbox.shared.generated.resources.character_selection_descriptio
 
 @Composable
 fun CharacterSelector(
-    characters: List<Character>,
+    characters: List<CharacterSummary>,
     selectedCharacterId: String?,
     compact: Boolean,
     onCharacterSelected: (String) -> Unit,
 ) {
     val displayedCharacters = remember(characters, compact) {
-        val sorted = characters.sortedWith(compareBy({ it.sortOrder }, { it.createdAt }))
-        if (compact) sorted.take(4) else sorted
+        if (compact) characters.take(4) else characters
     }
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -100,7 +99,7 @@ fun CharacterSelector(
 
 @Composable
 fun CharacterSelectorItem(
-    character: Character,
+    character: CharacterSummary,
     selected: Boolean,
     compact: Boolean,
     onClick: () -> Unit,
@@ -175,7 +174,7 @@ fun CharacterSelectorItem(
 
 @Composable
 fun CharacterAvatar(
-    character: Character,
+    character: CharacterSummary,
     size: Dp,
     selected: Boolean,
     contentDescription: String?,

@@ -26,7 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import com.kaixuan.starrailchatbox.data.character.Character
+import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 import com.kaixuan.starrailchatbox.data.chat.MessageAttachment
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.platform.openUri
@@ -87,7 +87,7 @@ fun CharacterChatScreen(
     val pageMessages = pageState.messages
     val latestMessageId = remember(pageMessages) { pageMessages.lastOrNull()?.id }
     val charactersById = remember(charactersState.characters) {
-        charactersState.characters.associateBy(Character::id)
+        charactersState.characters.associateBy(CharacterSummary::id)
     }
 
     val audioPlayer = rememberAudioPlayer()

@@ -1,6 +1,9 @@
 package com.kaixuan.starrailchatbox.ui.main
 
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -684,32 +687,30 @@ fun MainNavigationContainer(
                 },
                 bottomBar = {
                     MainBottomArea(
-                        mainState = mainState,
                         backStack = backStack,
-                        chatState = chatState,
                         showNavigationBar = !showRail,
                         compact = compact,
                         onMainAction = onMainAction,
-                        onChatAction = onChatAction,
-                        onRecordingStateChanged = { recording, cancelTargeted ->
-                            isRecording = recording
-                            isCancelTargeted = cancelTargeted
-                        }
                     )
                 },
             ) { contentPadding ->
                 val entryProvider = entryProvider<NavKey> {
                     entry<Route.ChatSession> {
-                        ChatSessionScreen(
+                        ChatSessionRoute(
                             state = chatState,
                             charactersState = chatCharactersState,
-                            contentPadding = contentPadding,
+                            navigationBarPadding = contentPadding,
+                            applyNavigationBarInsets = showRail,
                             compact = compact,
                             onAction = onChatAction,
                             onCharacterAction = onCharacterAction,
                             onMainAction = onMainAction,
                             isRecording = isRecording,
                             isCancelTargeted = isCancelTargeted,
+                            onRecordingStateChanged = { recording, cancelTargeted ->
+                                isRecording = recording
+                                isCancelTargeted = cancelTargeted
+                            },
                         )
                     }
                     entry<Route.ConversationManagement> {
@@ -847,10 +848,75 @@ fun MainNavigationContainer(
                         rememberSaveableStateHolderNavEntryDecorator(),
                         rememberViewModelStoreNavEntryDecorator(),
                     ),
+                    transitionSpec = {
+                        EnterTransition.None togetherWith ExitTransition.None
+                    },
+                    popTransitionSpec = {
+                        EnterTransition.None togetherWith ExitTransition.None
+                    },
+                    predictivePopTransitionSpec = {
+                        EnterTransition.None togetherWith ExitTransition.None
+                    },
                     entryProvider = entryProvider,
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ChatSessionRoute(
+    state: ChatUiState,
+    charactersState: ChatCharactersUiState,
+    navigationBarPadding: PaddingValues,
+    applyNavigationBarInsets: Boolean,
+    compact: Boolean,
+    onAction: (ChatAction) -> Unit,
+    onCharacterAction: (CharacterAction) -> Unit,
+    onMainAction: (MainAction) -> Unit,
+    isRecording: Boolean,
+    isCancelTargeted: Boolean,
+    onRecordingStateChanged: (Boolean, Boolean) -> Unit,
+) {
+    Scaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(bottom = navigationBarPadding.calculateBottomPadding()),
+        containerColor = Color.Transparent,
+        contentWindowInsets = WindowInsets(0),
+        bottomBar = {
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.97f),
+                shadowElevation = 8.dp,
+            ) {
+                Box(
+                    modifier = if (applyNavigationBarInsets) {
+                        Modifier.windowInsetsPadding(WindowInsets.navigationBars)
+                    } else {
+                        Modifier
+                    },
+                ) {
+                    ChatSessionBottomBar(
+                        state = state,
+                        compact = compact,
+                        onAction = onAction,
+                        onRecordingStateChanged = onRecordingStateChanged,
+                    )
+                }
+            }
+        },
+    ) { contentPadding ->
+        ChatSessionScreen(
+            state = state,
+            charactersState = charactersState,
+            contentPadding = contentPadding,
+            compact = compact,
+            onAction = onAction,
+            onCharacterAction = onCharacterAction,
+            onMainAction = onMainAction,
+            isRecording = isRecording,
+            isCancelTargeted = isCancelTargeted,
+        )
     }
 }
 
@@ -1009,23 +1075,15 @@ private fun ProfileRoute(
 
 @Composable
 private fun MainBottomArea(
-    mainState: MainUiState,
     backStack: List<NavKey>,
-    chatState: ChatUiState,
     showNavigationBar: Boolean,
     compact: Boolean,
     onMainAction: (MainAction) -> Unit,
-    onChatAction: (ChatAction) -> Unit,
-    onRecordingStateChanged: (Boolean, Boolean) -> Unit = { _, _ -> },
 ) {
-    if (backStack.size > 1) {
+    if (backStack.size > 1 || !showNavigationBar) {
         return
     }
     val currentRoute = backStack.lastOrNull() as? Route ?: Route.ChatSession
-    val isChat = currentRoute == Route.ChatSession
-    if (!isChat && !showNavigationBar) {
-        return
-    }
 
     Column {
         Surface(
@@ -1035,23 +1093,13 @@ private fun MainBottomArea(
             Column(
                 modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
             ) {
-                if (isChat) {
-                    ChatSessionBottomBar(
-                        state = chatState,
-                        compact = compact,
-                        onAction = onChatAction,
-                        onRecordingStateChanged = onRecordingStateChanged,
-                    )
-                }
-                if (showNavigationBar && backStack.size <= 1) {
-                    MainNavigationBar(
-                        currentRoute = currentRoute,
-                        compact = compact,
-                        onDestinationSelected = {
-                            onMainAction(MainAction.NavigationSelected(it))
-                        },
-                    )
-                }
+                MainNavigationBar(
+                    currentRoute = currentRoute,
+                    compact = compact,
+                    onDestinationSelected = {
+                        onMainAction(MainAction.NavigationSelected(it))
+                    },
+                )
             }
         }
     }
@@ -1371,7 +1419,13 @@ private val previewCharactersState = CharactersUiState(
 )
 
 private val previewChatCharactersState = ChatCharactersUiState(
-    characters = listOf(previewCharacter),
+    characters = listOf(
+        com.kaixuan.starrailchatbox.data.character.CharacterSummary(
+            id = previewCharacter.id,
+            name = previewCharacter.name,
+            avatarUri = previewCharacter.avatarUri,
+        ),
+    ),
     selectedCharacterId = "builtin:流萤",
     isLoadingCharacters = false,
 )

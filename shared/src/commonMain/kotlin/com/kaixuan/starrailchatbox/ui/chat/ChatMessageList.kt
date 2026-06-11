@@ -25,7 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
-import com.kaixuan.starrailchatbox.data.character.Character
+import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 import com.kaixuan.starrailchatbox.data.chat.MessageAttachment
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.starRailColors
@@ -37,7 +37,7 @@ import kotlinx.coroutines.launch
 fun ChatMessageList(
     messages: List<ChatMessageUiModel>,
     listState: LazyListState,
-    charactersById: Map<String, Character>,
+    charactersById: Map<String, CharacterSummary>,
     userAvatarUri: String?,
     compact: Boolean,
     playingAudioUri: String?,

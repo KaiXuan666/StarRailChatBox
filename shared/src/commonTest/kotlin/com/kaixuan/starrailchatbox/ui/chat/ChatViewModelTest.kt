@@ -270,7 +270,7 @@ class ChatViewModelTest {
 
         val charState = fixture.viewModel.characterUiState.value
         val chatState = fixture.viewModel.uiState.value
-        assertEquals(listOf("builtin:黄泉"), charState.characters.map(Character::id))
+        assertEquals(listOf("builtin:黄泉"), charState.characters.map { it.id })
         assertEquals("builtin:黄泉", chatState.selectedCharacterId)
         assertEquals(CharacterEffect.CharacterDeleted, fixture.viewModel.characterEffects.first())
     }
@@ -861,4 +861,3 @@ private class FakeProfileStore(
         _profile.value = profile
     }
 }
-

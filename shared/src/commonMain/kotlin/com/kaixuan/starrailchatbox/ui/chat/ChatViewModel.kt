@@ -12,12 +12,7 @@ import com.kaixuan.starrailchatbox.platform.readUriAsBytes
 import com.kaixuan.starrailchatbox.data.ai.ChatCompletionResult
 import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.character.Character
-import com.kaixuan.starrailchatbox.data.character.CharacterAvatarSource
 import com.kaixuan.starrailchatbox.data.character.CharacterRepository
-import com.kaixuan.starrailchatbox.data.character.importer.CharacterCardImporter
-import com.kaixuan.starrailchatbox.data.character.importer.CharacterCardExporter
-import com.kaixuan.starrailchatbox.data.character.importer.DefaultCharacterCardImporter
-import com.kaixuan.starrailchatbox.data.character.importer.getCharacterCardExporter
 import com.kaixuan.starrailchatbox.data.character.importer.StarRailCharacterCard
 import com.kaixuan.starrailchatbox.data.chat.ChatMessageStatus
 import com.kaixuan.starrailchatbox.data.chat.ChatRole
@@ -52,11 +47,7 @@ import com.kaixuan.starrailchatbox.data.settings.ProfileStore
 import com.kaixuan.starrailchatbox.platform.KmpFileManager
 import com.kaixuan.starrailchatbox.ui.character.CharacterAction
 import com.kaixuan.starrailchatbox.ui.character.CharacterEffect
-import com.kaixuan.starrailchatbox.ui.character.CharacterEffectMessage
 import com.kaixuan.starrailchatbox.ui.character.ChatCharactersUiState
-import com.kaixuan.starrailchatbox.ui.character.CharacterEditUiState
-import com.kaixuan.starrailchatbox.ui.character.toEditUiState
-import okio.Path.Companion.toPath
 
 class ChatViewModel(
     private val characterRepository: CharacterRepository,
@@ -66,8 +57,6 @@ class ChatViewModel(
     private val profileStore: ProfileStore,
     private val chatMessageSender: ChatMessageSender = ChatMessageSender(aiRepository),
     private val fileManager: KmpFileManager = KmpFileManager.Default,
-    private val characterCardImporter: CharacterCardImporter = DefaultCharacterCardImporter(fileManager),
-    private val characterCardExporter: CharacterCardExporter = getCharacterCardExporter(),
     private val chatSummaryCoordinator: ChatSummaryCoordinator = ChatSummaryCoordinator(
         chatSessionRepository = chatSessionRepository,
         aiRepository = aiRepository,
@@ -110,7 +99,7 @@ class ChatViewModel(
             }
         }
         viewModelScope.launch {
-            val characters = runCatching { characterRepository.loadCharacters() }
+            val characters = runCatching { characterRepository.loadCharacterSummaries() }
                 .getOrDefault(emptyList())
             val selectedId = characters.firstOrNull { it.name == "流萤" }?.id
                 ?: characters.firstOrNull()?.id
@@ -123,7 +112,6 @@ class ChatViewModel(
                     isSending = false,
                 )
             }
-            val selectedChar = characters.firstOrNull { it.id == selectedId } ?: characters.firstOrNull()
             _characterUiState.update {
                 it.copy(
                     characters = characters,
@@ -134,12 +122,13 @@ class ChatViewModel(
             _uiState.update {
                 it.copy(
                     selectedCharacterId = selectedId,
-                    selectedCharacter = selectedChar,
+                    selectedCharacter = null,
                     characterStates = initialStates,
                 )
             }
             selectedId?.let {
                 lastActiveMainCharacterId = it
+                loadSelectedCharacter(it)
                 observeSessions(it)
                 loadLatestSession(it)
             }
@@ -323,225 +312,13 @@ class ChatViewModel(
         when (action) {
             CharacterAction.RefreshCharacters -> refreshCharacters()
             is CharacterAction.CharacterSelected -> selectCharacter(action.characterId)
-            is CharacterAction.CharacterEditOpened -> openCharacterEdit(action.characterId)
-            is CharacterAction.CharacterNameChanged -> updateCharacterEdit { it.copy(name = action.name) }
-            is CharacterAction.CharacterDescriptionChanged -> updateCharacterEdit { it.copy(description = action.description) }
-            is CharacterAction.CharacterPromptChanged -> updateCharacterEdit { it.copy(prompt = action.prompt) }
-            is CharacterAction.CharacterOpeningMessageChanged -> updateCharacterEdit {
-                it.copy(openingMessage = action.openingMessage)
-            }
-            is CharacterAction.CharacterAvatarChanged -> {
-                viewModelScope.launch {
-                    val uri = action.avatarSource.uri
-                    Napier.d { "CharacterAvatarChanged: uri=$uri" }
-                    if (uri.startsWith("http") || uri.startsWith("data:") || uri.isBlank() || (uri.startsWith("picked:") && !fileManager.isSupported)) {
-                        updateCharacterEdit {
-                            it.copy(
-                                avatarUri = uri,
-                                pendingAvatarSource = action.avatarSource,
-                            )
-                        }
-                    } else {
-                        runCatching {
-                            val bytes = readUriAsBytes(uri)
-                            val extension = action.avatarSource.extension ?: uri.substringAfterLast('.', "png")
-                            val fileName = "temp_avatar_${currentTimeMillis()}.$extension"
-                            val cachePath = fileManager.cacheDir / fileName.toPath()
-                            fileManager.writeBytes(cachePath, bytes)
-                            updateCharacterEdit {
-                                it.copy(
-                                    avatarUri = cachePath.toString(),
-                                    pendingAvatarSource = action.avatarSource.copy(uri = cachePath.toString(), extension = extension),
-                                )
-                            }
-                        }.onFailure {
-                            Napier.e("Failed to cache avatar", it)
-                            // Fallback to original uri if caching fails
-                            updateCharacterEdit {
-                                it.copy(
-                                    avatarUri = uri,
-                                    pendingAvatarSource = action.avatarSource,
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-            is CharacterAction.CharacterVoiceSampleChanged -> {
-                viewModelScope.launch {
-                    val uri = action.uri
-                    if (uri == null || uri.startsWith("http") || uri.startsWith("data:") || uri.isBlank() || uri.startsWith("builtin:") || (uri.startsWith("picked:") && !fileManager.isSupported)) {
-                        updateCharacterEdit {
-                            it.copy(voiceSampleUri = uri)
-                        }
-                    } else {
-                        runCatching {
-                            val bytes = readUriAsBytes(uri)
-                            val extension = action.extension ?: uri.substringAfterLast('.', "mp3")
-                            val fileName = "temp_voice_${currentTimeMillis()}.$extension"
-                            val cachePath = fileManager.cacheDir / fileName.toPath()
-                            fileManager.writeBytes(cachePath, bytes)
-                            updateCharacterEdit {
-                                it.copy(voiceSampleUri = cachePath.toString())
-                            }
-                        }.onFailure {
-                            Napier.e("Failed to cache voice sample", it)
-                            updateCharacterEdit {
-                                it.copy(voiceSampleUri = uri)
-                            }
-                        }
-                    }
-                }
-            }
-            is CharacterAction.CharacterTemperatureChanged -> updateCharacterEdit {
-                it.copy(temperature = action.temperature.coerceIn(0.0, 2.0))
-            }
-            is CharacterAction.CharacterTopPChanged -> updateCharacterEdit {
-                it.copy(topP = action.topP.coerceIn(0.0, 1.0))
-            }
-            CharacterAction.CharacterSaveClicked -> saveCharacterEdit()
-            CharacterAction.CharacterDeleteBuiltinClicked -> emitCharacterMessage(CharacterEffectMessage.CHARACTER_DELETE_BUILTIN_RESTRICTED)
-            is CharacterAction.CharacterDeleteClicked -> deleteCharacter(action.characterId)
-            is CharacterAction.CharacterPromptGenClicked -> {
-                val name = characterUiState.value.characterEdit.name.trim()
-                if (name.isEmpty()) {
-                    emitCharacterMessage(CharacterEffectMessage.CHARACTER_NAME_REQUIRED)
-                } else {
-                    updateCharacterEdit {
-                        it.copy(
-                            isPromptGenDialogOpen = true,
-                            promptGenInputText = action.defaultPromptRequestText
-                        )
-                    }
-                }
-            }
-            is CharacterAction.CharacterPromptGenInputChanged -> {
-                updateCharacterEdit {
-                    it.copy(promptGenInputText = action.text)
-                }
-            }
-            CharacterAction.CharacterPromptGenCancelClicked -> {
-                updateCharacterEdit {
-                    it.copy(isPromptGenDialogOpen = false)
-                }
-            }
-            CharacterAction.CharacterPromptGenConfirmClicked -> {
-                val inputPrompt = characterUiState.value.characterEdit.promptGenInputText
-                updateCharacterEdit {
-                    it.copy(
-                        isPromptGenDialogOpen = false,
-                        isGeneratingPrompt = true
-                    )
-                }
-                viewModelScope.launch {
-                    try {
-                        val config = modelConfigRepository.getDefault()
-                            ?.takeIf(ModelConfig::isUsable)
-                        if (config == null) {
-                            emitCharacterMessage(CharacterEffectMessage.MODEL_CONFIG_REQUIRED)
-                            updateCharacterEdit { it.copy(isGeneratingPrompt = false) }
-                            return@launch
-                        }
-
-                        val requestMessages = listOf(
-                            AiMessage(
-                                role = ChatRole.USER.apiValue,
-                                content = inputPrompt
-                            )
-                        )
-
-                        var generatedPrompt = ""
-                        var hasError = false
-                        aiRepository.createPromptCompletion(config, requestMessages).collect { result ->
-                            when (result) {
-                                is ApiResult.Success -> {
-                                    generatedPrompt = result.value.content
-                                    if (generatedPrompt.isNotBlank()) {
-                                        updateCharacterEdit {
-                                            it.copy(prompt = generatedPrompt)
-                                        }
-                                    }
-                                }
-                                else -> {
-                                    hasError = true
-                                }
-                            }
-                        }
-
-                        val finalPrompt = generatedPrompt.trim()
-                        if (hasError || finalPrompt.isEmpty()) {
-                            emitCharacterMessage(CharacterEffectMessage.PROMPT_GEN_FAILED)
-                            updateCharacterEdit { it.copy(isGeneratingPrompt = false) }
-                        } else {
-                            updateCharacterEdit {
-                                it.copy(
-                                    prompt = finalPrompt,
-                                    isGeneratingPrompt = false
-                                )
-                            }
-                        }
-                    } catch (cancellation: CancellationException) {
-                        throw cancellation
-                    } catch (_: Throwable) {
-                        emitCharacterMessage(CharacterEffectMessage.PROMPT_GEN_FAILED)
-                        updateCharacterEdit { it.copy(isGeneratingPrompt = false) }
-                    }
-                }
-            }
-            is CharacterAction.CharactersReordered -> {
-                val byId = characterUiState.value.characters.associateBy { it.id }
-                reorderCharacters(action.orderedCharacters.mapNotNull { byId[it.id] })
-            }
-            CharacterAction.CharacterRestoreDefaultClicked -> {
-                val characterId = characterUiState.value.characterEdit.characterId ?: return
-                viewModelScope.launch {
-                    characterRepository.getDefaultCharacter(characterId)?.let { default ->
-                        updateCharacterEdit {
-                            it.copy(
-                                name = default.name,
-                                prompt = default.prompt,
-                                openingMessage = default.openingMessage,
-                                temperature = default.temperature,
-                                topP = default.topP,
-                                avatarUri = default.avatarUri,
-                                voiceSampleUri = default.voiceSampleUri,
-                            )
-                        }
-                    }
-                }
-            }
-            CharacterAction.CharacterImportClicked -> {
-                // UI 层面会触发文件选择器
-            }
-            is CharacterAction.CharacterImportFileSelected -> {
-                handleCharacterImport(action.path, action.name, action.extension)
-            }
-            CharacterAction.CharacterImportWarningDismissed -> {
-                updateCharacterEdit { it.copy(importDraft = it.importDraft?.copy(warnings = emptyList())) }
-            }
-            CharacterAction.CharacterImportCancelled -> {
-                updateCharacterEdit { 
-                    it.copy(
-                        importDraft = null,
-                        isImporting = false,
-                        importError = null 
-                    ) 
-                }
-            }
-            CharacterAction.CharacterExportClicked -> {
-                viewModelScope.launch {
-                    _characterEffects.send(CharacterEffect.RequestDirectoryPicker)
-                }
-            }
-            is CharacterAction.CharacterExportDirectorySelected -> {
-                exportCharacter(action.directory)
-            }
+            else -> Unit
         }
     }
 
     private fun refreshCharacters() {
         viewModelScope.launch {
-            val characters = runCatching { characterRepository.loadCharacters() }
+            val characters = runCatching { characterRepository.loadCharacterSummaries() }
                 .getOrDefault(emptyList())
             val selectedId = _characterUiState.value.selectedCharacterId
                 ?.takeIf { id -> characters.any { it.id == id } }
@@ -556,15 +333,21 @@ class ChatViewModel(
             _uiState.update { state ->
                 state.copy(
                     selectedCharacterId = selectedId,
-                    selectedCharacter = characters.firstOrNull { it.id == selectedId },
+                    selectedCharacter = state.selectedCharacter
+                        ?.takeIf { it.id == selectedId },
                     characterStates = state.characterStates.filterKeys { id ->
                         characters.any { it.id == id }
                     },
                 )
             }
+            selectedId?.let(::loadSelectedCharacter)
         }
     }
 
+    /*
+     * Character editing is owned by CharacterEditViewModel. This legacy implementation is kept
+     * temporarily for source-history context and is intentionally excluded from compilation.
+     *
     private fun exportCharacter(directory: io.github.vinceglb.filekit.PlatformFile) {
         val selected = characterUiState.value.selectedCharacter ?: return
         
@@ -859,32 +642,48 @@ class ChatViewModel(
         _characterEffects.trySend(CharacterEffect.ShowMessage(message))
     }
 
+    */
+
     private fun selectCharacter(characterId: String) {
         val charState = characterUiState.value
         val characters = charState.characters
         if (characters.none { it.id == characterId }) return
         if (charState.selectedCharacterId == characterId) return
 
-        val sorted = characters.sortedWith(compareBy({ it.sortOrder }, { it.createdAt }))
-        val isTopFour = sorted.take(4).any { it.id == characterId }
+        val isTopFour = characters.take(4).any { it.id == characterId }
         if (isTopFour) {
             lastActiveMainCharacterId = characterId
         }
 
-        val selectedChar = characters.firstOrNull { it.id == characterId }
         _characterUiState.update {
             it.copy(selectedCharacterId = characterId)
         }
         _uiState.update {
             it.copy(
                 selectedCharacterId = characterId,
-                selectedCharacter = selectedChar,
+                selectedCharacter = null,
             )
         }
+        loadSelectedCharacter(characterId)
         observeSessions(characterId)
         val chatState = uiState.value
         val hasCache = chatState.characterStates[characterId]?.messages?.isNotEmpty() == true
         loadLatestSession(characterId, hasCache = hasCache)
+    }
+
+    private fun loadSelectedCharacter(characterId: String) {
+        viewModelScope.launch {
+            val character = runCatching {
+                characterRepository.getCharacter(characterId)
+            }.getOrNull() ?: return@launch
+            _uiState.update { state ->
+                if (state.selectedCharacterId == characterId) {
+                    state.copy(selectedCharacter = character)
+                } else {
+                    state
+                }
+            }
+        }
     }
 
     private fun observeSessions(characterId: String) {
@@ -930,8 +729,18 @@ class ChatViewModel(
             if (uiState.value.selectedCharacterId != characterId) return@launch
             activeSession = session
             if (session == null) {
+                val selectedCharacter = uiState.value.selectedCharacter
+                    ?: characterRepository.getCharacter(characterId)?.also { character ->
+                        _uiState.update { state ->
+                            if (state.selectedCharacterId == characterId) {
+                                state.copy(selectedCharacter = character)
+                            } else {
+                                state
+                            }
+                        }
+                    }
                 val greeting = emptyGreeting(
-                    character = uiState.value.selectedCharacter,
+                    character = selectedCharacter,
                     now = currentTimeMillis(),
                     timeFormatter = timeFormatter,
                 )

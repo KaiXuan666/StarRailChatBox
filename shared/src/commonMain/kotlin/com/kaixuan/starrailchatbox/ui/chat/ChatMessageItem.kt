@@ -38,7 +38,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
-import com.kaixuan.starrailchatbox.data.character.Character
+import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 import com.kaixuan.starrailchatbox.data.chat.MessageAttachment
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.starRailColors
@@ -57,7 +57,7 @@ import starrailchatbox.shared.generated.resources.view_attachments
 @Composable
 fun MessageItem(
     message: ChatMessageUiModel,
-    charactersById: Map<String, Character>,
+    charactersById: Map<String, CharacterSummary>,
     userAvatarUri: String?,
     compact: Boolean,
     playingAudioUri: String?,
@@ -92,7 +92,7 @@ fun MessageItem(
 @Composable
 fun ReceivedMessage(
     message: ChatMessageUiModel.Received,
-    sender: Character?,
+    sender: CharacterSummary?,
     compact: Boolean,
     playingAudioUri: String?,
     onViewAttachments: (List<MessageAttachment>) -> Unit,

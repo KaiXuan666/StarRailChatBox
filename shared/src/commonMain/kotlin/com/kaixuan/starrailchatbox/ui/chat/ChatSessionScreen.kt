@@ -26,7 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.kaixuan.starrailchatbox.data.character.Character
+import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 import com.kaixuan.starrailchatbox.data.chat.MessageAttachment
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.platform.openUri
@@ -156,8 +156,7 @@ fun ChatSessionScreen(
 
     LaunchedEffect(characters, selectedCharacter) {
         if (selectedCharacter != null) {
-            val isTopFour = characters.sortedWith(compareBy({ it.sortOrder }, { it.createdAt }))
-                .take(4)
+            val isTopFour = characters.take(4)
                 .any { it.id == selectedCharacter.id }
             if (!isTopFour) {
                 onAction(ChatAction.RestoreMainCharacter)
@@ -222,7 +221,7 @@ fun ChatSessionScreen(
             val pageCharacter = characters[page]
             val pageState = state.characterStates[pageCharacter.id] ?: CharacterChatState()
             val charactersById = remember(characters) {
-                characters.associateBy(Character::id)
+                characters.associateBy(CharacterSummary::id)
             }
 
             if (pageState.isLoadingSession) {

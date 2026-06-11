@@ -46,12 +46,13 @@ data class CharactersUiState(
 
 @Immutable
 data class ChatCharactersUiState(
-    val characters: List<Character> = emptyList(),
+    val characters: List<CharacterSummary> = emptyList(),
     val selectedCharacterId: String? = null,
+    @Deprecated("Character editing state is owned by CharacterEditViewModel.")
     val characterEdit: CharacterEditUiState = CharacterEditUiState(),
     val isLoadingCharacters: Boolean = true,
 ) {
-    val selectedCharacter: Character?
+    val selectedCharacter: CharacterSummary?
         get() = characters.firstOrNull { it.id == selectedCharacterId }
             ?: characters.firstOrNull()
 }

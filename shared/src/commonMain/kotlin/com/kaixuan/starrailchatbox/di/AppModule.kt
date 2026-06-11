@@ -99,8 +99,6 @@ fun appModule(
             profileStore = get(),
             chatMessageSender = get(),
             fileManager = get(),
-            characterCardImporter = get(),
-            characterCardExporter = get(),
         )
     }
     factory { SettingsViewModel(aiRepository = get(), modelConfigRepository = get()) }

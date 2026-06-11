@@ -27,6 +27,13 @@ interface AgentRoleDao {
     suspend fun findAll(): List<AgentRoleSummaryEntity>
 
     @Query("""
+        SELECT * FROM agent_role
+        WHERE deleted_at IS NULL
+        ORDER BY sort_order, created_at
+    """)
+    suspend fun findAllFull(): List<AgentRoleEntity>
+
+    @Query("""
         SELECT id, name, avatar_uri,
             (SELECT MAX(last_message_at) FROM chat_session WHERE agent_id = agent_role.id AND deleted_at IS NULL) AS last_message_at
         FROM agent_role 

@@ -19,7 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.kaixuan.starrailchatbox.data.character.Character
+import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.starRailColors
 import com.kaixuan.starrailchatbox.ui.character.CharacterAction
@@ -36,7 +36,7 @@ import starrailchatbox.shared.generated.resources.online
 
 @Composable
 fun ChatHeader(
-    selectedCharacter: Character,
+    selectedCharacter: CharacterSummary,
     compact: Boolean,
     onAction: (ChatAction) -> Unit,
     onCharacterAction: (CharacterAction) -> Unit,
@@ -70,7 +70,7 @@ fun ChatHeader(
 
 @Composable
 fun CharacterSummary(
-    character: Character,
+    character: CharacterSummary,
     compact: Boolean,
     onAvatarClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -223,7 +223,7 @@ fun HeaderActions(
 
 @Composable
 fun CharacterChatHeader(
-    selectedCharacter: Character,
+    selectedCharacter: CharacterSummary,
     compact: Boolean,
     onAction: (ChatAction) -> Unit,
     onCharacterAction: (CharacterAction) -> Unit,

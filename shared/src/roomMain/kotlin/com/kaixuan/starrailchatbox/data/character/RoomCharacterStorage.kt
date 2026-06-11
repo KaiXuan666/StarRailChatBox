@@ -51,10 +51,11 @@ class RoomCharacterStorage(
         }
     }
 
+    @Deprecated(
+        message = "Loads every full role including large prompts. Use loadCharacterSummaries() and getCharacter(id).",
+    )
     override suspend fun loadCharacters(): List<CharacterFiles> {
-        return dao.findAll().mapNotNull { summary ->
-            dao.findById(summary.id)?.toCharacterFiles()?.copy(lastMessageAt = summary.lastMessageAt)
-        }
+        return dao.findAllFull().map { it.toCharacterFiles() }
     }
 
     override suspend fun loadCharacterSummaries(): List<CharacterSummary> {
