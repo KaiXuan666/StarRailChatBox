@@ -1,13 +1,10 @@
 package com.kaixuan.starrailchatbox.ui.settings
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -39,12 +36,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
@@ -88,18 +82,19 @@ import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import com.kaixuan.starrailchatbox.ui.components.BackHandler
 import com.kaixuan.starrailchatbox.ui.components.StarRailSecondaryButton
 import com.kaixuan.starrailchatbox.ui.main.MainAction
-import kotlinx.coroutines.flow.collectLatest
+import com.kaixuan.starrailchatbox.ui.settings.api.ApiSettingsAction
+import com.kaixuan.starrailchatbox.ui.settings.api.ApiSettingsUiState
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
 @Composable
 fun ApiSettingsScreen(
-    state: SettingsUiState,
+    state: ApiSettingsUiState,
     contentPadding: PaddingValues,
     compact: Boolean,
     onMainAction: (MainAction) -> Unit,
-    onSettingsAction: (SettingsAction) -> Unit,
+    onApiAction: (ApiSettingsAction) -> Unit,
     modifier: Modifier = Modifier,
     isMultimodal: Boolean = false,
     isVoice: Boolean = false,
@@ -107,51 +102,6 @@ fun ApiSettingsScreen(
 ) {
     val colors = MaterialTheme.starRailColors
     
-    val apiHost = when {
-        isImageGeneration -> state.imageGenerationApiHost
-        isVoice -> state.voiceApiHost
-        isMultimodal -> state.multimodalApiHost
-        else -> state.apiHost
-    }
-    val apiKey = when {
-        isImageGeneration -> state.imageGenerationApiKey
-        isVoice -> state.voiceApiKey
-        isMultimodal -> state.multimodalApiKey
-        else -> state.apiKey
-    }
-    val showApiKey = when {
-        isImageGeneration -> state.imageGenerationShowApiKey
-        isVoice -> state.voiceShowApiKey
-        isMultimodal -> state.multimodalShowApiKey
-        else -> state.showApiKey
-    }
-    val isFetchingModels = when {
-        isImageGeneration -> state.imageGenerationIsFetchingModels
-        isVoice -> state.voiceIsFetchingModels
-        isMultimodal -> state.multimodalIsFetchingModels
-        else -> state.isFetchingModels
-    }
-    val modelsList = when {
-        isImageGeneration -> state.imageGenerationModelsList
-        isVoice -> state.voiceModelsList
-        isMultimodal -> state.multimodalModelsList
-        else -> state.modelsList
-    }
-    val selectedModel = when {
-        isImageGeneration -> state.imageGenerationSelectedModel
-        isVoice -> state.voiceSelectedModel
-        isMultimodal -> state.multimodalSelectedModel
-        else -> state.selectedModel
-    }
-    val isSaving = when {
-        isImageGeneration -> state.imageGenerationIsSaving
-        isVoice -> state.voiceIsSaving
-        isMultimodal -> state.multimodalIsSaving
-        else -> state.isSaving
-    }
-
-    val voiceSelectedCloneModel = state.voiceSelectedCloneModel
-
     BackHandler {
         onMainAction(MainAction.PopBackStack)
     }
@@ -198,8 +148,8 @@ fun ApiSettingsScreen(
                 )
                 
                 ApiInputField(
-                    value = apiHost,
-                    onValueChange = { onSettingsAction(SettingsAction.ApiHostChanged(it, isMultimodal = isMultimodal, isVoice = isVoice, isImageGeneration = isImageGeneration)) },
+                    value = state.apiHost,
+                    onValueChange = { onApiAction(ApiSettingsAction.ApiHostChanged(it)) },
                     placeholder = if (isVoice) "https://api.xiaomimimo.com/v1" else "https://api.openai.com/v1",
                     leadingIcon = StarRailIconKind.COMPASS,
                     compact = compact
@@ -219,22 +169,13 @@ fun ApiSettingsScreen(
                 )
                 
                 ApiInputField(
-                    value = apiKey,
-                    onValueChange = { onSettingsAction(SettingsAction.ApiKeyChanged(it, isMultimodal = isMultimodal, isVoice = isVoice, isImageGeneration = isImageGeneration)) },
+                    value = state.apiKey,
+                    onValueChange = { onApiAction(ApiSettingsAction.ApiKeyChanged(it)) },
                     placeholder = "sk-",
                     leadingIcon = StarRailIconKind.KEY,
                     isPasswordField = true,
-                    passwordVisible = showApiKey,
-                    onPasswordToggle = { 
-                        onSettingsAction(
-                            when {
-                                isImageGeneration -> SettingsAction.ToggleImageGenerationApiKeyVisibility
-                                isVoice -> SettingsAction.ToggleVoiceApiKeyVisibility
-                                isMultimodal -> SettingsAction.ToggleMultimodalApiKeyVisibility
-                                else -> SettingsAction.ToggleApiKeyVisibility
-                            }
-                        )
-                    },
+                    passwordVisible = state.showApiKey,
+                    onPasswordToggle = { onApiAction(ApiSettingsAction.ToggleApiKeyVisibility) },
                     compact = compact
                 )
             }
@@ -262,17 +203,8 @@ fun ApiSettingsScreen(
                     val fetchScale by animateFloatAsState(if (isFetchPressed) 0.92f else 1f)
                     
                     Surface(
-                        onClick = { 
-                            onSettingsAction(
-                                when {
-                                    isImageGeneration -> SettingsAction.FetchImageGenerationModelsClicked
-                                    isVoice -> SettingsAction.FetchVoiceModelsClicked
-                                    isMultimodal -> SettingsAction.FetchMultimodalModelsClicked
-                                    else -> SettingsAction.FetchModelsClicked
-                                }
-                            )
-                        },
-                        enabled = !isFetchingModels,
+                        onClick = { onApiAction(ApiSettingsAction.FetchModelsClicked) },
+                        enabled = !state.isFetchingModels,
                         interactionSource = fetchInteractionSource,
                         modifier = Modifier.scale(fetchScale),
                         shape = RoundedCornerShape(50),
@@ -284,7 +216,7 @@ fun ApiSettingsScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            if (isFetchingModels) {
+                            if (state.isFetchingModels) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(14.dp),
                                     color = MaterialTheme.colorScheme.primary,
@@ -301,7 +233,7 @@ fun ApiSettingsScreen(
                     }
                 }
 
-                if (isMultimodal && !isFetchingModels && modelsList.isNotEmpty()) {
+                if (isMultimodal && !state.isFetchingModels && state.modelsList.isNotEmpty()) {
                     Text(
                         text = stringResource(Res.string.settings_multimodal_api_tip),
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
@@ -317,15 +249,15 @@ fun ApiSettingsScreen(
                     Column(
                         verticalArrangement = Arrangement.spacedBy(StarRailSpacing.sm)
                     ) {
-                        if (isVoice && modelsList.isNotEmpty()) {
+                        if (isVoice && state.modelsList.isNotEmpty()) {
                             StarRailDropdown(
                                 label = stringResource(Res.string.settings_voice_generation_models),
-                                options = modelsList,
-                                selectedOption = selectedModel,
-                                onOptionSelected = { onSettingsAction(SettingsAction.SelectModel(it, isVoice = true)) },
+                                options = state.modelsList,
+                                selectedOption = state.selectedModel,
+                                onOptionSelected = { onApiAction(ApiSettingsAction.SelectModel(it)) },
                                 compact = compact,
-                                isFetching = isFetchingModels,
-                                onFetchRequest = { onSettingsAction(SettingsAction.FetchVoiceModelsClicked) }
+                                isFetching = state.isFetchingModels,
+                                onFetchRequest = { onApiAction(ApiSettingsAction.FetchModelsClicked) }
                             )
 
                             Spacer(modifier = Modifier.height(4.dp))
@@ -333,16 +265,16 @@ fun ApiSettingsScreen(
                             val noneText = stringResource(Res.string.settings_voice_clone_none)
                             StarRailDropdown(
                                 label = stringResource(Res.string.settings_voice_clone_models),
-                                options = listOf(noneText) + modelsList,
-                                selectedOption = voiceSelectedCloneModel.ifEmpty { noneText },
+                                options = listOf(noneText) + state.modelsList,
+                                selectedOption = state.selectedCloneModel.ifEmpty { noneText },
                                 onOptionSelected = {
                                     val model = if (it == noneText) "" else it
-                                    onSettingsAction(SettingsAction.SelectModel(model, isVoice = true, isVoiceClone = true))
+                                    onApiAction(ApiSettingsAction.SelectModel(model, isCloneModel = true))
                                 },
                                 compact = compact,
                                 placeholder = noneText,
-                                isFetching = isFetchingModels,
-                                onFetchRequest = { onSettingsAction(SettingsAction.FetchVoiceModelsClicked) }
+                                isFetching = state.isFetchingModels,
+                                onFetchRequest = { onApiAction(ApiSettingsAction.FetchModelsClicked) }
                             )
                             
                             Text(
@@ -351,28 +283,20 @@ fun ApiSettingsScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 modifier = Modifier.padding(start = 8.dp, end = 8.dp)
                             )
-                        } else if (modelsList.isNotEmpty()) {
+                        } else if (state.modelsList.isNotEmpty()) {
                             StarRailDropdown(
-                                options = modelsList,
-                                selectedOption = selectedModel,
-                                onOptionSelected = { onSettingsAction(SettingsAction.SelectModel(it, isMultimodal = isMultimodal, isVoice = isVoice, isImageGeneration = isImageGeneration)) },
+                                options = state.modelsList,
+                                selectedOption = state.selectedModel,
+                                onOptionSelected = { onApiAction(ApiSettingsAction.SelectModel(it)) },
                                 compact = compact,
                                 placeholder = stringResource(Res.string.settings_api_model_selected),
                                 iconKind = if (isImageGeneration) StarRailIconKind.GALLERY else StarRailIconKind.CUBE,
-                                isFetching = isFetchingModels,
-                                onFetchRequest = {
-                                    onSettingsAction(
-                                        when {
-                                            isImageGeneration -> SettingsAction.FetchImageGenerationModelsClicked
-                                            isMultimodal -> SettingsAction.FetchMultimodalModelsClicked
-                                            else -> SettingsAction.FetchModelsClicked
-                                        }
-                                    )
-                                }
+                                isFetching = state.isFetchingModels,
+                                onFetchRequest = { onApiAction(ApiSettingsAction.FetchModelsClicked) }
                             )
                         }
                         
-                        if (!isFetchingModels && modelsList.isEmpty()) {
+                        if (!state.isFetchingModels && state.modelsList.isEmpty()) {
                             Text(
                                 text = stringResource(Res.string.settings_api_empty_models),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -383,7 +307,7 @@ fun ApiSettingsScreen(
                     }
                     
                     // Loading Overlay banner
-                    if (isFetchingModels && modelsList.isEmpty()) {
+                    if (state.isFetchingModels && state.modelsList.isEmpty()) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -418,30 +342,19 @@ fun ApiSettingsScreen(
             
             StarRailPrimaryButton(
                 text = stringResource(
-                    if (isSaving) {
+                    if (state.isSaving) {
                         Res.string.settings_saving
                     } else {
                         Res.string.settings_save_config
                     },
                 ),
-                onClick = { 
-                    onSettingsAction(
-                        when {
-                            isImageGeneration -> SettingsAction.SaveImageGenerationApiSettingsClicked
-                            isVoice -> SettingsAction.SaveVoiceApiSettingsClicked
-                            isMultimodal -> SettingsAction.SaveMultimodalApiSettingsClicked
-                            else -> SettingsAction.SaveApiSettingsClicked
-                        }
-                    )
-                },
-                enabled = !isSaving,
+                onClick = { onApiAction(ApiSettingsAction.SaveSettingsClicked) },
+                enabled = !state.isSaving,
             )
 
             StarRailSecondaryButton(
                 text = stringResource(Res.string.settings_clear_config),
-                onClick = {
-                    onSettingsAction(SettingsAction.ClearApiSettingsClicked(isMultimodal = isMultimodal, isVoice = isVoice, isImageGeneration = isImageGeneration))
-                },
+                onClick = { onApiAction(ApiSettingsAction.ClearSettingsClicked) },
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -772,7 +685,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCompassDecor(
 private fun ApiSettingsScreenLightPreview() {
     StarRailTheme(darkThemeOverride = false) {
         ApiSettingsScreen(
-            state = SettingsUiState(
+            state = ApiSettingsUiState(
                 apiHost = "https://api.example.com/v1",
                 apiKey = "sk-1234567890",
                 selectedModel = "gpt-4o-mini"
@@ -780,7 +693,7 @@ private fun ApiSettingsScreenLightPreview() {
             contentPadding = PaddingValues(0.dp),
             compact = true,
             onMainAction = {},
-            onSettingsAction = {}
+            onApiAction = {}
         )
     }
 }
@@ -790,7 +703,7 @@ private fun ApiSettingsScreenLightPreview() {
 private fun ApiSettingsScreenDarkPreview() {
     StarRailTheme(darkThemeOverride = true) {
         ApiSettingsScreen(
-            state = SettingsUiState(
+            state = ApiSettingsUiState(
                 apiHost = "https://api.example.com/v1",
                 apiKey = "sk-1234567890",
                 selectedModel = "gpt-4o-mini"
@@ -798,7 +711,7 @@ private fun ApiSettingsScreenDarkPreview() {
             contentPadding = PaddingValues(0.dp),
             compact = true,
             onMainAction = {},
-            onSettingsAction = {}
+            onApiAction = {}
         )
     }
 }

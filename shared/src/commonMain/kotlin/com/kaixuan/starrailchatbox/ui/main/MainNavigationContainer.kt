@@ -177,6 +177,9 @@ import com.kaixuan.starrailchatbox.ui.settings.SettingsEffectMessage
 import com.kaixuan.starrailchatbox.ui.settings.SettingsOverviewUiState
 import com.kaixuan.starrailchatbox.ui.settings.SettingsViewModel
 import com.kaixuan.starrailchatbox.ui.settings.SettingsOverviewViewModel
+import com.kaixuan.starrailchatbox.ui.settings.api.ApiSettingsViewModel
+import com.kaixuan.starrailchatbox.ui.settings.api.ApiSettingsAction
+import com.kaixuan.starrailchatbox.ui.settings.api.ApiSettingsEffect
 import com.kaixuan.starrailchatbox.ui.profile.ProfileScreen
 import com.kaixuan.starrailchatbox.ui.profile.ProfileAction
 import com.kaixuan.starrailchatbox.ui.profile.ProfileEffect
@@ -1256,22 +1259,26 @@ private fun ApiSettingsRoute(
     isVoice: Boolean = false,
     isImageGeneration: Boolean = false,
 ) {
-    val viewModel = viewModel { koin.get<SettingsViewModel>() }
+    val viewModel = viewModel {
+        koin.get<ApiSettingsViewModel>(
+            parameters = { parametersOf(isMultimodal, isVoice, isImageGeneration) },
+        )
+    }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(viewModel) {
         viewModel.effects.collectLatest { effect ->
             when (effect) {
-                is SettingsEffect.ShowMessage -> {
+                is ApiSettingsEffect.ShowMessage -> {
                     snackbarHostState.showSnackbar(effectMessages.getValue(effect.message))
                 }
-                SettingsEffect.ApiSettingsSaved -> {
+                ApiSettingsEffect.ApiSettingsSaved -> {
                     snackbarHostState.showSnackbar(
                         effectMessages.getValue(SettingsEffectMessage.SETTINGS_API_SAVED),
                     )
                     onMainAction(MainAction.PopBackStack)
                 }
-                SettingsEffect.NavigateBack -> onMainAction(MainAction.PopBackStack)
+                ApiSettingsEffect.NavigateBack -> onMainAction(MainAction.PopBackStack)
             }
         }
     }
@@ -1281,7 +1288,7 @@ private fun ApiSettingsRoute(
         contentPadding = contentPadding,
         compact = compact,
         onMainAction = onMainAction,
-        onSettingsAction = viewModel::onAction,
+        onApiAction = viewModel::onAction,
         isMultimodal = isMultimodal,
         isVoice = isVoice,
         isImageGeneration = isImageGeneration,

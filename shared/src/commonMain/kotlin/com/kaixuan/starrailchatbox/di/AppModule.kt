@@ -32,6 +32,7 @@ import com.kaixuan.starrailchatbox.data.settings.ProfileStore
 import com.kaixuan.starrailchatbox.platform.KmpFileManager
 import com.kaixuan.starrailchatbox.ui.settings.SettingsViewModel
 import com.kaixuan.starrailchatbox.ui.settings.SettingsOverviewViewModel
+import com.kaixuan.starrailchatbox.ui.settings.api.ApiSettingsViewModel
 import com.kaixuan.starrailchatbox.ui.profile.ProfileViewModel
 import com.kaixuan.starrailchatbox.ui.chat.ChatViewModel
 import com.kaixuan.starrailchatbox.ui.chat.ChatMessageSender
@@ -101,7 +102,16 @@ fun appModule(
             fileManager = get(),
         )
     }
-    factory { SettingsViewModel(aiRepository = get(), modelConfigRepository = get()) }
+    factory { SettingsViewModel() }
+    factory { parameters ->
+        ApiSettingsViewModel(
+            isMultimodal = parameters.get<Boolean>(0),
+            isVoice = parameters.get<Boolean>(1),
+            isImageGeneration = parameters.get<Boolean>(2),
+            aiRepository = get(),
+            modelConfigRepository = get()
+        )
+    }
     factory { SettingsOverviewViewModel(get()) }
     factory { ProfileViewModel(get(), get()) }
 }
