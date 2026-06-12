@@ -87,17 +87,25 @@
 
 ---
 
+## 📥 角色卡导入与导出 (Import & Export)
+
+本项目完全支持**角色卡的导入与导出功能**，方便开拓者们分享与使用自己调教的角色人设：
+- **分享你的角色**：可将精心调教的角色（包含人设 Prompt、开场白及相关配置）一键导出为角色卡文件，分享给其他开拓者。
+- **一键体验他人的角色卡**：支持直接导入其他开拓者分享的角色卡，免去手动配置人设的繁琐步骤，瞬间复刻完美的聊天伙伴。
+
+---
+
 ## ☕ 请作者喝杯咖啡 (Sponsor)
 
 如果您觉得本项目对您有所帮助，或者喜欢这个应用，欢迎请作者喝杯咖啡支持一下！您的支持是作者持续维护和开发的最大动力。❤️
 
 <table align="center">
   <tr>
-    <td align="center" style="border: none;">
+    <td align="center" style="border: none; padding: 0 20px;">
       <img src="shared/src/commonMain/composeResources/drawable/about_alipay_qr.webp" width="180px" alt="支付宝收款码" /><br/>
       <sub><b>支付宝 (Alipay)</b></sub>
     </td>
-    <td align="center" style="border: none;">
+    <td align="center" style="border: none; padding: 0 20px;">
       <img src="shared/src/commonMain/composeResources/drawable/about_wechat_qr.webp" width="180px" alt="微信收款码" /><br/>
       <sub><b>微信支付 (WeChat Pay)</b></sub>
     </td>
