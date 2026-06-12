@@ -194,6 +194,9 @@ kotlin {
         }
         jvmMain.dependencies {
             implementation(libs.ktor.client.cio)
+            implementation(libs.jlayer)
+            implementation(libs.mp3spi)
+            implementation(libs.tritonus.share)
         }
         jvmMain.get().dependsOn(roomMain)
         iosMain.dependencies {

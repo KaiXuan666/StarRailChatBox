@@ -2,6 +2,7 @@ package com.kaixuan.starrailchatbox.ui.character
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -782,6 +783,7 @@ private fun CharacterVoiceSampleCard(
                             text = state.voiceSampleUri.substringAfterLast('/'),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.basicMarquee(),
                             maxLines = 1,
                         )
                         Text(
