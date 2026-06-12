@@ -215,14 +215,10 @@ fun ChatSessionScreen(
                 onCharacterSelected = { characterId ->
                     val index = pagerCharacters.indexOfFirst { it.id == characterId }
                     if (index != -1) {
+                        onCharacterAction(CharacterAction.CharacterSelected(characterId))
                         coroutineScope.launch {
                             if (pagerState.currentPage != index) {
                                 pagerState.scrollToPage(index)
-                            }
-                            withFrameNanos {}
-                            val targetListState = currentStates[characterId]
-                            if (targetListState != null) {
-                                targetListState.scrollToItem(0)
                             }
                         }
                     }
@@ -240,71 +236,63 @@ fun ChatSessionScreen(
                 characters.associateBy(CharacterSummary::id)
             }
 
-            if (pageState.isLoadingSession) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                    ) {
-                    CircularProgressIndicator()
-                }
-            } else {
-                val pageListState = currentStates.getValue(pageCharacter.id)
-                val pageMessages = pageState.messagePagingData.flow.collectAsLazyPagingItems()
-                val latestMessageId = (
-                    pageMessages.itemSnapshotList.items.firstOrNull()
-                        as? ChatTimelineItem.Message
-                    )?.message?.id
+            val pageListState = currentStates.getValue(pageCharacter.id)
+            val pageMessages = pageState.messagePagingData.flow.collectAsLazyPagingItems()
+            val latestMessageId = (
+                pageMessages.itemSnapshotList.items.firstOrNull()
+                    as? ChatTimelineItem.Message
+                )?.message?.id
 
-                LaunchedEffect(pageState.messagePagingData) {
-                    if (pageState.messagePagingData.sessionId == null) {
-                        pageListState.scrollToItem(0)
-                        return@LaunchedEffect
-                    }
-                    snapshotFlow {
-                        pageMessages.loadState.refresh to pageMessages.itemCount
-                    }.first { (loadState, itemCount) ->
-                        loadState is LoadState.NotLoading && itemCount > 0
-                    }
-                    withFrameNanos {}
-                    when (pageState.messagePagingData.anchor) {
-                        ChatHistoryAnchor.LATEST -> pageListState.scrollToItem(0)
-                        ChatHistoryAnchor.OLDEST ->
-                            pageListState.scrollToItem(pageMessages.itemCount - 1)
-                    }
+            LaunchedEffect(pageState.messagePagingData) {
+                if (pageState.messagePagingData.sessionId == null) {
+                    pageListState.scrollToItem(0)
+                    return@LaunchedEffect
                 }
+                snapshotFlow {
+                    pageMessages.loadState.refresh to pageMessages.itemCount
+                }.first { (loadState, itemCount) ->
+                    loadState is LoadState.NotLoading && itemCount > 0
+                }
+                withFrameNanos {}
+                when (pageState.messagePagingData.anchor) {
+                    ChatHistoryAnchor.LATEST -> pageListState.scrollToItem(0)
+                    ChatHistoryAnchor.OLDEST ->
+                        pageListState.scrollToItem(pageMessages.itemCount - 1)
+                }
+            }
 
-                LaunchedEffect(pageState.scrollToLatestRequestId) {
-                    if (pageState.scrollToLatestRequestId == 0L) return@LaunchedEffect
-                    val latestMessageCached =
-                        pageMessages.loadState.prepend is LoadState.NotLoading &&
-                            (pageMessages.loadState.prepend as LoadState.NotLoading)
-                                .endOfPaginationReached
-                    if (latestMessageCached) {
+            LaunchedEffect(pageState.scrollToLatestRequestId) {
+                if (pageState.scrollToLatestRequestId == 0L) return@LaunchedEffect
+                val latestMessageCached =
+                    pageMessages.loadState.prepend is LoadState.NotLoading &&
+                        (pageMessages.loadState.prepend as LoadState.NotLoading)
+                            .endOfPaginationReached
+                if (latestMessageCached) {
+                    pageListState.scrollToItem(0)
+                } else {
+                    onAction(ChatAction.ScrollToLatestMessage)
+                }
+            }
+
+            LaunchedEffect(pageCharacter.id, latestMessageId, pageMessages.itemCount) {
+                if (
+                    latestMessageId != null &&
+                    pageState.messagePagingData.anchor == ChatHistoryAnchor.LATEST
+                ) {
+                    if (pageCharacter.id !in initiallyPositionedCharacterIds) {
+                        withFrameNanos {}
                         pageListState.scrollToItem(0)
+                        initiallyPositionedCharacterIds += pageCharacter.id
                     } else {
-                        onAction(ChatAction.ScrollToLatestMessage)
-                    }
-                }
-
-                LaunchedEffect(pageCharacter.id, latestMessageId, pageMessages.itemCount) {
-                    if (
-                        latestMessageId != null &&
-                        pageState.messagePagingData.anchor == ChatHistoryAnchor.LATEST
-                    ) {
-                        if (pageCharacter.id !in initiallyPositionedCharacterIds) {
-                            withFrameNanos {}
-                            pageListState.scrollToItem(0)
-                            initiallyPositionedCharacterIds += pageCharacter.id
-                        } else {
-                            // 已经处于最底部时，发送或收到消息，自动滚回底部
-                            if (pageListState.firstVisibleItemIndex <= 1) {
-                                pageListState.animateScrollToItem(0)
-                            }
+                        // 已经处于最底部时，发送或收到消息，自动滚回底部
+                        if (pageListState.firstVisibleItemIndex <= 1) {
+                            pageListState.animateScrollToItem(0)
                         }
                     }
                 }
+            }
 
-                ChatMessageList(
+            ChatMessageList(
                     messages = pageMessages,
                     listState = pageListState,
                     charactersById = charactersById,
@@ -355,8 +343,7 @@ fun ChatSessionScreen(
                             modifier = Modifier.padding(bottom = StarRailSpacing.md)
                         )
                     }
-                )
-            }
+            )
         }
 
         }

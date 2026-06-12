@@ -117,6 +117,7 @@ sealed interface SelectedAttachment {
 @Immutable
 data class CharacterChatState(
     val activeSessionId: String? = null,
+    val hasLoadedSession: Boolean = false,
     val sessions: List<ConversationSummaryUiModel> = emptyList(),
     val messagePagingData: ChatMessagePagingData = EmptyChatMessagePagingData,
     val messageDraft: String = "",

@@ -87,6 +87,7 @@ class ChatViewModel(
     },
     private val enableFileAppend: Boolean = false,
 ) : ViewModel() {
+    private val loadedCharacters = mutableMapOf<String, Character>()
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState = _uiState.asStateFlow()
 
@@ -682,12 +683,17 @@ class ChatViewModel(
         _uiState.update {
             it.copy(
                 selectedCharacterId = characterId,
-                selectedCharacter = null,
+                selectedCharacter = loadedCharacters[characterId],
             )
         }
         loadSelectedCharacter(characterId)
         observeSessions(characterId)
-        loadLatestSession(characterId)
+        val cachedState = uiState.value.characterStates[characterId]
+        if (cachedState?.hasLoadedSession == true) {
+            restoreCachedSession(characterId, cachedState.activeSessionId)
+        } else {
+            loadLatestSession(characterId)
+        }
     }
 
     private fun loadSelectedCharacter(characterId: String) {
@@ -695,6 +701,7 @@ class ChatViewModel(
             val character = runCatching {
                 characterRepository.getCharacter(characterId)
             }.getOrNull() ?: return@launch
+            loadedCharacters[characterId] = character
             _uiState.update { state ->
                 if (state.selectedCharacterId == characterId) {
                     state.copy(selectedCharacter = character)
@@ -770,6 +777,7 @@ class ChatViewModel(
                     state.copy(
                         characterStates = state.characterStates + (characterId to currentState.copy(
                             activeSessionId = null,
+                            hasLoadedSession = true,
                             messagePagingData = greeting,
                             suggestions = emptyList(),
                             isLoadingSession = false,
@@ -779,6 +787,26 @@ class ChatViewModel(
                 return@launch
             }
             bindSessionMessages(characterId, session.id)
+        }
+    }
+
+    private fun restoreCachedSession(characterId: String, sessionId: String?) {
+        sessionJob?.cancel()
+        if (sessionId == null) {
+            activeSession = null
+            return
+        }
+        sessionJob = viewModelScope.launch {
+            val session = chatSessionRepository.findSession(sessionId)
+            if (
+                session == null ||
+                session.agentId != characterId ||
+                uiState.value.selectedCharacterId != characterId
+            ) {
+                return@launch
+            }
+            activeSession = session
+            bindSessionMessages(characterId, sessionId)
         }
     }
 
@@ -849,6 +877,7 @@ class ChatViewModel(
                 characterStates = current.characterStates + (
                     character.id to currentState.copy(
                         activeSessionId = null,
+                        hasLoadedSession = true,
                         messagePagingData = emptyGreetingPagingData(
                             character = character,
                             now = currentTimeMillis(),
@@ -894,6 +923,7 @@ class ChatViewModel(
             updateCharacterState(characterId) {
                 it.copy(
                     activeSessionId = session.id,
+                    hasLoadedSession = true,
                     messagePagingData = EmptyChatMessagePagingData,
                     suggestions = emptyList(),
                     isLoadingSession = false,
@@ -1256,6 +1286,7 @@ class ChatViewModel(
         updateCharacterState(characterId) {
             it.copy(
                 activeSessionId = sessionId,
+                hasLoadedSession = true,
                 messagePagingData = pagingData,
                 isLoadingSession = false,
             )
