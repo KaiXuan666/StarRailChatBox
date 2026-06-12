@@ -11,6 +11,7 @@ class JsPlatform: Platform {
     override val name: String = userAgent.findAnyOf(browserList, ignoreCase = true)
             ?.let { (startIndex) -> userAgent.substring(startIndex).substringBefore(" ") }
             ?: "Unknown"
+    override val type: PlatformType = PlatformType.Web
     override val versionCode: Int = AppConfig.versionCode
     override val versionName: String = AppConfig.versionName
 }

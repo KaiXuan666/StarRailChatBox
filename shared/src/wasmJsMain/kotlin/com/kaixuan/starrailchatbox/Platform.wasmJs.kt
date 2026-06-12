@@ -4,6 +4,7 @@ import com.kaixuan.starrailchatbox.data.settings.AppConfig
 
 class WasmPlatform: Platform {
     override val name: String = "Web with Kotlin/Wasm"
+    override val type: PlatformType = PlatformType.Web
     override val versionCode: Int = AppConfig.versionCode
     override val versionName: String = AppConfig.versionName
 }

@@ -6,6 +6,7 @@ import com.kaixuan.starrailchatbox.data.settings.AppConfig
 
 class IOSPlatform: Platform {
     override val name: String = UIDevice.currentDevice.systemName() + " " + UIDevice.currentDevice.systemVersion
+    override val type: PlatformType = PlatformType.Ios
     override val versionCode: Int = AppConfig.versionCode
     override val versionName: String = AppConfig.versionName
 }
