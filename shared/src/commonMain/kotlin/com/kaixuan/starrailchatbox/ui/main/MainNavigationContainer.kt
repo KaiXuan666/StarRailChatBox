@@ -77,6 +77,7 @@ import com.kaixuan.starrailchatbox.platform.rememberCameraLauncher
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import starrailchatbox.shared.generated.resources.Res
 import starrailchatbox.shared.generated.resources.attach_not_ready
+import starrailchatbox.shared.generated.resources.common_copied_success
 import starrailchatbox.shared.generated.resources.emoji_not_ready
 import starrailchatbox.shared.generated.resources.microphone_not_ready
 import starrailchatbox.shared.generated.resources.nav_characters
@@ -477,6 +478,7 @@ fun MainRoute(
         MainEffectMessage.CHECKING_FOR_UPDATE to stringResource(Res.string.settings_update_checking),
         MainEffectMessage.UPDATE_CHECK_FAILED to stringResource(Res.string.settings_update_failed),
         MainEffectMessage.COPIED_SUCCESS to stringResource(Res.string.settings_update_cloud_storage_copied),
+        MainEffectMessage.TEXT_COPIED to stringResource(Res.string.common_copied_success),
         MainEffectMessage.CHARACTER_SAVED to stringResource(Res.string.character_saved),
         MainEffectMessage.CHARACTER_DELETED to stringResource(Res.string.character_deleted),
         MainEffectMessage.PROFILE_SAVED to stringResource(Res.string.profile_saved),

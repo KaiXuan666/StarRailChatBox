@@ -180,6 +180,8 @@
     <string name="about_alipay_tip">打开支付宝扫一扫</string>
     <string name="about_wechat_pay_tip">打开微信扫一扫</string>
     <string name="about_donate_footer">所有支付均为自愿支持，感谢你的鼓励与认可！</string>
+    <string name="about_bilibili">bilibili：浅夜m</string>
+    <string name="common_copied_success">已复制</string>
     <string name="settings_privacy_title">隐私与安全</string>
     <string name="settings_privacy_desc">查看隐私政策与数据安全说明</string>
     <string name="privacy_policy_subtitle">隐私与安全说明</string>
