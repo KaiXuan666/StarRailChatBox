@@ -15,6 +15,9 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 private const val RetryStartAngle = 35f
 private const val RetrySweepAngle = 285f
@@ -155,14 +158,23 @@ fun StarRailIcon(
             }
 
             StarRailIconKind.SETTINGS -> {
-                drawCircle(tint, side * 0.29f, point(0.5f, 0.5f), style = stroke)
-                drawCircle(tint, side * 0.1f, point(0.5f, 0.5f), style = stroke)
-                drawLine(tint, point(0.5f, 0.08f), point(0.5f, 0.21f), strokeWidth)
-                drawLine(tint, point(0.5f, 0.79f), point(0.5f, 0.92f), strokeWidth)
-                drawLine(tint, point(0.14f, 0.29f), point(0.25f, 0.36f), strokeWidth)
-                drawLine(tint, point(0.75f, 0.64f), point(0.86f, 0.71f), strokeWidth)
-                drawLine(tint, point(0.14f, 0.71f), point(0.25f, 0.64f), strokeWidth)
-                drawLine(tint, point(0.75f, 0.36f), point(0.86f, 0.29f), strokeWidth)
+                // 重新设计的齿轮图标：采用 8 个均匀分布的齿，消除“乌龟”既视感
+                drawCircle(tint, side * 0.12f, point(0.5f, 0.5f), style = stroke)
+                drawCircle(tint, side * 0.30f, point(0.5f, 0.5f), style = stroke)
+                val innerR = 0.30f
+                val outerR = 0.42f
+                for (i in 0 until 8) {
+                    val angleRad = (i * 45f) * (PI.toFloat() / 180f)
+                    val cosV = cos(angleRad.toDouble()).toFloat()
+                    val sinV = sin(angleRad.toDouble()).toFloat()
+                    drawLine(
+                        color = tint,
+                        start = point(0.5f + cosV * innerR, 0.5f + sinV * innerR),
+                        end = point(0.5f + cosV * outerR, 0.5f + sinV * outerR),
+                        strokeWidth = strokeWidth * 1.5f,
+                        cap = StrokeCap.Butt
+                    )
+                }
             }
 
             StarRailIconKind.HEART -> {
