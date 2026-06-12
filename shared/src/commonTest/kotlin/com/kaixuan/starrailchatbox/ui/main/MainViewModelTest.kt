@@ -6,13 +6,33 @@ import com.kaixuan.starrailchatbox.data.update.UpdateRepository
 import com.kaixuan.starrailchatbox.data.update.UpdateResponse
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class MainViewModelTest {
+    private val dispatcher = StandardTestDispatcher()
+
+    @BeforeTest
+    fun setUp() {
+        Dispatchers.setMain(dispatcher)
+    }
+
+    @AfterTest
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
 
     private val mockUpdateRepository = object : UpdateRepository {
         override suspend fun checkUpdate(isManual: Boolean): ApiResult<UpdateResponse> {
@@ -54,6 +74,7 @@ class MainViewModelTest {
         val viewModel = MainViewModel(InMemoryAppSettingsStore(), mockUpdateRepository)
 
         viewModel.onAction(MainAction.ThemeDialogConfirm(true))
+        advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value.darkThemeOverride == true)
         assertFalse(viewModel.uiState.value.showThemeDialog)

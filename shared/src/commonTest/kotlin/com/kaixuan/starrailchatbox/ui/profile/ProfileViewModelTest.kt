@@ -60,7 +60,14 @@ class ProfileViewModelTest {
         runCurrent()
 
         viewModel.onAction(ProfileAction.AvatarChanged("file:///test/new_avatar.png", "new_avatar.png", "png"))
-        advanceUntilIdle()
+        
+        // 因为 readSourceBytes 使用了 withContext(Dispatchers.Default)，
+        // advanceUntilIdle() 无法控制真实线程池的同步，需要通过轮询等待其保存完成。
+        var attempts = 0
+        while (store.saved == null && attempts < 50) {
+            attempts++
+            kotlinx.coroutines.delay(20)
+        }
 
         assertEquals("file:///test/new_avatar.png", store.saved?.customAvatarUri)
     }

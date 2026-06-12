@@ -49,6 +49,7 @@ class ProfileViewModel(
                         try {
                             val bytes = com.kaixuan.starrailchatbox.platform.KmpFileManager.Default
                                 .readSourceBytes(action.avatarUri)
+                            if (bytes.isEmpty()) throw IllegalArgumentException("File empty or not found")
                             val extension = action.extension ?: action.avatarUri.substringAfterLast('.', "png")
                             val fileName = "temp_user_avatar_${kotlin.time.Clock.System.now().toEpochMilliseconds()}.$extension"
                             val cachePath = (com.kaixuan.starrailchatbox.platform.KmpFileManager.Default.cacheDir / fileName.toPath()).toString()
@@ -61,6 +62,7 @@ class ProfileViewModel(
                         action.avatarUri
                     }
                     _uiState.update { it.copy(customAvatarUri = finalUri) }
+                    saveProfile()
                     // 规范：两阶段。这里仅更新 UI/Cache，正式保存由 saveProfile 触发
                 }
             }

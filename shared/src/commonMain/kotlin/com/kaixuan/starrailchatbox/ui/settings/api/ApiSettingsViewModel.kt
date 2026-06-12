@@ -107,9 +107,9 @@ class ApiSettingsViewModel(
                             ?.takeIf(String::isNotBlank)
                             ?: XiaomiMimo.SubscriptionBaseUrl
                     } else {
-                        config?.baseUrl ?: defaultHost
+                        config?.baseUrl?.takeIf(String::isNotBlank) ?: defaultHost
                     },
-                    apiKey = config?.apiKey ?: defaultKey,
+                    apiKey = config?.apiKey?.takeIf(String::isNotBlank) ?: defaultKey,
                     selectedModel = config?.modelName.orEmpty(),
                     selectedCloneModel = voiceCloneConfig?.modelName.orEmpty(),
                     apiProviderId = apiProviderId,

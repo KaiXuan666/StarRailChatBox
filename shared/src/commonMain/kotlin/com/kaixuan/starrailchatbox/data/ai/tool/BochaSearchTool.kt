@@ -154,7 +154,7 @@ class BochaSearchTool(
                 put("freshness", "noLimit")
                 put("summary", true)
                 put("count", 5)
-            })
+            }.toString())
         }
 
         val responseText = response.bodyAsText()

@@ -289,7 +289,12 @@ class ApiSettingsViewModelTest {
         isMultimodal: Boolean = false,
         repository: AiRepository = FakeOpenAiRepository(ApiResult.Success(emptyList())),
         modelConfigRepository: ModelConfigRepository = FakeModelConfigRepository(),
-        defaults: ApiSettingsDefaults = ApiSettingsDefaults(),
+        defaults: ApiSettingsDefaults = ApiSettingsDefaults(
+            apiHost = "https://api.openai.com/v1",
+            multimodalHost = "https://api.openai.com/v1",
+            voiceHost = "https://api.openai.com/v1",
+            imageHost = "https://api.openai.com/v1"
+        ),
     ) = ApiSettingsViewModel(
         isMultimodal = isMultimodal,
         aiRepository = repository,
@@ -444,9 +449,10 @@ private fun modelConfig(
     baseUrl: String,
     apiKey: String,
     modelName: String,
+    provider: String = "openai-compatible",
 ) = ModelConfig(
     id = DefaultModelConfig.Id,
-    provider = DefaultModelConfig.Provider,
+    provider = provider,
     name = DefaultModelConfig.Name,
     baseUrl = baseUrl,
     apiKey = apiKey,

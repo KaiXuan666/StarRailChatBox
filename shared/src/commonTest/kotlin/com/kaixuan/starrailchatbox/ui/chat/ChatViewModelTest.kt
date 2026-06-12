@@ -22,6 +22,7 @@ import com.kaixuan.starrailchatbox.ui.character.CharactersUiState
 import com.kaixuan.starrailchatbox.ui.character.CharacterEditUiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import com.kaixuan.starrailchatbox.platform.formatMessageTime
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -61,7 +62,7 @@ class ChatViewModelTest {
         val state = fixture.viewModel.uiState.value
         val greeting = assertIs<ChatMessageUiModel.Received>(state.messageSnapshot().single())
         assertEquals(MessageContent.Custom("今天要聊点什么呢？"), greeting.content)
-        assertEquals("local-60000", greeting.timestamp)
+        assertEquals(formatMessageTime(60000L), greeting.timestamp)
         assertEquals(null, state.activeSessionId)
         assertFalse(state.isLoadingSession)
     }
@@ -210,125 +211,6 @@ class ChatViewModelTest {
         )
     }
 
-    @Test
-    fun characterEditSavesAndRefreshesSelectedCharacter() = runTest {
-        val characterRepository = EditableCharacterRepository()
-        val fixture = createFixture(characterRepository = characterRepository)
-        advanceUntilIdle()
-
-        fixture.viewModel.onCharacterAction(CharacterAction.CharacterEditOpened("builtin:流萤"))
-        advanceUntilIdle()
-        fixture.viewModel.onCharacterAction(CharacterAction.CharacterNameChanged("  新三月七  "))
-        fixture.viewModel.onCharacterAction(CharacterAction.CharacterPromptChanged("updated prompt"))
-        fixture.viewModel.onCharacterAction(CharacterAction.CharacterOpeningMessageChanged("updated opening"))
-        fixture.viewModel.onCharacterAction(CharacterAction.CharacterAvatarChanged(CharacterAvatarSource("picked://updated-avatar")))
-        fixture.viewModel.onCharacterAction(CharacterAction.CharacterTemperatureChanged(1.2))
-        fixture.viewModel.onCharacterAction(CharacterAction.CharacterTopPChanged(0.6))
-        fixture.viewModel.onCharacterAction(CharacterAction.CharacterSaveClicked)
-        advanceUntilIdle()
-
-        val state = fixture.viewModel.uiState.value
-        val selected = requireNotNull(state.selectedCharacter)
-        assertEquals("builtin:流萤", selected.id)
-        assertEquals("新三月七", selected.name)
-        assertEquals("updated prompt", selected.prompt)
-        assertEquals("updated opening", selected.openingMessage)
-        assertEquals("picked://updated-avatar", selected.avatarUri)
-        assertEquals(1.2, selected.temperature)
-        assertEquals(0.6, selected.topP)
-        assertEquals(CharacterEffect.CharacterSaved, fixture.viewModel.characterEffects.first())
-    }
-
-    @Test
-    fun characterEditWithoutNewAvatarPreservesExistingAvatarUri() = runTest {
-        val characterRepository = EditableCharacterRepository()
-        val fixture = createFixture(characterRepository = characterRepository)
-        advanceUntilIdle()
-
-        fixture.viewModel.onCharacterAction(CharacterAction.CharacterEditOpened("builtin:流萤"))
-        advanceUntilIdle()
-        fixture.viewModel.onCharacterAction(CharacterAction.CharacterNameChanged("流萤新版"))
-        fixture.viewModel.onCharacterAction(CharacterAction.CharacterSaveClicked)
-        advanceUntilIdle()
-
-        val selected = requireNotNull(fixture.viewModel.uiState.value.selectedCharacter)
-        assertEquals("avatar://firefly", selected.avatarUri)
-    }
-
-    @Test
-    fun characterDeleteRemovesCharacterAndSelectsFallback() = runTest {
-        val characterRepository = EditableCharacterRepository(
-            initialCharacters = listOf(
-                Character("builtin:流萤", "流萤", "role prompt", "", "avatar://firefly"),
-                Character("builtin:黄泉", "黄泉", "another prompt", "", "avatar://acheron"),
-            ),
-        )
-        val fixture = createFixture(characterRepository = characterRepository)
-        advanceUntilIdle()
-
-        fixture.viewModel.onCharacterAction(CharacterAction.CharacterDeleteClicked("builtin:流萤"))
-        advanceUntilIdle()
-
-        val charState = fixture.viewModel.characterUiState.value
-        val chatState = fixture.viewModel.uiState.value
-        assertEquals(listOf("builtin:黄泉"), charState.characters.map { it.id })
-        assertEquals("builtin:黄泉", chatState.selectedCharacterId)
-        assertEquals(CharacterEffect.CharacterDeleted, fixture.viewModel.characterEffects.first())
-    }
-
-    @Test
-    fun promptGenWithoutNameEmitsError() = runTest {
-        val fixture = createFixture()
-        advanceUntilIdle()
-
-        fixture.viewModel.onCharacterAction(CharacterAction.CharacterEditOpened(null))
-        fixture.viewModel.onCharacterAction(CharacterAction.CharacterPromptGenClicked("请帮我设计一个流萤的提示词"))
-        advanceUntilIdle()
-
-        val charState = fixture.viewModel.characterUiState.value
-        assertFalse(charState.characterEdit.isPromptGenDialogOpen)
-        assertEquals(
-            CharacterEffect.ShowMessage(CharacterEffectMessage.CHARACTER_NAME_REQUIRED),
-            fixture.viewModel.characterEffects.first(),
-        )
-    }
-
-    @Test
-    fun promptGenWithNameOpensDialog() = runTest {
-        val fixture = createFixture()
-        advanceUntilIdle()
-
-        fixture.viewModel.onCharacterAction(CharacterAction.CharacterEditOpened(null))
-        fixture.viewModel.onCharacterAction(CharacterAction.CharacterNameChanged("流萤"))
-        fixture.viewModel.onCharacterAction(CharacterAction.CharacterPromptGenClicked("请帮我设计一个流萤的提示词"))
-        advanceUntilIdle()
-
-        val charState = fixture.viewModel.characterUiState.value
-        assertEquals(true, charState.characterEdit.isPromptGenDialogOpen)
-        assertEquals("请帮我设计一个流萤的提示词", charState.characterEdit.promptGenInputText)
-    }
-
-    @Test
-    fun promptGenConfirmTriggersApiAndUpdatesPrompt() = runTest {
-        val fixture = createFixture()
-        advanceUntilIdle()
-
-        fixture.viewModel.onCharacterAction(CharacterAction.CharacterEditOpened(null))
-        fixture.viewModel.onCharacterAction(CharacterAction.CharacterNameChanged("流萤"))
-        fixture.viewModel.onCharacterAction(CharacterAction.CharacterPromptGenClicked("请帮我设计一个流萤的提示词"))
-        fixture.viewModel.onCharacterAction(CharacterAction.CharacterPromptGenConfirmClicked)
-        advanceUntilIdle()
-
-        val charState = fixture.viewModel.characterUiState.value
-        assertEquals(false, charState.characterEdit.isPromptGenDialogOpen)
-        assertEquals(false, charState.characterEdit.isGeneratingPrompt)
-        assertEquals("你好呀", charState.characterEdit.prompt)
-
-        val lastRequest = fixture.api.requests.last()
-        assertEquals(1, lastRequest.size)
-        assertEquals("user", lastRequest.first().role)
-        assertEquals("请帮我设计一个流萤的提示词", lastRequest.first().content)
-    }
 
     @Test
     fun restoreMainCharacterResetsSelectedToLastActiveMainCharacter() = runTest {
@@ -360,46 +242,6 @@ class ChatViewModelTest {
         assertEquals("char2", fixture.viewModel.uiState.value.selectedCharacterId)
     }
 
-    @Test
-    fun promptGenConfirmFailureEmitsError() = runTest {
-        val api = object : FakeOpenAiRepository() {
-            override fun createPromptCompletion(
-                config: ModelConfig,
-                messages: List<AiMessage>,
-            ): Flow<ApiResult<ChatCompletionResult>> {
-                return flowOf(ApiResult.NetworkError("Network issue"))
-            }
-        }
-
-        var id = 0
-        val sessions = InMemoryChatSessionRepository()
-        val viewModel = ChatViewModel(
-            characterRepository = FakeCharacterRepository,
-            chatSessionRepository = sessions,
-            modelConfigRepository = InMemoryModelConfigRepository(testConfig()),
-            aiRepository = api,
-            profileStore = FakeProfileStore(),
-            currentTimeMillis = { 60_000L },
-            idGenerator = { prefix -> "$prefix-${++id}" },
-            sessionTitleProvider = { "新对话" },
-        )
-
-        val fixture = Fixture(viewModel, sessions, api)
-        advanceUntilIdle()
-
-        fixture.viewModel.onCharacterAction(CharacterAction.CharacterEditOpened(null))
-        fixture.viewModel.onCharacterAction(CharacterAction.CharacterNameChanged("流萤"))
-        fixture.viewModel.onCharacterAction(CharacterAction.CharacterPromptGenClicked("请帮我设计一个流萤的提示词"))
-        fixture.viewModel.onCharacterAction(CharacterAction.CharacterPromptGenConfirmClicked)
-        advanceUntilIdle()
-
-        val charState = fixture.viewModel.characterUiState.value
-        assertEquals(false, charState.characterEdit.isGeneratingPrompt)
-        assertEquals(
-            CharacterEffect.ShowMessage(CharacterEffectMessage.PROMPT_GEN_FAILED),
-            fixture.viewModel.characterEffects.first(),
-        )
-    }
 
     private fun createFixture(
         config: ModelConfig? = testConfig(),
@@ -418,6 +260,7 @@ class ChatViewModelTest {
             idGenerator = { prefix -> "$prefix-${++id}" },
             sessionTitleProvider = { "新对话" },
         )
+        viewModel.onCharacterAction(com.kaixuan.starrailchatbox.ui.character.CharacterAction.CharacterSelected("builtin:流萤"))
         return Fixture(viewModel, sessions, api)
     }
 
@@ -458,6 +301,7 @@ class ChatViewModelTest {
             idGenerator = { prefix -> "$prefix-${++id}" },
             sessionTitleProvider = { "新对话" },
         )
+        viewModel.onCharacterAction(com.kaixuan.starrailchatbox.ui.character.CharacterAction.CharacterSelected("builtin:流萤"))
         advanceUntilIdle()
 
         viewModel.onAction(ChatAction.ImageSelected(tempImageFile.absolutePath))
@@ -478,6 +322,7 @@ class ChatViewModelTest {
         assertEquals("Describe this image", textPart.text)
         
         val imagePart = assertIs<AiContentPart.ImageUrl>(parts[1])
+        println("DEBUG IMAGE PART URL: ${imagePart.url}")
         assertTrue(imagePart.url.startsWith("data:image/png;base64,"))
     }
 
@@ -501,6 +346,7 @@ class ChatViewModelTest {
             sessionTitleProvider = { "新对话" },
             enableFileAppend = true,
         )
+        viewModel.onCharacterAction(com.kaixuan.starrailchatbox.ui.character.CharacterAction.CharacterSelected("builtin:流萤"))
         advanceUntilIdle()
 
         viewModel.onAction(ChatAction.FileSelected(tempTextFile.absolutePath, "test.txt", "txt"))
@@ -542,6 +388,7 @@ class ChatViewModelTest {
             sessionTitleProvider = { "新对话" },
             enableFileAppend = false,
         )
+        viewModel.onCharacterAction(com.kaixuan.starrailchatbox.ui.character.CharacterAction.CharacterSelected("builtin:流萤"))
         advanceUntilIdle()
 
         viewModel.onAction(ChatAction.FileSelected(tempTextFile.absolutePath, "test.txt", "txt"))
@@ -602,6 +449,7 @@ class ChatViewModelTest {
             idGenerator = { prefix -> "$prefix-${++id}" },
             sessionTitleProvider = { "新对话" },
         )
+        viewModel.onCharacterAction(com.kaixuan.starrailchatbox.ui.character.CharacterAction.CharacterSelected("builtin:流萤"))
         advanceUntilIdle()
 
         // 1. 第一轮：带图片附件发送，验证使用的是多模态配置

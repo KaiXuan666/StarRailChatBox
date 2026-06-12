@@ -75,5 +75,8 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
         connection.execSQL(
             "ALTER TABLE `agent_role` ADD COLUMN `voice_sample_uri` TEXT DEFAULT NULL"
         )
+        connection.execSQL(
+            "ALTER TABLE `message_attachment` ADD COLUMN `duration_ms` INTEGER DEFAULT NULL"
+        )
     }
 }

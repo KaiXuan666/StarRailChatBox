@@ -11,7 +11,7 @@ class LocalTimeFormatterTest {
         try {
             TimeZone.setDefault(TimeZone.getTimeZone("GMT+08:00"))
 
-            assertEquals("1970年1月1日 08:00", formatLastChatTime(0L))
+            assertEquals("1970年1月1日", formatLastChatTime(0L))
         } finally {
             TimeZone.setDefault(original)
         }

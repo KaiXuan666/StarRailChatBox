@@ -10,26 +10,21 @@ import io.ktor.client.engine.mock.respond
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.headersOf
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class BochaSearchToolTest {
     private val json = Json { ignoreUnknownKeys = true }
     private val context = ToolContext("三月七")
     private val profileStore = InMemoryProfileStore(UserProfile(enableWebSearch = true))
-    private val testDispatcher = StandardTestDispatcher()
-    private val testScope = TestScope(testDispatcher)
 
     private fun createMockClient(responseContent: String): HttpClient {
         val engine = MockEngine { _ ->
@@ -41,9 +36,8 @@ class BochaSearchToolTest {
         return HttpClient(engine)
     }
 
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     @Test
-    fun parsesExecutableToolOutput() = testScope.runTest {
+    fun parsesExecutableToolOutput() = runTest {
         val mockResponse = """
             {
               "code": 200,
@@ -61,7 +55,7 @@ class BochaSearchToolTest {
             }
         """.trimIndent()
         
-        val tool = BochaSearchTool(profileStore, createMockClient(mockResponse), json, testScope)
+        val tool = BochaSearchTool(profileStore, createMockClient(mockResponse), json, backgroundScope)
         advanceUntilIdle()
         
         val result = tool.execute(
@@ -78,9 +72,8 @@ class BochaSearchToolTest {
         assertTrue(continueResult.content.contains("上海今天晴转多云"))
     }
 
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     @Test
-    fun fallbackParsingWorks() = testScope.runTest {
+    fun fallbackParsingWorks() = runTest {
         val mockResponse = """
             {
               "data": {
@@ -97,7 +90,7 @@ class BochaSearchToolTest {
             }
         """.trimIndent()
 
-        val tool = BochaSearchTool(profileStore, createMockClient(mockResponse), json, testScope)
+        val tool = BochaSearchTool(profileStore, createMockClient(mockResponse), json, backgroundScope)
         advanceUntilIdle()
 
         val content = """
@@ -112,8 +105,8 @@ class BochaSearchToolTest {
     }
 
     @Test
-    fun prepareFallbackMessagesInjectsInstructions() {
-        val tool = BochaSearchTool(profileStore, HttpClient(MockEngine { respond("") }), json, testScope)
+    fun prepareFallbackMessagesInjectsInstructions() = runTest {
+        val tool = BochaSearchTool(profileStore, HttpClient(MockEngine { respond("") }), json, backgroundScope)
         val messages = tool.prepareFallbackMessages(
             listOf(AiMessage(role = "user", content = "你好")),
             context
@@ -123,17 +116,22 @@ class BochaSearchToolTest {
         assertTrue(messages.any { it.role == "user" && it.content?.contains("<search>") == true })
     }
 
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     @Test
-    fun isAvailableFollowsProfileStore() = testScope.runTest {
+    fun isAvailableFollowsProfileStore() = runTest {
         val store = InMemoryProfileStore(UserProfile(enableWebSearch = false))
-        val tool = BochaSearchTool(store, HttpClient(MockEngine { respond("") }), json, testScope)
+        val tool = BochaSearchTool(store, HttpClient(MockEngine { respond("") }), json, backgroundScope)
         
         advanceUntilIdle()
         assertFalse(tool.isAvailable())
 
         store.save(UserProfile(enableWebSearch = true))
-        advanceUntilIdle()
+        
+        var attempts = 0
+        while (!tool.isAvailable() && attempts < 50) {
+            attempts++
+            kotlinx.coroutines.delay(20)
+        }
+        
         assertTrue(tool.isAvailable())
     }
 }

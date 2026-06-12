@@ -20,7 +20,7 @@ class StarRailDatabaseMigrationTest {
             factory = StarRailDatabaseConstructor::initialize,
         )
             .setDriver(BundledSQLiteDriver())
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .build()
 
         try {
@@ -45,7 +45,7 @@ class StarRailDatabaseMigrationTest {
             factory = StarRailDatabaseConstructor::initialize,
         )
             .setDriver(BundledSQLiteDriver())
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .build()
 
         try {
@@ -93,6 +93,8 @@ private fun createVersionTwoDatabase(path: String) {
             )
             """.trimIndent(),
         )
+        connection.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_chat_summary_session_id_to_seq` ON `chat_summary` (`session_id`, `to_seq`)")
+        connection.execSQL("CREATE INDEX IF NOT EXISTS `index_chat_summary_model_config_id` ON `chat_summary` (`model_config_id`)")
         connection.execSQL("ALTER TABLE `chat_session` ADD COLUMN `summary_threshold_message_count` INTEGER NOT NULL DEFAULT 20")
         connection.execSQL("ALTER TABLE `chat_session` ADD COLUMN `summary_retained_message_count` INTEGER NOT NULL DEFAULT 8")
 
