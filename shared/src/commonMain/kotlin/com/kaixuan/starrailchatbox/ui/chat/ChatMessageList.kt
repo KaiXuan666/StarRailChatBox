@@ -191,7 +191,7 @@ fun ChatMessageList(
                     if (scrollsToOldest) {
                         if (historyLoaded && messages.itemCount > 0) {
                             coroutineScope.launch {
-                                listState.scrollToItem(messages.itemCount - 1)
+                                listState.smartScrollToItem(messages.itemCount - 1)
                             }
                         } else {
                             onAction(ChatAction.ScrollToOldestMessage)
@@ -199,7 +199,7 @@ fun ChatMessageList(
                     } else {
                         if (latestMessageCached) {
                             coroutineScope.launch {
-                                listState.scrollToItem(0)
+                                listState.smartScrollToItem(0)
                             }
                         } else {
                             onAction(ChatAction.ScrollToLatestMessage)

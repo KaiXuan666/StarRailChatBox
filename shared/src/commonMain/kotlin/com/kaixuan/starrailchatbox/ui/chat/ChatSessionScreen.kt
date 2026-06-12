@@ -269,7 +269,7 @@ fun ChatSessionScreen(
                         (pageMessages.loadState.prepend as LoadState.NotLoading)
                             .endOfPaginationReached
                 if (latestMessageCached) {
-                    pageListState.scrollToItem(0)
+                    pageListState.smartScrollToItem(0)
                 } else {
                     onAction(ChatAction.ScrollToLatestMessage)
                 }
