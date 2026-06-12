@@ -89,13 +89,22 @@ interface KmpFileManager {
      */
     @OptIn(ExperimentalEncodingApi::class)
     suspend fun readSourceBytes(source: String): ByteArray {
+        if (source.isBlank()) return ByteArray(0)
         if (source.startsWith("data:")) {
             val encoded = source.substringAfter("base64,", missingDelimiterValue = "")
             return if (encoded.isEmpty()) ByteArray(0) else Base64.decode(encoded)
         }
         val path = source.removePrefix("file://").toPath()
         return withContext(Dispatchers.Default) {
-            readBytes(path)
+            try {
+                if (exists(path) && !fileSystem.metadata(path).isDirectory) {
+                    readBytes(path)
+                } else {
+                    ByteArray(0)
+                }
+            } catch (e: Exception) {
+                ByteArray(0)
+            }
         }
     }
 

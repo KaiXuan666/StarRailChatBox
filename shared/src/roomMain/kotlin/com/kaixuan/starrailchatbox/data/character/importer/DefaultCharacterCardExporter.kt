@@ -9,6 +9,8 @@ import io.github.vinceglb.filekit.div
 import io.github.vinceglb.filekit.write
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import starrailchatbox.shared.generated.resources.Res
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
@@ -21,17 +23,25 @@ class DefaultCharacterCardExporter(
     }
 ) : CharacterCardExporter {
 
-    @OptIn(ExperimentalEncodingApi::class)
+    @OptIn(ExperimentalEncodingApi::class, ExperimentalResourceApi::class)
     override suspend fun exportToPng(
         character: Character,
         directory: PlatformFile
     ): ApiResult<Unit> {
+        Napier.d { "exportToPng start: character=$character" }
         return try {
-            val avatarBytes = fileManager.readSourceBytes(character.avatarUri)
-            if (avatarBytes.isEmpty()) {
-                return ApiResult.UnexpectedError("Failed to read character avatar")
+            val avatarBytes = if (character.avatarUri.isBlank()) {
+                Napier.d { "Character avatar is blank, using default avatar." }
+                Res.readBytes("drawable/avatar_default_ai.png")
+            } else {
+                val bytes = fileManager.readSourceBytes(character.avatarUri)
+                if (bytes.isEmpty()) {
+                    Napier.w { "Failed to read character avatar: ${character.avatarUri}, falling back to default." }
+                    Res.readBytes("drawable/avatar_default_ai.png")
+                } else {
+                    bytes
+                }
             }
-            Napier.d { "exportToPng character=$character" }
 
             val pngBytes = pngEncoder.toPng(avatarBytes)
 
