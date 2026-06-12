@@ -2,6 +2,8 @@ package com.kaixuan.starrailchatbox.data.chat
 
 import androidx.paging.Pager
 import androidx.paging.PagingData
+import androidx.paging.PagingSource
+import androidx.paging.PagingState
 import androidx.paging.map
 import androidx.room.immediateTransaction
 import androidx.room.useWriterConnection
@@ -13,13 +15,16 @@ import com.kaixuan.starrailchatbox.data.database.entity.ChatSessionEntity
 import com.kaixuan.starrailchatbox.data.database.entity.ChatSummaryEntity
 import com.kaixuan.starrailchatbox.data.database.entity.toDomain
 import com.kaixuan.starrailchatbox.data.database.entity.toEntity
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlin.time.Clock
 
 class RoomChatSessionRepository(
     private val database: StarRailDatabase,
-) : ChatSessionRepository {
+) : ChatSessionRepository, PagingTestDataSeeder {
     private val sessionDao = database.chatSessionDao()
     private val messageDao = database.chatMessageDao()
     private val summaryDao = database.chatSummaryDao()
@@ -48,13 +53,35 @@ class RoomChatSessionRepository(
     override fun pagedMessages(
         sessionId: String,
         initialOffset: Int,
-    ): Flow<PagingData<ChatMessagePageEntry>> {
-        return Pager(
-            config = ChatMessagePagingConfig,
-            initialKey = initialOffset,
-            pagingSourceFactory = { messageDao.pagingSourceBySession(sessionId) },
-        ).flow.map { pagingData ->
-            pagingData.map(ChatMessagePageRow::toDomain)
+    ): Flow<PagingData<ChatMessagePageEntry>> = flow {
+        val agentId = sessionDao.findById(sessionId)?.agentId.orEmpty()
+        val generationId = "$sessionId@$initialOffset"
+        Napier.d(
+            message = "observe start agent=$agentId session=$sessionId generation=$generationId",
+            tag = CHAT_PAGING_TAG,
+        )
+        try {
+            emitAll(
+                Pager(
+                    config = ChatMessagePagingConfig,
+                    initialKey = initialOffset,
+                    pagingSourceFactory = {
+                        LoggingChatMessagePagingSource(
+                            delegate = messageDao.pagingSourceBySession(sessionId),
+                            agentId = agentId,
+                            sessionId = sessionId,
+                            generationId = generationId,
+                        )
+                    },
+                ).flow.map { pagingData ->
+                    pagingData.map(ChatMessagePageRow::toDomain)
+                },
+            )
+        } finally {
+            Napier.d(
+                message = "observe stop agent=$agentId session=$sessionId generation=$generationId",
+                tag = CHAT_PAGING_TAG,
+            )
         }
     }
 
@@ -167,7 +194,118 @@ class RoomChatSessionRepository(
     override suspend fun deleteFailedMessages(sessionId: String) {
         messageDao.deleteFailedMessages(sessionId)
     }
+
+    override suspend fun createSessionWithPagingTestMessagesIfNeeded(
+        session: NewChatSession,
+        trailingMessages: List<NewChatMessage>,
+    ): Boolean {
+        return database.useWriterConnection { connection ->
+            connection.immediateTransaction {
+                if (messageDao.exists(PAGING_TEST_MARKER_ID)) {
+                    return@immediateTransaction false
+                }
+                val endAt = trailingMessages.maxOfOrNull(NewChatMessage::createdAt)
+                    ?: Clock.System.now().toEpochMilliseconds()
+                val startAt = endAt - THREE_YEARS_MILLIS
+                val interval = THREE_YEARS_MILLIS / PAGING_TEST_MESSAGE_COUNT
+                val fakeMessages = List(PAGING_TEST_MESSAGE_COUNT) { index ->
+                    val number = index + 1
+                    NewChatMessage(
+                        id = if (index == 0) {
+                            PAGING_TEST_MARKER_ID
+                        } else {
+                            "paging-test:${session.id}:$number"
+                        },
+                        sessionId = session.id,
+                        role = if (number % 2 == 0) ChatRole.ASSISTANT else ChatRole.USER,
+                        content = "分页测试消息 $number / $PAGING_TEST_MESSAGE_COUNT",
+                        status = ChatMessageStatus.COMPLETED,
+                        modelConfigId = null,
+                        modelNameSnapshot = null,
+                        isContextExcluded = true,
+                        createdAt = startAt + interval * index,
+                    )
+                }
+                val allMessages = fakeMessages + trailingMessages
+                sessionDao.upsert(
+                    session.copy(createdAt = startAt).toEntity(allMessages.last()),
+                )
+                messageDao.upsertAll(
+                    allMessages.mapIndexed { index, message ->
+                        message.toEntity(seq = index + 1L)
+                    },
+                )
+                attachmentDao.insertAll(
+                    allMessages.flatMap { message ->
+                        message.attachments.map { it.toEntity() }
+                    },
+                )
+                Napier.i(
+                    message = "seeded $PAGING_TEST_MESSAGE_COUNT test messages " +
+                        "agent=${session.agentId} session=${session.id} range=$startAt..$endAt",
+                    tag = CHAT_PAGING_TAG,
+                )
+                true
+            }
+        }
+    }
 }
+
+private class LoggingChatMessagePagingSource(
+    private val delegate: PagingSource<Int, ChatMessagePageRow>,
+    private val agentId: String,
+    private val sessionId: String,
+    private val generationId: String,
+) : PagingSource<Int, ChatMessagePageRow>() {
+    init {
+        delegate.registerInvalidatedCallback(::invalidate)
+        registerInvalidatedCallback(delegate::invalidate)
+    }
+
+    override suspend fun load(
+        params: LoadParams<Int>,
+    ): LoadResult<Int, ChatMessagePageRow> {
+        val loadType = when (params) {
+            is LoadParams.Refresh -> "REFRESH"
+            is LoadParams.Append -> "APPEND"
+            is LoadParams.Prepend -> "PREPEND"
+        }
+        Napier.d(
+            message = "load start agent=$agentId session=$sessionId generation=$generationId " +
+                "type=$loadType key=${params.key} requested=${params.loadSize}",
+            tag = CHAT_PAGING_TAG,
+        )
+        val result = delegate.load(params)
+        when (result) {
+            is LoadResult.Page -> Napier.d(
+                message = "load success agent=$agentId session=$sessionId generation=$generationId " +
+                    "type=$loadType returned=${result.data.size} " +
+                    "prevKey=${result.prevKey} nextKey=${result.nextKey}",
+                tag = CHAT_PAGING_TAG,
+            )
+            is LoadResult.Error -> Napier.e(
+                message = "load failed agent=$agentId session=$sessionId generation=$generationId " +
+                    "type=$loadType key=${params.key}",
+                throwable = result.throwable,
+                tag = CHAT_PAGING_TAG,
+            )
+            is LoadResult.Invalid -> Napier.d(
+                message = "load invalid agent=$agentId session=$sessionId generation=$generationId " +
+                    "type=$loadType key=${params.key}",
+                tag = CHAT_PAGING_TAG,
+            )
+        }
+        return result
+    }
+
+    override fun getRefreshKey(state: PagingState<Int, ChatMessagePageRow>): Int? {
+        return delegate.getRefreshKey(state)
+    }
+}
+
+private const val PAGING_TEST_MARKER_ID = "paging-test:seed-marker"
+private const val PAGING_TEST_MESSAGE_COUNT = 1_000
+private const val THREE_YEARS_MILLIS = 3L * 365 * 24 * 60 * 60 * 1_000
 
 private fun NewChatSession.toEntity(message: NewChatMessage) = ChatSessionEntity(
     id = id,
@@ -206,7 +344,7 @@ private fun NewChatMessage.toEntity(seq: Long) = ChatMessageEntity(
     completionTokens = completionTokens,
     totalTokens = totalTokens,
     estimatedTokens = 0,
-    isContextExcluded = false,
+    isContextExcluded = isContextExcluded,
     createdAt = createdAt,
     updatedAt = createdAt,
     suggestionsJson = if (suggestions.isNotEmpty()) kotlinx.serialization.json.Json.encodeToString(suggestions) else null,

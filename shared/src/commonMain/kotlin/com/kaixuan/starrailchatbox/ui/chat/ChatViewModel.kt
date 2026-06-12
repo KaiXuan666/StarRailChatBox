@@ -19,6 +19,7 @@ import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 import com.kaixuan.starrailchatbox.data.character.importer.StarRailCharacterCard
 import com.kaixuan.starrailchatbox.data.chat.ChatMessageStatus
 import com.kaixuan.starrailchatbox.data.chat.ChatMessagePageEntry
+import com.kaixuan.starrailchatbox.data.chat.CHAT_PAGING_TAG
 import com.kaixuan.starrailchatbox.data.chat.ChatRole
 import com.kaixuan.starrailchatbox.data.chat.ChatSession
 import com.kaixuan.starrailchatbox.data.chat.ChatSessionRepository
@@ -28,6 +29,7 @@ import com.kaixuan.starrailchatbox.data.chat.ChatTitleCoordinator
 import com.kaixuan.starrailchatbox.data.chat.MessageAttachment
 import com.kaixuan.starrailchatbox.data.chat.NewChatMessage
 import com.kaixuan.starrailchatbox.data.chat.NewChatSession
+import com.kaixuan.starrailchatbox.data.chat.PagingTestDataSeeder
 import com.kaixuan.starrailchatbox.data.chat.StoredChatMessage
 import com.kaixuan.starrailchatbox.data.chat.buildChatContext
 import com.kaixuan.starrailchatbox.data.chat.newChatId
@@ -45,6 +47,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -979,9 +983,17 @@ class ChatViewModel(
                             modelNameSnapshot = null,
                             createdAt = now,
                         )
-                    }
+                }
                 val initialMessages = listOfNotNull(openingMessage, userMessage)
-                chatSessionRepository.createSessionWithMessages(newSession, initialMessages)
+                val seeded = (chatSessionRepository as? PagingTestDataSeeder)
+                    ?.createSessionWithPagingTestMessagesIfNeeded(
+                        session = newSession,
+                        trailingMessages = initialMessages,
+                    )
+                    ?: false
+                if (!seeded) {
+                    chatSessionRepository.createSessionWithMessages(newSession, initialMessages)
+                }
                 newSession.toDomain(lastMessageAt = now).also {
                     activeSession = it
                     observeCreatedSession(it, character.id)
@@ -1281,16 +1293,33 @@ class ChatViewModel(
         sessionId: String,
         anchor: ChatHistoryAnchor,
         initialOffset: Int,
-    ) = ChatMessagePagingData(
-        sessionId = sessionId,
-        flow = chatSessionRepository.pagedMessages(
+    ): ChatMessagePagingData {
+        val generationId = idGenerator("paging")
+        return ChatMessagePagingData(
             sessionId = sessionId,
-            initialOffset = initialOffset,
+            flow = chatSessionRepository.pagedMessages(
+                sessionId = sessionId,
+                initialOffset = initialOffset,
+            )
+                .onStart {
+                    Napier.d(
+                        message = "UI observe start agent=$characterId session=$sessionId " +
+                            "generation=$generationId anchor=$anchor offset=$initialOffset",
+                        tag = CHAT_PAGING_TAG,
+                    )
+                }
+                .onCompletion {
+                    Napier.d(
+                        message = "UI observe stop agent=$characterId session=$sessionId " +
+                            "generation=$generationId anchor=$anchor",
+                        tag = CHAT_PAGING_TAG,
+                    )
+                }
+                .map { data -> data.toTimelineItems(characterId, timeFormatter) }
+                .cachedIn(viewModelScope),
+            anchor = anchor,
         )
-            .map { data -> data.toTimelineItems(characterId, timeFormatter) }
-            .cachedIn(viewModelScope),
-        anchor = anchor,
-    )
+    }
 
     private fun updateCharacterState(
         characterId: String,
