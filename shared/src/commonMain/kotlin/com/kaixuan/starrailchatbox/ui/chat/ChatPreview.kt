@@ -68,7 +68,9 @@ val chatPreviewState = ChatUiState(
     characterStates = mapOf(
         "builtin:流萤" to CharacterChatState(
             activeSessionId = "preview-session",
-            messages = listOf(
+            messagePagingData = staticChatMessagePagingData(
+                sessionId = "preview-session",
+                messages = listOf(
                 ChatMessageUiModel.Received(
                     id = "preview-opening",
                     timestamp = "10:21",
@@ -126,6 +128,7 @@ val chatPreviewState = ChatUiState(
                             durationMs = 2000L
                         )
                     )
+                ),
                 ),
             ),
             messageDraft = "想听你讲一个星空下的故事",

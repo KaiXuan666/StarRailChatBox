@@ -1,9 +1,12 @@
 package com.kaixuan.starrailchatbox.ui.chat
 
 import androidx.compose.runtime.Immutable
+import androidx.paging.PagingData
 import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.data.character.CharacterAvatarSource
 import com.kaixuan.starrailchatbox.data.chat.MessageAttachment
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 
 sealed interface MessageContent {
     data class Custom(val text: String) : MessageContent
@@ -42,6 +45,50 @@ sealed interface ChatMessageUiModel {
 }
 
 @Immutable
+sealed interface ChatTimelineItem {
+    val key: String
+
+    data class Message(
+        val message: ChatMessageUiModel,
+    ) : ChatTimelineItem {
+        override val key: String = message.id
+    }
+
+    data class DateDivider(
+        override val key: String,
+        val text: String,
+    ) : ChatTimelineItem
+}
+
+@Immutable
+enum class ChatHistoryAnchor {
+    LATEST,
+    OLDEST,
+}
+
+@Immutable
+data class ChatMessagePagingData(
+    val sessionId: String?,
+    val flow: Flow<PagingData<ChatTimelineItem>>,
+    val anchor: ChatHistoryAnchor = ChatHistoryAnchor.LATEST,
+)
+
+val EmptyChatMessagePagingData = ChatMessagePagingData(
+    sessionId = null,
+    flow = flowOf(PagingData.empty()),
+)
+
+fun staticChatMessagePagingData(
+    messages: List<ChatMessageUiModel>,
+    sessionId: String? = null,
+) = ChatMessagePagingData(
+    sessionId = sessionId,
+    flow = flowOf(
+        PagingData.from(messages.map(ChatTimelineItem::Message)),
+    ),
+)
+
+@Immutable
 sealed interface SelectedAttachment {
     val uri: String
     val name: String
@@ -71,7 +118,7 @@ sealed interface SelectedAttachment {
 data class CharacterChatState(
     val activeSessionId: String? = null,
     val sessions: List<ConversationSummaryUiModel> = emptyList(),
-    val messages: List<ChatMessageUiModel> = emptyList(),
+    val messagePagingData: ChatMessagePagingData = EmptyChatMessagePagingData,
     val messageDraft: String = "",
     val isLoadingSession: Boolean = false,
     val isSending: Boolean = false,
@@ -103,8 +150,9 @@ data class ChatUiState(
     val sessions: List<ConversationSummaryUiModel>
         get() = characterStates[selectedCharacterId]?.sessions.orEmpty()
 
-    val messages: List<ChatMessageUiModel>
-        get() = characterStates[selectedCharacterId]?.messages.orEmpty()
+    val messagePagingData: ChatMessagePagingData
+        get() = characterStates[selectedCharacterId]?.messagePagingData
+            ?: EmptyChatMessagePagingData
 
     val messageDraft: String
         get() = characterStates[selectedCharacterId]?.messageDraft.orEmpty()

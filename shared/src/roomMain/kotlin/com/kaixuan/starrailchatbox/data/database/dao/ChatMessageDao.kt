@@ -4,7 +4,9 @@ import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
+import androidx.paging.PagingSource
 import com.kaixuan.starrailchatbox.data.database.entity.ChatMessageEntity
+import com.kaixuan.starrailchatbox.data.database.entity.ChatMessagePageRow
 import com.kaixuan.starrailchatbox.data.database.entity.ChatMessageWithAttachments
 import kotlinx.coroutines.flow.Flow
 
@@ -15,10 +17,53 @@ interface ChatMessageDao {
 
     @Transaction
     @Query(
-        "SELECT * FROM chat_message " +
-            "WHERE session_id = :sessionId AND deleted_at IS NULL ORDER BY seq",
+        """
+        SELECT m.*,
+            EXISTS(
+                SELECT 1 FROM chat_message failed
+                WHERE failed.session_id = m.session_id
+                    AND failed.seq = m.seq + 1
+                    AND failed.role = 'assistant'
+                    AND failed.status = 'failed'
+                    AND failed.deleted_at IS NULL
+            ) AS has_failed_response
+        FROM chat_message m
+        WHERE m.session_id = :sessionId
+            AND m.deleted_at IS NULL
+            AND NOT (m.role = 'assistant' AND m.status = 'failed')
+        ORDER BY m.seq DESC
+        """,
     )
-    fun observeBySession(sessionId: String): Flow<List<ChatMessageWithAttachments>>
+    fun pagingSourceBySession(sessionId: String): PagingSource<Int, ChatMessagePageRow>
+
+    @Query(
+        """
+        SELECT COUNT(*) FROM chat_message
+        WHERE session_id = :sessionId
+            AND deleted_at IS NULL
+            AND NOT (role = 'assistant' AND status = 'failed')
+        """,
+    )
+    suspend fun visibleMessageCount(sessionId: String): Int
+
+    @Query(
+        """
+        SELECT CASE
+            WHEN role = 'assistant' AND status = 'completed' THEN suggestions_json
+            ELSE NULL
+        END
+        FROM chat_message
+        WHERE session_id = :sessionId
+            AND deleted_at IS NULL
+        ORDER BY seq DESC
+        LIMIT 1
+        """,
+    )
+    fun observeLatestSuggestionsJson(sessionId: String): Flow<String?>
+
+    @Transaction
+    @Query("SELECT * FROM chat_message WHERE id = :messageId AND deleted_at IS NULL")
+    suspend fun findById(messageId: String): ChatMessageWithAttachments?
 
     @Transaction
     @Query(

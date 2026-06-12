@@ -8,6 +8,8 @@ sealed interface ChatAction {
     data object SendClicked : ChatAction
     data class QuickReplyClicked(val message: String) : ChatAction
     data object NewSessionClicked : ChatAction
+    data object ScrollToOldestMessage : ChatAction
+    data object ScrollToLatestMessage : ChatAction
     data class SessionSelected(val sessionId: String) : ChatAction
     data class SessionDeleteClicked(val sessionId: String) : ChatAction
     data class HeaderActionClicked(val action: HeaderAction) : ChatAction

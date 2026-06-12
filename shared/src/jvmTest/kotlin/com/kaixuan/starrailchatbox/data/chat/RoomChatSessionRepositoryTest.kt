@@ -1,15 +1,20 @@
 package com.kaixuan.starrailchatbox.data.chat
 
+import androidx.paging.testing.asSnapshot
+import androidx.paging.PagingSource
 import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.kaixuan.starrailchatbox.data.database.StarRailDatabase
 import com.kaixuan.starrailchatbox.data.database.StarRailDatabaseConstructor
 import com.kaixuan.starrailchatbox.data.database.entity.AgentRoleEntity
+import com.kaixuan.starrailchatbox.data.database.entity.ChatMessagePageRow
 import java.nio.file.Files
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 
 class RoomChatSessionRepositoryTest {
     @Test
@@ -51,7 +56,11 @@ class RoomChatSessionRepositoryTest {
 
             assertEquals(
                 listOf("welcome", "hello", "hi"),
-                repository.observeMessages("session-1").first().map { it.content },
+                repository.pagedMessages("session-1")
+                    .asSnapshot()
+                    .map { it.message }
+                    .sortedBy { it.seq }
+                    .map { it.content },
             )
             assertEquals("session-1", repository.findLatestSession("agent")?.id)
             assertEquals(
@@ -94,6 +103,100 @@ class RoomChatSessionRepositoryTest {
             Files.deleteIfExists(databasePath)
         }
     }
+
+    @Test
+    fun pagesNewestMessagesAndMarksFailedResponseAcrossPageQuery() = runTest {
+        val databasePath = Files.createTempFile("starrail-chat-paging", ".db")
+        val database = Room.databaseBuilder<StarRailDatabase>(
+            name = databasePath.toString(),
+            factory = StarRailDatabaseConstructor::initialize,
+        )
+            .setDriver(BundledSQLiteDriver())
+            .fallbackToDestructiveMigration(true)
+            .build()
+        val repository = RoomChatSessionRepository(database)
+
+        try {
+            database.agentRoleDao().upsert(testRole())
+            repository.createSessionWithMessages(
+                session = newSession("session-paging", 1_000L),
+                messages = (1..120).map { index ->
+                    newMessage(
+                        id = "message-$index",
+                        sessionId = "session-paging",
+                        role = if (index % 2 == 0) ChatRole.ASSISTANT else ChatRole.USER,
+                        content = "content-$index",
+                        now = index.toLong(),
+                    )
+                },
+            )
+
+            val source = database.chatMessageDao().pagingSourceBySession("session-paging")
+            val firstPage = assertIs<PagingSource.LoadResult.Page<Int, ChatMessagePageRow>>(
+                source.load(
+                    PagingSource.LoadParams.Refresh(
+                        key = null,
+                        loadSize = 50,
+                        placeholdersEnabled = false,
+                    ),
+                ),
+            )
+            assertEquals(50, firstPage.data.size)
+            assertEquals(120L, firstPage.data.first().message.seq)
+            assertEquals(71L, firstPage.data.last().message.seq)
+
+            val secondPage = assertIs<PagingSource.LoadResult.Page<Int, ChatMessagePageRow>>(
+                source.load(
+                    PagingSource.LoadParams.Append(
+                        key = requireNotNull(firstPage.nextKey),
+                        loadSize = 50,
+                        placeholdersEnabled = false,
+                    ),
+                ),
+            )
+            assertEquals(50, secondPage.data.size)
+            assertEquals(70L, secondPage.data.first().message.seq)
+            assertEquals(21L, secondPage.data.last().message.seq)
+
+            val oldestOffset = repository.oldestMessagePageOffset("session-paging")
+            assertEquals(70, oldestOffset)
+            val oldestPage = repository.pagedMessages(
+                sessionId = "session-paging",
+                initialOffset = oldestOffset,
+            ).asSnapshot()
+            assertEquals(50, oldestPage.size)
+            assertEquals(50L, oldestPage.first().message.seq)
+            assertEquals(1L, oldestPage.last().message.seq)
+
+            repository.createSessionWithMessages(
+                session = newSession("session-failed", 2_000L),
+                messages = listOf(
+                    newMessage(
+                        id = "failed-user",
+                        sessionId = "session-failed",
+                        role = ChatRole.USER,
+                        content = "retry me",
+                        now = 2_000L,
+                    ),
+                    newMessage(
+                        id = "failed-assistant",
+                        sessionId = "session-failed",
+                        role = ChatRole.ASSISTANT,
+                        content = "",
+                        now = 2_001L,
+                        status = ChatMessageStatus.FAILED,
+                    ),
+                ),
+            )
+            val failedEntries = repository.pagedMessages("session-failed").asSnapshot()
+            assertEquals(1, failedEntries.size)
+            assertEquals("failed-user", failedEntries.single().message.id)
+            assertTrue(failedEntries.single().hasFailedResponse)
+        } finally {
+            database.close()
+            Files.deleteIfExists(databasePath)
+        }
+    }
 }
 
 private fun testRole() = AgentRoleEntity(
@@ -125,12 +228,13 @@ private fun newMessage(
     role: ChatRole,
     content: String,
     now: Long,
+    status: ChatMessageStatus = ChatMessageStatus.COMPLETED,
 ) = NewChatMessage(
     id = id,
     sessionId = sessionId,
     role = role,
     content = content,
-    status = ChatMessageStatus.COMPLETED,
+    status = status,
     modelConfigId = null,
     modelNameSnapshot = null,
     createdAt = now,

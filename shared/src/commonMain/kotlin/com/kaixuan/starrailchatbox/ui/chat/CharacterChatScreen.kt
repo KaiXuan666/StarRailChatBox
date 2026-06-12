@@ -23,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -41,6 +42,11 @@ import androidx.compose.ui.platform.LocalUriHandler
 import com.kaixuan.starrailchatbox.platform.KmpFileManager
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.paging.PagingData
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.tooling.preview.Preview
 import com.kaixuan.starrailchatbox.design.StarRailTheme
@@ -85,8 +91,10 @@ fun CharacterChatScreen(
         onMainAction(MainAction.PopBackStack)
     }
     val pageListState = rememberLazyListState()
-    val pageMessages = pageState.messages
-    val latestMessageId = remember(pageMessages) { pageMessages.lastOrNull()?.id }
+    val pageMessages = pageState.messagePagingData.flow.collectAsLazyPagingItems()
+    val latestMessageId = (
+        pageMessages.itemSnapshotList.items.firstOrNull() as? ChatTimelineItem.Message
+        )?.message?.id
     val charactersById = remember(charactersState.characters) {
         charactersState.characters.associateBy(CharacterSummary::id)
     }
@@ -109,8 +117,24 @@ fun CharacterChatScreen(
         )
     }
 
+    LaunchedEffect(pageState.messagePagingData) {
+        snapshotFlow {
+            pageMessages.loadState.refresh to pageMessages.itemCount
+        }.first { (loadState, itemCount) ->
+            loadState is LoadState.NotLoading && itemCount > 0
+        }
+        when (pageState.messagePagingData.anchor) {
+            ChatHistoryAnchor.LATEST -> pageListState.scrollToItem(0)
+            ChatHistoryAnchor.OLDEST ->
+                pageListState.scrollToItem(pageMessages.itemCount - 1)
+        }
+    }
+
     LaunchedEffect(latestMessageId) {
-        if (latestMessageId != null) {
+        if (
+            latestMessageId != null &&
+            pageState.messagePagingData.anchor == ChatHistoryAnchor.LATEST
+        ) {
             // 已经处于最底部时，发送或收到消息，自动滚回底部
             if (pageListState.firstVisibleItemIndex <= 1) {
                 pageListState.animateScrollToItem(0)
@@ -188,6 +212,8 @@ fun CharacterChatScreen(
                             charactersById = charactersById,
                             userAvatarUri = state.userAvatarUri,
                             compact = compact,
+                            isSending = pageState.isSending,
+                            historyAnchor = pageState.messagePagingData.anchor,
                             playingAudioUri = playingAudioUri,
                             contentPadding = PaddingValues(
                                 start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
@@ -291,15 +317,24 @@ private val previewChatUiState = ChatUiState(
     selectedCharacterId = "builtin:流萤",
     characterStates = mapOf(
         "builtin:流萤" to CharacterChatState(
-            messages = listOf(
-                ChatMessageUiModel.Received(
-                    id = "1",
-                    content = MessageContent.Custom("你好呀，开拓者！"),
-                    timestamp = "10:00",
-                    senderId = "builtin:流萤",
-                    createdAt = 0L
-                )
-            )
+            messagePagingData = ChatMessagePagingData(
+                sessionId = "preview",
+                flow = flowOf(
+                    PagingData.from(
+                        listOf(
+                            ChatTimelineItem.Message(
+                                ChatMessageUiModel.Received(
+                                    id = "1",
+                                    content = MessageContent.Custom("你好呀，开拓者！"),
+                                    timestamp = "10:00",
+                                    senderId = "builtin:流萤",
+                                    createdAt = 0L,
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
         )
     )
 )

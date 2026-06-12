@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Upsert
 import com.kaixuan.starrailchatbox.data.database.entity.ChatSessionEntity
+import com.kaixuan.starrailchatbox.data.database.entity.ChatSessionSummaryRow
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -19,11 +20,31 @@ interface ChatSessionDao {
     fun observeActive(): Flow<List<ChatSessionEntity>>
 
     @Query(
-        "SELECT * FROM chat_session " +
-            "WHERE agent_id = :agentId AND archived = 0 AND deleted_at IS NULL " +
-            "ORDER BY pinned DESC, last_message_at DESC",
+        """
+        SELECT s.*,
+            COALESCE((
+                SELECT m.content FROM chat_message m
+                WHERE m.session_id = s.id
+                    AND m.status = 'completed'
+                    AND m.deleted_at IS NULL
+                    AND m.content != ''
+                ORDER BY m.seq DESC
+                LIMIT 1
+            ), '') AS last_message_preview,
+            (
+                SELECT COUNT(*) FROM chat_message m
+                WHERE m.session_id = s.id
+                    AND m.status = 'completed'
+                    AND m.deleted_at IS NULL
+            ) AS message_count
+        FROM chat_session s
+        WHERE s.agent_id = :agentId
+            AND s.archived = 0
+            AND s.deleted_at IS NULL
+        ORDER BY s.pinned DESC, s.last_message_at DESC
+        """,
     )
-    fun observeByAgent(agentId: String): Flow<List<ChatSessionEntity>>
+    fun observeSummariesByAgent(agentId: String): Flow<List<ChatSessionSummaryRow>>
 
     @Query(
         "SELECT * FROM chat_session " +

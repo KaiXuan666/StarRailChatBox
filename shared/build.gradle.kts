@@ -147,6 +147,8 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.androidx.lifecycle.viewmodelNavigation3)
             implementation(libs.navigation3.ui)
+            implementation(libs.paging.common)
+            implementation(libs.paging.compose)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.contentNegotiation)
@@ -171,12 +173,14 @@ kotlin {
             dependencies {
                 implementation(libs.datastore.preferences)
                 implementation(libs.room.runtime)
+                implementation(libs.room.paging)
                 implementation(libs.sqlite.bundled)
             }
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.paging.testing)
             implementation(libs.ktor.client.mock)
             implementation(libs.okio.fakefilesystem)
         }

@@ -22,8 +22,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -38,6 +41,7 @@ import com.kaixuan.starrailchatbox.ui.components.BackHandler
 import com.kaixuan.starrailchatbox.ui.main.MainAction
 import com.kaixuan.starrailchatbox.ui.navigation.Route
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import org.jetbrains.compose.resources.stringResource
 import starrailchatbox.shared.generated.resources.Res
 import starrailchatbox.shared.generated.resources.app_title
@@ -245,11 +249,31 @@ fun ChatSessionScreen(
                 }
             } else {
                 val pageListState = currentStates.getValue(pageCharacter.id)
-                val pageMessages = pageState.messages
-                val latestMessageId = pageMessages.lastOrNull()?.id
+                val pageMessages = pageState.messagePagingData.flow.collectAsLazyPagingItems()
+                val latestMessageId = (
+                    pageMessages.itemSnapshotList.items.firstOrNull()
+                        as? ChatTimelineItem.Message
+                    )?.message?.id
 
-                LaunchedEffect(pageCharacter.id, latestMessageId) {
-                    if (latestMessageId != null) {
+                LaunchedEffect(pageState.messagePagingData) {
+                    snapshotFlow {
+                        pageMessages.loadState.refresh to pageMessages.itemCount
+                    }.first { (loadState, itemCount) ->
+                        loadState is LoadState.NotLoading && itemCount > 0
+                    }
+                    withFrameNanos {}
+                    when (pageState.messagePagingData.anchor) {
+                        ChatHistoryAnchor.LATEST -> pageListState.scrollToItem(0)
+                        ChatHistoryAnchor.OLDEST ->
+                            pageListState.scrollToItem(pageMessages.itemCount - 1)
+                    }
+                }
+
+                LaunchedEffect(pageCharacter.id, latestMessageId, pageMessages.itemCount) {
+                    if (
+                        latestMessageId != null &&
+                        pageState.messagePagingData.anchor == ChatHistoryAnchor.LATEST
+                    ) {
                         if (pageCharacter.id !in initiallyPositionedCharacterIds) {
                             withFrameNanos {}
                             pageListState.scrollToItem(0)
@@ -269,6 +293,8 @@ fun ChatSessionScreen(
                     charactersById = charactersById,
                     userAvatarUri = state.userAvatarUri,
                     compact = compact,
+                    isSending = pageState.isSending,
+                    historyAnchor = pageState.messagePagingData.anchor,
                     playingAudioUri = playingAudioUri,
                     contentPadding = PaddingValues(
                         start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,

@@ -1,23 +1,22 @@
 package com.kaixuan.starrailchatbox.data.chat
 
+import androidx.paging.Pager
+import androidx.paging.PagingData
+import androidx.paging.map
 import androidx.room.immediateTransaction
 import androidx.room.useWriterConnection
 import com.kaixuan.starrailchatbox.data.database.StarRailDatabase
 import com.kaixuan.starrailchatbox.data.database.entity.ChatMessageEntity
+import com.kaixuan.starrailchatbox.data.database.entity.ChatMessagePageRow
 import com.kaixuan.starrailchatbox.data.database.entity.ChatMessageWithAttachments
 import com.kaixuan.starrailchatbox.data.database.entity.ChatSessionEntity
 import com.kaixuan.starrailchatbox.data.database.entity.ChatSummaryEntity
 import com.kaixuan.starrailchatbox.data.database.entity.toDomain
 import com.kaixuan.starrailchatbox.data.database.entity.toEntity
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlin.time.Clock
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class RoomChatSessionRepository(
     private val database: StarRailDatabase,
 ) : ChatSessionRepository {
@@ -35,38 +34,49 @@ class RoomChatSessionRepository(
     }
 
     override fun observeSessions(agentId: String): Flow<List<ChatSessionSummary>> {
-        return sessionDao.observeByAgent(agentId).flatMapLatest { sessions ->
-            if (sessions.isEmpty()) {
-                flowOf(emptyList())
-            } else {
-                combine(
-                    sessions.map { session ->
-                        messageDao.observeBySession(session.id).map { messages ->
-                            ChatSessionSummary(
-                                session = session.toDomain(),
-                                lastMessagePreview = messages
-                                    .lastOrNull {
-                                        it.message.status == ChatMessageStatus.COMPLETED.storageValue &&
-                                            it.message.content.isNotBlank()
-                                    }
-                                    ?.message
-                                    ?.content
-                                    .orEmpty(),
-                                messageCount = messages.count {
-                                    it.message.status == ChatMessageStatus.COMPLETED.storageValue
-                                },
-                            )
-                        }
-                    },
-                ) { summaries -> summaries.toList() }
+        return sessionDao.observeSummariesByAgent(agentId).map { rows ->
+            rows.map { row ->
+                ChatSessionSummary(
+                    session = row.session.toDomain(),
+                    lastMessagePreview = row.lastMessagePreview,
+                    messageCount = row.messageCount,
+                )
             }
         }
     }
 
-    override fun observeMessages(sessionId: String): Flow<List<StoredChatMessage>> {
-        return messageDao.observeBySession(sessionId).map { messages ->
-            messages.map(ChatMessageWithAttachments::toDomain)
+    override fun pagedMessages(
+        sessionId: String,
+        initialOffset: Int,
+    ): Flow<PagingData<ChatMessagePageEntry>> {
+        return Pager(
+            config = ChatMessagePagingConfig,
+            initialKey = initialOffset,
+            pagingSourceFactory = { messageDao.pagingSourceBySession(sessionId) },
+        ).flow.map { pagingData ->
+            pagingData.map(ChatMessagePageRow::toDomain)
         }
+    }
+
+    override suspend fun oldestMessagePageOffset(sessionId: String): Int {
+        return (
+            messageDao.visibleMessageCount(sessionId) -
+                ChatMessagePagingConfig.initialLoadSize
+            ).coerceAtLeast(0)
+    }
+
+    override fun observeLatestSuggestions(sessionId: String): Flow<List<String>> {
+        return messageDao.observeLatestSuggestionsJson(sessionId).map { json ->
+            json?.let {
+                runCatching {
+                    kotlinx.serialization.json.Json.decodeFromString<List<String>>(it)
+                }.getOrDefault(emptyList())
+            }.orEmpty()
+        }
+    }
+
+    override suspend fun findMessage(messageId: String): StoredChatMessage? {
+        return messageDao.findById(messageId)?.toDomain()
     }
 
     override suspend fun findContext(
@@ -218,6 +228,13 @@ private fun ChatSessionEntity.toDomain() = ChatSession(
 
 private fun ChatMessageWithAttachments.toDomain() = message.toDomain().copy(
     attachments = attachments.map { it.toDomain() }
+)
+
+private fun ChatMessagePageRow.toDomain() = ChatMessagePageEntry(
+    message = message.toDomain().copy(
+        attachments = attachments.map { it.toDomain() },
+    ),
+    hasFailedResponse = hasFailedResponse,
 )
 
 private fun ChatMessageEntity.toDomain() = StoredChatMessage(

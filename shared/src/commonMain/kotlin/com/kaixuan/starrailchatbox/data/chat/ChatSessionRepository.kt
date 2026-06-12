@@ -1,5 +1,10 @@
 package com.kaixuan.starrailchatbox.data.chat
 
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.PagingSource
+import androidx.paging.PagingState
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
@@ -53,6 +58,11 @@ data class StoredChatMessage(
     val createdAt: Long,
     val suggestions: List<String> = emptyList(),
     val attachments: List<MessageAttachment> = emptyList(),
+)
+
+data class ChatMessagePageEntry(
+    val message: StoredChatMessage,
+    val hasFailedResponse: Boolean,
 )
 
 data class MessageAttachment(
@@ -149,7 +159,16 @@ interface ChatSessionRepository {
 
     fun observeSessions(agentId: String): Flow<List<ChatSessionSummary>>
 
-    fun observeMessages(sessionId: String): Flow<List<StoredChatMessage>>
+    fun pagedMessages(
+        sessionId: String,
+        initialOffset: Int = 0,
+    ): Flow<PagingData<ChatMessagePageEntry>>
+
+    suspend fun oldestMessagePageOffset(sessionId: String): Int
+
+    fun observeLatestSuggestions(sessionId: String): Flow<List<String>>
+
+    suspend fun findMessage(messageId: String): StoredChatMessage?
 
     suspend fun findContext(
         sessionId: String,
@@ -178,6 +197,7 @@ class InMemoryChatSessionRepository : ChatSessionRepository {
     private val sessions = MutableStateFlow<List<ChatSession>>(emptyList())
     private val messages = MutableStateFlow<List<StoredChatMessage>>(emptyList())
     private val summaries = MutableStateFlow<List<ChatSummary>>(emptyList())
+    private val pagingSources = mutableMapOf<String, MutableSet<PagingSource<Int, ChatMessagePageEntry>>>()
 
     override suspend fun findLatestSession(agentId: String): ChatSession? {
         return sessions.value
@@ -215,10 +235,51 @@ class InMemoryChatSessionRepository : ChatSessionRepository {
         }
     }
 
-    override fun observeMessages(sessionId: String): Flow<List<StoredChatMessage>> {
-        return messages.map { stored ->
-            stored.filter { it.sessionId == sessionId }.sortedBy(StoredChatMessage::seq)
+    override fun pagedMessages(
+        sessionId: String,
+        initialOffset: Int,
+    ): Flow<PagingData<ChatMessagePageEntry>> {
+        return Pager(
+            config = ChatMessagePagingConfig,
+            initialKey = initialOffset,
+            pagingSourceFactory = {
+                InMemoryChatMessagePagingSource(
+                    snapshot = messages.value,
+                    sessionId = sessionId,
+                ).also { source ->
+                    pagingSources.getOrPut(sessionId) { mutableSetOf() } += source
+                    source.registerInvalidatedCallback {
+                        pagingSources[sessionId]?.remove(source)
+                    }
+                }
+            },
+        ).flow
+    }
+
+    override suspend fun oldestMessagePageOffset(sessionId: String): Int {
+        val visibleMessageCount = messages.value.count {
+            it.sessionId == sessionId &&
+                !(it.role == ChatRole.ASSISTANT && it.status == ChatMessageStatus.FAILED)
         }
+        return (visibleMessageCount - ChatMessagePagingConfig.initialLoadSize).coerceAtLeast(0)
+    }
+
+    override fun observeLatestSuggestions(sessionId: String): Flow<List<String>> {
+        return messages.map { stored ->
+            stored.asSequence()
+                .filter { it.sessionId == sessionId }
+                .maxByOrNull(StoredChatMessage::seq)
+                ?.takeIf {
+                    it.role == ChatRole.ASSISTANT &&
+                        it.status == ChatMessageStatus.COMPLETED
+                }
+                ?.suggestions
+                .orEmpty()
+        }
+    }
+
+    override suspend fun findMessage(messageId: String): StoredChatMessage? {
+        return messages.value.firstOrNull { it.id == messageId }
     }
 
     override suspend fun findContext(
@@ -257,6 +318,7 @@ class InMemoryChatSessionRepository : ChatSessionRepository {
             message.toStored(seq = index + 1L)
         }
         this.messages.update { it + storedMessages }
+        invalidatePagingSources(session.id)
     }
 
     override suspend fun appendMessage(message: NewChatMessage) {
@@ -266,6 +328,7 @@ class InMemoryChatSessionRepository : ChatSessionRepository {
             ?.plus(1)
             ?: 1
         messages.update { it + message.toStored(seq) }
+        invalidatePagingSources(message.sessionId)
         sessions.update { stored ->
             stored.map {
                 if (it.id == message.sessionId) {
@@ -292,6 +355,7 @@ class InMemoryChatSessionRepository : ChatSessionRepository {
         sessions.update { stored -> stored.filterNot { it.id == sessionId } }
         messages.update { stored -> stored.filterNot { it.sessionId == sessionId } }
         summaries.update { stored -> stored.filterNot { it.sessionId == sessionId } }
+        invalidatePagingSources(sessionId)
     }
 
     override suspend fun updateSessionTitle(sessionId: String, title: String) {
@@ -310,6 +374,71 @@ class InMemoryChatSessionRepository : ChatSessionRepository {
         messages.update { stored ->
             stored.filterNot { it.sessionId == sessionId && it.status == ChatMessageStatus.FAILED }
         }
+        invalidatePagingSources(sessionId)
+    }
+
+    private fun invalidatePagingSources(sessionId: String) {
+        pagingSources.remove(sessionId)?.toList()?.forEach(PagingSource<Int, ChatMessagePageEntry>::invalidate)
+    }
+}
+
+val ChatMessagePagingConfig = PagingConfig(
+    pageSize = 50,
+    initialLoadSize = 50,
+    prefetchDistance = 10,
+    maxSize = 200,
+    enablePlaceholders = false,
+)
+
+private class InMemoryChatMessagePagingSource(
+    snapshot: List<StoredChatMessage>,
+    sessionId: String,
+) : PagingSource<Int, ChatMessagePageEntry>() {
+    private val failedResponseSeqs = snapshot.asSequence()
+        .filter {
+            it.sessionId == sessionId &&
+                it.role == ChatRole.ASSISTANT &&
+                it.status == ChatMessageStatus.FAILED
+        }
+        .map { it.seq }
+        .toSet()
+    private val entries = snapshot
+        .filter { it.sessionId == sessionId }
+        .sortedByDescending(StoredChatMessage::seq)
+        .mapNotNull { message ->
+            if (message.role == ChatRole.ASSISTANT && message.status == ChatMessageStatus.FAILED) {
+                null
+            } else {
+                ChatMessagePageEntry(
+                    message = message,
+                    hasFailedResponse = message.role == ChatRole.USER &&
+                        message.seq + 1 in failedResponseSeqs,
+                )
+            }
+        }
+
+    override suspend fun load(params: LoadParams<Int>): LoadResult<Int, ChatMessagePageEntry> {
+        val start = params.key ?: 0
+        if (start >= entries.size) {
+            return LoadResult.Page(
+                data = emptyList(),
+                prevKey = null,
+                nextKey = null,
+            )
+        }
+        val end = minOf(start + params.loadSize, entries.size)
+        return LoadResult.Page(
+            data = entries.subList(start, end),
+            prevKey = if (start == 0) null else maxOf(0, start - params.loadSize),
+            nextKey = end.takeIf { it < entries.size },
+        )
+    }
+
+    override fun getRefreshKey(state: PagingState<Int, ChatMessagePageEntry>): Int? {
+        val anchor = state.anchorPosition ?: return null
+        val page = state.closestPageToPosition(anchor) ?: return null
+        return page.prevKey?.plus(state.config.pageSize)
+            ?: page.nextKey?.minus(state.config.pageSize)
     }
 }
 

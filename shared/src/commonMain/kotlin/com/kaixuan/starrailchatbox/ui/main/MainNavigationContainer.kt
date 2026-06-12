@@ -1770,7 +1770,9 @@ private val previewChatState = ChatUiState(
     characterStates = mapOf(
         "builtin:流萤" to CharacterChatState(
             activeSessionId = "preview-session",
-            messages = listOf(
+            messagePagingData = com.kaixuan.starrailchatbox.ui.chat.staticChatMessagePagingData(
+                sessionId = "preview-session",
+                messages = listOf(
                 ChatMessageUiModel.Received(
                     id = "preview-opening",
                     timestamp = "10:21",
@@ -1778,6 +1780,7 @@ private val previewChatState = ChatUiState(
                     content = MessageContent.Custom("今天要聊点什么呢？"),
                     senderId = "builtin:流萤",
                 )
+                ),
             ),
             messageDraft = "",
             isLoadingSession = false,

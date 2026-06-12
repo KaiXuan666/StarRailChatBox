@@ -1,6 +1,7 @@
 package com.kaixuan.starrailchatbox.ui.chat
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -20,26 +22,33 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
+import androidx.paging.LoadState
+import androidx.paging.compose.LazyPagingItems
 import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 import com.kaixuan.starrailchatbox.data.chat.MessageAttachment
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.starRailColors
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
-import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
+import starrailchatbox.shared.generated.resources.Res
+import starrailchatbox.shared.generated.resources.retry
+import starrailchatbox.shared.generated.resources.scroll_to_latest_message
+import starrailchatbox.shared.generated.resources.scroll_to_oldest_message
 
 @Composable
 fun ChatMessageList(
-    messages: List<ChatMessageUiModel>,
+    messages: LazyPagingItems<ChatTimelineItem>,
     listState: LazyListState,
     charactersById: Map<String, CharacterSummary>,
     userAvatarUri: String?,
     compact: Boolean,
+    isSending: Boolean,
+    historyAnchor: ChatHistoryAnchor,
     playingAudioUri: String?,
     contentPadding: PaddingValues,
     onViewAttachments: (List<MessageAttachment>) -> Unit,
@@ -49,7 +58,10 @@ fun ChatMessageList(
     headerContent: (@Composable () -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
-    val coroutineScope = rememberCoroutineScope()
+    val refreshState = messages.loadState.refresh
+    val appendState = messages.loadState.append
+    val historyLoaded = appendState is LoadState.NotLoading &&
+        appendState.endOfPaginationReached
 
     val isAtBottom by remember {
         derivedStateOf {
@@ -60,15 +72,27 @@ fun ChatMessageList(
     val isAtTop by remember {
         derivedStateOf {
             val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
-            lastVisibleItem != null && lastVisibleItem.index == listState.layoutInfo.totalItemsCount - 1
+            lastVisibleItem != null &&
+                lastVisibleItem.index == listState.layoutInfo.totalItemsCount - 1
         }
     }
 
-    // 只要不是既在顶又在底（即内容多于一屏），就显示按钮
-    val showScrollButton by remember {
+    val showScrollButton by remember(historyAnchor) {
         derivedStateOf {
-            listState.layoutInfo.totalItemsCount > 0 && !(isAtTop && isAtBottom)
+            listState.layoutInfo.totalItemsCount > 0 &&
+                (historyAnchor == ChatHistoryAnchor.OLDEST || !(isAtTop && isAtBottom))
         }
+    }
+    val scrollsToOldest = historyAnchor == ChatHistoryAnchor.LATEST && isAtBottom
+
+    if (refreshState is LoadState.Loading && messages.itemCount == 0) {
+        Box(
+            modifier = modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularProgressIndicator()
+        }
+        return
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -79,42 +103,70 @@ fun ChatMessageList(
             contentPadding = contentPadding,
             verticalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
         ) {
-            // 倒序排列：消息在前（index 0 在底），Header 在后（在顶）
-            messages.asReversed().forEachIndexed { reversedIndex, message ->
-                // 计算原始索引以处理日期分割线逻辑
-                val index = messages.size - 1 - reversedIndex
-
-                item(key = message.id) {
-                    MessageItem(
-                        message = message,
-                        charactersById = charactersById,
-                        userAvatarUri = userAvatarUri,
-                        compact = compact,
-                        playingAudioUri = playingAudioUri,
-                        onViewAttachments = onViewAttachments,
-                        onOpenAttachment = onOpenAttachment,
-                        onAvatarClick = onAvatarClick,
-                        onAction = onAction
-                    )
+            items(
+                count = messages.itemCount,
+                key = { index -> messages.peek(index)?.key ?: "placeholder_$index" },
+                contentType = { index ->
+                    when (messages.peek(index)) {
+                        is ChatTimelineItem.Message -> "message"
+                        is ChatTimelineItem.DateDivider -> "date"
+                        null -> "placeholder"
+                    }
+                },
+            ) { index ->
+                when (val item = messages[index]) {
+                    is ChatTimelineItem.Message -> {
+                        val displayedMessage = if (
+                            index == 0 &&
+                            isSending &&
+                            item.message is ChatMessageUiModel.Sent &&
+                            item.message.status == MessageStatus.SENT
+                        ) {
+                            item.message.copy(status = MessageStatus.SENDING)
+                        } else {
+                            item.message
+                        }
+                        MessageItem(
+                            message = displayedMessage,
+                            charactersById = charactersById,
+                            userAvatarUri = userAvatarUri,
+                            compact = compact,
+                            playingAudioUri = playingAudioUri,
+                            onViewAttachments = onViewAttachments,
+                            onOpenAttachment = onOpenAttachment,
+                            onAvatarClick = onAvatarClick,
+                            onAction = onAction,
+                        )
+                    }
+                    is ChatTimelineItem.DateDivider -> DateDivider(item.text)
+                    null -> Unit
                 }
+            }
 
-                val showDivider = if (index > 0) {
-                    val prevMessage = messages[index - 1]
-                    !com.kaixuan.starrailchatbox.platform.isSameDay(message.createdAt, prevMessage.createdAt)
-                } else {
-                    false
+            when (appendState) {
+                is LoadState.Loading -> item(key = "history_loading") {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(StarRailSpacing.md),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    }
                 }
-
-                if (showDivider) {
-                    item(key = "date_${message.id}") {
-                        DateDivider(com.kaixuan.starrailchatbox.platform.formatHeaderDate(message.createdAt))
+                is LoadState.Error -> item(key = "history_error") {
+                    PagingRetryItem(onRetry = messages::retry)
+                }
+                is LoadState.NotLoading -> {
+                    if (historyLoaded && headerContent != null) {
+                        item(key = "header") {
+                            headerContent()
+                        }
                     }
                 }
             }
 
-            if (headerContent != null) {
-                item(key = "header") {
-                    headerContent()
+            if (refreshState is LoadState.Error && messages.itemCount == 0) {
+                item(key = "refresh_error") {
+                    PagingRetryItem(onRetry = messages::retry)
                 }
             }
         }
@@ -122,14 +174,10 @@ fun ChatMessageList(
         if (showScrollButton) {
             Surface(
                 onClick = {
-                    coroutineScope.launch {
-                        if (isAtBottom) {
-                            // 如果在底部，点击滚动到最顶部 (最后一个 item)
-                            listState.scrollToItem(listState.layoutInfo.totalItemsCount - 1)
-                        } else {
-                            // 否则滚动到最底部 (index 0)
-                            listState.scrollToItem(0)
-                        }
+                    if (scrollsToOldest) {
+                        onAction(ChatAction.ScrollToOldestMessage)
+                    } else {
+                        onAction(ChatAction.ScrollToLatestMessage)
                     }
                 },
                 modifier = Modifier
@@ -151,18 +199,37 @@ fun ChatMessageList(
                 Box(contentAlignment = Alignment.Center) {
                     StarRailIcon(
                         kind = StarRailIconKind.ARROW_UP,
-                        contentDescription = if (isAtBottom) "滚动到最顶部" else "滚动到最底部",
+                        contentDescription = stringResource(
+                            if (scrollsToOldest) {
+                                Res.string.scroll_to_oldest_message
+                            } else {
+                                Res.string.scroll_to_latest_message
+                            },
+                        ),
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier
                             .size(if (compact) 20.dp else 24.dp)
                             .graphicsLayer {
-                                if (!isAtBottom) rotationZ = 180f
+                                if (!scrollsToOldest) rotationZ = 180f
                             },
                     )
                 }
             }
         }
     }
+}
+
+@Composable
+private fun PagingRetryItem(onRetry: () -> Unit) {
+    Text(
+        text = stringResource(Res.string.retry),
+        color = MaterialTheme.colorScheme.error,
+        style = MaterialTheme.typography.labelLarge,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onRetry)
+            .padding(StarRailSpacing.md),
+    )
 }
 
 @Composable

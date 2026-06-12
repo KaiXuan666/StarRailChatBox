@@ -1,5 +1,6 @@
 package com.kaixuan.starrailchatbox.ui.chat
 
+import androidx.paging.testing.asSnapshot
 import com.kaixuan.starrailchatbox.data.ai.AiContentPart
 import com.kaixuan.starrailchatbox.data.ai.AiMessage
 import com.kaixuan.starrailchatbox.data.ai.AiRepository
@@ -58,7 +59,7 @@ class ChatViewModelTest {
         advanceUntilIdle()
 
         val state = fixture.viewModel.uiState.value
-        val greeting = assertIs<ChatMessageUiModel.Received>(state.messages.single())
+        val greeting = assertIs<ChatMessageUiModel.Received>(state.messageSnapshot().single())
         assertEquals(MessageContent.Custom("今天要聊点什么呢？"), greeting.content)
         assertEquals("local-60000", greeting.timestamp)
         assertEquals(null, state.activeSessionId)
@@ -70,7 +71,7 @@ class ChatViewModelTest {
         val fixture = createFixture(characterRepository = NoOpeningCharacterRepository)
         advanceUntilIdle()
 
-        assertEquals(emptyList(), fixture.viewModel.uiState.value.messages)
+        assertEquals(emptyList(), fixture.viewModel.uiState.value.messageSnapshot())
     }
 
     @Test
@@ -97,7 +98,7 @@ class ChatViewModelTest {
         )
         assertEquals(
             listOf("今天要聊点什么呢？", "你好", "你好呀"),
-            fixture.sessions.observeMessages(session.id).first().map { it.content },
+            fixture.sessions.messageSnapshot(session.id).map { it.content },
         )
         assertEquals("", fixture.viewModel.uiState.value.messageDraft)
         assertFalse(fixture.viewModel.uiState.value.isSending)
@@ -164,7 +165,7 @@ class ChatViewModelTest {
         val session = requireNotNull(
             fixture.sessions.findLatestSession("builtin:流萤"),
         )
-        val stored = fixture.sessions.observeMessages(session.id).first()
+        val stored = fixture.sessions.messageSnapshot(session.id)
         assertEquals(3, stored.size)
         assertEquals("今天要聊点什么呢？", stored.first().content)
         assertEquals("不要丢掉", stored[1].content)
@@ -196,7 +197,7 @@ class ChatViewModelTest {
         assertEquals(firstSessionId, fixture.viewModel.uiState.value.activeSessionId)
         assertEquals(
             listOf("今天要聊点什么呢？", "第一段对话", "你好呀"),
-            fixture.viewModel.uiState.value.messages.map {
+            fixture.viewModel.uiState.value.messageSnapshot().map {
                 (it.content as MessageContent.Custom).text
             },
         )
@@ -520,7 +521,7 @@ class ChatViewModelTest {
         assertNull(userMsg.contentParts)
 
         val session = requireNotNull(sessions.findLatestSession("builtin:流萤"))
-        val storedMessages = sessions.observeMessages(session.id).first()
+        val storedMessages = sessions.messageSnapshot(session.id)
         val userMsgIndex = storedMessages.size - 2
         assertEquals(expectedText, storedMessages[userMsgIndex].content)
     }
@@ -638,6 +639,18 @@ private data class Fixture(
         viewModel.onAction(ChatAction.SendClicked)
     }
 }
+
+private suspend fun ChatUiState.messageSnapshot(): List<ChatMessageUiModel> {
+    return messagePagingData.flow.asSnapshot()
+        .mapNotNull { (it as? ChatTimelineItem.Message)?.message }
+        .asReversed()
+}
+
+private suspend fun InMemoryChatSessionRepository.messageSnapshot(
+    sessionId: String,
+) = pagedMessages(sessionId).asSnapshot()
+    .map { it.message }
+    .sortedBy { it.seq }
 
 private object FakeCharacterRepository : CharacterRepository {
     override suspend fun loadCharacters(): List<Character> = listOf(

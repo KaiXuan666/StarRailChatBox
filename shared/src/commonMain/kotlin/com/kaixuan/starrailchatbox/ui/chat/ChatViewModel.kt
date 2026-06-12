@@ -4,6 +4,10 @@ package com.kaixuan.starrailchatbox.ui.chat
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
+import androidx.paging.insertSeparators
+import androidx.paging.map
 import com.kaixuan.starrailchatbox.data.ai.AiContentPart
 import com.kaixuan.starrailchatbox.data.ai.AiMessage
 import com.kaixuan.starrailchatbox.data.ai.AiRepository
@@ -14,6 +18,7 @@ import com.kaixuan.starrailchatbox.data.character.CharacterRepository
 import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 import com.kaixuan.starrailchatbox.data.character.importer.StarRailCharacterCard
 import com.kaixuan.starrailchatbox.data.chat.ChatMessageStatus
+import com.kaixuan.starrailchatbox.data.chat.ChatMessagePageEntry
 import com.kaixuan.starrailchatbox.data.chat.ChatRole
 import com.kaixuan.starrailchatbox.data.chat.ChatSession
 import com.kaixuan.starrailchatbox.data.chat.ChatSessionRepository
@@ -29,6 +34,8 @@ import com.kaixuan.starrailchatbox.data.chat.newChatId
 import com.kaixuan.starrailchatbox.data.model.ModelConfig
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
 import com.kaixuan.starrailchatbox.platform.formatLastChatTime
+import com.kaixuan.starrailchatbox.platform.formatHeaderDate
+import com.kaixuan.starrailchatbox.platform.isSameDay
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -36,6 +43,8 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -139,6 +148,8 @@ class ChatViewModel(
                 }
             }
             ChatAction.NewSessionClicked -> startNewSession()
+            ChatAction.ScrollToOldestMessage -> jumpToHistoryAnchor(ChatHistoryAnchor.OLDEST)
+            ChatAction.ScrollToLatestMessage -> jumpToHistoryAnchor(ChatHistoryAnchor.LATEST)
             is ChatAction.SessionSelected -> selectSession(action.sessionId)
             is ChatAction.SessionDeleteClicked -> deleteSession(action.sessionId)
             is ChatAction.HeaderActionClicked -> handleHeaderAction(action.action)
@@ -214,10 +225,11 @@ class ChatViewModel(
         val character = state.selectedCharacter ?: return
         if (characterState.isSending) return
 
-        val messageToRetry = characterState.messages.find { it.id == messageId } as? ChatMessageUiModel.Sent ?: return
-
         viewModelScope.launch {
             val sessionId = characterState.activeSessionId ?: return@launch
+            val messageToRetry = chatSessionRepository.findMessage(messageId)
+                ?.takeIf { it.sessionId == sessionId && it.role == ChatRole.USER }
+                ?: return@launch
             chatSessionRepository.deleteFailedMessages(sessionId)
 
             val session = chatSessionRepository.findSession(sessionId) ?: return@launch
@@ -672,9 +684,7 @@ class ChatViewModel(
         }
         loadSelectedCharacter(characterId)
         observeSessions(characterId)
-        val chatState = uiState.value
-        val hasCache = chatState.characterStates[characterId]?.messages?.isNotEmpty() == true
-        loadLatestSession(characterId, hasCache = hasCache)
+        loadLatestSession(characterId)
     }
 
     private fun loadSelectedCharacter(characterId: String) {
@@ -718,10 +728,13 @@ class ChatViewModel(
         }
     }
 
-    private fun loadLatestSession(characterId: String, hasCache: Boolean = false) {
+    private fun loadLatestSession(characterId: String) {
         sessionJob?.cancel()
         sessionJob = viewModelScope.launch {
-            if (!hasCache) {
+            val cachedSessionId = uiState.value.characterStates[characterId]
+                ?.messagePagingData
+                ?.sessionId
+            if (cachedSessionId == null) {
                 _uiState.update { state ->
                     val currentState = state.characterStates[characterId] ?: CharacterChatState()
                     state.copy(
@@ -745,7 +758,7 @@ class ChatViewModel(
                             }
                         }
                     }
-                val greeting = emptyGreeting(
+                val greeting = emptyGreetingPagingData(
                     character = selectedCharacter,
                     now = currentTimeMillis(),
                     timeFormatter = timeFormatter,
@@ -755,46 +768,15 @@ class ChatViewModel(
                     state.copy(
                         characterStates = state.characterStates + (characterId to currentState.copy(
                             activeSessionId = null,
-                            messages = greeting,
+                            messagePagingData = greeting,
+                            suggestions = emptyList(),
                             isLoadingSession = false,
                         ))
                     )
                 }
                 return@launch
             }
-            _uiState.update { state ->
-                val currentState = state.characterStates[characterId] ?: CharacterChatState()
-                state.copy(
-                    characterStates = state.characterStates + (characterId to currentState.copy(
-                        activeSessionId = session.id,
-                        messages = if (hasCache) currentState.messages else emptyList(),
-                        isLoadingSession = false,
-                    ))
-                )
-            }
-            chatSessionRepository.observeMessages(session.id).collect { messages ->
-                val uiModels = messages.toUiModels(
-                    characterId = characterId,
-                    timeFormatter = timeFormatter,
-                    isSending = uiState.value.characterStates[characterId]?.isSending ?: false
-                )
-                val lastMsg = messages.lastOrNull()
-                val suggestions = if (lastMsg != null && lastMsg.role == ChatRole.ASSISTANT && lastMsg.status == ChatMessageStatus.COMPLETED) {
-                    lastMsg.suggestions
-                } else {
-                    emptyList()
-                }
-                _uiState.update { state ->
-                    val currentState = state.characterStates[characterId] ?: CharacterChatState()
-                    state.copy(
-                        characterStates = state.characterStates + (characterId to currentState.copy(
-                            messages = uiModels,
-                            suggestions = suggestions,
-                            isLoadingSession = false,
-                        ))
-                    )
-                }
-            }
+            bindSessionMessages(characterId, session.id)
         }
     }
 
@@ -865,7 +847,7 @@ class ChatViewModel(
                 characterStates = current.characterStates + (
                     character.id to currentState.copy(
                         activeSessionId = null,
-                        messages = emptyGreeting(
+                        messagePagingData = emptyGreetingPagingData(
                             character = character,
                             now = currentTimeMillis(),
                             timeFormatter = timeFormatter,
@@ -911,12 +893,12 @@ class ChatViewModel(
             updateCharacterState(characterId) {
                 it.copy(
                     activeSessionId = session.id,
-                    messages = emptyList(),
+                    messagePagingData = EmptyChatMessagePagingData,
                     suggestions = emptyList(),
                     isLoadingSession = false,
                 )
             }
-            collectSessionMessages(characterId, session.id)
+            bindSessionMessages(characterId, session.id)
         }
     }
 
@@ -1233,31 +1215,81 @@ class ChatViewModel(
                     ))
                 )
             }
-            collectSessionMessages(characterId, session.id)
+            bindSessionMessages(characterId, session.id)
         }
     }
 
-    private suspend fun collectSessionMessages(characterId: String, sessionId: String) {
-        chatSessionRepository.observeMessages(sessionId).collect { messages ->
-            val lastMsg = messages.lastOrNull()
-            val suggestions = if (
-                lastMsg != null &&
-                lastMsg.role == ChatRole.ASSISTANT &&
-                lastMsg.status == ChatMessageStatus.COMPLETED
-            ) {
-                lastMsg.suggestions
-            } else {
-                emptyList()
-            }
+    private suspend fun bindSessionMessages(characterId: String, sessionId: String) {
+        val currentPagingData = uiState.value.characterStates[characterId]?.messagePagingData
+        val pagingData = if (currentPagingData?.sessionId == sessionId) {
+            currentPagingData
+        } else {
+            createMessagePagingData(
+                characterId = characterId,
+                sessionId = sessionId,
+                anchor = ChatHistoryAnchor.LATEST,
+                initialOffset = 0,
+            )
+        }
+        updateCharacterState(characterId) {
+            it.copy(
+                activeSessionId = sessionId,
+                messagePagingData = pagingData,
+                isLoadingSession = false,
+            )
+        }
+        chatSessionRepository.observeLatestSuggestions(sessionId).collect { suggestions ->
             updateCharacterState(characterId) { state ->
-                state.copy(
-                    messages = messages.toUiModels(characterId, timeFormatter, state.isSending),
-                    suggestions = suggestions,
-                    isLoadingSession = false,
-                )
+                if (state.activeSessionId == sessionId) {
+                    state.copy(suggestions = suggestions)
+                } else {
+                    state
+                }
             }
         }
     }
+
+    private fun jumpToHistoryAnchor(anchor: ChatHistoryAnchor) {
+        val state = uiState.value
+        val characterId = state.selectedCharacterId ?: return
+        val sessionId = state.characterStates[characterId]?.activeSessionId ?: return
+        viewModelScope.launch {
+            val initialOffset = when (anchor) {
+                ChatHistoryAnchor.LATEST -> 0
+                ChatHistoryAnchor.OLDEST ->
+                    chatSessionRepository.oldestMessagePageOffset(sessionId)
+            }
+            val pagingData = createMessagePagingData(
+                characterId = characterId,
+                sessionId = sessionId,
+                anchor = anchor,
+                initialOffset = initialOffset,
+            )
+            updateCharacterState(characterId) { current ->
+                if (current.activeSessionId == sessionId) {
+                    current.copy(messagePagingData = pagingData)
+                } else {
+                    current
+                }
+            }
+        }
+    }
+
+    private fun createMessagePagingData(
+        characterId: String,
+        sessionId: String,
+        anchor: ChatHistoryAnchor,
+        initialOffset: Int,
+    ) = ChatMessagePagingData(
+        sessionId = sessionId,
+        flow = chatSessionRepository.pagedMessages(
+            sessionId = sessionId,
+            initialOffset = initialOffset,
+        )
+            .map { data -> data.toTimelineItems(characterId, timeFormatter) }
+            .cachedIn(viewModelScope),
+        anchor = anchor,
+    )
 
     private fun updateCharacterState(
         characterId: String,
@@ -1473,55 +1505,60 @@ private fun emptyGreeting(
     )
 }
 
-private fun List<StoredChatMessage>.toUiModels(
+private fun emptyGreetingPagingData(
+    character: Character?,
+    now: Long,
+    timeFormatter: (Long) -> String,
+): ChatMessagePagingData = ChatMessagePagingData(
+    sessionId = null,
+    flow = flowOf(
+        PagingData.from(
+            emptyGreeting(character, now, timeFormatter)
+                .map(ChatTimelineItem::Message),
+        ),
+    ),
+)
+
+private fun PagingData<ChatMessagePageEntry>.toTimelineItems(
     characterId: String,
     timeFormatter: (Long) -> String,
-    isSending: Boolean = false,
-): List<ChatMessageUiModel> {
-    val results = mutableListOf<ChatMessageUiModel>()
-
-    this.forEach { message ->
-        if (message.status == ChatMessageStatus.FAILED && message.role == ChatRole.ASSISTANT) {
-            // If this is a failed assistant message, mark the previous user message as failed
-            val last = results.lastOrNull()
-            if (last is ChatMessageUiModel.Sent) {
-                results[results.size - 1] = last.copy(status = MessageStatus.FAILED)
-            }
-            // We don't add the failed assistant message itself to UI
-            return@forEach
-        }
-
-        when (message.role) {
-            ChatRole.USER -> results.add(
-                ChatMessageUiModel.Sent(
-                    id = message.id,
-                    timestamp = timeFormatter(message.createdAt),
-                    createdAt = message.createdAt,
-                    content = MessageContent.Custom(message.content),
-                    isRead = true,
-                    status = MessageStatus.SENT,
-                    attachments = message.attachments,
-                )
-            )
-            ChatRole.ASSISTANT -> results.add(
-                ChatMessageUiModel.Received(
-                    id = message.id,
-                    timestamp = timeFormatter(message.createdAt),
-                    createdAt = message.createdAt,
-                    content = MessageContent.Custom(message.content),
-                    senderId = characterId,
-                    attachments = message.attachments,
-                )
-            )
-        }
+): PagingData<ChatTimelineItem> = map { entry ->
+    val message = entry.message
+    val uiModel = when (message.role) {
+        ChatRole.USER -> ChatMessageUiModel.Sent(
+            id = message.id,
+            timestamp = timeFormatter(message.createdAt),
+            createdAt = message.createdAt,
+            content = MessageContent.Custom(message.content),
+            isRead = true,
+            status = if (entry.hasFailedResponse) MessageStatus.FAILED else MessageStatus.SENT,
+            attachments = message.attachments,
+        )
+        ChatRole.ASSISTANT -> ChatMessageUiModel.Received(
+            id = message.id,
+            timestamp = timeFormatter(message.createdAt),
+            createdAt = message.createdAt,
+            content = MessageContent.Custom(message.content),
+            senderId = characterId,
+            attachments = message.attachments,
+        )
     }
-
-    if (isSending && results.isNotEmpty() && results.last() is ChatMessageUiModel.Sent) {
-        val lastSent = results.last() as ChatMessageUiModel.Sent
-        results[results.size - 1] = lastSent.copy(status = MessageStatus.SENDING)
+    ChatTimelineItem.Message(uiModel)
+}.insertSeparators { newer, older ->
+    val newerMessage = newer?.message
+    val olderMessage = older?.message
+    if (
+        newerMessage != null &&
+        olderMessage != null &&
+        !isSameDay(newerMessage.createdAt, olderMessage.createdAt)
+    ) {
+        ChatTimelineItem.DateDivider(
+            key = "date_${newerMessage.id}_${olderMessage.id}",
+            text = formatHeaderDate(newerMessage.createdAt),
+        )
+    } else {
+        null
     }
-
-    return results
 }
 
 private fun NewChatMessage.toStored(seq: Long) = StoredChatMessage(
