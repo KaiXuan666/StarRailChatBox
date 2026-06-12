@@ -20,13 +20,13 @@
 
 项目基于 **Kotlin Multiplatform (KMP)** 技术，各平台支持状态如下：
 
-| 平台 | 支持状态 | 备注 |
-| :--- | :---: | :--- |
-| 📱 **Android** | ✅ 支持 | 已发布，运行稳定 |
-| 💻 **Windows** | ✅ 支持 | 已发布，运行稳定 |
-| 🍏 **iOS** | ⏳ 未来支持 | 规划中 |
-| 🖥️ **macOS & Linux** | ⏳ 未来支持 | 规划中 |
-| 🌐 **Web (JS/WasmJS)** | ⏳ 未来支持 | 规划中 |
+| 平台 | 支持状态 | 下载链接 | 备注 |
+| :--- | :---: | :--- | :--- |
+| 📱 **Android** | ✅ 支持 | [APK 下载](https://github.com/KaiXuan666/StarRailChatBox/releases/download/v1.0.0/StarRailChatBox_1.0.0.apk) | 已发布，运行稳定 |
+| 💻 **Windows** | ✅ 支持 | [MSI 下载](https://github.com/KaiXuan666/StarRailChatBox/releases/download/v1.0.0/StarRailChatBox-1.0.0.msi) | 已发布，运行稳定 |
+| 🍏 **iOS** | ⏳ 未来支持 | - | 规划中 |
+| 🖥️ **macOS & Linux** | ⏳ 未来支持 | - | 规划中 |
+| 🌐 **Web (JS/WasmJS)** | ⏳ 未来支持 | - | 规划中 |
 
 ---
 
