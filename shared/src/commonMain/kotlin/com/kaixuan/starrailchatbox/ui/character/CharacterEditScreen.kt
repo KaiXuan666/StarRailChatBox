@@ -97,9 +97,6 @@ import starrailchatbox.shared.generated.resources.character_edit_voice_sample_hi
 import starrailchatbox.shared.generated.resources.character_edit_voice_select
 import kotlin.math.roundToInt
 
-private const val MaxCharacterNameLength = 40
-private const val MaxPromptLength = 10000
-private const val MaxOpeningMessageLength = 3000
 
 /**
  * 角色编辑界面，用于创建新角色或修改现有角色的详细信息（名称、提示词、头像、语音等）。
@@ -222,7 +219,7 @@ fun CharacterEditScreen(
             compact = compact,
             onPickAvatar = { imagePicker.launch() },
             onNameChanged = { name ->
-                onAction(CharacterAction.CharacterNameChanged(name.take(MaxCharacterNameLength)))
+                onAction(CharacterAction.CharacterNameChanged(name))
             },
         )
 
@@ -233,10 +230,9 @@ fun CharacterEditScreen(
         CharacterTextCard(
             title = stringResource(Res.string.character_edit_system_prompt),
             value = editState.prompt,
-            maxLength = MaxPromptLength,
             minLines = 5,
             onValueChange = { prompt ->
-                onAction(CharacterAction.CharacterPromptChanged(prompt.take(MaxPromptLength)))
+                onAction(CharacterAction.CharacterPromptChanged(prompt))
             },
             actionButton = {
                 Surface(
@@ -283,10 +279,9 @@ fun CharacterEditScreen(
         CharacterTextCard(
             title = stringResource(Res.string.character_edit_opening_message),
             value = editState.openingMessage,
-            maxLength = MaxOpeningMessageLength,
             minLines = 2,
             onValueChange = { openingMessage ->
-                onAction(CharacterAction.CharacterOpeningMessageChanged(openingMessage.take(MaxOpeningMessageLength)))
+                onAction(CharacterAction.CharacterOpeningMessageChanged(openingMessage))
             },
         )
 
@@ -376,7 +371,7 @@ fun CharacterEditScreen(
                 ),
                 onClick = { onAction(CharacterAction.CharacterSaveClicked) },
                 modifier = Modifier.weight(1f),
-                enabled = !editState.isSaving && editState.name.length <= MaxCharacterNameLength && editState.prompt.length <= MaxPromptLength,
+                enabled = !editState.isSaving && editState.name.isNotBlank(),
             )
         }
 
@@ -616,7 +611,6 @@ private fun CharacterEditAvatar(
 private fun CharacterTextCard(
     title: String,
     value: String,
-    maxLength: Int,
     minLines: Int,
     onValueChange: (String) -> Unit,
     actionButton: @Composable (() -> Unit)? = null,
@@ -650,7 +644,7 @@ private fun CharacterTextCard(
                 value = value,
                 onValueChange = onValueChange,
                 minLines = minLines,
-                supportingText = "${value.length}/$maxLength",
+                supportingText = "${value.length}",
             )
         }
     }
