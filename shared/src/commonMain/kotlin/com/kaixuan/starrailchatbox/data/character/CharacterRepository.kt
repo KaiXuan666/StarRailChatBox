@@ -52,6 +52,7 @@ data class CharacterSummary(
     val id: String,
     val name: String,
     val avatarUri: String,
+    val createdAt: Long = 0L,
     val lastMessageAt: Long? = null,
 )
 
@@ -99,6 +100,7 @@ interface CharacterRepository {
                 id = character.id,
                 name = character.name,
                 avatarUri = character.avatarUri,
+                createdAt = character.createdAt,
                 lastMessageAt = character.lastMessageAt,
             )
         })

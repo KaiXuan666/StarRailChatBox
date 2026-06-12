@@ -52,6 +52,7 @@ class InMemoryCharacterStorage : CharacterStorage {
                     id = it.id,
                     name = it.name,
                     avatarUri = it.avatarUri,
+                    createdAt = it.createdAt,
                     lastMessageAt = it.lastMessageAt,
                 )
             }

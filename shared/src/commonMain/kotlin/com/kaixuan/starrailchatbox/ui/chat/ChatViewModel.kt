@@ -87,7 +87,6 @@ class ChatViewModel(
     },
     private val enableFileAppend: Boolean = false,
 ) : ViewModel() {
-    private val loadedCharacters = mutableMapOf<String, Character>()
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState = _uiState.asStateFlow()
 
@@ -120,12 +119,13 @@ class ChatViewModel(
             ChatAction.SendClicked -> sendMessage()
             is ChatAction.QuickReplyClicked -> {
                 val state = uiState.value
-                val character = state.selectedCharacter
-                if (character != null && !state.isSending && !state.isLoadingSession) {
+                val characterId = state.selectedCharacterId
+                if (characterId != null && !state.isSending && !state.isLoadingSession) {
+                    val activeSessionId = state.characterStates[characterId]?.activeSessionId
                     _uiState.update { s ->
-                        val curState = s.characterStates[character.id] ?: CharacterChatState()
+                        val curState = s.characterStates[characterId] ?: CharacterChatState()
                         s.copy(
-                            characterStates = s.characterStates + (character.id to curState.copy(
+                            characterStates = s.characterStates + (characterId to curState.copy(
                                 isSending = true,
                                 scrollToLatestRequestId = curState.scrollToLatestRequestId + 1,
                             ))
@@ -133,7 +133,7 @@ class ChatViewModel(
                     }
                     viewModelScope.launch {
                         try {
-                            sendMessage(character, action.message)
+                            sendMessage(characterId, activeSessionId, action.message)
                         } catch (cancellation: CancellationException) {
                             throw cancellation
                         } catch (e: Throwable) {
@@ -141,9 +141,9 @@ class ChatViewModel(
                             emitMessage(EffectMessage.CHAT_REQUEST_FAILED)
                         } finally {
                             _uiState.update { s ->
-                                val curState = s.characterStates[character.id] ?: CharacterChatState()
+                                val curState = s.characterStates[characterId] ?: CharacterChatState()
                                 s.copy(
-                                    characterStates = s.characterStates + (character.id to curState.copy(
+                                    characterStates = s.characterStates + (characterId to curState.copy(
                                         isSending = false
                                     ))
                                 )
@@ -227,10 +227,10 @@ class ChatViewModel(
         val state = uiState.value
         val characterId = state.selectedCharacterId ?: return
         val characterState = state.characterStates[characterId] ?: return
-        val character = state.selectedCharacter ?: return
         if (characterState.isSending) return
 
         viewModelScope.launch {
+            val character = characterRepository.getCharacter(characterId) ?: return@launch
             val sessionId = characterState.activeSessionId ?: return@launch
             val messageToRetry = chatSessionRepository.findMessage(messageId)
                 ?.takeIf { it.sessionId == sessionId && it.role == ChatRole.USER }
@@ -255,8 +255,8 @@ class ChatViewModel(
 
     private fun sendVoiceMessage(uri: String, durationMs: Long) {
         val state = uiState.value
-        val character = state.selectedCharacter ?: return
-        val characterId = character.id
+        val characterId = state.selectedCharacterId ?: return
+        val activeSessionId = state.characterStates[characterId]?.activeSessionId
 
         _uiState.update { s ->
             val curState = s.characterStates[characterId] ?: CharacterChatState()
@@ -272,7 +272,7 @@ class ChatViewModel(
                 val fileName = uri.substringAfterLast('/')
                 val attachment = SelectedAttachment.Voice(uri, fileName, durationMs)
                 Napier.d { "sendVoiceMessage: uri=$uri, fileName=$fileName" }
-                sendMessage(character, "", listOf(attachment))
+                sendMessage(characterId, activeSessionId, "", listOf(attachment))
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (e: Throwable) {
@@ -314,17 +314,6 @@ class ChatViewModel(
             ?: characters.firstOrNull { it.name == "流萤" }?.id
             ?: characters.firstOrNull()?.id
         val selectedChanged = selectedId != previousSelectedId
-        val previousSelectedSummary = previous.characters.firstOrNull { it.id == selectedId }
-        val selectedSummary = characters.firstOrNull { it.id == selectedId }
-        val summariesUnchanged = !previous.isLoadingCharacters && characters == previous.characters
-        val selectedDetailsChanged = previousSelectedSummary?.let { old ->
-            selectedSummary?.let { current ->
-                summariesUnchanged ||
-                    old.name != current.name ||
-                    old.avatarUri != current.avatarUri
-            }
-        } ?: (selectedSummary != null)
-
         _characterUiState.update {
             it.copy(
                 characters = characters,
@@ -347,8 +336,6 @@ class ChatViewModel(
             }
             state.copy(
                 selectedCharacterId = selectedId,
-                selectedCharacter = state.selectedCharacter
-                    ?.takeIf { it.id == selectedId && !selectedDetailsChanged },
                 characterStates = characterStates,
             )
         }
@@ -359,11 +346,8 @@ class ChatViewModel(
             activeSession = null
         } else if (selectedChanged) {
             lastActiveMainCharacterId = selectedId
-            loadSelectedCharacter(selectedId)
             observeSessions(selectedId)
             loadLatestSession(selectedId)
-        } else if (selectedDetailsChanged) {
-            loadSelectedCharacter(selectedId)
         }
     }
 
@@ -681,34 +665,14 @@ class ChatViewModel(
             it.copy(selectedCharacterId = characterId)
         }
         _uiState.update {
-            it.copy(
-                selectedCharacterId = characterId,
-                selectedCharacter = loadedCharacters[characterId],
-            )
+            it.copy(selectedCharacterId = characterId)
         }
-        loadSelectedCharacter(characterId)
         observeSessions(characterId)
         val cachedState = uiState.value.characterStates[characterId]
         if (cachedState?.hasLoadedSession == true) {
             restoreCachedSession(characterId, cachedState.activeSessionId)
         } else {
             loadLatestSession(characterId)
-        }
-    }
-
-    private fun loadSelectedCharacter(characterId: String) {
-        viewModelScope.launch {
-            val character = runCatching {
-                characterRepository.getCharacter(characterId)
-            }.getOrNull() ?: return@launch
-            loadedCharacters[characterId] = character
-            _uiState.update { state ->
-                if (state.selectedCharacterId == characterId) {
-                    state.copy(selectedCharacter = character)
-                } else {
-                    state
-                }
-            }
         }
     }
 
@@ -758,16 +722,7 @@ class ChatViewModel(
             if (uiState.value.selectedCharacterId != characterId) return@launch
             activeSession = session
             if (session == null) {
-                val selectedCharacter = uiState.value.selectedCharacter
-                    ?: characterRepository.getCharacter(characterId)?.also { character ->
-                        _uiState.update { state ->
-                            if (state.selectedCharacterId == characterId) {
-                                state.copy(selectedCharacter = character)
-                            } else {
-                                state
-                            }
-                        }
-                    }
+                val selectedCharacter = characterRepository.getCharacter(characterId)
                 val greeting = emptyGreetingPagingData(
                     character = selectedCharacter,
                     now = currentTimeMillis(),
@@ -819,11 +774,11 @@ class ChatViewModel(
 
     private fun sendMessage() {
         val state = uiState.value
-        val character = state.selectedCharacter ?: return
-        val characterId = character.id
+        val characterId = state.selectedCharacterId ?: return
         val characterState = state.characterStates[characterId] ?: CharacterChatState()
         val content = characterState.messageDraft.trim()
         val attachments = characterState.selectedAttachments
+        val activeSessionId = characterState.activeSessionId
         if (
             (content.isEmpty() && attachments.isEmpty()) ||
             characterState.isSending ||
@@ -843,7 +798,7 @@ class ChatViewModel(
         }
         viewModelScope.launch {
             try {
-                sendMessage(character, content, attachments)
+                sendMessage(characterId, activeSessionId, content, attachments)
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (e: Throwable) {
@@ -865,34 +820,47 @@ class ChatViewModel(
 
     private fun startNewSession() {
         val state = uiState.value
-        val character = state.selectedCharacter ?: return
-        val characterState = state.characterStates[character.id] ?: return
+        val characterId = state.selectedCharacterId ?: return
+        val characterState = state.characterStates[characterId] ?: return
         if (characterState.isSending || characterState.isLoadingSession) return
 
         sessionJob?.cancel()
         activeSession = null
-        _uiState.update { current ->
-            val currentState = current.characterStates[character.id] ?: CharacterChatState()
-            current.copy(
-                characterStates = current.characterStates + (
-                    character.id to currentState.copy(
-                        activeSessionId = null,
-                        hasLoadedSession = true,
-                        messagePagingData = emptyGreetingPagingData(
-                            character = character,
-                            now = currentTimeMillis(),
-                        ),
-                        suggestions = emptyList(),
-                    )
-                ),
+        updateCharacterState(characterId) { currentState ->
+            currentState.copy(
+                activeSessionId = null,
+                hasLoadedSession = true,
+                messagePagingData = EmptyChatMessagePagingData,
+                suggestions = emptyList(),
             )
+        }
+        viewModelScope.launch {
+            val character = characterRepository.getCharacter(characterId)
+            val currentState = uiState.value.characterStates[characterId]
+            if (
+                uiState.value.selectedCharacterId != characterId ||
+                currentState?.activeSessionId != null
+            ) {
+                return@launch
+            }
+            updateCharacterState(characterId) { currentState ->
+                currentState.copy(
+                    activeSessionId = null,
+                    hasLoadedSession = true,
+                    messagePagingData = emptyGreetingPagingData(
+                        character = character,
+                        now = currentTimeMillis(),
+                    ),
+                    suggestions = emptyList(),
+                )
+            }
         }
     }
 
     private fun selectSession(sessionId: String) {
         val state = uiState.value
-        val character = state.selectedCharacter ?: return
-        val characterState = state.characterStates[character.id] ?: return
+        val characterId = state.selectedCharacterId ?: return
+        val characterState = state.characterStates[characterId] ?: return
         if (
             characterState.isSending ||
             characterState.isLoadingSession ||
@@ -901,7 +869,7 @@ class ChatViewModel(
         ) {
             return
         }
-        loadSession(character.id, sessionId)
+        loadSession(characterId, sessionId)
     }
 
     private fun loadSession(characterId: String, sessionId: String) {
@@ -935,8 +903,8 @@ class ChatViewModel(
 
     private fun deleteSession(sessionId: String) {
         val state = uiState.value
-        val character = state.selectedCharacter ?: return
-        val characterState = state.characterStates[character.id] ?: return
+        val characterId = state.selectedCharacterId ?: return
+        val characterState = state.characterStates[characterId] ?: return
         if (
             characterState.isSending ||
             characterState.isLoadingSession ||
@@ -949,17 +917,19 @@ class ChatViewModel(
                 chatSessionRepository.deleteSession(sessionId, currentTimeMillis())
             }.onSuccess {
                 if (characterState.activeSessionId == sessionId) {
-                    loadLatestSession(character.id)
+                    loadLatestSession(characterId)
                 }
             }
         }
     }
 
     private suspend fun sendMessage(
-        character: Character,
+        characterId: String,
+        activeSessionId: String?,
         content: String,
         attachments: List<SelectedAttachment> = emptyList(),
     ) {
+        val character = characterRepository.getCharacter(characterId) ?: return
         var finalContent = content
         if (enableFileAppend) {
             attachments.forEach { attachment ->
@@ -981,17 +951,18 @@ class ChatViewModel(
             }
         }
 
-        val previousSession = activeSession
+        val previousSession = activeSessionId
+            ?.let { chatSessionRepository.findSession(it) }
+            ?.takeIf { it.agentId == characterId }
         val now = currentTimeMillis()
 
         val session = previousSession ?: run {
-            val fullCharacter = characterRepository.getCharacter(character.id) ?: character
             NewChatSession(
                 id = idGenerator("session"),
                 title = sessionTitleProvider(),
                 agentId = character.id,
                 modelConfigId = null, // Will be updated if config is known
-                systemPromptSnapshot = fullCharacter.prompt,
+                systemPromptSnapshot = character.prompt,
                 maxContextMessageCount = null,
                 createdAt = now,
             ).let { newSession ->
@@ -1017,7 +988,7 @@ class ChatViewModel(
                     createdAt = now,
                     attachments = domainAttachments,
                 )
-                val openingMessage = fullCharacter.openingMessage
+                val openingMessage = character.openingMessage
                     .takeIf(String::isNotBlank)
                     ?.let {
                         NewChatMessage(

@@ -53,7 +53,7 @@ import starrailchatbox.shared.generated.resources.conversation_management_no_pre
 import starrailchatbox.shared.generated.resources.conversation_management_open
 import starrailchatbox.shared.generated.resources.conversation_management_title
 import starrailchatbox.shared.generated.resources.navigation_back
-import com.kaixuan.starrailchatbox.data.character.Character
+import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.ui.components.AvatarImage
@@ -62,6 +62,7 @@ import com.kaixuan.starrailchatbox.ui.components.StarRailDialog
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
+import com.kaixuan.starrailchatbox.ui.character.ChatCharactersUiState
 import com.kaixuan.starrailchatbox.ui.main.MainAction
 import com.kaixuan.starrailchatbox.ui.navigation.Route
 import kotlin.time.Clock
@@ -72,13 +73,14 @@ import kotlin.time.Clock
 @Composable
 fun ConversationManagementScreen(
     state: ChatUiState,
+    charactersState: ChatCharactersUiState,
     contentPadding: PaddingValues,
     compact: Boolean,
     onAction: (ChatAction) -> Unit,
     onMainAction: (MainAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val character = state.selectedCharacter
+    val character = charactersState.selectedCharacter
     val sessions = state.sessions
     var pendingDelete by remember { mutableStateOf<ConversationSummaryUiModel?>(null) }
 
@@ -202,7 +204,7 @@ fun ConversationManagementScreen(
 
 @Composable
 private fun CharacterConversationCard(
-    character: Character,
+    character: CharacterSummary,
     sessionCount: Int,
     companionDays: Int,
     compact: Boolean,
@@ -477,18 +479,15 @@ private fun ConversationManagementDarkPreview() {
 @Composable
 private fun ConversationManagementPreview(darkTheme: Boolean) {
     StarRailTheme(darkThemeOverride = darkTheme) {
-        val previewChar = Character(
+        val previewChar = CharacterSummary(
             id = "preview",
             name = "流萤",
-            prompt = "",
-            openingMessage = "",
             avatarUri = "",
             createdAt = Clock.System.now().toEpochMilliseconds() - 85L * MillisecondsPerDay,
         )
         ConversationManagementScreen(
             state = ChatUiState(
                 selectedCharacterId = "preview",
-                selectedCharacter = previewChar,
                 characterStates = mapOf(
                     "preview" to CharacterChatState(
                         activeSessionId = "session-1",
@@ -510,6 +509,11 @@ private fun ConversationManagementPreview(darkTheme: Boolean) {
                         ),
                     ),
                 ),
+            ),
+            charactersState = ChatCharactersUiState(
+                characters = listOf(previewChar),
+                selectedCharacterId = previewChar.id,
+                isLoadingCharacters = false,
             ),
             contentPadding = PaddingValues(),
             compact = true,

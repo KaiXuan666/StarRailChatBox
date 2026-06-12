@@ -62,7 +62,13 @@ class WasmJsCharacterStorage : CharacterStorage {
 
     private fun List<CharacterFiles>.toSummaries(): List<CharacterSummary> =
         map {
-            CharacterSummary(it.id, it.name, it.avatarUri, it.lastMessageAt)
+            CharacterSummary(
+                id = it.id,
+                name = it.name,
+                avatarUri = it.avatarUri,
+                createdAt = it.createdAt,
+                lastMessageAt = it.lastMessageAt,
+            )
         }
 
     override suspend fun getCharacter(id: String): CharacterFiles? = loadCharacters().find { it.id == id }

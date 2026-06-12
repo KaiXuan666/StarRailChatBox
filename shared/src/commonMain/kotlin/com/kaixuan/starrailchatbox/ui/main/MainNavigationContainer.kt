@@ -832,6 +832,7 @@ fun MainNavigationContainer(
                         ) {
                             ConversationManagementScreen(
                                 state = chatState,
+                                charactersState = chatCharactersState,
                                 contentPadding = contentPadding,
                                 compact = compact,
                                 onAction = onChatAction,
@@ -1768,7 +1769,6 @@ private val previewChatCharactersState = ChatCharactersUiState(
 
 private val previewChatState = ChatUiState(
     selectedCharacterId = "builtin:流萤",
-    selectedCharacter = previewCharacter,
     characterStates = mapOf(
         "builtin:流萤" to CharacterChatState(
             activeSessionId = "preview-session",

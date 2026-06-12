@@ -2,8 +2,6 @@ package com.kaixuan.starrailchatbox.ui.chat
 
 import androidx.compose.runtime.Immutable
 import androidx.paging.PagingData
-import com.kaixuan.starrailchatbox.data.character.Character
-import com.kaixuan.starrailchatbox.data.character.CharacterAvatarSource
 import com.kaixuan.starrailchatbox.data.chat.MessageAttachment
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -142,7 +140,6 @@ data class ConversationSummaryUiModel(
 @Immutable
 data class ChatUiState(
     val selectedCharacterId: String? = null,
-    val selectedCharacter: Character? = null,
     val characterStates: Map<String, CharacterChatState> = emptyMap(),
     val userAvatarUri: String? = null,
 ) {

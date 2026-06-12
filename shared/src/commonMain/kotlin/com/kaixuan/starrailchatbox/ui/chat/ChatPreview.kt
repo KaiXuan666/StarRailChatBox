@@ -6,7 +6,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 import com.kaixuan.starrailchatbox.data.chat.MessageAttachment
 import com.kaixuan.starrailchatbox.design.StarRailTheme
@@ -46,15 +45,12 @@ fun ChatSessionScreenDarkPreview() {
     }
 }
 
-private val previewFullCharacters = listOf(
-    previewCharacter("builtin:流萤", "流萤"),
-    previewCharacter("builtin:三月七", "三月七"),
-    previewCharacter("builtin:黄泉", "黄泉"),
-    previewCharacter("builtin:瑕蝶", "瑕蝶"),
+private val previewCharacters = listOf(
+    CharacterSummary(id = "builtin:流萤", name = "流萤", avatarUri = ""),
+    CharacterSummary(id = "builtin:三月七", name = "三月七", avatarUri = ""),
+    CharacterSummary(id = "builtin:黄泉", name = "黄泉", avatarUri = ""),
+    CharacterSummary(id = "builtin:瑕蝶", name = "瑕蝶", avatarUri = ""),
 )
-private val previewCharacters = previewFullCharacters.map {
-    CharacterSummary(id = it.id, name = it.name, avatarUri = it.avatarUri)
-}
 
 val charactersPreviewState = ChatCharactersUiState(
     characters = previewCharacters,
@@ -64,7 +60,6 @@ val charactersPreviewState = ChatCharactersUiState(
 
 val chatPreviewState = ChatUiState(
     selectedCharacterId = "builtin:流萤",
-    selectedCharacter = previewFullCharacters.first(),
     characterStates = mapOf(
         "builtin:流萤" to CharacterChatState(
             activeSessionId = "preview-session",
@@ -136,17 +131,6 @@ val chatPreviewState = ChatUiState(
             suggestions = listOf("讲讲星核猎手", "你喜欢橡木蛋糕卷吗", "关于这片星空...", "想听听你的过去"),
             )
     ),
-)
-
-fun previewCharacter(
-    id: String,
-    name: String,
-) = Character(
-    id = id,
-    name = name,
-    prompt = "Preview prompt for $name",
-    openingMessage = "今天要聊点什么呢？",
-    avatarUri = "",
 )
 
 @Preview

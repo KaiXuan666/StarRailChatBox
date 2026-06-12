@@ -142,8 +142,9 @@ shared/src/commonMain/kotlin/com/kaixuan/starrailchatbox/
   已移除二级页面的 ViewModel、协程和临时 `UiState` 必须被释放。
 - 页面级输入草稿、导入导出状态和临时文件归对应 entry-scoped ViewModel 所有，不得
   放进 `MainViewModel` 或其他常驻 ViewModel。
-- 角色 Tab 和聊天角色选择器只持有 `CharacterSummary`；完整角色 prompt、开场白、
-  模型参数和语音样本只能在进入聊天、编辑或导出后按 ID 加载。
+- 角色 Tab、聊天角色选择器和聊天 `UiState` 只持有 `CharacterSummary` 或角色 ID；
+  完整角色 prompt、开场白、模型参数和语音样本只能在发送、展示临时开场白、编辑或
+  导出等实际需要时按 ID 临时加载，不得进入常驻聊天状态。
 
 ---
 

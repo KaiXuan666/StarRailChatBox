@@ -209,6 +209,7 @@ class RoomCharacterStorage(
             id = id,
             name = name,
             avatarUri = avatarUri,
+            createdAt = createdAt,
             lastMessageAt = lastMessageAt,
         )
 }

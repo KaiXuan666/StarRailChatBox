@@ -18,7 +18,7 @@ interface AgentRoleDao {
     suspend fun insertIfMissing(roles: List<AgentRoleEntity>)
 
     @Query("""
-        SELECT id, name, avatar_uri,
+        SELECT id, name, avatar_uri, created_at,
             (SELECT MAX(last_message_at) FROM chat_session WHERE agent_id = agent_role.id AND deleted_at IS NULL) AS last_message_at
         FROM agent_role 
         WHERE deleted_at IS NULL 
@@ -34,7 +34,7 @@ interface AgentRoleDao {
     suspend fun findAllFull(): List<AgentRoleEntity>
 
     @Query("""
-        SELECT id, name, avatar_uri,
+        SELECT id, name, avatar_uri, created_at,
             (SELECT MAX(last_message_at) FROM chat_session WHERE agent_id = agent_role.id AND deleted_at IS NULL) AS last_message_at
         FROM agent_role 
         WHERE deleted_at IS NULL 
