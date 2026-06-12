@@ -26,8 +26,7 @@ abstract class GenerateLocalApiSettingsTask : DefaultTask() {
     @TaskAction
     fun generate() {
         val properties = Properties()
-        localPropertiesFile.asFile.get()
-            .takeIf(File::isFile)
+        localPropertiesFile.orNull?.asFile?.takeIf { it.isFile }
             ?.reader(Charsets.UTF_8)
             ?.use(properties::load)
 
@@ -69,9 +68,57 @@ val generatedLocalApiSettingsDirectory =
     layout.buildDirectory.dir("generated/localApiSettings/commonMain/kotlin")
 
 val generateLocalApiSettings by tasks.registering(GenerateLocalApiSettingsTask::class) {
-    localPropertiesFile.set(rootLocalPropertiesFile)
+    localPropertiesFile.set(project.provider {
+        rootLocalPropertiesFile.takeIf { it.asFile.exists() }
+    })
     outputDirectory.set(generatedLocalApiSettingsDirectory)
 }
+
+@DisableCachingByDefault(because = "The generated source contains dynamic versions configurations.")
+abstract class GenerateAppConfigTask : DefaultTask() {
+    @get:Input
+    abstract val appName: Property<String>
+
+    @get:Input
+    abstract val appVersionCode: Property<String>
+
+    @get:Input
+    abstract val appVersionName: Property<String>
+
+    @get:OutputDirectory
+    abstract val outputDirectory: DirectoryProperty
+
+    @TaskAction
+    fun generate() {
+        val outputFile = outputDirectory.file(
+            "com/kaixuan/starrailchatbox/data/settings/AppConfig.kt",
+        ).get().asFile
+        outputFile.parentFile.mkdirs()
+        outputFile.writeText(
+            """
+            package com.kaixuan.starrailchatbox.data.settings
+
+            internal object AppConfig {
+                const val appName = "${appName.get()}"
+                const val versionCode = ${appVersionCode.get().toInt()}
+                const val versionName = "${appVersionName.get()}"
+            }
+            """.trimIndent() + "\n",
+            Charsets.UTF_8,
+        )
+    }
+}
+
+val generatedAppConfigDirectory =
+    layout.buildDirectory.dir("generated/appConfig/commonMain/kotlin")
+
+val generateAppConfig by tasks.registering(GenerateAppConfigTask::class) {
+    appName.set(libs.versions.app.name)
+    appVersionCode.set(libs.versions.app.version.code)
+    appVersionName.set(libs.versions.app.version.name)
+    outputDirectory.set(generatedAppConfigDirectory)
+}
+
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -167,6 +214,7 @@ kotlin {
         commonMain {
             kotlin.srcDir(layout.buildDirectory.dir("generated/ksp/metadata/commonMain/kotlin"))
             kotlin.srcDir(generatedLocalApiSettingsDirectory)
+            kotlin.srcDir(generatedAppConfigDirectory)
         }
         val roomMain by creating {
             dependsOn(commonMain.get())
@@ -223,12 +271,14 @@ tasks.matching {
 }.configureEach {
     dependsOn("kspCommonMainKotlinMetadata")
     dependsOn(generateLocalApiSettings)
+    dependsOn(generateAppConfig)
 }
 
 tasks.matching {
     it.name.startsWith("ksp")
 }.configureEach {
     dependsOn(generateLocalApiSettings)
+    dependsOn(generateAppConfig)
     if (name != "kspCommonMainKotlinMetadata") {
         dependsOn("kspCommonMainKotlinMetadata")
     }

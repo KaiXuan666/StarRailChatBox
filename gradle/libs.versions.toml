@@ -1,4 +1,7 @@
 [versions]
+app-name = "崩铁ChatBox"
+app-version-code = "1"
+app-version-name = "1.0.0"
 agp = "9.0.1"
 android-compileSdk = "36"
 android-minSdk = "24"

@@ -23,8 +23,8 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "崩铁ChatBox"
-            packageVersion = "1.0.0"
+            packageName = libs.versions.app.name.get()
+            packageVersion = libs.versions.app.version.name.get()
 
             windows {
                 iconFile.set(project.file("src/main/resources/app-icon.ico"))
