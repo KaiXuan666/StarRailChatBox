@@ -29,7 +29,6 @@ import com.kaixuan.starrailchatbox.data.chat.ChatTitleCoordinator
 import com.kaixuan.starrailchatbox.data.chat.MessageAttachment
 import com.kaixuan.starrailchatbox.data.chat.NewChatMessage
 import com.kaixuan.starrailchatbox.data.chat.NewChatSession
-import com.kaixuan.starrailchatbox.data.chat.PagingTestDataSeeder
 import com.kaixuan.starrailchatbox.data.chat.StoredChatMessage
 import com.kaixuan.starrailchatbox.data.chat.buildChatContext
 import com.kaixuan.starrailchatbox.data.chat.newChatId
@@ -985,15 +984,7 @@ class ChatViewModel(
                         )
                 }
                 val initialMessages = listOfNotNull(openingMessage, userMessage)
-                val seeded = (chatSessionRepository as? PagingTestDataSeeder)
-                    ?.createSessionWithPagingTestMessagesIfNeeded(
-                        session = newSession,
-                        trailingMessages = initialMessages,
-                    )
-                    ?: false
-                if (!seeded) {
-                    chatSessionRepository.createSessionWithMessages(newSession, initialMessages)
-                }
+                chatSessionRepository.createSessionWithMessages(newSession, initialMessages)
                 newSession.toDomain(lastMessageAt = now).also {
                     activeSession = it
                     observeCreatedSession(it, character.id)

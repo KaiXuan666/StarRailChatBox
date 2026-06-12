@@ -15,9 +15,6 @@ interface ChatMessageDao {
     @Upsert
     suspend fun upsert(message: ChatMessageEntity)
 
-    @Upsert
-    suspend fun upsertAll(messages: List<ChatMessageEntity>)
-
     @Transaction
     @Query(
         """
@@ -67,9 +64,6 @@ interface ChatMessageDao {
     @Transaction
     @Query("SELECT * FROM chat_message WHERE id = :messageId AND deleted_at IS NULL")
     suspend fun findById(messageId: String): ChatMessageWithAttachments?
-
-    @Query("SELECT EXISTS(SELECT 1 FROM chat_message WHERE id = :messageId)")
-    suspend fun exists(messageId: String): Boolean
 
     @Transaction
     @Query(

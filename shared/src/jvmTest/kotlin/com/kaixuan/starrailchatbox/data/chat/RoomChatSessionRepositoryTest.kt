@@ -18,63 +18,6 @@ import kotlin.test.assertTrue
 
 class RoomChatSessionRepositoryTest {
     @Test
-    fun seedsNextRoomSessionWithOneThousandPagingTestMessagesOnlyOnce() = runTest {
-        val databasePath = Files.createTempFile("starrail-chat-seed", ".db")
-        val database = Room.databaseBuilder<StarRailDatabase>(
-            name = databasePath.toString(),
-            factory = StarRailDatabaseConstructor::initialize,
-        )
-            .setDriver(BundledSQLiteDriver())
-            .fallbackToDestructiveMigration(true)
-            .build()
-        val repository = RoomChatSessionRepository(database)
-
-        try {
-            database.agentRoleDao().upsert(testRole())
-            val session = newSession("session-seeded", 3_000L)
-            val trailingMessage = newMessage(
-                id = "real-message",
-                sessionId = session.id,
-                role = ChatRole.USER,
-                content = "real",
-                now = 3_000L,
-            )
-
-            assertTrue(
-                repository.createSessionWithPagingTestMessagesIfNeeded(
-                    session = session,
-                    trailingMessages = listOf(trailingMessage),
-                ),
-            )
-            val stored = repository.findContext(
-                sessionId = session.id,
-                maxHistoryMessageCount = null,
-            )
-            assertEquals(listOf("real"), stored.messages.map { it.content })
-            assertEquals(1_001, database.chatMessageDao().visibleMessageCount(session.id))
-
-            assertEquals(
-                false,
-                repository.createSessionWithPagingTestMessagesIfNeeded(
-                    session = newSession("session-not-seeded", 4_000L),
-                    trailingMessages = listOf(
-                        newMessage(
-                            id = "second-real-message",
-                            sessionId = "session-not-seeded",
-                            role = ChatRole.USER,
-                            content = "second",
-                            now = 4_000L,
-                        ),
-                    ),
-                ),
-            )
-        } finally {
-            database.close()
-            Files.deleteIfExists(databasePath)
-        }
-    }
-
-    @Test
     fun createsSessionAndMaintainsOrderedMessagesAndLatestSession() = runTest {
         val databasePath = Files.createTempFile("starrail-chat-session", ".db")
         val database = Room.databaseBuilder<StarRailDatabase>(

@@ -132,7 +132,6 @@ data class NewChatMessage(
     val totalTokens: Int = 0,
     val errorCode: String? = null,
     val errorMessage: String? = null,
-    val isContextExcluded: Boolean = false,
     val createdAt: Long,
     val suggestions: List<String> = emptyList(),
     val attachments: List<MessageAttachment> = emptyList(),
@@ -192,13 +191,6 @@ interface ChatSessionRepository {
     suspend fun updateSessionTitle(sessionId: String, title: String)
 
     suspend fun deleteFailedMessages(sessionId: String)
-}
-
-interface PagingTestDataSeeder {
-    suspend fun createSessionWithPagingTestMessagesIfNeeded(
-        session: NewChatSession,
-        trailingMessages: List<NewChatMessage>,
-    ): Boolean
 }
 
 class InMemoryChatSessionRepository : ChatSessionRepository {
@@ -487,7 +479,6 @@ private fun NewChatMessage.toStored(seq: Long) = StoredChatMessage(
     promptTokens = promptTokens,
     completionTokens = completionTokens,
     totalTokens = totalTokens,
-    isContextExcluded = isContextExcluded,
     createdAt = createdAt,
     suggestions = suggestions,
     attachments = attachments,

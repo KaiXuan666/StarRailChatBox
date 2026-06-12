@@ -24,7 +24,7 @@ import kotlin.time.Clock
 
 class RoomChatSessionRepository(
     private val database: StarRailDatabase,
-) : ChatSessionRepository, PagingTestDataSeeder {
+) : ChatSessionRepository {
     private val sessionDao = database.chatSessionDao()
     private val messageDao = database.chatMessageDao()
     private val summaryDao = database.chatSummaryDao()
@@ -195,60 +195,6 @@ class RoomChatSessionRepository(
         messageDao.deleteFailedMessages(sessionId)
     }
 
-    override suspend fun createSessionWithPagingTestMessagesIfNeeded(
-        session: NewChatSession,
-        trailingMessages: List<NewChatMessage>,
-    ): Boolean {
-        return database.useWriterConnection { connection ->
-            connection.immediateTransaction {
-                if (messageDao.exists(PAGING_TEST_MARKER_ID)) {
-                    return@immediateTransaction false
-                }
-                val endAt = trailingMessages.maxOfOrNull(NewChatMessage::createdAt)
-                    ?: Clock.System.now().toEpochMilliseconds()
-                val startAt = endAt - THREE_YEARS_MILLIS
-                val interval = THREE_YEARS_MILLIS / PAGING_TEST_MESSAGE_COUNT
-                val fakeMessages = List(PAGING_TEST_MESSAGE_COUNT) { index ->
-                    val number = index + 1
-                    NewChatMessage(
-                        id = if (index == 0) {
-                            PAGING_TEST_MARKER_ID
-                        } else {
-                            "paging-test:${session.id}:$number"
-                        },
-                        sessionId = session.id,
-                        role = if (number % 2 == 0) ChatRole.ASSISTANT else ChatRole.USER,
-                        content = "分页测试消息 $number / $PAGING_TEST_MESSAGE_COUNT",
-                        status = ChatMessageStatus.COMPLETED,
-                        modelConfigId = null,
-                        modelNameSnapshot = null,
-                        isContextExcluded = true,
-                        createdAt = startAt + interval * index,
-                    )
-                }
-                val allMessages = fakeMessages + trailingMessages
-                sessionDao.upsert(
-                    session.copy(createdAt = startAt).toEntity(allMessages.last()),
-                )
-                messageDao.upsertAll(
-                    allMessages.mapIndexed { index, message ->
-                        message.toEntity(seq = index + 1L)
-                    },
-                )
-                attachmentDao.insertAll(
-                    allMessages.flatMap { message ->
-                        message.attachments.map { it.toEntity() }
-                    },
-                )
-                Napier.i(
-                    message = "seeded $PAGING_TEST_MESSAGE_COUNT test messages " +
-                        "agent=${session.agentId} session=${session.id} range=$startAt..$endAt",
-                    tag = CHAT_PAGING_TAG,
-                )
-                true
-            }
-        }
-    }
 }
 
 private class LoggingChatMessagePagingSource(
@@ -303,10 +249,6 @@ private class LoggingChatMessagePagingSource(
     }
 }
 
-private const val PAGING_TEST_MARKER_ID = "paging-test:seed-marker"
-private const val PAGING_TEST_MESSAGE_COUNT = 1_000
-private const val THREE_YEARS_MILLIS = 3L * 365 * 24 * 60 * 60 * 1_000
-
 private fun NewChatSession.toEntity(message: NewChatMessage) = ChatSessionEntity(
     id = id,
     title = title,
@@ -344,7 +286,7 @@ private fun NewChatMessage.toEntity(seq: Long) = ChatMessageEntity(
     completionTokens = completionTokens,
     totalTokens = totalTokens,
     estimatedTokens = 0,
-    isContextExcluded = isContextExcluded,
+    isContextExcluded = false,
     createdAt = createdAt,
     updatedAt = createdAt,
     suggestionsJson = if (suggestions.isNotEmpty()) kotlinx.serialization.json.Json.encodeToString(suggestions) else null,
