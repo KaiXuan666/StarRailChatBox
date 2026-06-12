@@ -130,6 +130,19 @@ fun CharacterChatScreen(
         }
     }
 
+    LaunchedEffect(pageState.scrollToLatestRequestId) {
+        if (pageState.scrollToLatestRequestId == 0L) return@LaunchedEffect
+        val latestMessageCached =
+            pageMessages.loadState.prepend is LoadState.NotLoading &&
+                (pageMessages.loadState.prepend as LoadState.NotLoading)
+                    .endOfPaginationReached
+        if (latestMessageCached) {
+            pageListState.scrollToItem(0)
+        } else {
+            onAction(ChatAction.ScrollToLatestMessage)
+        }
+    }
+
     LaunchedEffect(latestMessageId) {
         if (
             latestMessageId != null &&
@@ -213,7 +226,6 @@ fun CharacterChatScreen(
                             userAvatarUri = state.userAvatarUri,
                             compact = compact,
                             isSending = pageState.isSending,
-                            historyAnchor = pageState.messagePagingData.anchor,
                             playingAudioUri = playingAudioUri,
                             contentPadding = PaddingValues(
                                 start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,

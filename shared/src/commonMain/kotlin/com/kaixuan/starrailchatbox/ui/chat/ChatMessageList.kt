@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -34,6 +35,7 @@ import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.starRailColors
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import starrailchatbox.shared.generated.resources.Res
 import starrailchatbox.shared.generated.resources.retry
@@ -48,7 +50,6 @@ fun ChatMessageList(
     userAvatarUri: String?,
     compact: Boolean,
     isSending: Boolean,
-    historyAnchor: ChatHistoryAnchor,
     playingAudioUri: String?,
     contentPadding: PaddingValues,
     onViewAttachments: (List<MessageAttachment>) -> Unit,
@@ -58,8 +59,12 @@ fun ChatMessageList(
     headerContent: (@Composable () -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
+    val coroutineScope = rememberCoroutineScope()
     val refreshState = messages.loadState.refresh
+    val prependState = messages.loadState.prepend
     val appendState = messages.loadState.append
+    val latestMessageCached = prependState is LoadState.NotLoading &&
+        prependState.endOfPaginationReached
     val historyLoaded = appendState is LoadState.NotLoading &&
         appendState.endOfPaginationReached
 
@@ -77,13 +82,13 @@ fun ChatMessageList(
         }
     }
 
-    val showScrollButton by remember(historyAnchor) {
+    val showScrollButton by remember {
         derivedStateOf {
             listState.layoutInfo.totalItemsCount > 0 &&
-                (historyAnchor == ChatHistoryAnchor.OLDEST || !(isAtTop && isAtBottom))
+                !(isAtTop && isAtBottom)
         }
     }
-    val scrollsToOldest = historyAnchor == ChatHistoryAnchor.LATEST && isAtBottom
+    val scrollsToOldest = isAtBottom
 
     if (refreshState is LoadState.Loading && messages.itemCount == 0) {
         Box(
@@ -175,9 +180,21 @@ fun ChatMessageList(
             Surface(
                 onClick = {
                     if (scrollsToOldest) {
-                        onAction(ChatAction.ScrollToOldestMessage)
+                        if (historyLoaded && messages.itemCount > 0) {
+                            coroutineScope.launch {
+                                listState.scrollToItem(messages.itemCount - 1)
+                            }
+                        } else {
+                            onAction(ChatAction.ScrollToOldestMessage)
+                        }
                     } else {
-                        onAction(ChatAction.ScrollToLatestMessage)
+                        if (latestMessageCached) {
+                            coroutineScope.launch {
+                                listState.scrollToItem(0)
+                            }
+                        } else {
+                            onAction(ChatAction.ScrollToLatestMessage)
+                        }
                     }
                 },
                 modifier = Modifier

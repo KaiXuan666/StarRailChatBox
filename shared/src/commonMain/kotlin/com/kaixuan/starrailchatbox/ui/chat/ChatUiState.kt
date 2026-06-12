@@ -122,6 +122,7 @@ data class CharacterChatState(
     val messageDraft: String = "",
     val isLoadingSession: Boolean = false,
     val isSending: Boolean = false,
+    val scrollToLatestRequestId: Long = 0,
     val suggestions: List<String> = emptyList(),
     val isAttachmentPanelVisible: Boolean = false,
     val selectedAttachments: List<SelectedAttachment> = emptyList(),

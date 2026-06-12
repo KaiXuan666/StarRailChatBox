@@ -122,7 +122,8 @@ class ChatViewModel(
                         val curState = s.characterStates[character.id] ?: CharacterChatState()
                         s.copy(
                             characterStates = s.characterStates + (character.id to curState.copy(
-                                isSending = true
+                                isSending = true,
+                                scrollToLatestRequestId = curState.scrollToLatestRequestId + 1,
                             ))
                         )
                     }
