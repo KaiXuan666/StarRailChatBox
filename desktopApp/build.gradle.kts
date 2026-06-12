@@ -23,7 +23,7 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = libs.versions.app.name.get()
+            packageName = "StarRailChatBox"
             packageVersion = libs.versions.app.version.name.get()
 
             windows {

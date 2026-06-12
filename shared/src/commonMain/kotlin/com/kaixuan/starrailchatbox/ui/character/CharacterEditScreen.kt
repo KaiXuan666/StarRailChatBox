@@ -230,67 +230,57 @@ fun CharacterEditScreen(
             Res.string.character_edit_prompt_gen_default_input,
             editState.name
         )
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            CharacterTextCard(
-                title = stringResource(Res.string.character_edit_system_prompt),
-                value = editState.prompt,
-                minLines = 5,
-                onValueChange = { prompt ->
-                    onAction(CharacterAction.CharacterPromptChanged(prompt))
-                },
-                actionButton = {
-                    Surface(
-                        onClick = {
-                            onAction(CharacterAction.CharacterPromptGenClicked(defaultPromptRequestText))
-                        },
-                        shape = MaterialTheme.shapes.extraLarge,
-                        color = if (editState.isGeneratingPrompt) {
-                            MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f)
+        CharacterTextCard(
+            title = stringResource(Res.string.character_edit_system_prompt),
+            value = editState.prompt,
+            minLines = 5,
+            onValueChange = { prompt ->
+                onAction(CharacterAction.CharacterPromptChanged(prompt))
+            },
+            hint = if (editState.characterId != null) {
+                stringResource(Res.string.character_edit_system_prompt_hint)
+            } else null,
+            actionButton = {
+                Surface(
+                    onClick = {
+                        onAction(CharacterAction.CharacterPromptGenClicked(defaultPromptRequestText))
+                    },
+                    shape = MaterialTheme.shapes.extraLarge,
+                    color = if (editState.isGeneratingPrompt) {
+                        MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f)
+                    } else {
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f)
+                    },
+                    border = BorderStroke(
+                        1.dp,
+                        if (editState.isGeneratingPrompt) {
+                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)
                         } else {
-                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f)
-                        },
-                        border = BorderStroke(
-                            1.dp,
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                        }
+                    ),
+                    enabled = !editState.isGeneratingPrompt,
+                ) {
+                    Text(
+                        text = stringResource(
                             if (editState.isGeneratingPrompt) {
-                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)
+                                Res.string.character_edit_prompt_gen_generating
                             } else {
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                                Res.string.character_edit_prompt_gen_btn
                             }
                         ),
-                        enabled = !editState.isGeneratingPrompt,
-                    ) {
-                        Text(
-                            text = stringResource(
-                                if (editState.isGeneratingPrompt) {
-                                    Res.string.character_edit_prompt_gen_generating
-                                } else {
-                                    Res.string.character_edit_prompt_gen_btn
-                                }
-                            ),
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            color = if (editState.isGeneratingPrompt) {
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                            } else {
-                                MaterialTheme.colorScheme.primary
-                            },
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        color = if (editState.isGeneratingPrompt) {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        },
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
                 }
-            )
-            if (editState.characterId != null) {
-                Text(
-                    text = stringResource(Res.string.character_edit_system_prompt_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                )
             }
-        }
+        )
 
         CharacterTextCard(
             title = stringResource(Res.string.character_edit_opening_message),
@@ -630,6 +620,7 @@ private fun CharacterTextCard(
     minLines: Int,
     onValueChange: (String) -> Unit,
     actionButton: @Composable (() -> Unit)? = null,
+    hint: String? = null,
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -662,6 +653,14 @@ private fun CharacterTextCard(
                 minLines = minLines,
                 supportingText = "${value.length}",
             )
+            if (hint != null) {
+                Text(
+                    text = hint,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
         }
     }
 }

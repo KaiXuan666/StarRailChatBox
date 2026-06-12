@@ -50,6 +50,7 @@ fun ChatMessageList(
     userAvatarUri: String?,
     compact: Boolean,
     isSending: Boolean,
+    isTransientSession: Boolean,
     playingAudioUri: String?,
     contentPadding: PaddingValues,
     onViewAttachments: (List<MessageAttachment>) -> Unit,
@@ -90,7 +91,11 @@ fun ChatMessageList(
     }
     val scrollsToOldest = isAtBottom
 
-    if (refreshState is LoadState.Loading && messages.itemCount == 0) {
+    if (
+        !isTransientSession &&
+        refreshState is LoadState.Loading &&
+        messages.itemCount == 0
+    ) {
         Box(
             modifier = modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
@@ -148,8 +153,9 @@ fun ChatMessageList(
                 }
             }
 
-            when (appendState) {
-                is LoadState.Loading -> item(key = "history_loading") {
+            when {
+                isTransientSession -> Unit
+                appendState is LoadState.Loading -> item(key = "history_loading") {
                     Box(
                         modifier = Modifier.fillMaxWidth().padding(StarRailSpacing.md),
                         contentAlignment = Alignment.Center,
@@ -157,19 +163,22 @@ fun ChatMessageList(
                         CircularProgressIndicator(modifier = Modifier.size(24.dp))
                     }
                 }
-                is LoadState.Error -> item(key = "history_error") {
+                appendState is LoadState.Error -> item(key = "history_error") {
                     PagingRetryItem(onRetry = messages::retry)
-                }
-                is LoadState.NotLoading -> {
-                    if (historyLoaded && headerContent != null) {
-                        item(key = "header") {
-                            headerContent()
-                        }
-                    }
                 }
             }
 
-            if (refreshState is LoadState.Error && messages.itemCount == 0) {
+            if (headerContent != null && (isTransientSession || historyLoaded)) {
+                item(key = "header") {
+                    headerContent()
+                }
+            }
+
+            if (
+                !isTransientSession &&
+                refreshState is LoadState.Error &&
+                messages.itemCount == 0
+            ) {
                 item(key = "refresh_error") {
                     PagingRetryItem(onRetry = messages::retry)
                 }

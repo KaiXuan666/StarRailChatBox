@@ -118,6 +118,10 @@ fun CharacterChatScreen(
     }
 
     LaunchedEffect(pageState.messagePagingData) {
+        if (pageState.messagePagingData.sessionId == null) {
+            pageListState.scrollToItem(0)
+            return@LaunchedEffect
+        }
         snapshotFlow {
             pageMessages.loadState.refresh to pageMessages.itemCount
         }.first { (loadState, itemCount) ->
@@ -226,6 +230,7 @@ fun CharacterChatScreen(
                             userAvatarUri = state.userAvatarUri,
                             compact = compact,
                             isSending = pageState.isSending,
+                            isTransientSession = pageState.messagePagingData.sessionId == null,
                             playingAudioUri = playingAudioUri,
                             contentPadding = PaddingValues(
                                 start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,

@@ -47,8 +47,6 @@ jobs:
           echo "SIGNING_KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> local.properties
           echo "SIGNING_KEY_PASSWORD=${{ secrets.SIGNING_KEY_PASSWORD }}" >> local.properties
           echo "SIGNING_STORE_PASSWORD=${{ secrets.SIGNING_STORE_PASSWORD }}" >> local.properties
-          echo "OPENAI_API_HOST=https://api.openai.com/v1" >> local.properties
-          echo "OPENAI_API_KEY=" >> local.properties
 
       - name: Build Android Release
         if: github.event_name != 'pull_request'
