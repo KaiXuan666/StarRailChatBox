@@ -126,7 +126,7 @@ fun AboutScreen(
                     DecorationLine(isLeft = true)
                     Text(
                         text = stringResource(Res.string.about_app_name),
-                        style = if (compact) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.headlineLarge,
+                        style = if (compact) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.padding(horizontal = 16.dp)
@@ -145,12 +145,12 @@ fun AboutScreen(
                 ) {
                     Text(
                         text = prefix,
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                     )
                     Text(
                         text = authorName,
-                        style = MaterialTheme.typography.labelMedium.copy(
+                        style = MaterialTheme.typography.bodyMedium.copy(
                             textDecoration = TextDecoration.Underline
                         ),
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
@@ -166,9 +166,9 @@ fun AboutScreen(
             AboutCard {
                 Text(
                     text = stringResource(Res.string.about_description),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface,
-                    lineHeight = 26.sp
+                    lineHeight = 24.sp
                 )
             }
 
@@ -177,9 +177,9 @@ fun AboutScreen(
             AboutCard {
                 Text(
                     text = stringResource(Res.string.about_disclaimer_content),
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                    lineHeight = 24.sp
+                    lineHeight = 20.sp
                 )
             }
 
@@ -192,7 +192,7 @@ fun AboutScreen(
                 SectionTitle(title = stringResource(Res.string.about_donate_title))
                 Text(
                     text = stringResource(Res.string.about_donate_subtitle),
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -233,7 +233,7 @@ fun AboutScreen(
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = stringResource(Res.string.about_donate_footer),
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
                 }
@@ -290,7 +290,7 @@ private fun SectionTitle(title: String) {
         )
         Text(
             text = title,
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.padding(horizontal = 12.dp)
@@ -352,7 +352,7 @@ private fun DonateCard(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -375,7 +375,7 @@ private fun DonateCard(
 
             Text(
                 text = tip,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             )
         }
