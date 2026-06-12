@@ -5,10 +5,6 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-actual fun formatLocalTime(epochMilliseconds: Long): String {
-    return SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(epochMilliseconds))
-}
-
 actual fun formatHeaderDate(epochMilliseconds: Long): String {
     val date = Date(epochMilliseconds)
     val now = Calendar.getInstance()
@@ -40,7 +36,7 @@ actual fun formatLastChatTime(epochMilliseconds: Long): String {
     val pattern = when {
         isSameDay -> "HH:mm"
         isSameYear -> "M月d日 HH:mm"
-        else -> "yyyy年M月d日 HH:mm"
+        else -> "yyyy年M月d日"
     }
     return SimpleDateFormat(pattern, Locale.getDefault()).format(date)
 }

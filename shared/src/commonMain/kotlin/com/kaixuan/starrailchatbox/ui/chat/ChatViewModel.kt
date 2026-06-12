@@ -28,7 +28,7 @@ import com.kaixuan.starrailchatbox.data.chat.buildChatContext
 import com.kaixuan.starrailchatbox.data.chat.newChatId
 import com.kaixuan.starrailchatbox.data.model.ModelConfig
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
-import com.kaixuan.starrailchatbox.platform.formatLocalTime
+import com.kaixuan.starrailchatbox.platform.formatLastChatTime
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -72,7 +72,7 @@ class ChatViewModel(
     private val sessionTitleProvider: suspend () -> String = {
         getString(Res.string.chat_new_session_title)
     },
-    private val timeFormatter: (Long) -> String = ::formatLocalTime,
+    private val timeFormatter: (Long) -> String = ::formatLastChatTime,
     private val enableFileAppend: Boolean = false,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ChatUiState())

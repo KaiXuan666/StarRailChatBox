@@ -1,10 +1,5 @@
 package com.kaixuan.starrailchatbox.platform
 
-@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
-actual fun formatLocalTime(epochMilliseconds: Long): String {
-    return formatBrowserLocalTime(epochMilliseconds.toDouble())
-}
-
 actual fun formatHeaderDate(epochMilliseconds: Long): String {
     return formatBrowserHeaderDate(epochMilliseconds.toDouble())
 }
@@ -16,17 +11,6 @@ actual fun formatLastChatTime(epochMilliseconds: Long): String {
 actual fun isSameDay(time1: Long, time2: Long): Boolean {
     return isBrowserSameDay(time1.toDouble(), time2.toDouble())
 }
-
-@JsFun(
-    """(epochMilliseconds) => {
-        const date = new Date(epochMilliseconds);
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        return hours + ":" + minutes;
-    }""",
-)
-@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
-private external fun formatBrowserLocalTime(epochMilliseconds: Double): String
 
 @JsFun(
     """(epochMilliseconds) => {
@@ -58,7 +42,7 @@ private external fun formatBrowserHeaderDate(epochMilliseconds: Double): String
             day === now.getDate();
         if (isSameDay) return time;
         if (isSameYear) return month + "月" + day + "日 " + time;
-        return year + "年" + month + "月" + day + "日 " + time;
+        return year + "年" + month + "月" + day + "日 ";
     }""",
 )
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)

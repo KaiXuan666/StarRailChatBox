@@ -5,10 +5,6 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-actual fun formatLocalTime(epochMilliseconds: Long): String {
-    return SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(epochMilliseconds))
-}
-
 actual fun formatHeaderDate(epochMilliseconds: Long): String {
     val date = Date(epochMilliseconds)
     val now = Calendar.getInstance()
