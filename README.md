@@ -1,0 +1,120 @@
+<div align="center">
+  <h1>🌠 StarRailChatBox</h1>
+  <p><b>「这片银河，我们能留下怎样的足迹？」</b></p>
+  <p>—— 还原《崩坏：星穹铁道》游戏短信风格的跨平台 AI 角色扮演聊天客户端</p>
+
+  <p>
+    <img src="https://img.shields.io/badge/Kotlin-Multiplatform-purple?style=flat-square&logo=kotlin" alt="Kotlin Multiplatform" />
+    <img src="https://img.shields.io/badge/Compose-Multiplatform-blue?style=flat-square&logo=jetbrains" alt="Compose Multiplatform" />
+    <img src="https://img.shields.io/badge/Platform-Android%20%7C%20iOS%20%7C%20Desktop%20%7C%20Web-brightgreen?style=flat-square" alt="Supported Platforms" />
+    <img src="https://img.shields.io/badge/License-GPL%20v3-red?style=flat-square" alt="License" />
+  </p>
+</div>
+
+---
+
+## 📖 项目简介
+
+**StarRailChatBox** 是一款深度复刻《崩坏：星穹铁道》游戏短信系统的跨平台 AI 角色聊天客户端。我们致力于在日常聊天中融入沉浸式的游戏体验，让你随时随地能与星穹列车成员、仙舟角色、贝洛伯格伙伴等进行原汁原味的游戏风对话。
+
+项目基于 **Kotlin Multiplatform (KMP)** 技术，各平台支持状态如下：
+
+| 平台 | 支持状态 | 备注 |
+| :--- | :---: | :--- |
+| 📱 **Android** | ✅ 支持 | 已发布，运行稳定 |
+| 💻 **Windows** | ✅ 支持 | 已发布，运行稳定 |
+| 🍏 **iOS** | ⏳ 正在开发 | 开发中 |
+| 🖥️ **macOS & Linux** | ⏳ 正在开发 | 开发中 |
+| 🌐 **Web (JS/WasmJS)** | ⏳ 正在开发 | 开发中 |
+
+
+---
+
+## 🌟 核心功能展示
+
+### 🎨 1. 沉浸式崩铁短信美学
+- **极致视觉复刻**：1:1 还原游戏内短信聊天界面。精美的渐变色气泡、头像边框、星空底纹以及极具质感的冷青色高光。
+- **自适应双色主题**：
+  - **浅色模式**：明亮柔和，极具透明感的星空玻璃风格。
+  - **深色模式**：深邃的极光与星轨底色，弱光环境下护眼且美观。
+- **丝滑动态交互**：专为跨平台调校的微动效、气泡滑入、聊天按需加载，带来原生级的流畅反馈。
+
+### 👥 2. 独立多角色并发对话（无锁切换）
+- **多角色独立状态**：每一个角色都有完全隔离的聊天线。每个角色拥有独立的聊天记录、草稿箱和发送状态。
+- **并发聊天不互锁**：当你在等待某位角色（例如“三月七”）输入和回复时，你可以瞬间切换到其他角色（例如“姬子”）继续聊天，AI 在后台的生成逻辑不受任何干扰。
+
+### 🧠 3. 智能 AI 角色扮演与上下文
+- **原神/星铁角色扮演**：支持为不同角色设定 System Prompt（人设词）、打招呼开场白。配合大模型，完美还原角色的性格特征、经典台词与说话语气。
+- **长效记忆（自动滚动摘要）**：聊天消息太长导致模型忘事？系统会在消息达到 30 条时，自动在后台对旧消息进行“智库压缩生成滚动摘要”，并保留最近 10 条原文，保证角色记忆持久不间断。
+
+### 📂 4. 多模态附件传输
+- **图片与文件识别**：当需要角色帮你识别图片时，只需在对话框中添加图片，系统将自动调用“多模态视觉模型”进行“看图说话”。
+- **两阶段文件暂存**：用户选择的媒体/附件在发送前会保存在临时沙盒中，点击发送/保存后才正式入库，保障隐私并防止设备空间被垃圾文件占满。
+
+### 🛠️ 5. 趣味工具系统 (Function Calling)
+- **快速回复推荐 (Quick Replies)**：AI 可以根据当前的对话情境，自动为你生成 2-3 个符合“开拓者（玩家）”人设的快捷选项，点击即可一键发送。
+- **语音合成与克隆**：支持外接语音服务，将角色的文字回复转化为专属语音。
+
+### ⚙️ 6. 独立五组模型配置
+- **精细化模型分配**：你可以为不同任务指派不同模型！
+  1. **默认对话模型**：用于日常的闲聊与人设扮演。
+  2. **多模态模型**：专用于处理包含图片、文件等附件的复杂视觉任务。
+  3. **语音合成模型** 与 **音色克隆模型**：用于生成生动的人物语音。
+  4. **图片生成模型**：用于让 AI 按照提示词作画。
+
+---
+
+## 🚀 快速开始
+
+### 1. 配置本地开发环境（开发人员）
+
+在项目根目录下创建一个 `local.properties` 文件（已自动加入 `.gitignore`）：
+
+```properties
+OPENAI_API_HOST=https://api.openai.com/v1
+OPENAI_API_KEY=your_api_key_here
+```
+*(注：开发时此默认配置会被编译进包。正式运行后，用户可在“设置”页面配置个人 API Key，系统会对其进行 AES-GCM 高强度加密并持久化保存)*
+
+### 2. 编译与运行
+
+- **Android 客户端**:
+  `./gradlew :androidApp:assembleDebug` 或在 Android Studio 中运行 `androidApp` 配置。
+- **Desktop 桌面端 (Windows/macOS/Linux)**:
+  - 启动运行：`./gradlew :desktopApp:run`
+  - 热重载启动（开发推荐）：`./gradlew :desktopApp:hotRun --auto`
+- **Web 浏览器端 (WasmJS)**:
+  `./gradlew :webApp:wasmJsBrowserDevelopmentRun` (渲染性能极佳)
+- **iOS 客户端**:
+  进入 `iosApp` 目录用 Xcode 打开项目直接运行即可。
+
+---
+
+## 📝 架构设计（简要）
+
+项目在代码架构上采用简洁的 **MVVM + UDF (单向数据流)** 规范，UI 与业务逻辑高度共享在 `shared/src/commonMain`。数据持久化在移动端与桌面端采用 **Room KMP** 本地加密存储，而 Web 浏览器端则自适应无缝桥接至浏览器专属存储，从而提供了全平台流畅的离线体验。
+---
+
+## 👥 贡献者们
+
+感谢以下开拓者对本项目的支持与贡献：
+
+<a href="https://github.com/KaiXuan666">
+  <img src="https://github.com/KaiXuan666.png" width="50px" style="border-radius: 50%" alt="KaiXuan666" />
+</a>
+&nbsp;&nbsp;
+<a href="https://github.com/Timo-SakutobeX">
+  <img src="https://github.com/Timo-SakutobeX.png" width="50px" style="border-radius: 50%" alt="Timo-SakutobeX" />
+</a>
+
+---
+
+## 📜 开源协议
+
+本项目采用 **GNU General Public License v3.0 (GPLv3)** 协议开源。详细信息请参阅 [LICENSE](file:///e:/work/bengtie/StarRailChatBox/LICENSE) 文件。
+
+---
+
+## 🌠 结语
+
+这片银河，期待与你留下更多的足迹。欢迎各位开拓者提交 Issue 与 Pull Request！⭐
