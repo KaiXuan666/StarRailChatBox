@@ -50,7 +50,7 @@ jobs:
 
       - name: Build Android Release
         if: github.event_name != 'pull_request'
-        run: ./gradlew :androidApp:assembleRelease :androidApp:bundleRelease
+        run: ./gradlew :androidApp:packageReleaseApk :androidApp:bundleRelease
 
       - name: Build Android Debug (for PRs)
         if: github.event_name == 'pull_request'
@@ -60,7 +60,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: android-release-apk
-          path: androidApp/build/outputs/apk/release/*.apk
+          path: androidApp/build/outputs/distribution/StarRailChatBox_*.apk
+          if-no-files-found: error
         if: github.event_name != 'pull_request'
 
       - name: Upload Release Bundle
@@ -98,8 +99,20 @@ jobs:
       - name: Build MSI
         run: ./gradlew :desktopApp:packageMsi
 
+      - name: Resolve MSI Artifact Name
+        id: msi_artifact
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem -LiteralPath "desktopApp/build/compose/binaries/main/msi" -Filter "*.msi" |
+            Select-Object -First 1
+          if ($null -eq $msi) {
+            throw "MSI package was not found."
+          }
+          "name=$($msi.BaseName)" >> $env:GITHUB_OUTPUT
+
       - name: Upload MSI
         uses: actions/upload-artifact@v4
         with:
-          name: desktop-windows-msi
+          name: ${{ steps.msi_artifact.outputs.name }}
           path: desktopApp/build/compose/binaries/main/msi/*.msi
+          if-no-files-found: error

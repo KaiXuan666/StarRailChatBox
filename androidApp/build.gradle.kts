@@ -69,11 +69,13 @@ android {
     }
 }
 
-androidComponents {
-    onVariants { variant ->
-        variant.outputs.forEach { output ->
-            val outputImpl = output as? com.android.build.gradle.internal.api.BaseVariantOutputImpl
-            outputImpl?.outputFileName = "StarRailChatBox_${libs.versions.app.version.name.get()}.apk"
-        }
+val releaseApkFileName = "StarRailChatBox_${libs.versions.app.version.name.get()}.apk"
+
+tasks.register<Copy>("packageReleaseApk") {
+    dependsOn("assembleRelease")
+    from(layout.buildDirectory.dir("outputs/apk/release")) {
+        include("*.apk")
     }
+    into(layout.buildDirectory.dir("outputs/distribution"))
+    rename(".*\\.apk", releaseApkFileName)
 }
