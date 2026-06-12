@@ -1,8 +1,10 @@
-package com.kaixuan.starrailchatbox.ui.settings
+package com.kaixuan.starrailchatbox.ui.settings.api
 
 import com.kaixuan.starrailchatbox.data.ai.AiMessage
 import com.kaixuan.starrailchatbox.data.ai.AiRepository
+import com.kaixuan.starrailchatbox.data.ai.AiModelDiscovery
 import com.kaixuan.starrailchatbox.data.ai.ChatCompletionResult
+import com.kaixuan.starrailchatbox.data.ai.image.ImageGenerationProviderRegistry
 import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.model.DefaultModelConfig
 import com.kaixuan.starrailchatbox.data.model.ModelConfig
@@ -10,6 +12,8 @@ import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
 import com.kaixuan.starrailchatbox.data.settings.ApiSettingsDefaults
 import com.kaixuan.starrailchatbox.data.model.MultimodalModelConfig
 import com.kaixuan.starrailchatbox.data.model.ImageGenerationModelConfig
+import com.kaixuan.starrailchatbox.ui.settings.SettingsEffectMessage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,21 +22,37 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class SettingsViewModelTest {
+class ApiSettingsViewModelTest {
+    private val dispatcher = StandardTestDispatcher()
+
+    @BeforeTest
+    fun setUp() {
+        Dispatchers.setMain(dispatcher)
+    }
+
+    @AfterTest
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
 
     @Test
     fun initialStateIsCorrect() = runTest {
-        val viewModel = createViewModel(scope = this)
+        val viewModel = createViewModel()
         runCurrent()
 
         val state = viewModel.uiState.value
@@ -53,7 +73,7 @@ class SettingsViewModelTest {
                 modelName = "model-b",
             ),
         )
-        val viewModel = createViewModel(modelConfigRepository = repository, scope = this)
+        val viewModel = createViewModel(modelConfigRepository = repository)
         runCurrent()
 
         assertEquals("https://example.com/v1", viewModel.uiState.value.apiHost)
@@ -69,7 +89,6 @@ class SettingsViewModelTest {
                 apiHost = "https://local.example.com/v1",
                 apiKey = "local-key",
             ),
-            scope = this,
         )
         runCurrent()
 
@@ -92,7 +111,6 @@ class SettingsViewModelTest {
                 apiHost = "https://local.example.com/v1",
                 apiKey = "local-key",
             ),
-            scope = this,
         )
         runCurrent()
 
@@ -103,10 +121,11 @@ class SettingsViewModelTest {
 
     @Test
     fun hostAndKeyChangesUpdateState() = runTest {
-        val viewModel = createViewModel(scope = this)
+        val viewModel = createViewModel()
+        runCurrent()
 
-        viewModel.onAction(SettingsAction.ApiHostChanged("https://api.openai.com/v1"))
-        viewModel.onAction(SettingsAction.ApiKeyChanged("sk-12345"))
+        viewModel.onAction(ApiSettingsAction.ApiHostChanged("https://api.openai.com/v1"))
+        viewModel.onAction(ApiSettingsAction.ApiKeyChanged("sk-12345"))
 
         assertEquals("https://api.openai.com/v1", viewModel.uiState.value.apiHost)
         assertEquals("sk-12345", viewModel.uiState.value.apiKey)
@@ -117,10 +136,11 @@ class SettingsViewModelTest {
         val repository = FakeOpenAiRepository(
             ApiResult.Success(listOf("model-b", "model-a")),
         )
-        val viewModel = createViewModel(repository = repository, scope = this)
-        viewModel.onAction(SettingsAction.ApiKeyChanged("sk-test"))
+        val viewModel = createViewModel(repository = repository)
+        runCurrent()
+        viewModel.onAction(ApiSettingsAction.ApiKeyChanged("sk-test"))
 
-        viewModel.onAction(SettingsAction.FetchModelsClicked)
+        viewModel.onAction(ApiSettingsAction.FetchModelsClicked)
         advanceUntilIdle()
 
         assertEquals(listOf("model-b", "model-a"), viewModel.uiState.value.modelsList)
@@ -135,17 +155,18 @@ class SettingsViewModelTest {
         val repository = FakeOpenAiRepository(
             ApiResult.HttpError(statusCode = 401, message = "Unauthorized"),
         )
-        val viewModel = createViewModel(repository = repository, scope = this)
-        viewModel.onAction(SettingsAction.ApiKeyChanged("bad-key"))
+        val viewModel = createViewModel(repository = repository)
+        runCurrent()
+        viewModel.onAction(ApiSettingsAction.ApiKeyChanged("bad-key"))
         val effects = async { viewModel.effects.take(2).toList() }
 
-        viewModel.onAction(SettingsAction.FetchModelsClicked)
+        viewModel.onAction(ApiSettingsAction.FetchModelsClicked)
         advanceUntilIdle()
 
         assertEquals(
             listOf(
-                SettingsEffect.ShowMessage(SettingsEffectMessage.SETTINGS_API_FETCH_START),
-                SettingsEffect.ShowMessage(SettingsEffectMessage.SETTINGS_API_AUTH_FAILED),
+                ApiSettingsEffect.ShowMessage(SettingsEffectMessage.SETTINGS_API_FETCH_START),
+                ApiSettingsEffect.ShowMessage(SettingsEffectMessage.SETTINGS_API_AUTH_FAILED),
             ),
             effects.await(),
         )
@@ -155,12 +176,13 @@ class SettingsViewModelTest {
     @Test
     fun saveApiSettingsPersistsValuesAndEmitsSavedEffect() = runTest {
         val repository = FakeModelConfigRepository()
-        val viewModel = createViewModel(modelConfigRepository = repository, scope = this)
-        viewModel.onAction(SettingsAction.ApiKeyChanged(" sk-test "))
-        viewModel.onAction(SettingsAction.SelectModel("model-a"))
-        val effect = async { viewModel.effects.first { it is SettingsEffect.ApiSettingsSaved } }
+        val viewModel = createViewModel(modelConfigRepository = repository)
+        runCurrent()
+        viewModel.onAction(ApiSettingsAction.ApiKeyChanged(" sk-test "))
+        viewModel.onAction(ApiSettingsAction.SelectModel("model-a"))
+        val effect = async { viewModel.effects.first { it is ApiSettingsEffect.ApiSettingsSaved } }
 
-        viewModel.onAction(SettingsAction.SaveApiSettingsClicked)
+        viewModel.onAction(ApiSettingsAction.SaveSettingsClicked)
         advanceUntilIdle()
 
         assertEquals(
@@ -171,19 +193,23 @@ class SettingsViewModelTest {
             ),
             repository.saved,
         )
-        assertEquals(SettingsEffect.ApiSettingsSaved, effect.await())
+        assertEquals(ApiSettingsEffect.ApiSettingsSaved, effect.await())
         assertFalse(viewModel.uiState.value.isSaving)
     }
 
     @Test
     fun saveMultimodalApiSettingsPersistsValuesAndSetsSupportVisionTrue() = runTest {
         val repository = FakeModelConfigRepository()
-        val viewModel = createViewModel(modelConfigRepository = repository, scope = this)
-        viewModel.onAction(SettingsAction.ApiKeyChanged("sk-multimodal-test", isMultimodal = true))
-        viewModel.onAction(SettingsAction.SelectModel("model-omni", isMultimodal = true))
-        val effect = async { viewModel.effects.first { it is SettingsEffect.ApiSettingsSaved } }
+        val viewModel = createViewModel(
+            isMultimodal = true,
+            modelConfigRepository = repository
+        )
+        runCurrent()
+        viewModel.onAction(ApiSettingsAction.ApiKeyChanged("sk-multimodal-test"))
+        viewModel.onAction(ApiSettingsAction.SelectModel("model-omni"))
+        val effect = async { viewModel.effects.first { it is ApiSettingsEffect.ApiSettingsSaved } }
 
-        viewModel.onAction(SettingsAction.SaveMultimodalApiSettingsClicked)
+        viewModel.onAction(ApiSettingsAction.SaveSettingsClicked)
         advanceUntilIdle()
 
         val saved = requireNotNull(repository.savedMultimodal)
@@ -192,19 +218,20 @@ class SettingsViewModelTest {
         assertEquals("sk-multimodal-test", saved.apiKey)
         assertEquals("model-omni", saved.modelName)
         assertTrue(saved.supportVision)
-        assertEquals(SettingsEffect.ApiSettingsSaved, effect.await())
-        assertFalse(viewModel.uiState.value.multimodalIsSaving)
+        assertEquals(ApiSettingsEffect.ApiSettingsSaved, effect.await())
+        assertFalse(viewModel.uiState.value.isSaving)
     }
 
     @Test
     fun toggleKeyVisibilityWorks() = runTest {
-        val viewModel = createViewModel(scope = this)
+        val viewModel = createViewModel()
+        runCurrent()
         assertFalse(viewModel.uiState.value.showApiKey)
 
-        viewModel.onAction(SettingsAction.ToggleApiKeyVisibility)
+        viewModel.onAction(ApiSettingsAction.ToggleApiKeyVisibility)
         assertTrue(viewModel.uiState.value.showApiKey)
 
-        viewModel.onAction(SettingsAction.ToggleApiKeyVisibility)
+        viewModel.onAction(ApiSettingsAction.ToggleApiKeyVisibility)
         assertFalse(viewModel.uiState.value.showApiKey)
     }
 
@@ -217,13 +244,13 @@ class SettingsViewModelTest {
         )
         val viewModel = createViewModel(
             repository = openAiRepository,
-            modelConfigRepository = modelConfigRepository,
-            scope = this
+            modelConfigRepository = modelConfigRepository
         )
-        viewModel.onAction(SettingsAction.ApiKeyChanged("sk-test"))
-        viewModel.onAction(SettingsAction.SelectModel("model-a"))
+        runCurrent()
+        viewModel.onAction(ApiSettingsAction.ApiKeyChanged("sk-test"))
+        viewModel.onAction(ApiSettingsAction.SelectModel("model-a"))
 
-        viewModel.onAction(SettingsAction.SaveApiSettingsClicked)
+        viewModel.onAction(ApiSettingsAction.SaveSettingsClicked)
         advanceUntilIdle()
 
         val saved = requireNotNull(modelConfigRepository.saved)
@@ -242,13 +269,13 @@ class SettingsViewModelTest {
         )
         val viewModel = createViewModel(
             repository = openAiRepository,
-            modelConfigRepository = modelConfigRepository,
-            scope = this
+            modelConfigRepository = modelConfigRepository
         )
-        viewModel.onAction(SettingsAction.ApiKeyChanged("sk-test"))
-        viewModel.onAction(SettingsAction.SelectModel("model-a"))
+        runCurrent()
+        viewModel.onAction(ApiSettingsAction.ApiKeyChanged("sk-test"))
+        viewModel.onAction(ApiSettingsAction.SelectModel("model-a"))
 
-        viewModel.onAction(SettingsAction.SaveApiSettingsClicked)
+        viewModel.onAction(ApiSettingsAction.SaveSettingsClicked)
         advanceUntilIdle()
 
         val saved = requireNotNull(modelConfigRepository.saved)
@@ -258,16 +285,16 @@ class SettingsViewModelTest {
         assertEquals("model-a", openAiRepository.lastModelTested)
     }
 
-
     private fun createViewModel(
+        isMultimodal: Boolean = false,
         repository: AiRepository = FakeOpenAiRepository(ApiResult.Success(emptyList())),
         modelConfigRepository: ModelConfigRepository = FakeModelConfigRepository(),
         defaults: ApiSettingsDefaults = ApiSettingsDefaults(),
-        scope: kotlinx.coroutines.CoroutineScope,
-    ) = SettingsViewModel(
+    ) = ApiSettingsViewModel(
+        isMultimodal = isMultimodal,
         aiRepository = repository,
         modelConfigRepository = modelConfigRepository,
-        coroutineScope = scope,
+        imageProviderRegistry = ImageGenerationProviderRegistry(emptyList()),
         defaultApiSettings = defaults,
     )
 }
