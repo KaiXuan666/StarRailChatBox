@@ -6,8 +6,11 @@ import androidx.compose.ui.window.rememberWindowState
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.painterResource
 import com.kaixuan.starrailchatbox.data.database.createPersistentRepositories
+import io.github.aakira.napier.DebugAntilog
+import io.github.aakira.napier.Napier
 
 fun main() {
+    Napier.base(DebugAntilog())
     application {
         val repositories = createPersistentRepositories()
         Window(

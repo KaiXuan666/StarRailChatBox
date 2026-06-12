@@ -9,6 +9,7 @@ plugins {
 dependencies {
     implementation(projects.shared)
 
+    implementation(libs.napier)
     implementation(libs.filekit.core)
     implementation(compose.desktop.currentOs)
     implementation(libs.kotlinx.coroutinesSwing)
