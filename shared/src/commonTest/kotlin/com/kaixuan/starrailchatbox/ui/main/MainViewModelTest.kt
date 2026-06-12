@@ -35,6 +35,8 @@ class MainViewModelTest {
     @AfterTest
     fun tearDown() {
         currentViewModel?.viewModelScope?.cancel()
+        java.lang.Thread.sleep(100)
+        dispatcher.scheduler.advanceUntilIdle()
         currentViewModel = null
         Dispatchers.resetMain()
     }

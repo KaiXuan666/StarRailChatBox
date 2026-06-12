@@ -930,6 +930,27 @@ class ChatViewModel(
         content: String,
         attachments: List<SelectedAttachment> = emptyList(),
     ) {
+        var finalContent = content
+        if (enableFileAppend) {
+            attachments.forEach { attachment ->
+                val mime = getMimeTypeFromName(
+                    name = attachment.name,
+                    extension = attachment.extension,
+                    isImage = attachment is SelectedAttachment.Image,
+                    isVoice = attachment is SelectedAttachment.Voice
+                )
+                if (mime == "text/plain" || mime == "application/json") {
+                    try {
+                        val bytes = KmpFileManager.Default.readSourceBytes(attachment.uri)
+                        val textContent = bytes.decodeToString()
+                        finalContent += "\n\n[File: ${attachment.name}]\n${textContent}\n[End File]"
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
+        }
+
         val previousSession = activeSession
         val now = currentTimeMillis()
 
@@ -959,7 +980,7 @@ class ChatViewModel(
                     id = userMessageId,
                     sessionId = newSession.id,
                     role = ChatRole.USER,
-                    content = content,
+                    content = finalContent,
                     status = ChatMessageStatus.COMPLETED,
                     modelConfigId = null,
                     modelNameSnapshot = null,
@@ -1006,7 +1027,7 @@ class ChatViewModel(
                     id = userMessageId,
                     sessionId = session.id,
                     role = ChatRole.USER,
-                    content = content,
+                    content = finalContent,
                     status = ChatMessageStatus.COMPLETED,
                     modelConfigId = null,
                     modelNameSnapshot = null,

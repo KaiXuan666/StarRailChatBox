@@ -5,6 +5,9 @@ on:
     branches: [ "main", "master" ]
     tags:
       - 'v*'
+    paths-ignore:
+      - 'README.md'          # 忽略README.md
+      - 'docs/**'        # 忽略整个 docs 文档文件夹（如果有的话）
   pull_request:
     branches: [ "main", "master" ]
   workflow_dispatch:
@@ -90,6 +93,9 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: gradle
+
+      - name: Add WiX to PATH
+        run: echo "C:\Program Files (x86)\WiX Toolset v3.11\bin" >> $env:GITHUB_PATH
 
       - name: Build MSI
         run: ./gradlew :desktopApp:packageMsi

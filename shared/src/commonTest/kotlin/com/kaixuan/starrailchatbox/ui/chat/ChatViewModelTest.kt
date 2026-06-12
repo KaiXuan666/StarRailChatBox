@@ -36,6 +36,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.test.runCurrent
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -58,9 +59,8 @@ class ChatViewModelTest {
     fun tearDown() {
         val scope = currentViewModel?.viewModelScope
         scope?.cancel()
-        runBlocking {
-            scope?.coroutineContext?.job?.join()
-        }
+        java.lang.Thread.sleep(100)
+        dispatcher.scheduler.advanceUntilIdle()
         currentViewModel = null
         Dispatchers.resetMain()
     }
@@ -325,7 +325,8 @@ class ChatViewModelTest {
         var attempts = 0
         while (api.requests.isEmpty() && attempts < 50) {
             attempts++
-            kotlinx.coroutines.delay(20)
+            java.lang.Thread.sleep(20)
+            runCurrent()
         }
 
         assertEquals(1, api.requests.size)
@@ -377,7 +378,8 @@ class ChatViewModelTest {
         var attempts = 0
         while (api.requests.isEmpty() && attempts < 50) {
             attempts++
-            kotlinx.coroutines.delay(20)
+            java.lang.Thread.sleep(20)
+            runCurrent()
         }
 
         val expectedText = "Check this file:\n\n[File: test.txt]\nhello file content\n[End File]"
@@ -426,7 +428,8 @@ class ChatViewModelTest {
         var attempts = 0
         while (api.requests.isEmpty() && attempts < 50) {
             attempts++
-            kotlinx.coroutines.delay(20)
+            java.lang.Thread.sleep(20)
+            runCurrent()
         }
 
         val sentRequest = api.requests.single()
@@ -495,7 +498,8 @@ class ChatViewModelTest {
         var attempts = 0
         while (api.requests.isEmpty() && attempts < 50) {
             attempts++
-            kotlinx.coroutines.delay(20)
+            java.lang.Thread.sleep(20)
+            runCurrent()
         }
 
         assertEquals(1, api.requests.size)
@@ -509,7 +513,8 @@ class ChatViewModelTest {
         attempts = 0
         while (api.requests.size < 2 && attempts < 50) {
             attempts++
-            kotlinx.coroutines.delay(20)
+            java.lang.Thread.sleep(20)
+            runCurrent()
         }
 
         assertEquals(2, api.requests.size)
