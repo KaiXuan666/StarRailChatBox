@@ -382,7 +382,6 @@ class ChatViewModelTest {
             currentTimeMillis = { 60_000L },
             idGenerator = { prefix -> "$prefix-${++id}" },
             sessionTitleProvider = { "新对话" },
-            timeFormatter = { "local-$it" },
         )
 
         val fixture = Fixture(viewModel, sessions, api)
@@ -418,7 +417,6 @@ class ChatViewModelTest {
             currentTimeMillis = { 60_000L },
             idGenerator = { prefix -> "$prefix-${++id}" },
             sessionTitleProvider = { "新对话" },
-            timeFormatter = { "local-$it" },
         )
         return Fixture(viewModel, sessions, api)
     }
@@ -459,7 +457,6 @@ class ChatViewModelTest {
             currentTimeMillis = { 60_000L },
             idGenerator = { prefix -> "$prefix-${++id}" },
             sessionTitleProvider = { "新对话" },
-            timeFormatter = { "local-$it" },
         )
         advanceUntilIdle()
 
@@ -502,7 +499,6 @@ class ChatViewModelTest {
             currentTimeMillis = { 60_000L },
             idGenerator = { prefix -> "$prefix-${++id}" },
             sessionTitleProvider = { "新对话" },
-            timeFormatter = { "local-$it" },
             enableFileAppend = true,
         )
         advanceUntilIdle()
@@ -544,7 +540,6 @@ class ChatViewModelTest {
             currentTimeMillis = { 60_000L },
             idGenerator = { prefix -> "$prefix-${++id}" },
             sessionTitleProvider = { "新对话" },
-            timeFormatter = { "local-$it" },
             enableFileAppend = false,
         )
         advanceUntilIdle()
@@ -606,7 +601,6 @@ class ChatViewModelTest {
             currentTimeMillis = { 60_000L },
             idGenerator = { prefix -> "$prefix-${++id}" },
             sessionTitleProvider = { "新对话" },
-            timeFormatter = { "local-$it" },
         )
         advanceUntilIdle()
 

@@ -20,9 +20,9 @@ actual fun formatHeaderDate(epochMilliseconds: Long): String {
     val formatter = NSDateFormatter().apply {
         locale = NSLocale.currentLocale
         dateFormat = if (isThisYear) {
-            "M月d日 HH:mm"
+            "M月d日"
         } else {
-            "yyyy年M月d日 HH:mm"
+            "yyyy年M月d日"
         }
     }
     return formatter.stringFromDate(date)
@@ -41,6 +41,15 @@ actual fun formatLastChatTime(epochMilliseconds: Long): String {
             isThisYear -> "M月d日 HH:mm"
             else -> "yyyy年M月d日"
         }
+    }
+    return formatter.stringFromDate(date)
+}
+
+actual fun formatMessageTime(epochMilliseconds: Long): String {
+    val date = NSDate.dateWithTimeIntervalSince1970(epochMilliseconds / 1_000.0)
+    val formatter = NSDateFormatter().apply {
+        locale = NSLocale.currentLocale
+        dateFormat = "HH:mm"
     }
     return formatter.stringFromDate(date)
 }

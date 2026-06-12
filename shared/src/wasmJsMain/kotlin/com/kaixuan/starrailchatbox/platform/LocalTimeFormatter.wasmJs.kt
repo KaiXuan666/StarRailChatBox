@@ -8,6 +8,10 @@ actual fun formatLastChatTime(epochMilliseconds: Long): String {
     return formatBrowserLastChatTime(epochMilliseconds.toDouble())
 }
 
+actual fun formatMessageTime(epochMilliseconds: Long): String {
+    return formatBrowserMessageTime(epochMilliseconds.toDouble())
+}
+
 actual fun isSameDay(time1: Long, time2: Long): Boolean {
     return isBrowserSameDay(time1.toDouble(), time2.toDouble())
 }
@@ -15,12 +19,27 @@ actual fun isSameDay(time1: Long, time2: Long): Boolean {
 @JsFun(
     """(epochMilliseconds) => {
         const date = new Date(epochMilliseconds);
+        const now = new Date();
         const year = date.getFullYear();
         const month = date.getMonth() + 1;
         const day = date.getDate();
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        return year + "年" + month + "月" + day + "日 " + hours + ":" + minutes;
+        
+        const isSameYear = year === now.getFullYear();
+        const isSameDay = isSameYear &&
+            date.getMonth() === now.getMonth() &&
+            day === now.getDate();
+            
+        if (isSameDay) return "今天";
+        
+        const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const isYesterday = year === yesterday.getFullYear() &&
+            date.getMonth() === yesterday.getMonth() &&
+            day === yesterday.getDate();
+            
+        if (isYesterday) return "昨天";
+        
+        if (isSameYear) return month + "月" + day + "日";
+        return year + "年" + month + "月" + day + "日";
     }""",
 )
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
@@ -42,11 +61,22 @@ private external fun formatBrowserHeaderDate(epochMilliseconds: Double): String
             day === now.getDate();
         if (isSameDay) return time;
         if (isSameYear) return month + "月" + day + "日 " + time;
-        return year + "年" + month + "月" + day + "日 ";
+        return year + "年" + month + "月" + day + "日";
     }""",
 )
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 private external fun formatBrowserLastChatTime(epochMilliseconds: Double): String
+
+@JsFun(
+    """(epochMilliseconds) => {
+        const date = new Date(epochMilliseconds);
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return hours + ":" + minutes;
+    }""",
+)
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+private external fun formatBrowserMessageTime(epochMilliseconds: Double): String
 
 @JsFun(
     """(t1, t2) => {

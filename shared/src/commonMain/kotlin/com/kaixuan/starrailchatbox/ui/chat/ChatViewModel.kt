@@ -36,6 +36,7 @@ import com.kaixuan.starrailchatbox.data.model.ModelConfig
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
 import com.kaixuan.starrailchatbox.platform.formatLastChatTime
 import com.kaixuan.starrailchatbox.platform.formatHeaderDate
+import com.kaixuan.starrailchatbox.platform.formatMessageTime
 import com.kaixuan.starrailchatbox.platform.isSameDay
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CancellationException
@@ -84,7 +85,6 @@ class ChatViewModel(
     private val sessionTitleProvider: suspend () -> String = {
         getString(Res.string.chat_new_session_title)
     },
-    private val timeFormatter: (Long) -> String = ::formatLastChatTime,
     private val enableFileAppend: Boolean = false,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ChatUiState())
@@ -589,7 +589,6 @@ class ChatViewModel(
                                 messages = emptyGreeting(
                                     character = saved,
                                     now = currentTimeMillis(),
-                                    timeFormatter = timeFormatter,
                                 ),
                             )
                         )
@@ -720,7 +719,7 @@ class ChatViewModel(
                                         id = summary.session.id,
                                         title = summary.session.title,
                                         preview = summary.lastMessagePreview,
-                                        updatedAt = timeFormatter(summary.session.lastMessageAt),
+                                        updatedAt = formatLastChatTime(summary.session.lastMessageAt),
                                         messageCount = summary.messageCount,
                                     )
                                 },
@@ -765,7 +764,6 @@ class ChatViewModel(
                 val greeting = emptyGreetingPagingData(
                     character = selectedCharacter,
                     now = currentTimeMillis(),
-                    timeFormatter = timeFormatter,
                 )
                 _uiState.update { state ->
                     val currentState = state.characterStates[characterId] ?: CharacterChatState()
@@ -854,7 +852,6 @@ class ChatViewModel(
                         messagePagingData = emptyGreetingPagingData(
                             character = character,
                             now = currentTimeMillis(),
-                            timeFormatter = timeFormatter,
                         ),
                         suggestions = emptyList(),
                     )
@@ -1306,7 +1303,7 @@ class ChatViewModel(
                         tag = CHAT_PAGING_TAG,
                     )
                 }
-                .map { data -> data.toTimelineItems(characterId, timeFormatter) }
+                .map { data -> data.toTimelineItems(characterId) }
                 .cachedIn(viewModelScope),
             anchor = anchor,
         )
@@ -1511,14 +1508,13 @@ private fun NewChatSession.toDomain(lastMessageAt: Long) = ChatSession(
 private fun emptyGreeting(
     character: Character?,
     now: Long,
-    timeFormatter: (Long) -> String,
 ): List<ChatMessageUiModel> {
     val openingMessage = character?.openingMessage?.takeIf(String::isNotBlank)
         ?: return emptyList()
     return listOf(
         ChatMessageUiModel.Received(
             id = "empty-greeting:${character.id}",
-            timestamp = timeFormatter(now),
+            timestamp = formatMessageTime(now),
             createdAt = now,
             content = MessageContent.Custom(openingMessage),
             senderId = character.id,
@@ -1529,12 +1525,11 @@ private fun emptyGreeting(
 private fun emptyGreetingPagingData(
     character: Character?,
     now: Long,
-    timeFormatter: (Long) -> String,
 ): ChatMessagePagingData = ChatMessagePagingData(
     sessionId = null,
     flow = flowOf(
         PagingData.from(
-            emptyGreeting(character, now, timeFormatter)
+            emptyGreeting(character, now)
                 .map(ChatTimelineItem::Message),
         ),
     ),
@@ -1542,13 +1537,12 @@ private fun emptyGreetingPagingData(
 
 private fun PagingData<ChatMessagePageEntry>.toTimelineItems(
     characterId: String,
-    timeFormatter: (Long) -> String,
 ): PagingData<ChatTimelineItem> = map { entry ->
     val message = entry.message
     val uiModel = when (message.role) {
         ChatRole.USER -> ChatMessageUiModel.Sent(
             id = message.id,
-            timestamp = timeFormatter(message.createdAt),
+            timestamp = formatMessageTime(message.createdAt),
             createdAt = message.createdAt,
             content = MessageContent.Custom(message.content),
             isRead = true,
@@ -1557,7 +1551,7 @@ private fun PagingData<ChatMessagePageEntry>.toTimelineItems(
         )
         ChatRole.ASSISTANT -> ChatMessageUiModel.Received(
             id = message.id,
-            timestamp = timeFormatter(message.createdAt),
+            timestamp = formatMessageTime(message.createdAt),
             createdAt = message.createdAt,
             content = MessageContent.Custom(message.content),
             senderId = characterId,

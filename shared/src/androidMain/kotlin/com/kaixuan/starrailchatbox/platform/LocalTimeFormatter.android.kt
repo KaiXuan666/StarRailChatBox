@@ -21,9 +21,9 @@ actual fun formatHeaderDate(epochMilliseconds: Long): String {
     if (isYesterday) return "昨天"
 
     return if (isSameYear) {
-        SimpleDateFormat("M月d日 HH:mm", Locale.getDefault()).format(date)
+        SimpleDateFormat("M月d日", Locale.getDefault()).format(date)
     } else {
-        SimpleDateFormat("yyyy年M月d日 HH:mm", Locale.getDefault()).format(date)
+        SimpleDateFormat("yyyy年M月d日", Locale.getDefault()).format(date)
     }
 }
 
@@ -39,6 +39,11 @@ actual fun formatLastChatTime(epochMilliseconds: Long): String {
         else -> "yyyy年M月d日"
     }
     return SimpleDateFormat(pattern, Locale.getDefault()).format(date)
+}
+
+actual fun formatMessageTime(epochMilliseconds: Long): String {
+    val date = Date(epochMilliseconds)
+    return SimpleDateFormat("HH:mm", Locale.getDefault()).format(date)
 }
 
 actual fun isSameDay(time1: Long, time2: Long): Boolean {
