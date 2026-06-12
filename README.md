@@ -84,6 +84,7 @@
 <div align="center">
   <img src="docs/image/set.png" width="400px" alt="API设置" />
   <p>⚠️ <b>注意</b>：API设置必须配置后才能使用，其他模型可以不配置，但如果不配置，将无法使用对应功能。</p>
+  <p>没有Api Key？点此获取：<a href="https://jeniya.top/register?channel=c_mcdvdrkp">https://jeniya.top/register?channel=c_mcdvdrkp</a></p>
 </div>
 
 ---

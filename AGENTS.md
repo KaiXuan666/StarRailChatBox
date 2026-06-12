@@ -134,13 +134,42 @@ driver、provider 和日志出口等边界。
   头像复制到应用私有目录 `character_avatars`，数据库仅在 `avatar_uri` 中保存
   对应路径。领域模型只暴露 `avatarUri`，公共 UI 使用 Coil 加载该 URI；不得在
   领域模型或 UI 状态中长期持有头像 `ByteArray`。
-- 角色 Tab 和聊天角色选择器必须使用轻量 `CharacterSummary`，当前只包含角色 ID、
-  名称、头像 URI 和最近会话时间。不得把 prompt、开场白、模型参数、语音样本或编辑
-  草稿加入摘要模型。
+- 角色 Tab、聊天角色选择器和对话管理页必须使用轻量 `CharacterSummary`，当前只包含
+  角色 ID、名称、头像 URI、创建时间和最近会话时间。不得把 prompt、开场白、模型参数、
+  语音样本或编辑草稿加入摘要模型。
 - Room 的角色摘要必须由 DAO 投影直接查询所需列，禁止先全量读取 `AgentRoleEntity`
   或完整 `Character` 再映射。`RoomCharacterStorage.loadCharacters()` 会加载所有角色
   的完整 prompt，已属于废弃兼容 API；列表和选择器必须使用
-  `loadCharacterSummaries()`，进入聊天、编辑或导出时再按 ID 调用 `getCharacter(id)`。
+  `loadCharacterSummaries()`。
+- `ChatUiState`、`ChatCharactersUiState`、`ChatSessionScreen` 和
+  `CharacterChatScreen` 不得持有完整 `Character`，也不得建立按角色无限增长的完整角色
+  缓存。角色切换和聊天展示只使用 `CharacterSummary` 与角色 ID；仅在展示临时开场白、
+  发送、重试、编辑或导出等确实需要完整字段的操作中，按 ID 临时调用
+  `getCharacter(id)`，操作完成后不写入常驻聊天状态。
+
+### 聊天记录分页
+
+- 聊天展示历史统一使用 AndroidX Paging 3 的本地分页流，不得在进入角色或会话时全量
+  读取消息。默认参数为每页 50 条、首次 50 条、预取 10 条、`maxSize = 200`、
+  `enablePlaceholders = false`。
+- 数据库分页按会话内 `seq DESC` 查询，并配合聊天列表 `reverseLayout = true` 展示。
+  分页仅影响 UI 展示；AI 上下文、摘要、消息持久化和 `seq` 顺序继续走独立查询，不得
+  从 `LazyPagingItems` 或分页快照构造 AI 上下文。
+- 每个角色保留独立的分页流、草稿、发送状态和滚动位置；分页流使用
+  `cachedIn(viewModelScope)`。允许 Paging 按 `maxSize` 回收页面，但不得额外缓存所有
+  已访问角色的完整消息列表或完整角色对象。
+- 新消息、失败消息删除、重试和会话删除必须使对应会话的 `PagingSource` 失效。Room
+  使用 `PagingSource`；JS/WasmJS 与测试实现使用可失效的内存 `PagingSource`，保持
+  相同分页语义。
+- 向最早或最新消息跳转前，必须先判断目标边界是否已在当前分页缓存中：已缓存时直接
+  无动画滚动；未缓存时才创建以目标 offset 为锚点的新分页 generation。跳到最早消息
+  只能直接加载最早一页，不得通过连续滚动加载全部中间历史。
+- 点击快捷回复后立即无动画回到最新消息；仅当最新边界不在缓存中时才切换到最新页
+  generation。新消息仅在用户接近底部时自动滚动，用户阅读历史时不得抢占位置。
+- `ChatHeader` 的显示不得依赖“数据库中必须已有消息”。无会话、无开场白或空列表时
+  页面仍应完成首次加载并显示 Header，不得留下无限加载状态。
+- 分页调试日志可以保留，但不得输出消息正文、prompt、附件内容或其他敏感数据；日志
+  应聚焦角色 ID、会话 ID、load type、请求条数、返回条数、offset/key 和失效事件。
 
 ### AI 上下文编排规范
 
@@ -267,6 +296,9 @@ UI --Action--> ViewModel --StateFlow<UiState>--> UI
 - 集合优先暴露只读类型；不要把可变集合或 `MutableStateFlow` 暴露给 UI。
 - 状态默认值应使初始渲染有效、可预测。
 - 针对包含多角色的对话主界面等场景，`UiState` 必须支持多角色独立状态管理（如通过 `characterStates: Map<String, CharacterChatState>` 隔离各个角色的消息列表、输入草稿和发送状态），避免状态互锁，支持在等待 AI 回复的过程中立刻切换角色。对外暴露的当前角色属性可通过 Getter 代理动态路由至当前选中的角色状态，以保持对外签名的向下兼容性。
+- 聊天状态只保存角色 ID、轻量摘要引用、分页流包装、草稿、发送状态和滚动请求等必要
+  状态；不得在 `ChatUiState` 或 `CharacterChatState` 中保存完整 `Character`、prompt
+  或无界消息集合。
 
 
 ### Action
@@ -316,7 +348,8 @@ UI --Action--> ViewModel --StateFlow<UiState>--> UI
   - **聊天包 (`ui/chat`)**：`ChatUiState` 按
     `characterStates: Map<String, CharacterChatState>` 隔离各角色消息、输入草稿和
     发送状态；角色选择列表使用独立的 `ChatCharactersUiState`，只保存
-    `CharacterSummary`。
+    `CharacterSummary`。发送、重试和临时欢迎消息按角色 ID 临时查询完整角色，并在
+    启动发送协程时捕获角色 ID 与会话 ID，避免切换角色后串用全局活动会话。
 - **聊天动作边界**：`ChatViewModel` 可分别公开聊天状态与轻量角色选择状态，并提供
   `onAction(ChatAction)`、`onCharacterAction(CharacterAction)`；角色编辑、删除、
   导入导出等管理逻辑不得重新放回 `ChatViewModel`。AI 调用通过
