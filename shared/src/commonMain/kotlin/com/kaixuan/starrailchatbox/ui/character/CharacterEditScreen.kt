@@ -75,6 +75,7 @@ import starrailchatbox.shared.generated.resources.character_edit_opening_message
 import starrailchatbox.shared.generated.resources.character_edit_save
 import starrailchatbox.shared.generated.resources.character_edit_restore_default
 import starrailchatbox.shared.generated.resources.character_edit_system_prompt
+import starrailchatbox.shared.generated.resources.character_edit_system_prompt_hint
 import starrailchatbox.shared.generated.resources.character_edit_temperature
 import starrailchatbox.shared.generated.resources.character_edit_temperature_hint
 import starrailchatbox.shared.generated.resources.character_edit_title
@@ -229,54 +230,67 @@ fun CharacterEditScreen(
             Res.string.character_edit_prompt_gen_default_input,
             editState.name
         )
-        CharacterTextCard(
-            title = stringResource(Res.string.character_edit_system_prompt),
-            value = editState.prompt,
-            minLines = 5,
-            onValueChange = { prompt ->
-                onAction(CharacterAction.CharacterPromptChanged(prompt))
-            },
-            actionButton = {
-                Surface(
-                    onClick = {
-                        onAction(CharacterAction.CharacterPromptGenClicked(defaultPromptRequestText))
-                    },
-                    shape = MaterialTheme.shapes.extraLarge,
-                    color = if (editState.isGeneratingPrompt) {
-                        MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f)
-                    } else {
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f)
-                    },
-                    border = BorderStroke(
-                        1.dp,
-                        if (editState.isGeneratingPrompt) {
-                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            CharacterTextCard(
+                title = stringResource(Res.string.character_edit_system_prompt),
+                value = editState.prompt,
+                minLines = 5,
+                onValueChange = { prompt ->
+                    onAction(CharacterAction.CharacterPromptChanged(prompt))
+                },
+                actionButton = {
+                    Surface(
+                        onClick = {
+                            onAction(CharacterAction.CharacterPromptGenClicked(defaultPromptRequestText))
+                        },
+                        shape = MaterialTheme.shapes.extraLarge,
+                        color = if (editState.isGeneratingPrompt) {
+                            MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f)
                         } else {
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-                        }
-                    ),
-                    enabled = !editState.isGeneratingPrompt,
-                ) {
-                    Text(
-                        text = stringResource(
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f)
+                        },
+                        border = BorderStroke(
+                            1.dp,
                             if (editState.isGeneratingPrompt) {
-                                Res.string.character_edit_prompt_gen_generating
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)
                             } else {
-                                Res.string.character_edit_prompt_gen_btn
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
                             }
                         ),
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        color = if (editState.isGeneratingPrompt) {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                        } else {
-                            MaterialTheme.colorScheme.primary
-                        },
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
+                        enabled = !editState.isGeneratingPrompt,
+                    ) {
+                        Text(
+                            text = stringResource(
+                                if (editState.isGeneratingPrompt) {
+                                    Res.string.character_edit_prompt_gen_generating
+                                } else {
+                                    Res.string.character_edit_prompt_gen_btn
+                                }
+                            ),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            color = if (editState.isGeneratingPrompt) {
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            } else {
+                                MaterialTheme.colorScheme.primary
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
                 }
+            )
+            if (editState.characterId != null) {
+                Text(
+                    text = stringResource(Res.string.character_edit_system_prompt_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
             }
-        )
+        }
 
         CharacterTextCard(
             title = stringResource(Res.string.character_edit_opening_message),

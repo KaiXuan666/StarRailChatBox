@@ -87,6 +87,7 @@
     <string name="character_edit_description">角色描述</string>
     <string name="character_edit_description_hint">一句话简介，会显示在角色列表和预览中。</string>
     <string name="character_edit_system_prompt">系统提示词</string>
+    <string name="character_edit_system_prompt_hint">修改系统提示词后，需要创建新会话才能生效。</string>
     <string name="character_edit_opening_message">开场白</string>
     <string name="character_edit_temperature">Temperature</string>
     <string name="character_edit_temperature_hint">控制回复的随机性。较低值（如 0.2）更稳定保守，较高值（如 0.85）更具创意。角色聊天建议设置为 0.7 - 1.0。</string>
