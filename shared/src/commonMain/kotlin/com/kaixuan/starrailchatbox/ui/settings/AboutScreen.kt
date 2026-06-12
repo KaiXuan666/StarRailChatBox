@@ -112,21 +112,54 @@ fun AboutScreen(
             onBackClick = { onMainAction(MainAction.PopBackStack) },
             contentSpacing = StarRailSpacing.lg,
         ) {
-            // App Name with decorations
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+            // App Name with decorations and Author
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                DecorationLine(isLeft = true)
-                Text(
-                    text = stringResource(Res.string.about_app_name),
-                    style = if (compact) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-                DecorationLine(isLeft = false)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    DecorationLine(isLeft = true)
+                    Text(
+                        text = stringResource(Res.string.about_app_name),
+                        style = if (compact) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                    DecorationLine(isLeft = false)
+                }
+
+                val bilibiliText = stringResource(Res.string.about_bilibili)
+                val authorName = "浅夜m"
+                val prefix = bilibiliText.substringBefore(authorName)
+                val clipboardManager = LocalClipboardManager.current
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    Text(
+                        text = prefix,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
+                    Text(
+                        text = authorName,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            textDecoration = TextDecoration.Underline
+                        ),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                        modifier = Modifier.clickable {
+                            clipboardManager.setText(AnnotatedString(authorName))
+                            onMainAction(MainAction.ShowMessage(MainEffectMessage.TEXT_COPIED))
+                        }
+                    )
+                }
             }
 
             // Description Card
@@ -202,33 +235,6 @@ fun AboutScreen(
                         text = stringResource(Res.string.about_donate_footer),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    )
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                val bilibiliText = stringResource(Res.string.about_bilibili)
-                val authorName = "浅夜m"
-                val prefix = bilibiliText.substringBefore(authorName)
-                val clipboardManager = LocalClipboardManager.current
-                
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                ) {
-                    Text(
-                        text = prefix,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                    )
-                    Text(
-                        text = authorName,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            textDecoration = TextDecoration.Underline
-                        ),
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                        modifier = Modifier.clickable {
-                            clipboardManager.setText(AnnotatedString(authorName))
-                            onMainAction(MainAction.ShowMessage(MainEffectMessage.TEXT_COPIED))
-                        }
                     )
                 }
             }
