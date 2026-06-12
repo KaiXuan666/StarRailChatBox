@@ -331,13 +331,17 @@ class CharacterEditViewModel(
     }
 
     override fun onCleared() {
-        val state = _uiState.value
-        listOfNotNull(
-            state.avatarUri,
-            state.voiceSampleUri,
-            importPath,
-        ).filter { it.startsWith(fileManager.cacheDir.toString()) }
-            .forEach { fileManager.delete(it.toPath()) }
+        try {
+            val state = _uiState.value
+            listOfNotNull(
+                state.avatarUri,
+                state.voiceSampleUri,
+                importPath,
+            ).filter { it.startsWith(fileManager.cacheDir.toString()) }
+                .forEach { fileManager.delete(it.toPath()) }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         super.onCleared()
     }
 

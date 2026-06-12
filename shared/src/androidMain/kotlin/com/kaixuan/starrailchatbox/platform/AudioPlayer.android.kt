@@ -49,10 +49,14 @@ class AndroidAudioPlayer(private val context: Context) : AudioPlayer {
                     setDataSource(uri)
                 }
                 setOnCompletionListener {
-                    stop()
+                    scope.launch {
+                        stop()
+                    }
                 }
                 setOnErrorListener { _, _, _ ->
-                    stop()
+                    scope.launch {
+                        stop()
+                    }
                     true
                 }
                 prepare()
@@ -79,8 +83,16 @@ class AndroidAudioPlayer(private val context: Context) : AudioPlayer {
         isFallbackPlaying = false
 
         try {
-            mediaPlayer?.stop()
-            mediaPlayer?.release()
+            mediaPlayer?.let { mp ->
+                try {
+                    if (mp.isPlaying) {
+                        mp.stop()
+                    }
+                } catch (e: Exception) {
+                    // Ignore if already stopped
+                }
+                mp.release()
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         } finally {

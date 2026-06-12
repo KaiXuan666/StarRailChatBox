@@ -26,6 +26,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -675,6 +676,12 @@ private fun CharacterVoiceSampleCard(
     val audioPlayer = rememberAudioPlayer()
     var isPlaying by remember { mutableStateOf(false) }
     var durationSeconds by remember { mutableStateOf<Int?>(null) }
+
+    DisposableEffect(audioPlayer) {
+        onDispose {
+            audioPlayer.release()
+        }
+    }
 
     LaunchedEffect(state.voiceSampleUri) {
         isPlaying = false
