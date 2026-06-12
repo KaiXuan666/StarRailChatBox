@@ -30,7 +30,24 @@
 
 ---
 
+## 📸 界面预览
+
+<table align="center">
+  <tr>
+    <td align="center" valign="top"><img src="docs/image/0.jpg" width="250px" /><br/><sub>短信风聊天（浅色）</sub></td>
+    <td align="center" valign="top"><img src="docs/image/1.jpg" width="250px" /><br/><sub>聊天对话详情</sub></td>
+    <td align="center" valign="top"><img src="docs/image/2.jpg" width="250px" /><br/><sub>角色与人设列表</sub></td>
+  </tr>
+  <tr>
+    <td align="center" valign="top"><img src="docs/image/3.png" width="250px" /><br/><sub>深色模式聊天</sub></td>
+    <td align="center" valign="top" colspan="2"><img src="docs/image/4.png" width="400px" /><br/><sub>配置面板与快捷工具</sub></td>
+  </tr>
+</table>
+
+---
+
 ## 🌟 核心功能展示
+
 
 ### 🎨 1. 沉浸式崩铁短信美学
 - **极致视觉复刻**：1:1 还原游戏内短信聊天界面。精美的渐变色气泡、头像边框、星空底纹以及极具质感的冷青色高光。
@@ -64,6 +81,20 @@
 
 ---
 
+## 👥 贡献者们
+
+感谢以下开拓者对本项目的支持与贡献：
+
+<a href="https://github.com/KaiXuan666">
+  <img src="https://github.com/KaiXuan666.png" width="50px" style="border-radius: 50%" alt="KaiXuan666" />
+</a>
+&nbsp;&nbsp;
+<a href="https://github.com/Timo-SakutobeX">
+  <img src="https://github.com/Timo-SakutobeX.png" width="50px" style="border-radius: 50%" alt="Timo-SakutobeX" />
+</a>
+
+---
+
 ## 🚀 快速开始
 
 ### 1. 配置本地开发环境（开发人员）
@@ -90,22 +121,24 @@ OPENAI_API_KEY=your_api_key_here
 
 ---
 
-## 📝 架构设计（简要）
+## 📝 架构设计与核心机制
 
-项目在代码架构上采用简洁的 **MVVM + UDF (单向数据流)** 规范，UI 与业务逻辑高度共享在 `shared/src/commonMain`。数据持久化在移动端与桌面端采用 **Room KMP** 本地加密存储，而 Web 浏览器端则自适应无缝桥接至浏览器专属存储，从而提供了全平台流畅的离线体验。
----
+项目代码设计严格遵循了高共享、高性能和高扩展性的原则，主要有以下几个核心架构设计亮点：
 
-## 👥 贡献者们
+### 1. 业务状态架构 (MVVM & UDF)
+- UI 层与状态管理完全解耦。各页面均声明独立的 `UiState`（状态快照）、`Action`（用户意图）和 `Effect`（单次事件，如导航或弹窗）。
+- **细粒度状态隔离**：聊天主界面使用了一个全局的独立状态路由机制，通过 `characterStates: Map<String, CharacterChatState>` 来独立管理每位角色的消息列表和输入草稿。这使得 AI 在后台流式输出某位角色的回复时，前端 UI 能够无卡顿地切换到另一位角色，实现了界面数据不冲突、业务逻辑不互锁。
 
-感谢以下开拓者对本项目的支持与贡献：
+### 2. AI 上下文管理与智能编排
+- 聊天请求并不是简单地将历史记录拼接发送，而是经过 `ChatContextBuilder` 的深度编排与裁剪：
+  - **Token 控制与裁剪**：系统根据配置的模型最大上下文长度，倒序扫描历史消息并进行 Token 评估。一旦超出设定阈值，会自动裁剪老旧的历史消息。
+  - **星轨滚动摘要**：系统后台维护着滚动摘要机制。当未压缩的历史消息到达 30 条时，系统会触发后台线程，通过 AI 自动总结此前对话的滚动大纲存入 `chat_summary`，同时清理老旧的明文聊天记录，只在内存中保留最近 10 条高优先级原文，从而将长文本对话的记忆维持在小而美的高度。
+  - **多模态自适应**：系统可以探测消息中是否包含图片附件，并自动在“普通模型”与“多模态视觉模型”之间进行动态路由分配，无需用户手动干预。
 
-<a href="https://github.com/KaiXuan666">
-  <img src="https://github.com/KaiXuan666.png" width="50px" style="border-radius: 50%" alt="KaiXuan666" />
-</a>
-&nbsp;&nbsp;
-<a href="https://github.com/Timo-SakutobeX">
-  <img src="https://github.com/Timo-SakutobeX.png" width="50px" style="border-radius: 50%" alt="Timo-SakutobeX" />
-</a>
+### 3. 数据持久化与两阶段文件管理
+- **Room KMP 跨平台存储**：针对原生平台（Android/iOS/Desktop），系统采用 Room KMP 进行本地关系型数据库管理，表结构包括 `agent_role`（人设）、`chat_session`（会话）、`chat_message`（消息）、`chat_summary`（摘要）和 `model_config`（模型配置）。而 Web 端由于不支持 SQLite，则通过接口解耦，透明地桥接到浏览器的 LocalStorage 或 IndexedDB。
+- **两阶段落盘法 (Cache ➔ Files)**：为了规避用户反复选择/拍摄多媒体文件导致的应用沙盒臃肿，我们设计了“选择即缓存，确认才入库”的两阶段逻辑。用户选中的文件先拷贝至 `Cache` 临时目录，只有在确认点击“发送”或在角色配置中“保存修改”时，文件才会被移动到正式的私有沙盒 `Files` 目录并将路径持久化至数据库。
+- **配置高强度加密**：大模型 API Key 属于高度敏感隐私，系统使用 `cryptography-kotlin` 在各平台底层以硬件/系统级加速的方式运行 AES-GCM 高强度加密，密文保存在数据库中，解密密钥使用 DataStore Preferences 进行多端共享和加密隔离。
 
 ---
 
