@@ -102,6 +102,12 @@
     <string name="character_edit_prompt_gen_default_input">请帮我设计一个%1$s的角色扮演提示词，要求包含角色背景、标志性说话风格、详细的行为准则（Rules），并使用清晰的 Markdown 结构化格式输出。</string>
     <string name="character_edit_prompt_gen_generating">生成中...</string>
     <string name="character_edit_prompt_gen_failed">自动生成提示词失败，请检查 API 配置和网络状态</string>
+    <string name="character_edit_avatar_gen_btn">生成头像</string>
+    <string name="character_edit_avatar_gen_title">生成角色头像</string>
+    <string name="character_edit_avatar_gen_default_input">帮我设计一个%1$s的头像</string>
+    <string name="character_edit_avatar_gen_generating">生成中...</string>
+    <string name="character_edit_avatar_gen_failed">头像生成失败，请检查图片生成 API 配置</string>
+    <string name="character_edit_avatar_gen_config_required">请先在设置中配置图片生成 API</string>
     <string name="character_edit_save">保存</string>
     <string name="character_edit_restore_default">恢复默认</string>
     <string name="character_edit_delete">删除角色</string>

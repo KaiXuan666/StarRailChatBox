@@ -30,8 +30,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
@@ -110,6 +112,8 @@ fun ReceivedMessage(
     val voiceAttachment = message.attachments.find { it.mimeType.startsWith("audio/") }
     val isVoiceOnly = voiceAttachment != null
     var showMenu by remember { mutableStateOf(false) }
+    var pressOffset by remember { mutableStateOf(Offset.Zero) }
+    val density = LocalDensity.current
     val clipboardManager = LocalClipboardManager.current
 
     BoxWithConstraints(
@@ -192,8 +196,18 @@ fun ReceivedMessage(
                             shadowElevation = 1.dp,
                             modifier = Modifier.combinedClickable(
                                 onClick = {},
-                                onLongClick = { showMenu = true }
-                            )
+                                onLongClick = { 
+                                    // 降级处理，如果没有通过 pointerInput 捕获到位置则默认显示
+                                    showMenu = true 
+                                }
+                            ).pointerInput(Unit) {
+                                detectTapGestures(
+                                    onLongPress = { offset ->
+                                        pressOffset = offset
+                                        showMenu = true
+                                    }
+                                )
+                            }
                         ) {
                             Column {
                                 if (text.isNotBlank()) {
@@ -214,20 +228,20 @@ fun ReceivedMessage(
                                 )
                             }
                         }
-                        Box(Modifier.align(Alignment.TopEnd)) {
-                            DropdownMenu(
-                                expanded = showMenu,
-                                onDismissRequest = { showMenu = false },
-                                offset = DpOffset(x = 0.dp, y = (-48).dp)
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(Res.string.action_copy)) },
-                                    onClick = {
-                                        clipboardManager.setText(AnnotatedString(text))
-                                        showMenu = false
-                                    }
-                                )
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false },
+                            offset = with(density) {
+                                DpOffset(pressOffset.x.toDp(), pressOffset.y.toDp())
                             }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(Res.string.action_copy)) },
+                                onClick = {
+                                    clipboardManager.setText(AnnotatedString(text))
+                                    showMenu = false
+                                }
+                            )
                         }
                     }
                     Row(
@@ -277,6 +291,8 @@ fun SentMessage(
     val voiceAttachment = message.attachments.find { it.mimeType.startsWith("audio/") }
     val isVoiceOnly = voiceAttachment != null
     var showMenu by remember { mutableStateOf(false) }
+    var pressOffset by remember { mutableStateOf(Offset.Zero) }
+    val density = LocalDensity.current
     val clipboardManager = LocalClipboardManager.current
 
     BoxWithConstraints(
@@ -365,8 +381,17 @@ fun SentMessage(
                             shadowElevation = 1.dp,
                             modifier = Modifier.combinedClickable(
                                 onClick = {},
-                                onLongClick = { showMenu = true }
-                            )
+                                onLongClick = { 
+                                    showMenu = true 
+                                }
+                            ).pointerInput(Unit) {
+                                detectTapGestures(
+                                    onLongPress = { offset ->
+                                        pressOffset = offset
+                                        showMenu = true
+                                    }
+                                )
+                            }
                         ) {
                             Column(horizontalAlignment = Alignment.End) {
                                 if (text.isNotBlank()) {
@@ -387,20 +412,20 @@ fun SentMessage(
                                 )
                             }
                         }
-                        Box(Modifier.align(Alignment.TopEnd)) {
-                            DropdownMenu(
-                                expanded = showMenu,
-                                onDismissRequest = { showMenu = false },
-                                offset = DpOffset(x = 0.dp, y = (-48).dp)
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(Res.string.action_copy)) },
-                                    onClick = {
-                                        clipboardManager.setText(AnnotatedString(text))
-                                        showMenu = false
-                                    }
-                                )
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false },
+                            offset = with(density) {
+                                DpOffset(pressOffset.x.toDp(), pressOffset.y.toDp())
                             }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(Res.string.action_copy)) },
+                                onClick = {
+                                    clipboardManager.setText(AnnotatedString(text))
+                                    showMenu = false
+                                }
+                            )
                         }
                     }
                     Row(

@@ -24,6 +24,17 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import okio.Path.Companion.toPath
 import kotlin.time.Clock
+import com.kaixuan.starrailchatbox.data.ai.image.ImageGenerationProviderRegistry
+import com.kaixuan.starrailchatbox.data.ai.image.ImageGenerationRequest
+import com.kaixuan.starrailchatbox.data.ai.image.ImageGenerationOutput
+import io.ktor.client.HttpClient
+import io.ktor.client.request.prepareGet
+import io.ktor.client.call.body
+import io.ktor.http.contentType
+import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.readRemaining
+import kotlin.io.encoding.Base64
+import kotlinx.io.readByteArray
 
 data class CharacterEditArgs(
     val characterId: String?,
@@ -43,6 +54,8 @@ class CharacterEditViewModel(
     private val characterCardImporter: CharacterCardImporter,
     private val characterCardExporter: CharacterCardExporter,
     private val fileManager: KmpFileManager,
+    private val imageProviderRegistry: ImageGenerationProviderRegistry,
+    private val httpClient: HttpClient,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(
         CharacterEditUiState(
@@ -93,6 +106,10 @@ class CharacterEditViewModel(
             is CharacterAction.CharacterPromptGenInputChanged -> update { it.copy(promptGenInputText = action.text) }
             CharacterAction.CharacterPromptGenCancelClicked -> update { it.copy(isPromptGenDialogOpen = false) }
             CharacterAction.CharacterPromptGenConfirmClicked -> generatePrompt()
+            is CharacterAction.CharacterAvatarGenClicked -> openAvatarGenerator(action.defaultPromptRequestText)
+            is CharacterAction.CharacterAvatarGenInputChanged -> update { it.copy(avatarGenInputText = action.text) }
+            CharacterAction.CharacterAvatarGenCancelClicked -> update { it.copy(isAvatarGenDialogOpen = false) }
+            CharacterAction.CharacterAvatarGenConfirmClicked -> generateAvatar()
             CharacterAction.CharacterRestoreDefaultClicked -> restoreDefault()
             is CharacterAction.CharacterImportFileSelected -> {
                 importCharacter(action.path, action.name, action.extension)
@@ -210,6 +227,118 @@ class CharacterEditViewModel(
                 update { it.copy(isGeneratingPrompt = false) }
             }
         }
+    }
+
+    private fun openAvatarGenerator(defaultText: String) {
+        if (_uiState.value.name.isBlank()) {
+            showMessage(CharacterEffectMessage.CHARACTER_NAME_REQUIRED)
+        } else {
+            update { it.copy(isAvatarGenDialogOpen = true, avatarGenInputText = defaultText) }
+        }
+    }
+
+    private fun generateAvatar() {
+        val prompt = _uiState.value.avatarGenInputText
+        update { it.copy(isAvatarGenDialogOpen = false, isGeneratingAvatar = true) }
+        viewModelScope.launch {
+            try {
+                val config = modelConfigRepository.getImageGeneration()?.takeIf {
+                    it.enabled && it.baseUrl.isNotBlank() && it.apiKey.isNotBlank() && it.modelName.isNotBlank()
+                }
+                if (config == null) {
+                    showMessage(CharacterEffectMessage.IMAGE_CONFIG_REQUIRED)
+                    return@launch
+                }
+                val provider = imageProviderRegistry.find(config.provider)
+                if (provider == null) {
+                    showMessage(CharacterEffectMessage.IMAGE_CONFIG_REQUIRED)
+                    return@launch
+                }
+                val result = provider.generate(
+                    config = config,
+                    request = ImageGenerationRequest(
+                        prompt = prompt,
+                        aspectRatio = "1:1",
+                    )
+                )
+                when (result) {
+                    is ApiResult.Success -> {
+                        val localPath = saveGeneratedAvatar(result.value)
+                        val ext = localPath.substringAfterLast('.', "png")
+                        val source = CharacterAvatarSource(
+                            uri = localPath,
+                            name = "avatar_${now()}.$ext",
+                            extension = ext
+                        )
+                        update {
+                            it.copy(
+                                avatarUri = localPath,
+                                pendingAvatarSource = source
+                            )
+                        }
+                    }
+                    else -> {
+                        showMessage(CharacterEffectMessage.AVATAR_GEN_FAILED)
+                    }
+                }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Throwable) {
+                Napier.e("Failed to generate avatar", error)
+                showMessage(CharacterEffectMessage.AVATAR_GEN_FAILED)
+            } finally {
+                update { it.copy(isGeneratingAvatar = false) }
+            }
+        }
+    }
+
+    private suspend fun saveGeneratedAvatar(
+        output: ImageGenerationOutput,
+    ): String {
+        val randomSuffix = now().toString(36)
+        val fullPath = when (output) {
+            is ImageGenerationOutput.Url -> {
+                httpClient.prepareGet(output.url).execute { response ->
+                    val extension = extensionFromMime(response.contentType()?.toString()) ?: "png"
+                    val path = fileManager.cacheDir / "temp_avatar_$randomSuffix.$extension".toPath()
+                    fileManager.fileSystem.write(path) {
+                        val channel: ByteReadChannel = response.body()
+                        while (!channel.isClosedForRead) {
+                            val packet = channel.readRemaining(8192)
+                            while (!packet.exhausted()) {
+                                write(packet.readByteArray())
+                            }
+                        }
+                    }
+                    path
+                }
+            }
+            is ImageGenerationOutput.Base64 -> {
+                val extension = extensionFromMime(output.data.dataUrlMimeType()) ?: "png"
+                val path = fileManager.cacheDir / "temp_avatar_$randomSuffix.$extension".toPath()
+                val encoded = output.data.substringAfter("base64,", output.data).trim()
+                fileManager.fileSystem.write(path) {
+                    write(Base64.Default.decode(encoded))
+                }
+                path
+            }
+        }
+        return fullPath.toString()
+    }
+
+    private fun extensionFromMime(mimeType: String?): String? {
+        return when (mimeType?.substringBefore(';')?.lowercase()) {
+            "image/jpeg" -> "jpg"
+            "image/webp" -> "webp"
+            "image/gif" -> "gif"
+            "image/png" -> "png"
+            else -> null
+        }
+    }
+
+    private fun String.dataUrlMimeType(): String? {
+        if (!startsWith("data:", ignoreCase = true)) return null
+        return substringAfter("data:").substringBefore(';').takeIf(String::isNotBlank)
     }
 
     private fun restoreDefault() {

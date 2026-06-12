@@ -26,6 +26,10 @@ sealed interface CharacterAction {
     data class CharacterPromptGenInputChanged(val text: String) : CharacterAction
     data object CharacterPromptGenConfirmClicked : CharacterAction
     data object CharacterPromptGenCancelClicked : CharacterAction
+    data class CharacterAvatarGenClicked(val defaultPromptRequestText: String) : CharacterAction
+    data class CharacterAvatarGenInputChanged(val text: String) : CharacterAction
+    data object CharacterAvatarGenConfirmClicked : CharacterAction
+    data object CharacterAvatarGenCancelClicked : CharacterAction
     data object CharacterRestoreDefaultClicked : CharacterAction
     data class CharactersReordered(val orderedCharacters: List<CharacterSummary>) : CharacterAction
     

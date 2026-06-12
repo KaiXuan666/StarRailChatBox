@@ -22,6 +22,9 @@ data class CharacterEditUiState(
     val isPromptGenDialogOpen: Boolean = false,
     val promptGenInputText: String = "",
     val isGeneratingPrompt: Boolean = false,
+    val isAvatarGenDialogOpen: Boolean = false,
+    val avatarGenInputText: String = "",
+    val isGeneratingAvatar: Boolean = false,
     
     // Export status
     val isExporting: Boolean = false,

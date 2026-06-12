@@ -23,6 +23,7 @@ import com.kaixuan.starrailchatbox.data.ai.tool.ToolCallCoordinator
 import com.kaixuan.starrailchatbox.data.ai.tool.ToolRegistry
 import com.kaixuan.starrailchatbox.data.ai.tool.createPlatformToolExecutor
 import com.kaixuan.starrailchatbox.data.api.createPlatformHttpClient
+import io.ktor.client.HttpClient
 import com.kaixuan.starrailchatbox.data.database.DatabaseManager
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
 import com.kaixuan.starrailchatbox.data.character.CharacterRepository
@@ -120,6 +121,8 @@ fun appModule(
             characterCardImporter = get(),
             characterCardExporter = get(),
             fileManager = get(),
+            imageProviderRegistry = get(),
+            httpClient = get(),
         )
     }
     factory {

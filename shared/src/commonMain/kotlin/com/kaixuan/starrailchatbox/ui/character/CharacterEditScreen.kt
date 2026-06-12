@@ -85,6 +85,12 @@ import starrailchatbox.shared.generated.resources.character_edit_prompt_gen_btn
 import starrailchatbox.shared.generated.resources.character_edit_prompt_gen_title
 import starrailchatbox.shared.generated.resources.character_edit_prompt_gen_default_input
 import starrailchatbox.shared.generated.resources.character_edit_prompt_gen_generating
+import starrailchatbox.shared.generated.resources.character_edit_avatar_gen_btn
+import starrailchatbox.shared.generated.resources.character_edit_avatar_gen_title
+import starrailchatbox.shared.generated.resources.character_edit_avatar_gen_default_input
+import starrailchatbox.shared.generated.resources.character_edit_avatar_gen_generating
+import starrailchatbox.shared.generated.resources.character_edit_avatar_gen_failed
+import starrailchatbox.shared.generated.resources.character_edit_avatar_gen_config_required
 import starrailchatbox.shared.generated.resources.character_edit_importing
 import starrailchatbox.shared.generated.resources.cancel
 import starrailchatbox.shared.generated.resources.confirm
@@ -224,6 +230,7 @@ fun CharacterEditScreen(
             onNameChanged = { name ->
                 onAction(CharacterAction.CharacterNameChanged(name))
             },
+            onAction = onAction,
         )
 
         val defaultPromptRequestText = stringResource(
@@ -398,6 +405,24 @@ fun CharacterEditScreen(
                 )
             }
         }
+
+        if (editState.isAvatarGenDialogOpen) {
+            StarRailDialog(
+                title = stringResource(Res.string.character_edit_avatar_gen_title),
+                dismissText = stringResource(Res.string.cancel),
+                confirmText = stringResource(Res.string.confirm),
+                onDismissRequest = { onAction(CharacterAction.CharacterAvatarGenCancelClicked) },
+                onConfirm = { onAction(CharacterAction.CharacterAvatarGenConfirmClicked) },
+            ) {
+                LabeledTextField(
+                    value = editState.avatarGenInputText,
+                    onValueChange = { text ->
+                        onAction(CharacterAction.CharacterAvatarGenInputChanged(text))
+                    },
+                    minLines = 4,
+                )
+            }
+        }
     }
 }
 
@@ -512,6 +537,7 @@ private fun CharacterIdentityCard(
     compact: Boolean,
     onPickAvatar: () -> Unit,
     onNameChanged: (String) -> Unit,
+    onAction: (CharacterAction) -> Unit,
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -554,19 +580,66 @@ private fun CharacterIdentityCard(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                     )
-                    Surface(
-                        onClick = onPickAvatar,
-                        shape = MaterialTheme.shapes.extraLarge,
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)),
+                    val defaultAvatarPrompt = stringResource(
+                        Res.string.character_edit_avatar_gen_default_input,
+                        state.name
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(
-                            text = stringResource(Res.string.character_edit_change_avatar),
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            color = MaterialTheme.colorScheme.primary,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                        )
+                        Surface(
+                            onClick = {
+                                onAction(CharacterAction.CharacterAvatarGenClicked(defaultAvatarPrompt))
+                            },
+                            shape = MaterialTheme.shapes.extraLarge,
+                            color = if (state.isGeneratingAvatar) {
+                                MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f)
+                            } else {
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f)
+                            },
+                            border = BorderStroke(
+                                1.dp,
+                                if (state.isGeneratingAvatar) {
+                                    MaterialTheme.colorScheme.outlineVariant
+                                } else {
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                                }
+                            ),
+                            enabled = !state.isGeneratingAvatar
+                        ) {
+                            Text(
+                                text = if (state.isGeneratingAvatar) {
+                                    stringResource(Res.string.character_edit_avatar_gen_generating)
+                                } else {
+                                    stringResource(Res.string.character_edit_avatar_gen_btn)
+                                },
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                color = if (state.isGeneratingAvatar) {
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                } else {
+                                    MaterialTheme.colorScheme.primary
+                                },
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+
+                        Surface(
+                            onClick = onPickAvatar,
+                            shape = MaterialTheme.shapes.extraLarge,
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)),
+                            enabled = !state.isGeneratingAvatar
+                        ) {
+                            Text(
+                                text = stringResource(Res.string.character_edit_change_avatar),
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
                     }
                 }
                 LabeledTextField(
