@@ -59,17 +59,20 @@ class ProfileViewModelTest {
         val viewModel = createViewModel(store = store, scope = this)
         runCurrent()
 
-        viewModel.onAction(ProfileAction.AvatarChanged("file:///test/new_avatar.png", "new_avatar.png", "png"))
+        viewModel.onAction(ProfileAction.AvatarChanged("data:image/png;base64,AQID", "new_avatar.png", "png"))
         
-        // 因为 readSourceBytes 使用了 withContext(Dispatchers.Default)，
-        // advanceUntilIdle() 无法控制真实线程池的同步，需要通过轮询等待其保存完成。
+        // 使用轮询等待，确保异步的 saveProfile 执行完并调用 store.save
         var attempts = 0
-        while (store.saved == null && attempts < 50) {
+        while (store.saved == null && attempts < 100) {
             attempts++
             kotlinx.coroutines.delay(20)
         }
 
-        assertEquals("file:///test/new_avatar.png", store.saved?.customAvatarUri)
+        val savedUri = requireNotNull(store.saved?.customAvatarUri)
+        val expectedDir = com.kaixuan.starrailchatbox.platform.KmpFileManager.Default.appDataDir.toString()
+        assertTrue(savedUri.startsWith(expectedDir), "Saved URI should start with $expectedDir, but was $savedUri")
+        assertTrue(savedUri.contains("user_avatar_"), "Saved URI should contain 'user_avatar_', but was $savedUri")
+        assertTrue(savedUri.endsWith(".png"), "Saved URI should end with '.png', but was $savedUri")
     }
 
     @Test

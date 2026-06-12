@@ -1,5 +1,7 @@
 package com.kaixuan.starrailchatbox.ui.main
 
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.cancel
 import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.settings.InMemoryAppSettingsStore
 import com.kaixuan.starrailchatbox.data.update.UpdateRepository
@@ -23,6 +25,7 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainViewModelTest {
     private val dispatcher = StandardTestDispatcher()
+    private var currentViewModel: MainViewModel? = null
 
     @BeforeTest
     fun setUp() {
@@ -31,6 +34,8 @@ class MainViewModelTest {
 
     @AfterTest
     fun tearDown() {
+        currentViewModel?.viewModelScope?.cancel()
+        currentViewModel = null
         Dispatchers.resetMain()
     }
 
@@ -43,6 +48,7 @@ class MainViewModelTest {
     @Test
     fun initialStateIsCorrect() {
         val viewModel = MainViewModel(InMemoryAppSettingsStore(), mockUpdateRepository)
+        currentViewModel = viewModel
         val state = viewModel.uiState.value
 
         assertNull(state.darkThemeOverride)
@@ -52,6 +58,7 @@ class MainViewModelTest {
     @Test
     fun navigationActionsDoNotCreatePageStateInMainViewModel() {
         val viewModel = MainViewModel(InMemoryAppSettingsStore(), mockUpdateRepository)
+        currentViewModel = viewModel
         val initial = viewModel.uiState.value
 
         viewModel.onAction(MainAction.NavigationSelected(com.kaixuan.starrailchatbox.ui.navigation.Route.Settings))
@@ -64,7 +71,7 @@ class MainViewModelTest {
     @Test
     fun settingsItemClickedTriggersCorrectFlow() {
         val viewModel = MainViewModel(InMemoryAppSettingsStore(), mockUpdateRepository)
-
+        currentViewModel = viewModel
         viewModel.onAction(MainAction.SettingsItemClicked(MainSettingsItem.THEME_STYLE))
         assertTrue(viewModel.uiState.value.showThemeDialog)
     }
@@ -72,7 +79,7 @@ class MainViewModelTest {
     @Test
     fun themeDialogConfirmUpdatesThemeAndEmitsEffect() = runTest {
         val viewModel = MainViewModel(InMemoryAppSettingsStore(), mockUpdateRepository)
-
+        currentViewModel = viewModel
         viewModel.onAction(MainAction.ThemeDialogConfirm(true))
         advanceUntilIdle()
 
@@ -88,7 +95,7 @@ class MainViewModelTest {
     @Test
     fun themeDialogDismissClosesDialog() {
         val viewModel = MainViewModel(InMemoryAppSettingsStore(), mockUpdateRepository)
-
+        currentViewModel = viewModel
         viewModel.onAction(MainAction.SettingsItemClicked(MainSettingsItem.THEME_STYLE))
         assertTrue(viewModel.uiState.value.showThemeDialog)
 

@@ -20,6 +20,10 @@ import com.kaixuan.starrailchatbox.ui.character.CharacterEffect
 import com.kaixuan.starrailchatbox.ui.character.CharacterEffectMessage
 import com.kaixuan.starrailchatbox.ui.character.CharactersUiState
 import com.kaixuan.starrailchatbox.ui.character.CharacterEditUiState
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.job
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import com.kaixuan.starrailchatbox.platform.formatMessageTime
@@ -43,6 +47,7 @@ import kotlin.test.assertNull
 @OptIn(ExperimentalCoroutinesApi::class)
 class ChatViewModelTest {
     private val dispatcher = StandardTestDispatcher()
+    private var currentViewModel: ChatViewModel? = null
 
     @BeforeTest
     fun setUp() {
@@ -51,6 +56,12 @@ class ChatViewModelTest {
 
     @AfterTest
     fun tearDown() {
+        val scope = currentViewModel?.viewModelScope
+        scope?.cancel()
+        runBlocking {
+            scope?.coroutineContext?.job?.join()
+        }
+        currentViewModel = null
         Dispatchers.resetMain()
     }
 
@@ -260,6 +271,7 @@ class ChatViewModelTest {
             idGenerator = { prefix -> "$prefix-${++id}" },
             sessionTitleProvider = { "新对话" },
         )
+        currentViewModel = viewModel
         viewModel.onCharacterAction(com.kaixuan.starrailchatbox.ui.character.CharacterAction.CharacterSelected("builtin:流萤"))
         return Fixture(viewModel, sessions, api)
     }
@@ -301,13 +313,20 @@ class ChatViewModelTest {
             idGenerator = { prefix -> "$prefix-${++id}" },
             sessionTitleProvider = { "新对话" },
         )
+        currentViewModel = viewModel
         viewModel.onCharacterAction(com.kaixuan.starrailchatbox.ui.character.CharacterAction.CharacterSelected("builtin:流萤"))
         advanceUntilIdle()
 
-        viewModel.onAction(ChatAction.ImageSelected(tempImageFile.absolutePath))
+        viewModel.onAction(ChatAction.ImageSelected(tempImageFile.absolutePath, tempImageFile.name, "png"))
         viewModel.onAction(ChatAction.MessageChanged("Describe this image"))
         viewModel.onAction(ChatAction.SendClicked)
         advanceUntilIdle()
+
+        var attempts = 0
+        while (api.requests.isEmpty() && attempts < 50) {
+            attempts++
+            kotlinx.coroutines.delay(20)
+        }
 
         assertEquals(1, api.requests.size)
         val sentRequest = api.requests.single()
@@ -346,6 +365,7 @@ class ChatViewModelTest {
             sessionTitleProvider = { "新对话" },
             enableFileAppend = true,
         )
+        currentViewModel = viewModel
         viewModel.onCharacterAction(com.kaixuan.starrailchatbox.ui.character.CharacterAction.CharacterSelected("builtin:流萤"))
         advanceUntilIdle()
 
@@ -353,6 +373,12 @@ class ChatViewModelTest {
         viewModel.onAction(ChatAction.MessageChanged("Check this file:"))
         viewModel.onAction(ChatAction.SendClicked)
         advanceUntilIdle()
+
+        var attempts = 0
+        while (api.requests.isEmpty() && attempts < 50) {
+            attempts++
+            kotlinx.coroutines.delay(20)
+        }
 
         val expectedText = "Check this file:\n\n[File: test.txt]\nhello file content\n[End File]"
         
@@ -388,6 +414,7 @@ class ChatViewModelTest {
             sessionTitleProvider = { "新对话" },
             enableFileAppend = false,
         )
+        currentViewModel = viewModel
         viewModel.onCharacterAction(com.kaixuan.starrailchatbox.ui.character.CharacterAction.CharacterSelected("builtin:流萤"))
         advanceUntilIdle()
 
@@ -395,6 +422,12 @@ class ChatViewModelTest {
         viewModel.onAction(ChatAction.MessageChanged("Check this file:"))
         viewModel.onAction(ChatAction.SendClicked)
         advanceUntilIdle()
+
+        var attempts = 0
+        while (api.requests.isEmpty() && attempts < 50) {
+            attempts++
+            kotlinx.coroutines.delay(20)
+        }
 
         val sentRequest = api.requests.single()
         val userMsg = sentRequest.last()
@@ -449,14 +482,21 @@ class ChatViewModelTest {
             idGenerator = { prefix -> "$prefix-${++id}" },
             sessionTitleProvider = { "新对话" },
         )
+        currentViewModel = viewModel
         viewModel.onCharacterAction(com.kaixuan.starrailchatbox.ui.character.CharacterAction.CharacterSelected("builtin:流萤"))
         advanceUntilIdle()
 
         // 1. 第一轮：带图片附件发送，验证使用的是多模态配置
-        viewModel.onAction(ChatAction.ImageSelected(tempImageFile.absolutePath))
+        viewModel.onAction(ChatAction.ImageSelected(tempImageFile.absolutePath, tempImageFile.name, "png"))
         viewModel.onAction(ChatAction.MessageChanged("Describe this image"))
         viewModel.onAction(ChatAction.SendClicked)
         advanceUntilIdle()
+
+        var attempts = 0
+        while (api.requests.isEmpty() && attempts < 50) {
+            attempts++
+            kotlinx.coroutines.delay(20)
+        }
 
         assertEquals(1, api.requests.size)
         assertEquals("multimodal", api.configs.single().id)
@@ -465,6 +505,12 @@ class ChatViewModelTest {
         viewModel.onAction(ChatAction.MessageChanged("What color was it?"))
         viewModel.onAction(ChatAction.SendClicked)
         advanceUntilIdle()
+
+        attempts = 0
+        while (api.requests.size < 2 && attempts < 50) {
+            attempts++
+            kotlinx.coroutines.delay(20)
+        }
 
         assertEquals(2, api.requests.size)
         assertEquals("multimodal", api.configs[1].id)
@@ -490,8 +536,8 @@ private suspend fun ChatUiState.messageSnapshot(): List<ChatMessageUiModel> {
 
 private suspend fun InMemoryChatSessionRepository.messageSnapshot(
     sessionId: String,
-) = pagedMessages(sessionId).asSnapshot()
-    .map { it.message }
+) = getAllMessagesDirectly()
+    .filter { it.sessionId == sessionId }
     .sortedBy { it.seq }
 
 private object FakeCharacterRepository : CharacterRepository {

@@ -377,6 +377,8 @@ class InMemoryChatSessionRepository : ChatSessionRepository {
         invalidatePagingSources(sessionId)
     }
 
+    fun getAllMessagesDirectly(): List<StoredChatMessage> = messages.value
+
     private fun invalidatePagingSources(sessionId: String) {
         pagingSources.remove(sessionId)?.toList()?.forEach(PagingSource<Int, ChatMessagePageEntry>::invalidate)
     }
