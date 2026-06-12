@@ -18,17 +18,20 @@ class AndroidAudioPlayer(private val context: Context) : AudioPlayer {
     private var mediaPlayer: MediaPlayer? = null
     private var onCompleteCallback: (() -> Unit)? = null
     private var tempFile: File? = null
-    
-    // Fallback Mock 播放机制
+
     private val scope = CoroutineScope(Dispatchers.Main)
     private var fallbackJob: Job? = null
     private var isFallbackPlaying = false
 
+    // 增加一个标记位，防止回调被重复触发或置空错乱
+    private var isCompleting = false
+
     override fun play(uri: String, onComplete: () -> Unit) {
+        // 确保开始新播放前彻底重置状态
         stop()
+        isCompleting = false
         onCompleteCallback = onComplete
-        
-        // 如果是 mock 的内置音频，直接触发模拟播放
+
         if (uri.startsWith("builtin:")) {
             startFallbackPlay(3000L)
             return
@@ -48,14 +51,16 @@ class AndroidAudioPlayer(private val context: Context) : AudioPlayer {
                 } else {
                     setDataSource(uri)
                 }
+
                 setOnCompletionListener {
-                    scope.launch {
-                        stop()
+                    // 播放完成，在主线程直接处理回调，避免协程延迟
+                    scope.launch(Dispatchers.Main) {
+                        handlePlaybackComplete()
                     }
                 }
                 setOnErrorListener { _, _, _ ->
-                    scope.launch {
-                        stop()
+                    scope.launch(Dispatchers.Main) {
+                        handlePlaybackComplete() // 出错时也当做完成处理，保证业务闭环
                     }
                     true
                 }
@@ -64,7 +69,6 @@ class AndroidAudioPlayer(private val context: Context) : AudioPlayer {
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            // 真实播放失败时，为了保证业务闭环，采用 mock 播放
             startFallbackPlay(3000L)
         }
     }
@@ -73,24 +77,53 @@ class AndroidAudioPlayer(private val context: Context) : AudioPlayer {
         isFallbackPlaying = true
         fallbackJob = scope.launch {
             delay(durationMs)
-            stop()
+            handlePlaybackComplete() // Mock 结束也走统一的完成处理
         }
     }
 
-    override fun stop() {
+    // 新增：专门处理播放完成的函数
+    private fun handlePlaybackComplete() {
+        if (isCompleting) return
+        isCompleting = true
+
+        // 1. 先把回调单独取出来
+        val cb = onCompleteCallback
+        onCompleteCallback = null
+
+        // 2. 释放资源（但不调用会触发状态冲突的重置）
+        releaseMediaPlayer()
+        cleanTempFile()
+
         fallbackJob?.cancel()
         fallbackJob = null
         isFallbackPlaying = false
 
+        // 3. 最后安全触发回调
+        cb?.invoke()
+    }
+
+    override fun stop() {
+        // 主动停止时不应该当作“正常播放完成”，但需要清理回调
+        fallbackJob?.cancel()
+        fallbackJob = null
+        isFallbackPlaying = false
+
+        releaseMediaPlayer()
+        cleanTempFile()
+
+        // 主动 stop 时直接清空回调，不触发 invoke
+        onCompleteCallback = null
+        isCompleting = false
+    }
+
+    private fun releaseMediaPlayer() {
         try {
             mediaPlayer?.let { mp ->
                 try {
                     if (mp.isPlaying) {
                         mp.stop()
                     }
-                } catch (e: Exception) {
-                    // Ignore if already stopped
-                }
+                } catch (_: Exception) {}
                 mp.release()
             }
         } catch (e: Exception) {
@@ -98,17 +131,15 @@ class AndroidAudioPlayer(private val context: Context) : AudioPlayer {
         } finally {
             mediaPlayer = null
         }
-        
+    }
+
+    private fun cleanTempFile() {
         tempFile?.let {
             if (it.exists()) {
                 it.delete()
             }
             tempFile = null
         }
-
-        val cb = onCompleteCallback
-        onCompleteCallback = null
-        cb?.invoke()
     }
 
     override fun isPlaying(): Boolean {
