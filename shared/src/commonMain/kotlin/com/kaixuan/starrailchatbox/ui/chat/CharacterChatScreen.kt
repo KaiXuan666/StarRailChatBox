@@ -92,9 +92,10 @@ fun CharacterChatScreen(
     }
     val pageListState = rememberLazyListState()
     val pageMessages = pageState.messagePagingData.flow.collectAsLazyPagingItems()
-    val latestMessageId = (
+    val latestMessage = (
         pageMessages.itemSnapshotList.items.firstOrNull() as? ChatTimelineItem.Message
-        )?.message?.id
+        )?.message
+    val latestMessageId = latestMessage?.id
     val charactersById = remember(charactersState.characters) {
         charactersState.characters.associateBy(CharacterSummary::id)
     }
@@ -149,12 +150,12 @@ fun CharacterChatScreen(
 
     LaunchedEffect(latestMessageId) {
         if (
-            latestMessageId != null &&
+            latestMessage != null &&
             pageState.messagePagingData.anchor == ChatHistoryAnchor.LATEST
         ) {
-            // 已经处于最底部时，发送或收到消息，自动滚回底部
+            // 靠近最新消息时，发送或收到消息后自动调整阅读位置。
             if (pageListState.firstVisibleItemIndex <= 1) {
-                pageListState.animateScrollToItem(0)
+                pageListState.scrollToNewLatestMessage(latestMessage)
             }
         }
     }

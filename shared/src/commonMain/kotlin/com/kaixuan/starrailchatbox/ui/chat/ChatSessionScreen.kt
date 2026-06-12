@@ -238,10 +238,11 @@ fun ChatSessionScreen(
 
             val pageListState = currentStates.getValue(pageCharacter.id)
             val pageMessages = pageState.messagePagingData.flow.collectAsLazyPagingItems()
-            val latestMessageId = (
+            val latestMessage = (
                 pageMessages.itemSnapshotList.items.firstOrNull()
                     as? ChatTimelineItem.Message
-                )?.message?.id
+                )?.message
+            val latestMessageId = latestMessage?.id
 
             LaunchedEffect(pageState.messagePagingData) {
                 if (pageState.messagePagingData.sessionId == null) {
@@ -276,7 +277,7 @@ fun ChatSessionScreen(
 
             LaunchedEffect(pageCharacter.id, latestMessageId, pageMessages.itemCount) {
                 if (
-                    latestMessageId != null &&
+                    latestMessage != null &&
                     pageState.messagePagingData.anchor == ChatHistoryAnchor.LATEST
                 ) {
                     if (pageCharacter.id !in initiallyPositionedCharacterIds) {
@@ -284,9 +285,9 @@ fun ChatSessionScreen(
                         pageListState.scrollToItem(0)
                         initiallyPositionedCharacterIds += pageCharacter.id
                     } else {
-                        // 已经处于最底部时，发送或收到消息，自动滚回底部
+                        // 靠近最新消息时，发送或收到消息后自动调整阅读位置。
                         if (pageListState.firstVisibleItemIndex <= 1) {
-                            pageListState.animateScrollToItem(0)
+                            pageListState.scrollToNewLatestMessage(latestMessage)
                         }
                     }
                 }
@@ -377,6 +378,88 @@ fun ChatSessionScreen(
         }
     }
 }
+
+internal suspend fun LazyListState.scrollToNewLatestMessage(
+    latestMessage: ChatMessageUiModel,
+) {
+    if (latestMessage !is ChatMessageUiModel.Received) {
+        animateScrollToItem(0)
+        return
+    }
+
+    val latestMessageId = latestMessage.id
+    latestMessageScrollOffsetOrNull(latestMessageId)?.let { scrollOffset ->
+        animateScrollToItem(0, scrollOffset)
+        correctLatestMessageScrollPosition(latestMessageId)
+        return
+    }
+
+    val previousIndex = firstVisibleItemIndex
+    val previousScrollOffset = firstVisibleItemScrollOffset
+    scrollToItem(0)
+
+    val scrollOffset = snapshotFlow {
+        latestMessageScrollOffsetOrNull(latestMessageId)
+    }.first { it != null } ?: 0
+    if (scrollOffset > 0) {
+        scrollToItem(0, scrollOffset)
+    } else {
+        scrollToItem(
+            index = previousIndex.coerceAtMost(layoutInfo.totalItemsCount - 1),
+            scrollOffset = previousScrollOffset,
+        )
+        animateScrollToItem(0)
+    }
+    correctLatestMessageScrollPosition(latestMessageId)
+}
+
+private suspend fun LazyListState.correctLatestMessageScrollPosition(
+    latestMessageId: String,
+) {
+    withFrameNanos {}
+    val correctedScrollOffset = latestMessageScrollOffsetOrNull(latestMessageId)
+        ?: return
+    if (
+        firstVisibleItemIndex == 0 &&
+        firstVisibleItemScrollOffset != correctedScrollOffset
+    ) {
+        scrollToItem(0, correctedScrollOffset)
+    }
+}
+
+private fun LazyListState.latestMessageScrollOffsetOrNull(
+    latestMessageId: String,
+): Int? {
+    val latestItem = layoutInfo.visibleItemsInfo.firstOrNull { item ->
+        isLatestMessageLayoutItem(
+            itemIndex = item.index,
+            itemKey = item.key,
+            latestMessageId = latestMessageId,
+        )
+    } ?: return null
+    val contentViewportSize = (
+        layoutInfo.viewportSize.height -
+            layoutInfo.beforeContentPadding -
+            layoutInfo.afterContentPadding
+        ).coerceAtLeast(0)
+    if (contentViewportSize == 0) return null
+
+    return latestMessageScrollOffset(
+        messageSize = latestItem.size,
+        viewportSize = contentViewportSize,
+    )
+}
+
+internal fun isLatestMessageLayoutItem(
+    itemIndex: Int,
+    itemKey: Any,
+    latestMessageId: String,
+): Boolean = itemIndex == 0 && itemKey == latestMessageId
+
+internal fun latestMessageScrollOffset(
+    messageSize: Int,
+    viewportSize: Int,
+): Int = (messageSize - viewportSize).coerceAtLeast(0)
 
 internal fun chatPagerCharacters(
     characters: List<CharacterSummary>,
