@@ -130,7 +130,8 @@ class ApiSettingsViewModel(
                     defaultConfig != null &&
                     defaultConfig.apiKey.isNotBlank() &&
                     defaultConfig.baseUrl.trim().startsWith("https://") &&
-                    (!isVoice || defaultConfig.provider == XiaomiMimoProvider.Id)
+                    (!isVoice || defaultConfig.provider == XiaomiMimoProvider.Id) &&
+                    (!isImageGeneration || defaultConfig.provider != XiaomiMimoProvider.Id)
                 ) {
                     suggestDefaultConfig = defaultConfig
                     _uiState.update { it.copy(showSuggestDefaultConfigDialog = true) }
@@ -223,6 +224,18 @@ class ApiSettingsViewModel(
                                 apiProviderId = defaultConfig.provider
                                     .takeIf(::isSupportedApiProvider)
                                     ?: OpenAiCompatibleProvider.Id,
+                                apiHost = defaultConfig.baseUrl,
+                                apiKey = defaultConfig.apiKey,
+                                modelsList = emptyList(),
+                                selectedModel = "",
+                                showSuggestDefaultConfigDialog = false,
+                            )
+                            isImageGeneration -> state.copy(
+                                imageProviderId = if (defaultConfig.provider == AliCompatibleProvider.Id) {
+                                    ImageGenerationProviderIds.Ali
+                                } else {
+                                    ImageGenerationProviderIds.OpenAiCompatible
+                                },
                                 apiHost = defaultConfig.baseUrl,
                                 apiKey = defaultConfig.apiKey,
                                 modelsList = emptyList(),
