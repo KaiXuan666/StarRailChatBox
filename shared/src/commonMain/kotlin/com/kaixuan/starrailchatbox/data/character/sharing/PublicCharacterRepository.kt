@@ -38,6 +38,7 @@ data class PublicCharacterManifest(
 @Serializable
 private data class UploadUrlRequest(
     val characterId: String,
+    val categoryId: String
 )
 
 @Serializable
@@ -92,7 +93,7 @@ class DefaultPublicCharacterRepository(
             val upload = httpClient.post(UPLOAD_URL_ENDPOINT) {
                 attributes.put(SuppressNetworkLogging, true)
                 contentType(ContentType.Application.Json)
-                setBody(UploadUrlRequest(character.id))
+                setBody(UploadUrlRequest(character.id, "xxx"))
             }.body<UploadUrlResponse>()
             Napier.i(
                 message = "Upload URL response received: characterId=${character.id}, " +
