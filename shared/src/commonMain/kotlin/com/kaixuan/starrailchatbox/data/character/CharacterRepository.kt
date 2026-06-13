@@ -16,6 +16,7 @@ data class Character(
     val prompt: String,
     val openingMessage: String,
     val avatarUri: String,
+    val author: String = "",
     val description: String = "",
     val voiceSampleUri: String? = null,
     val temperature: Double = 0.85,
@@ -32,6 +33,7 @@ data class CharacterFiles(
     val prompt: String,
     val openingMessage: String,
     val avatarUri: String,
+    val author: String = "",
     val description: String = "",
     val voiceSampleUri: String? = null,
     val temperature: Double = 0.85,
@@ -59,6 +61,7 @@ data class CharacterSummary(
 data class DefaultCharacterAsset(
     val id: String,
     val name: String,
+    val author: String = "",
     val description: String = "",
     val prompt: String,
     val openingMessage: String,
@@ -158,6 +161,7 @@ class DefaultCharacterRepository(
         val files = CharacterFiles(
             id = normalizedName,
             name = normalizedName,
+            author = "",
             description = "",
             prompt = prompt,
             openingMessage = "",
@@ -178,6 +182,7 @@ class DefaultCharacterRepository(
         val files = CharacterFiles(
             id = character.id,
             name = normalizedName,
+            author = character.author,
             description = character.description,
             prompt = character.prompt,
             openingMessage = character.openingMessage,
@@ -220,6 +225,7 @@ class DefaultCharacterRepository(
         return Character(
             id = asset.id,
             name = asset.name,
+            author = asset.author,
             description = asset.description,
             prompt = asset.prompt,
             openingMessage = asset.openingMessage,
@@ -234,6 +240,7 @@ class DefaultCharacterRepository(
 private fun CharacterFiles.toCharacter() = Character(
     id = id,
     name = name,
+    author = author,
     description = description,
     prompt = prompt,
     openingMessage = openingMessage,

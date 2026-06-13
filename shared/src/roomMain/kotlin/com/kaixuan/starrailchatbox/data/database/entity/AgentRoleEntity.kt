@@ -17,6 +17,7 @@ data class AgentRoleEntity(
     @PrimaryKey
     val id: String,
     val name: String,
+    val author: String = "",
     @ColumnInfo(name = "avatar_uri")
     val avatarUri: String,
     val description: String,

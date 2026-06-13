@@ -31,6 +31,8 @@ import com.kaixuan.starrailchatbox.data.character.importer.CharacterCardImporter
 import com.kaixuan.starrailchatbox.data.character.importer.DefaultCharacterCardImporter
 import com.kaixuan.starrailchatbox.data.character.importer.CharacterCardExporter
 import com.kaixuan.starrailchatbox.data.character.importer.getCharacterCardExporter
+import com.kaixuan.starrailchatbox.data.character.sharing.DefaultPublicCharacterRepository
+import com.kaixuan.starrailchatbox.data.character.sharing.PublicCharacterRepository
 import com.kaixuan.starrailchatbox.data.chat.ChatSessionRepository
 import com.kaixuan.starrailchatbox.data.update.DefaultUpdateRepository
 import com.kaixuan.starrailchatbox.data.update.UpdateRepository
@@ -103,11 +105,12 @@ fun appModule(
     single { databaseManager }
     single<CharacterCardImporter> { DefaultCharacterCardImporter(get()) }
     single<CharacterCardExporter> { getCharacterCardExporter() }
+    single<PublicCharacterRepository> { DefaultPublicCharacterRepository(get(), get()) }
     single<KmpFileManager> { KmpFileManager.Default }
     single<UpdateRepository> { DefaultUpdateRepository(get()) }
     factory { MainViewModel(get(), get()) }
     factory { ChatMessageSender(get()) }
-    factory { CharactersViewModel(get(), get()) }
+    factory { CharactersViewModel(get(), get(), get()) }
     factory { parameters ->
         val args = parameters.get<CharacterEditArgs>()
         CharacterEditViewModel(

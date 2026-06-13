@@ -84,6 +84,8 @@
     <string name="character_edit_avatar">头像</string>
     <string name="character_edit_change_avatar">更换头像</string>
     <string name="character_edit_name">角色名称</string>
+    <string name="character_edit_author">作者</string>
+    <string name="character_edit_author_hint">分享到公共角色库时用于署名。</string>
     <string name="character_edit_description">角色描述</string>
     <string name="character_edit_description_hint">一句话简介，会显示在角色列表和预览中。</string>
     <string name="character_edit_system_prompt">系统提示词</string>
@@ -117,6 +119,17 @@
     <string name="character_edit_export">导出角色卡</string>
     <string name="character_edit_export_success">角色卡导出成功</string>
     <string name="character_edit_export_failed">角色卡导出失败</string>
+    <string name="character_export_dialog_title">导出角色</string>
+    <string name="character_export_dialog_message">请选择导出方式。分享到公共角色库后，角色将进入审核。</string>
+    <string name="character_export_local">导出到本地</string>
+    <string name="character_share_public">分享到公共角色库</string>
+    <string name="character_share_public_sharing">正在上传角色...</string>
+    <string name="character_share_public_success">角色已上传，等待审核</string>
+    <string name="character_share_public_failed">角色上传失败，请稍后重试</string>
+    <string name="character_share_public_reviewing">该角色正在审核中，请勿重复上传</string>
+    <string name="character_share_author_required">请先在角色编辑页填写作者</string>
+    <string name="character_share_media_read_failed">头像或音频样本读取失败，请重新选择后再分享</string>
+    <string name="character_share_platform_unsupported">当前平台暂不支持分享到公共角色库</string>
     <string name="character_edit_importing">正在导入角色卡...</string>
     <string name="character_edit_import_success">角色卡导入成功</string>
     <string name="character_edit_import_failed">角色卡导入失败</string>
@@ -194,7 +207,7 @@
     <string name="privacy_policy_subtitle">隐私与安全说明</string>
     <string name="privacy_policy_intro">崩铁ChatBox 非常重视您的隐私与数据安全。我们遵循最小化收集原则仅在必要时处理适量信息，并采取多种措施保障您的数据安全。</string>
     <string name="privacy_policy_section_1_title">1. 数据收集与使用</string>
-    <string name="privacy_policy_section_1_content">本应用不会收集、存储或上传您的个人敏感信息。\n您在应用中创建的角色、对话内容、设置项等数据，默认仅存储在您的本地设备中，不会主动同步或上传至任何服务器。\n如您使用导出/导入等功能，相关操作由您主动发起，数据由您自行保管与控制。</string>
+    <string name="privacy_policy_section_1_content">本应用不会主动收集或上传您的个人敏感信息。\n您在应用中创建的角色、对话内容、设置项等数据，默认仅存储在您的本地设备中，不会自动同步至服务器。\n当您主动使用“分享到公共角色库”功能时，所选角色的设定、作者署名以及可选头像和音频样本会上传用于审核和公开分享；导入、导出和分享操作均由您主动发起。</string>
     <string name="privacy_policy_section_2_title">2. 第三方服务</string>
     <string name="privacy_policy_section_2_content">本应用可能会调用第三方服务（如大语言模型 API、语音合成服务、联网搜索等）以提供相关功能。此类服务可能会接收您主动发送的内容（如对话消息、搜索关键词等），具体处理方式请参考相应第三方的隐私政策。\n我们建议您在使用前仔细阅读第三方服务提供商的隐私条款。</string>
     <string name="privacy_policy_section_3_title">3. 权限说明</string>

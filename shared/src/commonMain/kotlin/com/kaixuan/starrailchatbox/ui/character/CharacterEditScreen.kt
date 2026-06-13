@@ -65,6 +65,8 @@ import io.github.vinceglb.filekit.path
 import org.jetbrains.compose.resources.stringResource
 import starrailchatbox.shared.generated.resources.Res
 import starrailchatbox.shared.generated.resources.character_edit_avatar
+import starrailchatbox.shared.generated.resources.character_edit_author
+import starrailchatbox.shared.generated.resources.character_edit_author_hint
 import starrailchatbox.shared.generated.resources.character_edit_change_avatar
 import starrailchatbox.shared.generated.resources.character_edit_delete
 import starrailchatbox.shared.generated.resources.character_edit_delete_confirm_action
@@ -648,6 +650,15 @@ private fun CharacterIdentityCard(
                     onValueChange = onNameChanged,
                     singleLine = true,
                 )
+                LabeledTextField(
+                    label = stringResource(Res.string.character_edit_author),
+                    value = state.author,
+                    onValueChange = {
+                        onAction(CharacterAction.CharacterAuthorChanged(it))
+                    },
+                    supportingText = stringResource(Res.string.character_edit_author_hint),
+                    singleLine = true,
+                )
             }
         }
     }
@@ -1016,6 +1027,13 @@ private fun LabeledTextField(
                         .padding(end = 16.dp, bottom = 12.dp)
                 )
             }
+        }
+        if (supportingText != null && singleLine) {
+            Text(
+                text = supportingText,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+            )
         }
     }
 }

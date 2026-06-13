@@ -58,6 +58,7 @@ class DefaultCharacterCardExporter(
 
             val card = StarRailCharacterCard(
                 name = character.name,
+                author = character.author,
                 description = character.description,
                 systemPrompt = character.prompt,
                 openingMessage = character.openingMessage,

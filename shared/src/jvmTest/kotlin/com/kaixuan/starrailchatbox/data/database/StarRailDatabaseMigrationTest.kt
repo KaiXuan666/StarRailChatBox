@@ -20,7 +20,7 @@ class StarRailDatabaseMigrationTest {
             factory = StarRailDatabaseConstructor::initialize,
         )
             .setDriver(BundledSQLiteDriver())
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
             .build()
 
         try {
@@ -29,6 +29,7 @@ class StarRailDatabaseMigrationTest {
             assertEquals(20, session.summaryThresholdMessageCount)
             assertEquals(8, session.summaryRetainedMessageCount)
             assertNull(database.chatSummaryDao().findActive("session"))
+            assertEquals("", requireNotNull(database.agentRoleDao().findById("role")).author)
         } finally {
             database.close()
             runCatching { Files.deleteIfExists(databasePath) }
@@ -45,7 +46,7 @@ class StarRailDatabaseMigrationTest {
             factory = StarRailDatabaseConstructor::initialize,
         )
             .setDriver(BundledSQLiteDriver())
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
             .build()
 
         try {
@@ -71,6 +72,17 @@ class StarRailDatabaseMigrationTest {
 private fun createVersionTwoDatabase(path: String) {
     BundledSQLiteDriver().open(path).use { connection ->
         versionOneSchema.forEach(connection::execSQL)
+        connection.execSQL(
+            """
+            INSERT INTO agent_role (
+                id, name, avatar_uri, description, system_prompt, opening_message,
+                temperature, top_p, sort_order, is_builtin, created_at, updated_at, deleted_at
+            ) VALUES (
+                'role', 'Role', '', '', 'prompt', '',
+                0.85, 0.9, 0, 0, 1000, 1000, NULL
+            )
+            """.trimIndent(),
+        )
         // Apply MIGRATION_1_2 manually (simplified)
         connection.execSQL(
             """
@@ -133,6 +145,17 @@ private fun createVersionTwoDatabase(path: String) {
 private fun createVersionOneDatabase(path: String) {
     BundledSQLiteDriver().open(path).use { connection ->
         versionOneSchema.forEach(connection::execSQL)
+        connection.execSQL(
+            """
+            INSERT INTO agent_role (
+                id, name, avatar_uri, description, system_prompt, opening_message,
+                temperature, top_p, sort_order, is_builtin, created_at, updated_at, deleted_at
+            ) VALUES (
+                'role', 'Role', '', '', 'prompt', '',
+                0.85, 0.9, 0, 0, 1000, 1000, NULL
+            )
+            """.trimIndent(),
+        )
         connection.execSQL(
             """
             INSERT INTO chat_session (

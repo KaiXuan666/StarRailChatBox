@@ -177,6 +177,7 @@ class RoomCharacterStorage(
     ) = AgentRoleEntity(
         id = id,
         name = name,
+        author = author,
         avatarUri = avatarUri,
         description = description,
         systemPrompt = prompt,
@@ -193,6 +194,7 @@ class RoomCharacterStorage(
     private fun AgentRoleEntity.toCharacterFiles() = CharacterFiles(
         id = id,
         name = name,
+        author = author,
         description = description,
         prompt = systemPrompt,
         openingMessage = openingMessage,

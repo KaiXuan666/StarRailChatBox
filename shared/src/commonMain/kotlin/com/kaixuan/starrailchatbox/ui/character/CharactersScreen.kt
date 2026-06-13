@@ -74,6 +74,9 @@ import starrailchatbox.shared.generated.resources.character_edit_delete_confirm_
 import starrailchatbox.shared.generated.resources.character_edit_delete_confirm_message
 import starrailchatbox.shared.generated.resources.character_edit_delete_confirm_title
 import starrailchatbox.shared.generated.resources.character_edit_export
+import starrailchatbox.shared.generated.resources.character_export_dialog_message
+import starrailchatbox.shared.generated.resources.character_export_dialog_title
+import starrailchatbox.shared.generated.resources.character_export_local
 import starrailchatbox.shared.generated.resources.character_list_create_btn
 import starrailchatbox.shared.generated.resources.character_list_drag_tip
 import starrailchatbox.shared.generated.resources.character_list_edit_desc
@@ -86,6 +89,8 @@ import starrailchatbox.shared.generated.resources.character_list_help_import_tit
 import starrailchatbox.shared.generated.resources.character_list_help_title
 import starrailchatbox.shared.generated.resources.character_list_help_what_is_card
 import starrailchatbox.shared.generated.resources.character_list_title
+import starrailchatbox.shared.generated.resources.character_share_public
+import starrailchatbox.shared.generated.resources.character_share_public_sharing
 import starrailchatbox.shared.generated.resources.confirm
 import kotlin.math.roundToInt
 
@@ -343,8 +348,7 @@ fun CharactersScreen(
                             },
                             onExportClick = {
                                 if (draggingItemId == null) {
-                                    onAction(CharacterAction.CharacterSelected(character.id))
-                                    onAction(CharacterAction.CharacterExportClicked)
+                                    onAction(CharacterAction.CharacterExportClicked(character.id))
                                 }
                             },
                             dragModifier = dragModifier,
@@ -353,6 +357,36 @@ fun CharactersScreen(
                         )
                     }
                 }
+            }
+        }
+
+        if (state.exportDialogCharacterId != null) {
+            val isSharing = state.sharingCharacterId == state.exportDialogCharacterId
+            StarRailDialog(
+                title = stringResource(Res.string.character_export_dialog_title),
+                dismissText = stringResource(Res.string.character_export_local),
+                confirmText = stringResource(
+                    if (isSharing) {
+                        Res.string.character_share_public_sharing
+                    } else {
+                        Res.string.character_share_public
+                    },
+                ),
+                onDismissRequest = {
+                    onAction(CharacterAction.CharacterExportDialogDismissed)
+                },
+                onDismissButton = {
+                    onAction(CharacterAction.CharacterExportLocalClicked)
+                },
+                onConfirm = {
+                    onAction(CharacterAction.CharacterSharePublicClicked)
+                },
+            ) {
+                Text(
+                    text = stringResource(Res.string.character_export_dialog_message),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyLarge,
+                )
             }
         }
 
@@ -756,6 +790,34 @@ private fun CharactersScreenDarkPreview() {
             compact = true,
             onMainAction = {},
             onAction = {}
+        )
+    }
+}
+
+@Preview(widthDp = 360, heightDp = 800)
+@Composable
+private fun CharacterExportDialogLightPreview() {
+    StarRailTheme(darkThemeOverride = false) {
+        CharactersScreen(
+            state = previewState.copy(exportDialogCharacterId = "builtin:三月七"),
+            contentPadding = PaddingValues(0.dp),
+            compact = true,
+            onMainAction = {},
+            onAction = {},
+        )
+    }
+}
+
+@Preview(widthDp = 360, heightDp = 800)
+@Composable
+private fun CharacterExportDialogDarkPreview() {
+    StarRailTheme(darkThemeOverride = true) {
+        CharactersScreen(
+            state = previewState.copy(exportDialogCharacterId = "builtin:三月七"),
+            contentPadding = PaddingValues(0.dp),
+            compact = true,
+            onMainAction = {},
+            onAction = {},
         )
     }
 }

@@ -84,6 +84,7 @@ class CharacterEditViewModel(
     fun onAction(action: CharacterAction) {
         when (action) {
             is CharacterAction.CharacterNameChanged -> update { it.copy(name = action.name) }
+            is CharacterAction.CharacterAuthorChanged -> update { it.copy(author = action.author) }
             is CharacterAction.CharacterDescriptionChanged -> update { it.copy(description = action.description) }
             is CharacterAction.CharacterPromptChanged -> update { it.copy(prompt = action.prompt) }
             is CharacterAction.CharacterOpeningMessageChanged -> update {
@@ -120,10 +121,12 @@ class CharacterEditViewModel(
             CharacterAction.CharacterImportCancelled -> update {
                 it.copy(importDraft = null, isImporting = false, importError = null)
             }
-            CharacterAction.CharacterExportClicked -> viewModelScope.launch {
-                _effects.send(CharacterEffect.RequestDirectoryPicker)
-            }
             is CharacterAction.CharacterExportDirectorySelected -> export(action.directory)
+            is CharacterAction.CharacterExportClicked,
+            CharacterAction.CharacterExportDialogDismissed,
+            CharacterAction.CharacterExportLocalClicked,
+            CharacterAction.CharacterSharePublicClicked,
+            -> Unit
             is CharacterAction.CharacterEditOpened,
             CharacterAction.CharacterImportClicked,
             is CharacterAction.CharacterSelected,
@@ -365,6 +368,7 @@ class CharacterEditViewModel(
                     Character(
                         id = id,
                         name = edit.name.trim(),
+                        author = edit.author.trim(),
                         description = edit.description,
                         prompt = edit.prompt,
                         openingMessage = edit.openingMessage,
@@ -407,6 +411,7 @@ class CharacterEditViewModel(
                             isImporting = false,
                             importDraft = draft,
                             name = draft.name,
+                            author = draft.author,
                             description = draft.description,
                             prompt = draft.prompt,
                             openingMessage = draft.openingMessage,

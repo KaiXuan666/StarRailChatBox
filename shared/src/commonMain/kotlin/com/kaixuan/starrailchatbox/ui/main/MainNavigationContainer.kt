@@ -121,6 +121,12 @@ import starrailchatbox.shared.generated.resources.character_edit_prompt_gen_fail
 import starrailchatbox.shared.generated.resources.character_name_required
 import starrailchatbox.shared.generated.resources.character_edit_export_success
 import starrailchatbox.shared.generated.resources.character_edit_export_failed
+import starrailchatbox.shared.generated.resources.character_share_author_required
+import starrailchatbox.shared.generated.resources.character_share_media_read_failed
+import starrailchatbox.shared.generated.resources.character_share_platform_unsupported
+import starrailchatbox.shared.generated.resources.character_share_public_failed
+import starrailchatbox.shared.generated.resources.character_share_public_reviewing
+import starrailchatbox.shared.generated.resources.character_share_public_success
 import starrailchatbox.shared.generated.resources.character_edit_import_success
 import starrailchatbox.shared.generated.resources.character_edit_import_failed
 import starrailchatbox.shared.generated.resources.character_edit_avatar_gen_failed
@@ -448,6 +454,12 @@ fun MainRoute(
         CharacterEffectMessage.CHARACTER_DELETE_BUILTIN_RESTRICTED to stringResource(Res.string.character_delete_builtin_restricted),
         CharacterEffectMessage.CHARACTER_EXPORT_SUCCESS to stringResource(Res.string.character_edit_export_success),
         CharacterEffectMessage.CHARACTER_EXPORT_FAILED to stringResource(Res.string.character_edit_export_failed),
+        CharacterEffectMessage.CHARACTER_SHARE_SUCCESS to stringResource(Res.string.character_share_public_success),
+        CharacterEffectMessage.CHARACTER_SHARE_FAILED to stringResource(Res.string.character_share_public_failed),
+        CharacterEffectMessage.CHARACTER_SHARE_REVIEWING to stringResource(Res.string.character_share_public_reviewing),
+        CharacterEffectMessage.CHARACTER_SHARE_AUTHOR_REQUIRED to stringResource(Res.string.character_share_author_required),
+        CharacterEffectMessage.CHARACTER_SHARE_MEDIA_READ_FAILED to stringResource(Res.string.character_share_media_read_failed),
+        CharacterEffectMessage.CHARACTER_SHARE_PLATFORM_UNSUPPORTED to stringResource(Res.string.character_share_platform_unsupported),
         CharacterEffectMessage.CHARACTER_IMPORT_SUCCESS to stringResource(Res.string.character_edit_import_success),
         CharacterEffectMessage.CHARACTER_IMPORT_FAILED to stringResource(Res.string.character_edit_import_failed),
         CharacterEffectMessage.AVATAR_GEN_FAILED to stringResource(Res.string.character_edit_avatar_gen_failed),

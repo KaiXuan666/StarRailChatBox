@@ -26,7 +26,7 @@ import com.kaixuan.starrailchatbox.data.database.entity.MessageAttachmentEntity
         ModelConfigEntity::class,
         MessageAttachmentEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 @ConstructedBy(StarRailDatabaseConstructor::class)

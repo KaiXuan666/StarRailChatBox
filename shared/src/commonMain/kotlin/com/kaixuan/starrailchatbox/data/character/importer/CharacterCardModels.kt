@@ -55,6 +55,7 @@ data class StarRailCharacterCard(
     val spec: String = "starrail_chat_box_character",
     val specVersion: String = getPlatform().versionName,
     val name: String,
+    val author: String = "",
     val description: String = "",
     val systemPrompt: String,
     val openingMessage: String,
@@ -72,6 +73,7 @@ data class StarRailVoiceData(
 
 data class ImportedCharacterDraft(
     val name: String,
+    val author: String = "",
     val description: String = "",
     val prompt: String,
     val openingMessage: String,

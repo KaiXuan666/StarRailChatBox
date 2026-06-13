@@ -10,6 +10,7 @@ import com.kaixuan.starrailchatbox.data.character.importer.ImportedCharacterDraf
 data class CharacterEditUiState(
     val characterId: String? = null,
     val name: String = "",
+    val author: String = "",
     val description: String = "",
     val prompt: String = "",
     val openingMessage: String = "",
@@ -41,6 +42,9 @@ data class CharactersUiState(
     val characters: List<CharacterSummary> = emptyList(),
     val selectedCharacterId: String? = null,
     val isLoadingCharacters: Boolean = true,
+    val exportDialogCharacterId: String? = null,
+    val pendingLocalExportCharacterId: String? = null,
+    val sharingCharacterId: String? = null,
 ) {
     val selectedCharacter: CharacterSummary?
         get() = characters.firstOrNull { it.id == selectedCharacterId }
@@ -63,6 +67,7 @@ data class ChatCharactersUiState(
 fun Character.toEditUiState() = CharacterEditUiState(
     characterId = id,
     name = name,
+    author = author,
     description = description,
     prompt = prompt,
     openingMessage = openingMessage,

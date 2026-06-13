@@ -11,9 +11,12 @@ import io.ktor.client.plugins.logging.Logging
 import io.ktor.http.HttpHeaders
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
+import io.ktor.util.AttributeKey
 
 expect fun createPlatformHttpClient(): HttpClient
 expect fun saveNetworkLog(message: String)
+
+val SuppressNetworkLogging = AttributeKey<Boolean>("SuppressNetworkLogging")
 
 internal fun HttpClientConfig<*>.configureOpenAiClient() {
     expectSuccess = true
@@ -33,6 +36,9 @@ internal fun HttpClientConfig<*>.configureOpenAiClient() {
         )
     }
     install(Logging) {
+        filter { request ->
+            request.attributes.getOrNull(SuppressNetworkLogging) != true
+        }
         logger = object : Logger {
             override fun log(message: String) {
                 val maxLogLength = 1000

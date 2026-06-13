@@ -223,6 +223,7 @@ kotlin {
                 implementation(libs.room.runtime)
                 implementation(libs.room.paging)
                 implementation(libs.sqlite.bundled)
+                implementation(libs.kmp.zip)
             }
         }
         commonTest.dependencies {
@@ -239,6 +240,7 @@ kotlin {
         wasmJsMain.dependencies {
             implementation(libs.wrappers.browser)
             implementation(libs.ktor.client.js)
+            implementation(libs.kmp.zip)
         }
         jvmMain.dependencies {
             implementation(libs.ktor.client.cio)

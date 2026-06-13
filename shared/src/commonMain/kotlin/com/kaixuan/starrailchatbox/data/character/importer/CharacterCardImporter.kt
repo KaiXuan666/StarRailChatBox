@@ -131,6 +131,7 @@ class DefaultCharacterCardImporter(
             ApiResult.Success(
                 ImportedCharacterDraft(
                     name = card.name,
+                    author = card.author,
                     description = card.description,
                     prompt = card.systemPrompt,
                     openingMessage = card.openingMessage,

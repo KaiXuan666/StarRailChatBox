@@ -45,6 +45,7 @@ fun StarRailDialog(
     modifier: Modifier = Modifier,
     dismissText: String? = null,
     onDismissRequest: () -> Unit = {},
+    onDismissButton: (() -> Unit)? = null,
     neutralText: String? = null,
     onNeutral: (() -> Unit)? = null,
     destructive: Boolean = false,
@@ -120,7 +121,7 @@ fun StarRailDialog(
                     if (dismissText != null) {
                         DialogActionButton(
                             text = dismissText,
-                            onClick = onDismissRequest,
+                            onClick = onDismissButton ?: onDismissRequest,
                             primary = false,
                         )
                         Spacer(modifier = Modifier.width(10.dp))
