@@ -83,6 +83,7 @@ import starrailchatbox.shared.generated.resources.microphone_not_ready
 import starrailchatbox.shared.generated.resources.nav_characters
 import starrailchatbox.shared.generated.resources.nav_chat
 import starrailchatbox.shared.generated.resources.nav_settings
+import starrailchatbox.shared.generated.resources.nav_catalog
 import starrailchatbox.shared.generated.resources.profile_saved
 import starrailchatbox.shared.generated.resources.profile_not_ready
 import starrailchatbox.shared.generated.resources.profile_nickname_required
@@ -215,6 +216,7 @@ import starrailchatbox.shared.generated.resources.profile_import_success
 import starrailchatbox.shared.generated.resources.settings_copied_success
 import com.kaixuan.starrailchatbox.getPlatform
 import com.kaixuan.starrailchatbox.ui.chat.ChatViewModel
+import kotlinx.coroutines.delay
 import org.koin.core.Koin
 import org.koin.dsl.koinApplication
 import org.koin.core.parameter.parametersOf
@@ -848,6 +850,8 @@ fun MainNavigationContainer(
                                     isRecording = recording
                                     isCancelTargeted = cancelTargeted
                                 },
+                                koin = koin,
+                                snackbarHostState = snackbarHostState,
                             )
                         }
                     }
@@ -1095,6 +1099,8 @@ private fun RootTabsPager(
     isRecording: Boolean,
     isCancelTargeted: Boolean,
     onRecordingStateChanged: (Boolean, Boolean) -> Unit,
+    koin: Koin,
+    snackbarHostState: SnackbarHostState,
 ) {
     val selectedPage = RootTabRoutes.indexOf(selectedRoute).coerceAtLeast(0)
     val pagerState = rememberPagerState(
@@ -1112,16 +1118,26 @@ private fun RootTabsPager(
     LaunchedEffect(Unit) {
         withFrameNanos { }
         withFrameNanos { }
+        delay(1000)
         preloadRootPages = true
     }
 
     HorizontalPager(
         state = pagerState,
         modifier = Modifier.fillMaxSize(),
-        beyondViewportPageCount = if (preloadRootPages) RootTabRoutes.lastIndex else 0,
+        beyondViewportPageCount = if (preloadRootPages) 3 else 0,
         userScrollEnabled = false,
     ) { page ->
         when (RootTabRoutes[page]) {
+            Route.CharacterCatalog -> {
+                com.kaixuan.starrailchatbox.ui.character.catalog.CharacterCatalogRoute(
+                    koin = koin,
+                    contentPadding = contentPadding,
+                    compact = compact,
+                    onMainAction = onMainAction,
+                    snackbarHostState = snackbarHostState,
+                )
+            }
             Route.Characters -> {
                 CharactersScreen(
                     state = charactersState,
@@ -1494,6 +1510,11 @@ private data class NavigationItem(
 )
 
 private val navigationItems = listOf(
+    NavigationItem(
+        Route.CharacterCatalog,
+        Res.string.nav_catalog,
+        StarRailIconKind.COMPASS,
+    ),
     NavigationItem(
         Route.Characters,
         Res.string.nav_characters,

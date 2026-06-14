@@ -140,45 +140,11 @@ fun CharactersScreen(
             ),
         verticalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            StarRailPageHeader(
-                title = stringResource(Res.string.character_list_title),
-                compact = compact,
-                modifier = Modifier.weight(1f)
-            )
-
-            Surface(
-                onClick = {
-                    onMainAction(MainAction.NavigateTo(Route.CharacterCatalog))
-                },
-                shape = RoundedCornerShape(50),
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.height(34.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "角色工坊",
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    StarRailIcon(
-                        kind = StarRailIconKind.COMPASS,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(12.dp)
-                    )
-                }
-            }
-        }
+        StarRailPageHeader(
+            title = stringResource(Res.string.character_list_title),
+            compact = compact,
+            modifier = Modifier.fillMaxWidth()
+        )
 
         // "我的角色" 与 "新建角色" 标题行，以及拖动提示
         Column(verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs)) {
@@ -206,7 +172,7 @@ fun CharactersScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "导入角色卡",
+                                text = "导入",
                                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold

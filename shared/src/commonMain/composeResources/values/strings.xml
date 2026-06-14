@@ -50,6 +50,7 @@
     <string name="nav_chat">对话</string>
     <string name="nav_characters">角色</string>
     <string name="nav_discover">发现</string>
+    <string name="nav_catalog">工坊</string>
     <string name="nav_settings">设置</string>
     <string name="send_message">发送消息</string>
     <string name="add_attachment">添加附件</string>
@@ -289,7 +290,7 @@
     <!-- 角色列表界面 -->
     <string name="character_list_title">角色列表</string>
     <string name="character_list_my_characters">我的角色</string>
-    <string name="character_list_create_btn">新建角色</string>
+    <string name="character_list_create_btn">新建</string>
     <string name="character_list_edit_desc">编辑</string>
     <string name="character_list_empty">暂无自定义角色</string>
     <string name="character_list_drag_tip">长按角色卡可拖动排序，左滑可删除角色</string>
