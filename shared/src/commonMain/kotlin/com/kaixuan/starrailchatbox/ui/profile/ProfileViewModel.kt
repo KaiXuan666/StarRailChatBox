@@ -91,7 +91,8 @@ class ProfileViewModel(
             }
             is ProfileAction.ExportData -> {
                 scope().launch {
-                    databaseManager.exportDatabase(action.directoryPath).onSuccess {
+                    val nickname = _uiState.value.userNickname.ifBlank { "User" }
+                    databaseManager.exportDatabase(action.directoryPath, nickname).onSuccess {
                         _effects.send(ProfileEffect.ShowMessage(ProfileEffectMessage.EXPORT_SUCCESS))
                     }
                 }

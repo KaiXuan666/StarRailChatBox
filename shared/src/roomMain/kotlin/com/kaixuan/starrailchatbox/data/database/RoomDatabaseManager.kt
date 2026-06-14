@@ -8,43 +8,109 @@ import io.github.vinceglb.filekit.div
 import io.github.vinceglb.filekit.exists
 import io.github.vinceglb.filekit.name
 import io.github.vinceglb.filekit.write
+import io.github.vinceglb.filekit.readBytes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
+import no.synth.kmpzip.io.ByteArrayOutputStream
+import no.synth.kmpzip.zip.ZipEntry
+import no.synth.kmpzip.zip.ZipOutputStream
+import no.synth.kmpzip.zip.ZipInputStream
+import com.kaixuan.starrailchatbox.platform.KmpFileManager
+import com.kaixuan.starrailchatbox.platform.getFormattedDateTime
+import okio.Path
+import okio.Path.Companion.toPath
 
 class RoomDatabaseManager(
     private val database: StarRailDatabase,
     private val databasePath: String
 ) : DatabaseManager {
 
-    companion object {
-        private const val BACKUP_FILE_NAME = "starrail_chat_box_backup.db"
-    }
-
-    override suspend fun exportDatabase(directory: PlatformFile): Result<Unit> = runCatching {
+    override suspend fun exportDatabase(directoryPath: PlatformFile, userNickname: String): Result<Unit> = runCatching {
         withContext(Dispatchers.IO) {
-            Napier.d { "RoomDatabaseManager exportDatabase directory=${directory.name}" }
+            Napier.d { "RoomDatabaseManager exportDatabase directory=${directoryPath.name} nickname=$userNickname" }
 
-            // App 私有目录下的真实数据库文件
-            val dbFile = PlatformFile(databasePath)
-
-            // SAF / 普通目录都通过 PlatformFile 子文件方式处理
-            val destFile = directory / BACKUP_FILE_NAME
-
-            // 关键：先 checkpoint，把 WAL 内容合并回主 db 文件
+            // 1. 关键：先 checkpoint，把 WAL 内容合并回主 db 文件
             checkpointDatabase()
 
-            // 可选：如果目标已存在，先删除，避免部分平台不允许直接覆盖
+            // 2. 读取数据库主文件数据
+            val dbPath = databasePath.toPath()
+            val dbBytes = KmpFileManager.Default.readBytes(dbPath)
+
+            // 3. 递归遍历 KmpFileManager.Default.appDataDir 路径下的所有文件，过滤不需要打包的项
+            val appDataDir = KmpFileManager.Default.appDataDir
+            val cacheDir = KmpFileManager.Default.cacheDir
+            val fileList = mutableListOf<Path>()
+
+            fun collectFiles(dir: Path) {
+                val list = try { KmpFileManager.Default.list(dir) } catch (e: Exception) { emptyList() }
+                for (path in list) {
+                    val metadata = try { KmpFileManager.Default.fileSystem.metadata(path) } catch (e: Exception) { null }
+                    if (metadata?.isDirectory == true) {
+                        // 排除临时缓存目录
+                        if (path != cacheDir) {
+                            collectFiles(path)
+                        }
+                    } else if (metadata?.isRegularFile == true) {
+                        val filename = path.name
+                        // 排除数据库锁、WAL、SHM、Journal 缓存及写日志文件本身，这些会单独或不予处理
+                        val isDbRelated = filename == "starrail_chat_box.db" ||
+                                filename == "starrail_chat_box.db-wal" ||
+                                filename == "starrail_chat_box.db-shm" ||
+                                filename == "starrail_chat_box.db-journal"
+                        
+                        val isInCacheDir = path.toString().startsWith(cacheDir.toString())
+
+                        if (!isDbRelated && !isInCacheDir) {
+                            fileList.add(path)
+                        }
+                    }
+                }
+            }
+
+            collectFiles(appDataDir)
+
+            // 4. 利用 kmp-zip 将它们打包为 zip 字节流
+            val bos = ByteArrayOutputStream()
+            ZipOutputStream(bos).use { zos ->
+                // A. 写入数据库主文件
+                zos.putNextEntry(ZipEntry("starrail_chat_box.db"))
+                zos.write(dbBytes)
+                zos.closeEntry()
+
+                // B. 写入私有目录的其他持久化文件
+                for (path in fileList) {
+                    val relativePath = path.toString().removePrefix(appDataDir.toString())
+                        .replace('\\', '/')
+                        .trimStart('/')
+                    if (relativePath.isNotEmpty()) {
+                        val fileBytes = try {
+                            KmpFileManager.Default.readBytes(path)
+                        } catch (e: Exception) {
+                            null
+                        }
+                        if (fileBytes != null) {
+                            zos.putNextEntry(ZipEntry(relativePath))
+                            zos.write(fileBytes)
+                            zos.closeEntry()
+                        }
+                    }
+                }
+            }
+
+            // 5. 写入目标 zip 文件，名称规则为：用户昵称+应用名称+年月日时分.zip
+            val cleanNickname = userNickname.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+            val appName = "崩铁ChatBox"
+            val dateTimeStr = getFormattedDateTime()
+            val destFileName = "${cleanNickname}+${appName}+${dateTimeStr}.zip"
+            val destFile = directoryPath / destFileName
+
             if (destFile.exists()) {
                 destFile.delete(mustExist = false)
             }
 
-            // FileKit 推荐用 PlatformFile -> PlatformFile 的复制方式，
-            // 对 Android content:// 这类 provider-backed file 更稳
-            destFile.write(dbFile)
-            // 或者：dbFile.copyTo(destFile)
-
-            Napier.d { "RoomDatabaseManager 导出数据成功 destFile=${destFile.name}" }
+            destFile.write(bos.toByteArray())
+            Napier.d { "RoomDatabaseManager exportDatabase 成功 destFile=${destFile.name}" }
         }
     }
 
@@ -66,24 +132,76 @@ class RoomDatabaseManager(
         }
     }
 
-    override suspend fun importDatabase(file: PlatformFile): Result<Unit> = runCatching {
+    override suspend fun importDatabase(filePath: PlatformFile): Result<Unit> = runCatching {
         withContext(Dispatchers.IO) {
-            Napier.d { "RoomDatabaseManager importDatabase file=${file.name}" }
+            Napier.d { "RoomDatabaseManager importDatabase file=${filePath.name}" }
 
-            // 导入前必须关闭 Room，避免覆盖时数据库仍被占用
-            database.close()
+            val bytes = filePath.readBytes()
 
-            val targetDbFile = PlatformFile(databasePath)
+            // 检查前 4 字节魔数是否为 ZIP 幻数 0x04034B50
+            val isZip = if (bytes.size >= 4) {
+                bytes[0] == 0x50.toByte() && bytes[1] == 0x4B.toByte() && bytes[2] == 0x03.toByte() && bytes[3] == 0x04.toByte()
+            } else {
+                false
+            }
 
-            // 覆盖主数据库文件
-            targetDbFile.write(file)
-            // 或者：file.copyTo(targetDbFile)
+            if (isZip || filePath.name.lowercase().endsWith(".zip")) {
+                Napier.d { "检测为 ZIP 压缩包备份，开始导入并解压还原" }
 
-            // 删除旧 WAL/SHM，避免旧日志污染新导入的 db
-            PlatformFile("$databasePath-wal").delete(mustExist = false)
-            PlatformFile("$databasePath-shm").delete(mustExist = false)
+                // 导入前必须关闭 Room，避免覆盖时数据库仍被占用
+                database.close()
 
-            Napier.d { "RoomDatabaseManager 导入数据成功" }
+                val appDataDir = KmpFileManager.Default.appDataDir
+                val cacheDir = KmpFileManager.Default.cacheDir
+
+                ZipInputStream(bytes).use { zip ->
+                    var entry = zip.nextEntry
+                    while (entry != null) {
+                        val name = entry.name
+                        if (!entry.isDirectory) {
+                            val entryBytes = zip.readBytes()
+                            if (name == "starrail_chat_box.db") {
+                                // 写入主数据库文件
+                                val targetDbFile = PlatformFile(databasePath)
+                                targetDbFile.write(entryBytes)
+                            } else {
+                                // 还原到私有目录中的相对位置（排除 cacheDir 下的文件）
+                                val targetPath = appDataDir / name.toPath()
+                                val isInCacheDir = targetPath.toString().startsWith(cacheDir.toString())
+                                if (!isInCacheDir) {
+                                    KmpFileManager.Default.writeBytes(targetPath, entryBytes)
+                                }
+                            }
+                        }
+                        zip.closeEntry()
+                        entry = zip.nextEntry
+                    }
+                }
+
+                // 删除旧 WAL/SHM，避免旧日志污染新导入的 db
+                PlatformFile("$databasePath-wal").delete(mustExist = false)
+                PlatformFile("$databasePath-shm").delete(mustExist = false)
+                PlatformFile("$databasePath-journal").delete(mustExist = false)
+
+                Napier.d { "RoomDatabaseManager ZIP 导入数据成功" }
+            } else {
+                Napier.d { "检测为普通 DB 文件备份，执行普通覆盖导入" }
+
+                // 导入前必须关闭 Room，避免覆盖时数据库仍被占用
+                database.close()
+
+                val targetDbFile = PlatformFile(databasePath)
+
+                // 覆盖主数据库文件
+                targetDbFile.write(bytes)
+
+                // 删除旧 WAL/SHM，避免旧日志污染新导入的 db
+                PlatformFile("$databasePath-wal").delete(mustExist = false)
+                PlatformFile("$databasePath-shm").delete(mustExist = false)
+                PlatformFile("$databasePath-journal").delete(mustExist = false)
+
+                Napier.d { "RoomDatabaseManager DB 导入数据成功" }
+            }
         }
     }
 }

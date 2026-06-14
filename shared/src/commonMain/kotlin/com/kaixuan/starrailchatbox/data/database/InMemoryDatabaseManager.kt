@@ -3,7 +3,7 @@ package com.kaixuan.starrailchatbox.data.database
 import io.github.vinceglb.filekit.PlatformFile
 
 class InMemoryDatabaseManager : DatabaseManager {
-    override suspend fun exportDatabase(directoryPath: PlatformFile): Result<Unit> {
+    override suspend fun exportDatabase(directoryPath: PlatformFile, userNickname: String): Result<Unit> {
         return Result.success(Unit)
     }
 
