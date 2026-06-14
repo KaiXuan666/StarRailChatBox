@@ -975,35 +975,11 @@ fun TagFilterPanel(
                 ) {
                     tags.forEach { tag ->
                         val isSelected = selectedTagIds.contains(tag.id)
-                        Surface(
+                        SelectableCharacterTagChip(
+                            name = tag.name,
+                            selected = isSelected,
                             onClick = { onTagToggle(tag.id) },
-                            shape = RoundedCornerShape(50),
-                            color = if (isSelected) {
-                                MaterialTheme.colorScheme.primaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                            },
-                            border = BorderStroke(
-                                width = 1.dp,
-                                color = if (isSelected) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
-                                }
-                            )
-                        ) {
-                            Text(
-                                text = tag.name,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isSelected) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                            )
-                        }
+                        )
                     }
                 }
             }

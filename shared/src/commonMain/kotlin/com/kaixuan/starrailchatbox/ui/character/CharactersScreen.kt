@@ -35,7 +35,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
@@ -69,6 +68,7 @@ import androidx.compose.ui.text.style.TextAlign
 import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 import com.kaixuan.starrailchatbox.data.character.catalog.PublicCategory
 import com.kaixuan.starrailchatbox.data.character.catalog.PublicTag
+import com.kaixuan.starrailchatbox.ui.character.catalog.SelectableCharacterTagChip
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
@@ -613,29 +613,11 @@ fun CharactersScreen(
                                 verticalArrangement = Arrangement.spacedBy(2.dp),
                             ) {
                                 state.shareTags.forEach { tag ->
-                                    FilterChip(
-                                        modifier = Modifier.height(32.dp),
+                                    SelectableCharacterTagChip(
+                                        name = tag.name,
                                         selected = tag.id in state.selectedShareTagIds,
                                         onClick = {
                                             onAction(CharacterAction.CharacterShareTagToggled(tag.id))
-                                        },
-                                        label = {
-                                            Text(
-                                                text = tag.name,
-                                                style = MaterialTheme.typography.labelMedium,
-                                            )
-                                        },
-                                        leadingIcon = if (tag.id in state.selectedShareTagIds) {
-                                            {
-                                                StarRailIcon(
-                                                    kind = StarRailIconKind.CHECK,
-                                                    contentDescription = null,
-                                                    tint = MaterialTheme.colorScheme.primary,
-                                                    modifier = Modifier.size(14.dp),
-                                                )
-                                            }
-                                        } else {
-                                            null
                                         },
                                     )
                                 }
