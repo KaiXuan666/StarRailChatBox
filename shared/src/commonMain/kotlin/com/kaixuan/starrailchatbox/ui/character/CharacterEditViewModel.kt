@@ -37,6 +37,19 @@ import kotlin.io.encoding.Base64
 import kotlinx.io.readByteArray
 import kotlinx.coroutines.flow.first
 import com.kaixuan.starrailchatbox.data.settings.AppSettingsStore
+import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonPrimitive
 
 data class CharacterEditArgs(
     val characterId: String?,
@@ -117,6 +130,10 @@ class CharacterEditViewModel(
             is CharacterAction.CharacterAvatarGenInputChanged -> update { it.copy(avatarGenInputText = action.text) }
             CharacterAction.CharacterAvatarGenCancelClicked -> update { it.copy(isAvatarGenDialogOpen = false) }
             CharacterAction.CharacterAvatarGenConfirmClicked -> generateAvatar()
+            CharacterAction.CharacterVoiceGenClicked -> openVoiceGenerator()
+            is CharacterAction.CharacterVoiceGenInputChanged -> update { it.copy(voiceGenInputText = action.text) }
+            CharacterAction.CharacterVoiceGenCancelClicked -> update { it.copy(isVoiceGenDialogOpen = false) }
+            CharacterAction.CharacterVoiceGenConfirmClicked -> generateVoice()
             CharacterAction.CharacterRestoreDefaultClicked -> restoreDefault()
             is CharacterAction.CharacterImportFileSelected -> {
                 importCharacter(action.path, action.name, action.extension)
@@ -300,6 +317,92 @@ class CharacterEditViewModel(
                 showMessage(CharacterEffectMessage.AVATAR_GEN_FAILED)
             } finally {
                 update { it.copy(isGeneratingAvatar = false) }
+            }
+        }
+    }
+
+    private fun openVoiceGenerator() {
+        viewModelScope.launch {
+            try {
+                val voiceConfig = modelConfigRepository.getVoice()?.takeIf {
+                    it.baseUrl.isNotBlank() && it.apiKey.isNotBlank()
+                }
+                if (voiceConfig == null) {
+                    showMessage(CharacterEffectMessage.VOICE_CONFIG_REQUIRED)
+                    return@launch
+                }
+                val defaultPrompt = "一个16岁的动漫少女，甜美清脆的声音，语速中等，充满活力却不失温柔，带有轻微的南方口音，清晰自然。"
+                update { 
+                    it.copy(
+                        isVoiceGenDialogOpen = true, 
+                        voiceGenInputText = defaultPrompt
+                    ) 
+                }
+            } catch (t: Throwable) {
+                Napier.e("Failed to open voice generator", t)
+            }
+        }
+    }
+
+    private fun generateVoice() {
+        val input = _uiState.value.voiceGenInputText
+        update { it.copy(isVoiceGenDialogOpen = false, isGeneratingVoice = true) }
+        viewModelScope.launch {
+            try {
+                val voiceConfig = modelConfigRepository.getVoice()?.takeIf {
+                    it.baseUrl.isNotBlank() && it.apiKey.isNotBlank()
+                }
+                if (voiceConfig == null) {
+                    showMessage(CharacterEffectMessage.VOICE_CONFIG_REQUIRED)
+                    update { it.copy(isGeneratingVoice = false) }
+                    return@launch
+                }
+
+                val requestBody = buildJsonObject {
+                    put("model", voiceConfig.modelName.takeIf(String::isNotBlank) ?: "mimo-v2.5-tts-voicedesign")
+                    putJsonArray("messages") {
+                        add(buildJsonObject {
+                            put("role", "user")
+                            put("content", input)
+                        })
+                        add(buildJsonObject {
+                            put("role", "assistant")
+                            put("content", "你好，很高兴认识你。")
+                        })
+                    }
+                }
+
+                val response = httpClient.post("${voiceConfig.baseUrl.trimEnd('/')}/chat/completions") {
+                    header(HttpHeaders.Authorization, "Bearer ${voiceConfig.apiKey.trim()}")
+                    header("api-key", voiceConfig.apiKey.trim())
+                    contentType(ContentType.Application.Json)
+                    setBody(requestBody)
+                }
+
+                val responseText = response.bodyAsText()
+                val jsonObject = Json.parseToJsonElement(responseText).jsonObject
+                val base64Data = jsonObject["choices"]?.jsonArray?.getOrNull(0)?.jsonObject
+                    ?.get("message")?.jsonObject
+                    ?.get("audio")?.jsonObject
+                    ?.get("data")?.jsonPrimitive?.content
+
+                if (!base64Data.isNullOrBlank()) {
+                    @OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
+                    val audioBytes = kotlin.io.encoding.Base64.Default.decode(base64Data.trim())
+                    val randomSuffix = now().toString(36)
+                    val path = fileManager.cacheDir / "temp_voice_$randomSuffix.wav".toPath()
+                    fileManager.writeBytes(path, audioBytes)
+                    update { it.copy(voiceSampleUri = path.toString()) }
+                } else {
+                    showMessage(CharacterEffectMessage.VOICE_GEN_FAILED)
+                }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (t: Throwable) {
+                Napier.e("Failed to generate voice", t)
+                showMessage(CharacterEffectMessage.VOICE_GEN_FAILED)
+            } finally {
+                update { it.copy(isGeneratingVoice = false) }
             }
         }
     }

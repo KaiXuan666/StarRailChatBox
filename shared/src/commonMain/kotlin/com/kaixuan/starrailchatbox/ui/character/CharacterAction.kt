@@ -31,6 +31,10 @@ sealed interface CharacterAction {
     data class CharacterAvatarGenInputChanged(val text: String) : CharacterAction
     data object CharacterAvatarGenConfirmClicked : CharacterAction
     data object CharacterAvatarGenCancelClicked : CharacterAction
+    data object CharacterVoiceGenClicked : CharacterAction
+    data class CharacterVoiceGenInputChanged(val text: String) : CharacterAction
+    data object CharacterVoiceGenConfirmClicked : CharacterAction
+    data object CharacterVoiceGenCancelClicked : CharacterAction
     data object CharacterRestoreDefaultClicked : CharacterAction
     data class CharactersReordered(val orderedCharacters: List<CharacterSummary>) : CharacterAction
     

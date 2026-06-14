@@ -134,6 +134,8 @@ import starrailchatbox.shared.generated.resources.character_edit_import_success
 import starrailchatbox.shared.generated.resources.character_edit_import_failed
 import starrailchatbox.shared.generated.resources.character_edit_avatar_gen_failed
 import starrailchatbox.shared.generated.resources.character_edit_avatar_gen_config_required
+import starrailchatbox.shared.generated.resources.character_edit_voice_gen_config_required
+import starrailchatbox.shared.generated.resources.character_edit_voice_gen_failed
 import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import io.github.aakira.napier.Napier
@@ -471,6 +473,8 @@ fun MainRoute(
         CharacterEffectMessage.CHARACTER_IMPORT_FAILED to stringResource(Res.string.character_edit_import_failed),
         CharacterEffectMessage.AVATAR_GEN_FAILED to stringResource(Res.string.character_edit_avatar_gen_failed),
         CharacterEffectMessage.IMAGE_CONFIG_REQUIRED to stringResource(Res.string.character_edit_avatar_gen_config_required),
+        CharacterEffectMessage.VOICE_CONFIG_REQUIRED to stringResource(Res.string.character_edit_voice_gen_config_required),
+        CharacterEffectMessage.VOICE_GEN_FAILED to stringResource(Res.string.character_edit_voice_gen_failed),
     )
     val settingsEffectMessages = mapOf(
         SettingsEffectMessage.SETTINGS_API_NOT_READY to stringResource(Res.string.settings_api_not_ready),

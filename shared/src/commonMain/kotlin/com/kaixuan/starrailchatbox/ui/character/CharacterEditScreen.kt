@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -17,8 +16,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
@@ -41,72 +40,64 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.kaixuan.starrailchatbox.data.character.CharacterAvatarSource
 import com.kaixuan.starrailchatbox.data.character.Character
-import com.kaixuan.starrailchatbox.data.character.importer.ImportedCharacterDraft
+import com.kaixuan.starrailchatbox.data.character.CharacterAvatarSource
 import com.kaixuan.starrailchatbox.data.character.importer.ImportWarning
+import com.kaixuan.starrailchatbox.data.character.importer.ImportedCharacterDraft
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
+import com.kaixuan.starrailchatbox.platform.rememberAudioPlayer
 import com.kaixuan.starrailchatbox.ui.character.CharacterAction.CharacterAvatarChanged
-import com.kaixuan.starrailchatbox.ui.components.BackHandler
 import com.kaixuan.starrailchatbox.ui.components.AvatarImage
+import com.kaixuan.starrailchatbox.ui.components.BackHandler
 import com.kaixuan.starrailchatbox.ui.components.StarRailDialog
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
 import com.kaixuan.starrailchatbox.ui.components.StarRailPrimaryButton
 import com.kaixuan.starrailchatbox.ui.main.MainAction
-import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.dialogs.FileKitType
+import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.extension
 import io.github.vinceglb.filekit.name
 import io.github.vinceglb.filekit.path
 import org.jetbrains.compose.resources.stringResource
 import starrailchatbox.shared.generated.resources.Res
+import starrailchatbox.shared.generated.resources.cancel
+import starrailchatbox.shared.generated.resources.character_create_title
 import starrailchatbox.shared.generated.resources.character_edit_avatar
-import starrailchatbox.shared.generated.resources.character_edit_author
-import starrailchatbox.shared.generated.resources.character_edit_author_hint
+import starrailchatbox.shared.generated.resources.character_edit_avatar_gen_btn
+import starrailchatbox.shared.generated.resources.character_edit_avatar_gen_default_input
+import starrailchatbox.shared.generated.resources.character_edit_avatar_gen_generating
+import starrailchatbox.shared.generated.resources.character_edit_avatar_gen_title
 import starrailchatbox.shared.generated.resources.character_edit_change_avatar
-import starrailchatbox.shared.generated.resources.character_edit_delete
-import starrailchatbox.shared.generated.resources.character_edit_delete_confirm_action
-import starrailchatbox.shared.generated.resources.character_edit_delete_confirm_message
-import starrailchatbox.shared.generated.resources.character_edit_delete_confirm_title
+import starrailchatbox.shared.generated.resources.character_edit_importing
 import starrailchatbox.shared.generated.resources.character_edit_name
 import starrailchatbox.shared.generated.resources.character_edit_opening_message
-import starrailchatbox.shared.generated.resources.character_edit_save
+import starrailchatbox.shared.generated.resources.character_edit_prompt_gen_btn
+import starrailchatbox.shared.generated.resources.character_edit_prompt_gen_default_input
+import starrailchatbox.shared.generated.resources.character_edit_prompt_gen_generating
+import starrailchatbox.shared.generated.resources.character_edit_prompt_gen_title
 import starrailchatbox.shared.generated.resources.character_edit_restore_default
+import starrailchatbox.shared.generated.resources.character_edit_save
 import starrailchatbox.shared.generated.resources.character_edit_system_prompt
 import starrailchatbox.shared.generated.resources.character_edit_system_prompt_hint
 import starrailchatbox.shared.generated.resources.character_edit_temperature
 import starrailchatbox.shared.generated.resources.character_edit_temperature_hint
-import starrailchatbox.shared.generated.resources.character_create_title
 import starrailchatbox.shared.generated.resources.character_edit_title
 import starrailchatbox.shared.generated.resources.character_edit_top_p
 import starrailchatbox.shared.generated.resources.character_edit_top_p_hint
-import starrailchatbox.shared.generated.resources.character_edit_prompt_gen_btn
-import starrailchatbox.shared.generated.resources.character_edit_prompt_gen_title
-import starrailchatbox.shared.generated.resources.character_edit_prompt_gen_default_input
-import starrailchatbox.shared.generated.resources.character_edit_prompt_gen_generating
-import starrailchatbox.shared.generated.resources.character_edit_avatar_gen_btn
-import starrailchatbox.shared.generated.resources.character_edit_avatar_gen_title
-import starrailchatbox.shared.generated.resources.character_edit_avatar_gen_default_input
-import starrailchatbox.shared.generated.resources.character_edit_avatar_gen_generating
-import starrailchatbox.shared.generated.resources.character_edit_avatar_gen_failed
-import starrailchatbox.shared.generated.resources.character_edit_avatar_gen_config_required
-import starrailchatbox.shared.generated.resources.character_edit_importing
-import starrailchatbox.shared.generated.resources.cancel
-import starrailchatbox.shared.generated.resources.confirm
-import starrailchatbox.shared.generated.resources.navigation_back
-import starrailchatbox.shared.generated.resources.settings_saving
-import com.kaixuan.starrailchatbox.platform.rememberAudioPlayer
-import io.github.vinceglb.filekit.extension
-import io.github.vinceglb.filekit.mimeType
-import io.github.vinceglb.filekit.nameWithoutExtension
 import starrailchatbox.shared.generated.resources.character_edit_voice_clear
+import starrailchatbox.shared.generated.resources.character_edit_voice_gen_generating
+import starrailchatbox.shared.generated.resources.character_edit_voice_gen_title
+import starrailchatbox.shared.generated.resources.character_edit_voice_generate
 import starrailchatbox.shared.generated.resources.character_edit_voice_sample
 import starrailchatbox.shared.generated.resources.character_edit_voice_sample_hint
 import starrailchatbox.shared.generated.resources.character_edit_voice_select
+import starrailchatbox.shared.generated.resources.confirm
+import starrailchatbox.shared.generated.resources.navigation_back
+import starrailchatbox.shared.generated.resources.settings_saving
 import kotlin.math.roundToInt
 
 
@@ -435,6 +426,24 @@ fun CharacterEditScreen(
                     value = editState.avatarGenInputText,
                     onValueChange = { text ->
                         onAction(CharacterAction.CharacterAvatarGenInputChanged(text))
+                    },
+                    minLines = 4,
+                )
+            }
+        }
+
+        if (editState.isVoiceGenDialogOpen) {
+            StarRailDialog(
+                title = stringResource(Res.string.character_edit_voice_gen_title),
+                dismissText = stringResource(Res.string.cancel),
+                confirmText = stringResource(Res.string.confirm),
+                onDismissRequest = { onAction(CharacterAction.CharacterVoiceGenCancelClicked) },
+                onConfirm = { onAction(CharacterAction.CharacterVoiceGenConfirmClicked) },
+            ) {
+                LabeledTextField(
+                    value = editState.voiceGenInputText,
+                    onValueChange = { text ->
+                        onAction(CharacterAction.CharacterVoiceGenInputChanged(text))
                     },
                     minLines = 4,
                 )
@@ -822,13 +831,29 @@ private fun CharacterVoiceSampleCard(
                         Surface(
                             onClick = { onAction(CharacterAction.CharacterVoiceSampleChanged(null)) },
                             shape = MaterialTheme.shapes.extraLarge,
-                            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f)),
+                            color = if (state.isGeneratingVoice) {
+                                MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f)
+                            } else {
+                                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)
+                            },
+                            border = BorderStroke(
+                                1.dp,
+                                if (state.isGeneratingVoice) {
+                                    MaterialTheme.colorScheme.outlineVariant
+                                } else {
+                                    MaterialTheme.colorScheme.error.copy(alpha = 0.4f)
+                                }
+                            ),
+                            enabled = !state.isGeneratingVoice,
                         ) {
                             Text(
                                 text = stringResource(Res.string.character_edit_voice_clear),
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                color = MaterialTheme.colorScheme.error,
+                                color = if (state.isGeneratingVoice) {
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                } else {
+                                    MaterialTheme.colorScheme.error
+                                },
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
                             )
@@ -836,15 +861,66 @@ private fun CharacterVoiceSampleCard(
                     }
 
                     Surface(
+                        onClick = { onAction(CharacterAction.CharacterVoiceGenClicked) },
+                        shape = MaterialTheme.shapes.extraLarge,
+                        color = if (state.isGeneratingVoice) {
+                            MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f)
+                        } else {
+                            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.28f)
+                        },
+                        border = BorderStroke(
+                            1.dp,
+                            if (state.isGeneratingVoice) {
+                                MaterialTheme.colorScheme.outlineVariant
+                            } else {
+                                MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f)
+                            }
+                        ),
+                        enabled = !state.isGeneratingVoice
+                    ) {
+                        Text(
+                            text = if (state.isGeneratingVoice) {
+                                stringResource(Res.string.character_edit_voice_gen_generating)
+                            } else {
+                                stringResource(Res.string.character_edit_voice_generate)
+                            },
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            color = if (state.isGeneratingVoice) {
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            } else {
+                                MaterialTheme.colorScheme.secondary
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+
+                    Surface(
                         onClick = { audioPicker.launch() },
                         shape = MaterialTheme.shapes.extraLarge,
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)),
+                        color = if (state.isGeneratingVoice) {
+                            MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f)
+                        } else {
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f)
+                        },
+                        border = BorderStroke(
+                            1.dp,
+                            if (state.isGeneratingVoice) {
+                                MaterialTheme.colorScheme.outlineVariant
+                            } else {
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                            }
+                        ),
+                        enabled = !state.isGeneratingVoice
                     ) {
                         Text(
                             text = stringResource(Res.string.character_edit_voice_select),
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            color = MaterialTheme.colorScheme.primary,
+                            color = if (state.isGeneratingVoice) {
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            } else {
+                                MaterialTheme.colorScheme.primary
+                            },
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                         )

@@ -27,6 +27,9 @@ data class CharacterEditUiState(
     val isAvatarGenDialogOpen: Boolean = false,
     val avatarGenInputText: String = "",
     val isGeneratingAvatar: Boolean = false,
+    val isVoiceGenDialogOpen: Boolean = false,
+    val voiceGenInputText: String = "",
+    val isGeneratingVoice: Boolean = false,
     
     // Export status
     val isExporting: Boolean = false,
