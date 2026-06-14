@@ -26,6 +26,7 @@ import com.kaixuan.starrailchatbox.design.starRailColors
 import com.kaixuan.starrailchatbox.platform.AudioPlayer
 import com.kaixuan.starrailchatbox.platform.rememberAudioPlayer
 import com.kaixuan.starrailchatbox.ui.components.AvatarImage
+import com.kaixuan.starrailchatbox.ui.components.BackHandler
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
@@ -52,6 +53,10 @@ fun CharacterCatalogDetailRoute(
         }
     }
     val state by model.uiState.collectAsStateWithLifecycle()
+
+    BackHandler {
+        onMainAction(MainAction.PopBackStack)
+    }
 
     LaunchedEffect(model.effects) {
         model.effects.collect { effect ->
@@ -263,18 +268,18 @@ private fun CharacterReadOnlyIdentityCard(
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
-                        ) {
-                            Text(
-                                text = categoryName,
-                                color = MaterialTheme.colorScheme.secondary,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
+//                        Surface(
+//                            shape = RoundedCornerShape(6.dp),
+//                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+//                        ) {
+//                            Text(
+//                                text = categoryName,
+//                                color = MaterialTheme.colorScheme.secondary,
+//                                style = MaterialTheme.typography.labelSmall,
+//                                fontWeight = FontWeight.Bold,
+//                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+//                            )
+//                        }
                     }
                     Text(
                         text = "作者：$author",
