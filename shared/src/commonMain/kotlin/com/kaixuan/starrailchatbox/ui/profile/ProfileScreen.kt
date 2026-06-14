@@ -125,34 +125,26 @@ fun ProfileScreen(
         onBackClick = { onAction(ProfileAction.BackClicked) },
         modifier = modifier,
     ) {
-        // User Avatar Section
+        // User Settings Section (承接头像和昵称的设置)
         SettingsSection(
-            title = stringResource(Res.string.global_settings_avatar_section)
+            title = stringResource(Res.string.profile_nickname_section)
         ) {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(24.dp)
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Avatar with orbit-like decoration
-                Box(contentAlignment = Alignment.Center) {
-                    // Outer Orbit
-                    Canvas(modifier = Modifier.size(180.dp)) {
-                        val strokeWidth = 1.dp.toPx()
-                        val color = colors.constellation.copy(alpha = 0.2f)
-                        drawCircle(
-                            color = color,
-                            radius = size.minDimension / 2,
-                            style = Stroke(width = strokeWidth)
-                        )
-                    }
-                    
-                    // Avatar Container
+                // 头像与按钮组 (组合至子 Column 中使其紧凑)
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Avatar Container (缩小的头像，去掉了外圈的 Canvas)
                     Box(
                         modifier = Modifier
-                            .size(130.dp)
-                            .border(2.dp, colors.constellation.copy(alpha = 0.4f), CircleShape)
-                            .padding(6.dp)
+                            .size(80.dp)
+                            .border(1.5.dp, colors.constellation.copy(alpha = 0.4f), CircleShape)
+                            .padding(4.dp)
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.3f)),
                         contentAlignment = Alignment.Center
@@ -161,79 +153,76 @@ fun ProfileScreen(
                             avatarUri = state.customAvatarUri.orEmpty(),
                             contentDescription = null,
                             placeholderKind = StarRailIconKind.SPARKLE,
-                            placeholderSize = 60.dp,
+                            placeholderSize = 40.dp,
                             modifier = Modifier.fillMaxSize(),
                             isUser = true,
                         )
                     }
-                }
 
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                ) {
-                    // Change Avatar Button
-                    SecondaryActionButton(
-                        onClick = { imagePicker.launch() },
-                        icon = StarRailIconKind.GALLERY,
-                        text = stringResource(Res.string.profile_avatar_title),
-                        modifier = Modifier.weight(1f)
-                    )
-                    
-                    // Restore Default Button
-                    SecondaryActionButton(
-                        onClick = { onAction(ProfileAction.RestoreDefaultAvatar) },
-                        icon = StarRailIconKind.UPDATE,
-                        text = stringResource(Res.string.profile_restore_default),
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-        }
-
-        // User Settings Section (用户昵称设置，在通用设置上面)
-        SettingsSection(
-            title = stringResource(Res.string.profile_nickname_section)
-        ) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = stringResource(Res.string.profile_nickname_title),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.SemiBold
-                )
-                OutlinedTextField(
-                    value = state.userNickname,
-                    onValueChange = { onAction(ProfileAction.UserNicknameChanged(it)) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                        .clip(RoundedCornerShape(24.dp)),
-                    singleLine = true,
-                    textStyle = MaterialTheme.typography.bodyMedium,
-                    shape = RoundedCornerShape(24.dp),
-                    placeholder = {
-                        Text(
-                            text = stringResource(Res.string.profile_nickname_placeholder),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    ) {
+                        // Change Avatar Button
+                        SecondaryActionButton(
+                            onClick = { imagePicker.launch() },
+                            icon = StarRailIconKind.GALLERY,
+                            text = stringResource(Res.string.profile_avatar_title),
+                            modifier = Modifier.weight(1f)
                         )
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                        disabledContainerColor = Color.Transparent,
-                        errorContainerColor = Color.Transparent,
-                        focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f),
-                        disabledBorderColor = Color.Transparent,
-                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        
+                        // Restore Default Button
+                        SecondaryActionButton(
+                            onClick = { onAction(ProfileAction.RestoreDefaultAvatar) },
+                            icon = StarRailIconKind.UPDATE,
+                            text = stringResource(Res.string.profile_restore_default),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
+                // Nickname Field
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalAlignment = Alignment.Start
+                ) {
+                    Text(
+                        text = stringResource(Res.string.profile_nickname_title),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.SemiBold
                     )
-                )
+                    OutlinedTextField(
+                        value = state.userNickname,
+                        onValueChange = { onAction(ProfileAction.UserNicknameChanged(it)) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .clip(RoundedCornerShape(24.dp)),
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyMedium,
+                        shape = RoundedCornerShape(24.dp),
+                        placeholder = {
+                            Text(
+                                text = stringResource(Res.string.profile_nickname_placeholder),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                            disabledContainerColor = Color.Transparent,
+                            errorContainerColor = Color.Transparent,
+                            focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f),
+                            disabledBorderColor = Color.Transparent,
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        )
+                    )
+                }
             }
         }
 
