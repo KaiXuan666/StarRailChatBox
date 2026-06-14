@@ -34,7 +34,16 @@ class JvmAudioPlayer : AudioPlayer {
                             AudioSystem.getAudioInputStream(ByteArrayInputStream(bytes))
                         }
                         uri.startsWith("file:") || uri.startsWith("/") || (uri.length > 2 && uri[1] == ':') -> {
-                            val file = if (uri.startsWith("file:")) File(URI(uri)) else File(uri)
+                            val file = if (uri.startsWith("file:")) {
+                                try {
+                                    File(URI(uri))
+                                } catch (e: Exception) {
+                                    val cleaned = uri.removePrefix("file://").removePrefix("file:/")
+                                    File(cleaned)
+                                }
+                            } else {
+                                File(uri)
+                            }
                             AudioSystem.getAudioInputStream(file)
                         }
                         uri.startsWith("http") -> {

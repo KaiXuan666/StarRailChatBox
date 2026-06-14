@@ -221,7 +221,8 @@ class RoomDatabaseManager(
                 // 强制将修改模式设置为 TRUNCATE，确保所有的路径修改直接在主 db 文件中生效，绝不产生 WAL
                 connection.execSQL("PRAGMA journal_mode = TRUNCATE")
 
-                val newBaseDir = KmpFileManager.Default.appDataDir.toString().replace('\\', '/')
+                val baseDirStr = KmpFileManager.Default.appDataDir.toString().replace('\\', '/')
+                val newBaseDir = if (baseDirStr.startsWith("/")) "file://$baseDirStr" else "file:///$baseDirStr"
 
                 val keyDirs = listOf("character_avatars/", "chat_attachments/", "character_voice_samples/", "generated_images/")
                 val targets = listOf(
