@@ -8,6 +8,7 @@ sealed interface CharacterEffect {
     data object CharacterSaved : CharacterEffect
     data object CharacterDeleted : CharacterEffect
     data object RequestDirectoryPicker : CharacterEffect
+    data object NavigateToProfile : CharacterEffect
 }
 
 enum class CharacterEffectMessage {

@@ -150,6 +150,7 @@
     <string name="profile_nickname_section">用户设置</string>
     <string name="profile_nickname_title">用户昵称</string>
     <string name="profile_nickname_placeholder">输入你的昵称</string>
+    <string name="profile_nickname_required">请先输入昵称</string>
 
     <string name="global_settings_avatar_section">用户头像</string>
     <string name="global_settings_general_section">通用设置</string>

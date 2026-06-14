@@ -114,7 +114,7 @@ fun appModule(
     single<UpdateRepository> { DefaultUpdateRepository(get()) }
     factory { MainViewModel(get(), get()) }
     factory { ChatMessageSender(get()) }
-    factory { CharactersViewModel(get(), get(), get()) }
+    factory { CharactersViewModel(get(), get(), get(), get()) }
     factory { parameters ->
         val args = parameters.get<CharacterEditArgs>()
         CharacterEditViewModel(

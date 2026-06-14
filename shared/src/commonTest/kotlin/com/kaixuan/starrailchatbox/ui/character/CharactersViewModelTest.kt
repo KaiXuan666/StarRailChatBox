@@ -7,6 +7,8 @@ import com.kaixuan.starrailchatbox.data.character.CharacterRepository
 import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 import com.kaixuan.starrailchatbox.data.character.importer.CharacterCardExporter
 import com.kaixuan.starrailchatbox.data.character.sharing.PublicCharacterRepository
+import com.kaixuan.starrailchatbox.data.settings.AppSettingsStore
+import com.kaixuan.starrailchatbox.data.settings.InMemoryAppSettingsStore
 import io.github.vinceglb.filekit.PlatformFile
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -36,16 +38,18 @@ class CharactersViewModelTest {
     }
 
     @Test
-    fun sharingRequiresAuthor() = runTest {
-        val viewModel = createViewModel(character = testCharacter(author = ""))
+    fun sharingFailureClosesDialog() = runTest {
+        val sharingRepository = FakePublicCharacterRepository { ApiResult.NetworkError("connection error") }
+        val viewModel = createViewModel(publicRepository = sharingRepository)
         runCurrent()
         viewModel.onAction(CharacterAction.CharacterExportClicked("role"))
         viewModel.onAction(CharacterAction.CharacterSharePublicClicked)
 
         assertEquals(
-            CharacterEffect.ShowMessage(CharacterEffectMessage.CHARACTER_SHARE_AUTHOR_REQUIRED),
+            CharacterEffect.ShowMessage(CharacterEffectMessage.CHARACTER_SHARE_FAILED, "网络错误: connection error"),
             viewModel.effects.first(),
         )
+        assertNull(viewModel.uiState.value.exportDialogCharacterId)
     }
 
     @Test
@@ -66,12 +70,52 @@ class CharactersViewModelTest {
         assertNull(viewModel.uiState.value.sharingCharacterId)
         assertNull(viewModel.uiState.value.exportDialogCharacterId)
     }
+
+    @Test
+    fun sharingRequiresNickname() = runTest {
+        val appSettingsStore = InMemoryAppSettingsStore()
+        val viewModel = createViewModel(appSettingsStore = appSettingsStore)
+        runCurrent()
+        viewModel.onAction(CharacterAction.CharacterExportClicked("role"))
+        viewModel.onAction(CharacterAction.CharacterSharePublicClicked)
+
+        assertEquals(
+            CharacterEffect.NavigateToProfile,
+            viewModel.effects.first(),
+        )
+        assertNull(viewModel.uiState.value.exportDialogCharacterId)
+    }
+
+    @Test
+    fun sharingUsesUserNicknameAsAuthor() = runTest {
+        val sharingRepository = FakePublicCharacterRepository { ApiResult.Success(Unit) }
+        val appSettingsStore = InMemoryAppSettingsStore().apply {
+            kotlinx.coroutines.runBlocking { setUserNickname("custom_nickname") }
+        }
+        val viewModel = createViewModel(
+            character = testCharacter(author = "original_author"),
+            publicRepository = sharingRepository,
+            appSettingsStore = appSettingsStore,
+        )
+        runCurrent()
+        viewModel.onAction(CharacterAction.CharacterExportClicked("role"))
+        viewModel.onAction(CharacterAction.CharacterSharePublicClicked)
+
+        assertEquals(
+            CharacterEffect.ShowMessage(CharacterEffectMessage.CHARACTER_SHARE_SUCCESS),
+            viewModel.effects.first(),
+        )
+        assertEquals("custom_nickname", sharingRepository.lastSharedCharacter?.author)
+    }
 }
 
 private fun createViewModel(
     character: Character = testCharacter(),
     publicRepository: PublicCharacterRepository = FakePublicCharacterRepository {
         ApiResult.Success(Unit)
+    },
+    appSettingsStore: AppSettingsStore = InMemoryAppSettingsStore().apply {
+        kotlinx.coroutines.runBlocking { setUserNickname("tester") }
     },
 ) = CharactersViewModel(
     characterRepository = FakeCharacterRepository(character),
@@ -82,6 +126,7 @@ private fun createViewModel(
         ): ApiResult<Unit> = ApiResult.Success(Unit)
     },
     publicCharacterRepository = publicRepository,
+    appSettingsStore = appSettingsStore,
 )
 
 private class FakePublicCharacterRepository(
@@ -89,9 +134,11 @@ private class FakePublicCharacterRepository(
 ) : PublicCharacterRepository {
     override val isSupported: Boolean = true
     var shareCount: Int = 0
+    var lastSharedCharacter: Character? = null
 
     override suspend fun share(character: Character): ApiResult<Unit> {
         shareCount++
+        lastSharedCharacter = character
         return result()
     }
 }

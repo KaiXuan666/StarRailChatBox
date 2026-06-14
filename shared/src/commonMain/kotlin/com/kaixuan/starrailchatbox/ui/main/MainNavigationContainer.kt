@@ -85,6 +85,7 @@ import starrailchatbox.shared.generated.resources.nav_chat
 import starrailchatbox.shared.generated.resources.nav_settings
 import starrailchatbox.shared.generated.resources.profile_saved
 import starrailchatbox.shared.generated.resources.profile_not_ready
+import starrailchatbox.shared.generated.resources.profile_nickname_required
 import starrailchatbox.shared.generated.resources.settings_api_not_ready
 import starrailchatbox.shared.generated.resources.settings_update_check
 import starrailchatbox.shared.generated.resources.settings_update_checking
@@ -500,6 +501,7 @@ fun MainRoute(
         MainEffectMessage.CHARACTER_DELETED to stringResource(Res.string.character_deleted),
         MainEffectMessage.PROFILE_SAVED to stringResource(Res.string.profile_saved),
         MainEffectMessage.API_SETTINGS_SAVED to stringResource(Res.string.settings_api_saved),
+        MainEffectMessage.NICKNAME_REQUIRED to stringResource(Res.string.profile_nickname_required),
     )
 
     LaunchedEffect(main.effects, mainEffectMessages) {
@@ -544,6 +546,10 @@ fun MainRoute(
                 CharacterEffect.RequestDirectoryPicker -> {
                     directoryPicker.launch()
                 }
+                CharacterEffect.NavigateToProfile -> {
+                    onMainAction(MainAction.NavigateTo(Route.Profile))
+                    onMainAction(MainAction.ShowMessage(MainEffectMessage.NICKNAME_REQUIRED))
+                }
             }
         }
     }
@@ -564,6 +570,10 @@ fun MainRoute(
                     onMainAction(MainAction.ShowMessage(MainEffectMessage.CHARACTER_DELETED))
                 }
                 CharacterEffect.RequestDirectoryPicker -> directoryPicker.launch()
+                CharacterEffect.NavigateToProfile -> {
+                    onMainAction(MainAction.NavigateTo(Route.Profile))
+                    onMainAction(MainAction.ShowMessage(MainEffectMessage.NICKNAME_REQUIRED))
+                }
             }
         }
     }
@@ -1254,6 +1264,10 @@ private fun CharacterEditRoute(
                     onMainAction(MainAction.ShowMessage(MainEffectMessage.CHARACTER_DELETED))
                 }
                 CharacterEffect.RequestDirectoryPicker -> directoryPicker.launch()
+                CharacterEffect.NavigateToProfile -> {
+                    onMainAction(MainAction.NavigateTo(Route.Profile))
+                    onMainAction(MainAction.ShowMessage(MainEffectMessage.NICKNAME_REQUIRED))
+                }
             }
         }
     }

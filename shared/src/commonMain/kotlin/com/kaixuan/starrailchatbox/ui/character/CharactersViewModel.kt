@@ -8,6 +8,8 @@ import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 import com.kaixuan.starrailchatbox.data.character.importer.CharacterCardExporter
 import com.kaixuan.starrailchatbox.data.character.sharing.DefaultPublicCharacterRepository
 import com.kaixuan.starrailchatbox.data.character.sharing.PublicCharacterRepository
+import com.kaixuan.starrailchatbox.data.settings.AppSettingsStore
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,6 +23,7 @@ class CharactersViewModel(
     private val characterRepository: CharacterRepository,
     private val characterCardExporter: CharacterCardExporter,
     private val publicCharacterRepository: PublicCharacterRepository,
+    private val appSettingsStore: AppSettingsStore,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(CharactersUiState())
     val uiState = _uiState.asStateFlow()
@@ -146,31 +149,43 @@ class CharactersViewModel(
         if (_uiState.value.sharingCharacterId != null) return
         _uiState.update { it.copy(sharingCharacterId = characterId) }
         viewModelScope.launch {
+            val nickname = appSettingsStore.userNickname.first()
+            if (nickname.isBlank()) {
+                _uiState.update {
+                    it.copy(
+                        sharingCharacterId = null,
+                        exportDialogCharacterId = null,
+                    )
+                }
+                _effects.send(CharacterEffect.NavigateToProfile)
+                return@launch
+            }
             val character = characterRepository.getCharacter(characterId)
             if (character == null) {
-                _uiState.update { it.copy(sharingCharacterId = null) }
+                _uiState.update {
+                    it.copy(
+                        sharingCharacterId = null,
+                        exportDialogCharacterId = null,
+                    )
+                }
                 showMessage(CharacterEffectMessage.CHARACTER_SHARE_FAILED)
                 return@launch
             }
-            if (character.author.isBlank()) {
-                _uiState.update { it.copy(sharingCharacterId = null) }
-                showMessage(CharacterEffectMessage.CHARACTER_SHARE_AUTHOR_REQUIRED)
-                return@launch
-            }
             if (!publicCharacterRepository.isSupported) {
-                _uiState.update { it.copy(sharingCharacterId = null) }
+                _uiState.update {
+                    it.copy(
+                        sharingCharacterId = null,
+                        exportDialogCharacterId = null,
+                    )
+                }
                 showMessage(CharacterEffectMessage.CHARACTER_SHARE_PLATFORM_UNSUPPORTED)
                 return@launch
             }
-            val result = publicCharacterRepository.share(character)
+            val result = publicCharacterRepository.share(character.copy(author = nickname))
             _uiState.update { state ->
                 state.copy(
                     sharingCharacterId = null,
-                    exportDialogCharacterId = if (result is ApiResult.Success) {
-                        null
-                    } else {
-                        state.exportDialogCharacterId
-                    },
+                    exportDialogCharacterId = null,
                 )
             }
             var customMessage: String? = null

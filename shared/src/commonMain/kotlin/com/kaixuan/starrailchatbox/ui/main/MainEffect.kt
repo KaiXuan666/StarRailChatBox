@@ -17,4 +17,5 @@ enum class MainEffectMessage {
     CHARACTER_DELETED,
     PROFILE_SAVED,
     API_SETTINGS_SAVED,
+    NICKNAME_REQUIRED,
 }
