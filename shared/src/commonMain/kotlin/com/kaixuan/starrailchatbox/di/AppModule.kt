@@ -51,6 +51,7 @@ import com.kaixuan.starrailchatbox.ui.main.MainViewModel
 import com.kaixuan.starrailchatbox.ui.character.CharactersViewModel
 import com.kaixuan.starrailchatbox.ui.character.CharacterEditViewModel
 import com.kaixuan.starrailchatbox.ui.character.CharacterEditArgs
+import com.kaixuan.starrailchatbox.ui.character.catalog.CharacterCatalogViewModel
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
@@ -155,4 +156,5 @@ fun appModule(
     }
     factory { SettingsOverviewViewModel(get()) }
     factory { ProfileViewModel(get(), get()) }
+    factory { CharacterCatalogViewModel(get(), get(), get()) }
 }

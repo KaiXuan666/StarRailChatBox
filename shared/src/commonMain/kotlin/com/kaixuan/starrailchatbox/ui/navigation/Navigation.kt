@@ -13,6 +13,10 @@ sealed interface Route : NavKey {
     @Serializable
     data object ConversationManagement : Route
 
+    // 角色工坊二级界面
+    @Serializable
+    data object CharacterCatalog : Route
+
     // 当前角色的角色编辑二级界面
     @Serializable
     data class CharacterEdit(

@@ -154,6 +154,34 @@ fun CharactersScreen(
 
                     Surface(
                         onClick = {
+                            onMainAction(MainAction.NavigateTo(Route.CharacterCatalog))
+                        },
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        modifier = Modifier.height(34.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "角色工坊",
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            StarRailIcon(
+                                kind = StarRailIconKind.COMPASS,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
+                    }
+
+                    Surface(
+                        onClick = {
                             onAction(CharacterAction.CharacterImportClicked)
                         },
                         shape = RoundedCornerShape(50),
