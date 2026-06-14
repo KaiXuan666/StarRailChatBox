@@ -132,6 +132,9 @@ class CharacterEditViewModel(
             CharacterAction.CharacterExportDialogDismissed,
             CharacterAction.CharacterExportLocalClicked,
             CharacterAction.CharacterSharePublicClicked,
+            CharacterAction.CharacterShareCategoryConfirmed,
+            CharacterAction.CharacterShareCategoryDialogDismissed,
+            is CharacterAction.CharacterShareCategorySelected,
             -> Unit
             is CharacterAction.CharacterEditOpened,
             CharacterAction.CharacterImportClicked,

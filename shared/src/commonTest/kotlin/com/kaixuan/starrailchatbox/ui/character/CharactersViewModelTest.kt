@@ -5,6 +5,13 @@ import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.data.character.CharacterAvatarSource
 import com.kaixuan.starrailchatbox.data.character.CharacterRepository
 import com.kaixuan.starrailchatbox.data.character.CharacterSummary
+import com.kaixuan.starrailchatbox.data.character.catalog.PublicCatalog
+import com.kaixuan.starrailchatbox.data.character.catalog.PublicCatalogFetch
+import com.kaixuan.starrailchatbox.data.character.catalog.PublicCategories
+import com.kaixuan.starrailchatbox.data.character.catalog.PublicCategory
+import com.kaixuan.starrailchatbox.data.character.catalog.PublicCharacterCatalogRepository
+import com.kaixuan.starrailchatbox.data.character.catalog.PublicCharacterDetail
+import com.kaixuan.starrailchatbox.data.character.catalog.PublicCharacterPage
 import com.kaixuan.starrailchatbox.data.character.importer.CharacterCardExporter
 import com.kaixuan.starrailchatbox.data.character.sharing.PublicCharacterRepository
 import com.kaixuan.starrailchatbox.data.settings.AppSettingsStore
@@ -44,6 +51,9 @@ class CharactersViewModelTest {
         runCurrent()
         viewModel.onAction(CharacterAction.CharacterExportClicked("role"))
         viewModel.onAction(CharacterAction.CharacterSharePublicClicked)
+        viewModel.uiState.first { it.shareCategories.isNotEmpty() }
+        viewModel.onAction(CharacterAction.CharacterShareCategorySelected("game"))
+        viewModel.onAction(CharacterAction.CharacterShareCategoryConfirmed)
 
         assertEquals(
             CharacterEffect.ShowMessage(CharacterEffectMessage.CHARACTER_SHARE_FAILED, "网络错误: connection error"),
@@ -60,7 +70,10 @@ class CharactersViewModelTest {
         viewModel.onAction(CharacterAction.CharacterExportClicked("role"))
 
         viewModel.onAction(CharacterAction.CharacterSharePublicClicked)
-        viewModel.onAction(CharacterAction.CharacterSharePublicClicked)
+        viewModel.uiState.first { it.shareCategories.isNotEmpty() }
+        viewModel.onAction(CharacterAction.CharacterShareCategorySelected("game"))
+        viewModel.onAction(CharacterAction.CharacterShareCategoryConfirmed)
+        viewModel.onAction(CharacterAction.CharacterShareCategoryConfirmed)
         assertEquals(
             CharacterEffect.ShowMessage(CharacterEffectMessage.CHARACTER_SHARE_SUCCESS),
             viewModel.effects.first(),
@@ -114,12 +127,50 @@ class CharactersViewModelTest {
         runCurrent()
         viewModel.onAction(CharacterAction.CharacterExportClicked("role"))
         viewModel.onAction(CharacterAction.CharacterSharePublicClicked)
+        viewModel.uiState.first { it.shareCategories.isNotEmpty() }
+        viewModel.onAction(CharacterAction.CharacterShareCategorySelected("game"))
+        viewModel.onAction(CharacterAction.CharacterShareCategoryConfirmed)
 
         assertEquals(
             CharacterEffect.ShowMessage(CharacterEffectMessage.CHARACTER_SHARE_SUCCESS),
             viewModel.effects.first(),
         )
         assertEquals("custom_nickname", sharingRepository.lastSharedCharacter?.author)
+        assertEquals("game", sharingRepository.lastCategoryId)
+    }
+
+    @Test
+    fun sharingLoadsCategoriesAndWaitsForSelectionBeforeUploading() = runTest {
+        val sharingRepository = FakePublicCharacterRepository { ApiResult.Success(Unit) }
+        val catalogRepository = FakePublicCharacterCatalogRepository()
+        val viewModel = createViewModel(
+            publicRepository = sharingRepository,
+            catalogRepository = catalogRepository,
+        )
+        runCurrent()
+        viewModel.onAction(CharacterAction.CharacterExportClicked("role"))
+
+        viewModel.onAction(CharacterAction.CharacterSharePublicClicked)
+        viewModel.uiState.first { it.shareCategories.isNotEmpty() }
+
+        assertEquals(1, catalogRepository.catalogRequestCount)
+        assertEquals(1, catalogRepository.categoriesRequestCount)
+        assertEquals("role", viewModel.uiState.value.shareCategoryDialogCharacterId)
+        assertEquals(listOf("game", "general"), viewModel.uiState.value.shareCategories.map { it.id })
+        assertEquals(0, sharingRepository.shareCount)
+
+        viewModel.onAction(CharacterAction.CharacterShareCategoryConfirmed)
+        runCurrent()
+        assertEquals(0, sharingRepository.shareCount)
+
+        viewModel.onAction(CharacterAction.CharacterShareCategorySelected("general"))
+        viewModel.onAction(CharacterAction.CharacterShareCategoryConfirmed)
+        assertEquals(
+            CharacterEffect.ShowMessage(CharacterEffectMessage.CHARACTER_SHARE_SUCCESS),
+            viewModel.effects.first(),
+        )
+        assertEquals(1, sharingRepository.shareCount)
+        assertEquals("general", sharingRepository.lastCategoryId)
     }
 }
 
@@ -128,6 +179,7 @@ private fun createViewModel(
     publicRepository: PublicCharacterRepository = FakePublicCharacterRepository {
         ApiResult.Success(Unit)
     },
+    catalogRepository: PublicCharacterCatalogRepository = FakePublicCharacterCatalogRepository(),
     appSettingsStore: AppSettingsStore = InMemoryAppSettingsStore().apply {
         kotlinx.coroutines.runBlocking { setUserNickname("tester") }
     },
@@ -140,6 +192,7 @@ private fun createViewModel(
         ): ApiResult<Unit> = ApiResult.Success(Unit)
     },
     publicCharacterRepository = publicRepository,
+    publicCharacterCatalogRepository = catalogRepository,
     appSettingsStore = appSettingsStore,
 )
 
@@ -149,13 +202,72 @@ private class FakePublicCharacterRepository(
     override val isSupported: Boolean = true
     var shareCount: Int = 0
     var lastSharedCharacter: Character? = null
+    var lastCategoryId: String? = null
 
-    override suspend fun share(character: Character): ApiResult<Unit> {
+    override suspend fun share(
+        character: Character,
+        primaryCategoryId: String,
+    ): ApiResult<Unit> {
         shareCount++
         lastSharedCharacter = character
+        lastCategoryId = primaryCategoryId
         return result()
     }
 }
+
+private class FakePublicCharacterCatalogRepository : PublicCharacterCatalogRepository {
+    var catalogRequestCount: Int = 0
+    var categoriesRequestCount: Int = 0
+
+    override suspend fun getCatalog(etag: String?): ApiResult<PublicCatalogFetch> {
+        catalogRequestCount++
+        return ApiResult.Success(
+            PublicCatalogFetch(
+                catalog = PublicCatalog(
+                    schemaVersion = 1,
+                    catalogVersion = "test",
+                    generatedAt = "",
+                    categoriesUrl = "/categories.json",
+                ),
+                etag = null,
+                notModified = false,
+            ),
+        )
+    }
+
+    override suspend fun getCategories(url: String): ApiResult<PublicCategories> {
+        categoriesRequestCount++
+        return ApiResult.Success(
+            PublicCategories(
+                schemaVersion = 1,
+                catalogVersion = "test",
+                categories = listOf(
+                    testCategory(id = "general", sortOrder = 2),
+                    testCategory(id = "game", sortOrder = 1),
+                ),
+            ),
+        )
+    }
+
+    override suspend fun getCharacterPage(url: String): ApiResult<PublicCharacterPage> =
+        error("Not used")
+
+    override suspend fun getCharacterDetail(url: String): ApiResult<PublicCharacterDetail> =
+        error("Not used")
+
+    override fun resolveUrl(url: String): String = url
+}
+
+private fun testCategory(
+    id: String,
+    sortOrder: Int,
+) = PublicCategory(
+    id = id,
+    name = id,
+    sortOrder = sortOrder,
+    characterCount = 0,
+    firstPageUrl = "",
+)
 
 private class FakeCharacterRepository(
     private val character: Character,

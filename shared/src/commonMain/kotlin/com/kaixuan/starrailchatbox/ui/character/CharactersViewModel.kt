@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.character.CharacterRepository
 import com.kaixuan.starrailchatbox.data.character.CharacterSummary
+import com.kaixuan.starrailchatbox.data.character.catalog.PublicCharacterCatalogRepository
 import com.kaixuan.starrailchatbox.data.character.importer.CharacterCardExporter
 import com.kaixuan.starrailchatbox.data.character.sharing.DefaultPublicCharacterRepository
 import com.kaixuan.starrailchatbox.data.character.sharing.PublicCharacterRepository
@@ -23,6 +24,7 @@ class CharactersViewModel(
     private val characterRepository: CharacterRepository,
     private val characterCardExporter: CharacterCardExporter,
     private val publicCharacterRepository: PublicCharacterRepository,
+    private val publicCharacterCatalogRepository: PublicCharacterCatalogRepository,
     private val appSettingsStore: AppSettingsStore,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(CharactersUiState())
@@ -56,7 +58,10 @@ class CharactersViewModel(
                 _uiState.update { it.copy(exportDialogCharacterId = null) }
             }
             CharacterAction.CharacterExportLocalClicked -> requestLocalExport()
-            CharacterAction.CharacterSharePublicClicked -> sharePublic()
+            CharacterAction.CharacterSharePublicClicked -> loadShareCategories()
+            is CharacterAction.CharacterShareCategorySelected -> selectShareCategory(action.categoryId)
+            CharacterAction.CharacterShareCategoryConfirmed -> sharePublic()
+            CharacterAction.CharacterShareCategoryDialogDismissed -> dismissShareCategoryDialog()
             is CharacterAction.CharacterExportDirectorySelected -> exportSelected(action.directory)
             else -> Unit
         }
@@ -144,17 +149,25 @@ class CharactersViewModel(
         }
     }
 
-    private fun sharePublic() {
+    private fun loadShareCategories() {
         val characterId = _uiState.value.exportDialogCharacterId ?: return
-        if (_uiState.value.sharingCharacterId != null) return
-        _uiState.update { it.copy(sharingCharacterId = characterId) }
+        if (_uiState.value.isLoadingShareCategories || _uiState.value.sharingCharacterId != null) return
+        _uiState.update {
+            it.copy(
+                exportDialogCharacterId = null,
+                shareCategoryDialogCharacterId = characterId,
+                shareCategories = emptyList(),
+                selectedShareCategoryId = null,
+                isLoadingShareCategories = true,
+            )
+        }
         viewModelScope.launch {
             val nickname = appSettingsStore.userNickname.first()
             if (nickname.isBlank()) {
                 _uiState.update {
                     it.copy(
-                        sharingCharacterId = null,
-                        exportDialogCharacterId = null,
+                        shareCategoryDialogCharacterId = null,
+                        isLoadingShareCategories = false,
                     )
                 }
                 _effects.send(CharacterEffect.NavigateToProfile)
@@ -163,39 +176,103 @@ class CharactersViewModel(
             if (characterId.startsWith("builtin:")) {
                 _uiState.update {
                     it.copy(
-                        sharingCharacterId = null,
-                        exportDialogCharacterId = null,
+                        shareCategoryDialogCharacterId = null,
+                        isLoadingShareCategories = false,
                     )
                 }
                 showMessage(CharacterEffectMessage.CHARACTER_SHARE_BUILTIN_RESTRICTED)
                 return@launch
             }
-            val character = characterRepository.getCharacter(characterId)
-            if (character == null) {
-                _uiState.update {
-                    it.copy(
-                        sharingCharacterId = null,
-                        exportDialogCharacterId = null,
-                    )
-                }
-                showMessage(CharacterEffectMessage.CHARACTER_SHARE_FAILED)
-                return@launch
-            }
             if (!publicCharacterRepository.isSupported) {
                 _uiState.update {
                     it.copy(
-                        sharingCharacterId = null,
-                        exportDialogCharacterId = null,
+                        shareCategoryDialogCharacterId = null,
+                        isLoadingShareCategories = false,
                     )
                 }
                 showMessage(CharacterEffectMessage.CHARACTER_SHARE_PLATFORM_UNSUPPORTED)
                 return@launch
             }
-            val result = publicCharacterRepository.share(character.copy(author = nickname))
+            val catalogResult = publicCharacterCatalogRepository.getCatalog()
+            val catalog = (catalogResult as? ApiResult.Success)?.value?.catalog
+            val categoriesResult = catalog?.let {
+                publicCharacterCatalogRepository.getCategories(it.categoriesUrl)
+            }
+            val categories = (categoriesResult as? ApiResult.Success)
+                ?.value
+                ?.categories
+                ?.sortedBy { it.sortOrder }
+                .orEmpty()
+            if (categories.isEmpty()) {
+                _uiState.update {
+                    it.copy(
+                        shareCategoryDialogCharacterId = null,
+                        isLoadingShareCategories = false,
+                    )
+                }
+                showMessage(CharacterEffectMessage.CHARACTER_SHARE_FAILED)
+                return@launch
+            }
+
+            _uiState.update {
+                it.copy(
+                    shareCategories = categories,
+                    isLoadingShareCategories = false,
+                )
+            }
+        }
+    }
+
+    private fun selectShareCategory(categoryId: String) {
+        val state = _uiState.value
+        if (state.sharingCharacterId != null || state.shareCategories.none { it.id == categoryId }) return
+        _uiState.update { it.copy(selectedShareCategoryId = categoryId) }
+    }
+
+    private fun dismissShareCategoryDialog() {
+        if (_uiState.value.sharingCharacterId != null || _uiState.value.isLoadingShareCategories) return
+        _uiState.update {
+            it.copy(
+                shareCategoryDialogCharacterId = null,
+                shareCategories = emptyList(),
+                selectedShareCategoryId = null,
+                isLoadingShareCategories = false,
+            )
+        }
+    }
+
+    private fun sharePublic() {
+        val state = _uiState.value
+        val characterId = state.shareCategoryDialogCharacterId ?: return
+        val categoryId = state.selectedShareCategoryId ?: return
+        if (state.sharingCharacterId != null || state.isLoadingShareCategories) return
+        if (state.shareCategories.none { it.id == categoryId }) return
+        _uiState.update { it.copy(sharingCharacterId = characterId) }
+        viewModelScope.launch {
+            val nickname = appSettingsStore.userNickname.first()
+            val character = characterRepository.getCharacter(characterId)
+            if (character == null || nickname.isBlank()) {
+                _uiState.update {
+                    it.copy(
+                        sharingCharacterId = null,
+                        shareCategoryDialogCharacterId = null,
+                        shareCategories = emptyList(),
+                        selectedShareCategoryId = null,
+                    )
+                }
+                showMessage(CharacterEffectMessage.CHARACTER_SHARE_FAILED)
+                return@launch
+            }
+            val result = publicCharacterRepository.share(
+                character = character.copy(author = nickname),
+                primaryCategoryId = categoryId,
+            )
             _uiState.update { state ->
                 state.copy(
                     sharingCharacterId = null,
-                    exportDialogCharacterId = null,
+                    shareCategoryDialogCharacterId = null,
+                    shareCategories = emptyList(),
+                    selectedShareCategoryId = null,
                 )
             }
             var customMessage: String? = null

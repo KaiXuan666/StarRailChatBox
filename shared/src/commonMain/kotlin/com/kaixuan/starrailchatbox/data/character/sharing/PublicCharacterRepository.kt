@@ -74,7 +74,10 @@ private data class SubmissionResponse(
 interface PublicCharacterRepository {
     val isSupported: Boolean
 
-    suspend fun share(character: Character): ApiResult<Unit>
+    suspend fun share(
+        character: Character,
+        primaryCategoryId: String,
+    ): ApiResult<Unit>
 }
 
 class DefaultPublicCharacterRepository(
@@ -91,7 +94,10 @@ class DefaultPublicCharacterRepository(
     override val isSupported: Boolean
         get() = archiveWriter.isSupported
 
-    override suspend fun share(character: Character): ApiResult<Unit> {
+    override suspend fun share(
+        character: Character,
+        primaryCategoryId: String,
+    ): ApiResult<Unit> {
         if (!isSupported) {
             return ApiResult.UnexpectedError(ERROR_PLATFORM_UNSUPPORTED)
         }
@@ -122,7 +128,7 @@ class DefaultPublicCharacterRepository(
                     SubmissionRequest(
                         characterId = character.id,
                         author = character.author,
-                        primaryCategoryId = DEFAULT_CATEGORY_ID,
+                        primaryCategoryId = primaryCategoryId,
                         tagIds = emptyList(),
                         contentFingerprint = prepared.contentFingerprint,
                         packageSize = prepared.archive.size,
@@ -302,7 +308,6 @@ class DefaultPublicCharacterRepository(
         const val ERROR_MEDIA_READ = "media_read_failed"
         private const val ERROR_UPLOAD_URL = "upload_url_failed"
         private const val SUBMISSION_ENDPOINT = "https://api.qyaichat.com/v1/submissions"
-        private const val DEFAULT_CATEGORY_ID = "general"
         private const val LOG_TAG = "PublicCharacterShare"
     }
 }

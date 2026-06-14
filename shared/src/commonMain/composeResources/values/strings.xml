@@ -127,6 +127,10 @@
     <string name="character_export_local">导出到本地</string>
     <string name="character_share_public">分享到角色工坊</string>
     <string name="character_share_public_sharing">正在上传角色...</string>
+    <string name="character_share_category_title">选择角色类目</string>
+    <string name="character_share_category_message">请选择最适合该角色的类目，确认后才会上传角色卡。</string>
+    <string name="character_share_category_loading">正在加载类目...</string>
+    <string name="character_share_category_confirm">确认上传</string>
     <string name="character_share_public_success">角色已上传，等待审核</string>
     <string name="character_share_public_failed">角色上传失败，请稍后重试</string>
     <string name="character_share_public_reviewing">该角色正在审核中，请勿重复上传</string>

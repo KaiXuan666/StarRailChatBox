@@ -12,8 +12,12 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.OutgoingContent
+import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.utils.io.core.readText
+import io.ktor.utils.io.readRemaining
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import okio.FileSystem
@@ -99,10 +103,12 @@ class PublicCharacterRepositoryTest {
     @Test
     fun shareRequestsUploadUrlThenPutsZip() = runTest {
         var requestCount = 0
+        var submissionBody = ""
         val engine = MockEngine { request ->
             requestCount++
             when (requestCount) {
                 1 -> {
+                    submissionBody = request.body.readText()
                     respond(
                         content = """
                             {
@@ -137,12 +143,13 @@ class PublicCharacterRepositoryTest {
             archiveWriter = CapturingArchiveWriter(),
         )
 
-        val result = repository.share(testCharacter())
+        val result = repository.share(testCharacter(), primaryCategoryId = "game")
 
         assertIs<ApiResult.Success<Unit>>(result)
         assertEquals(2, requestCount)
         assertEquals(HttpMethod.Post, engine.requestHistory[0].method)
         assertTrue(engine.requestHistory[0].url.toString().startsWith("https://api.qyaichat.com/v1/submissions"))
+        assertTrue(submissionBody.contains("\"primaryCategoryId\":\"game\""))
         assertEquals(HttpMethod.Post, engine.requestHistory[1].method)
         assertTrue(engine.requestHistory[1].url.toString().startsWith("https://oss.example/upload"))
         assertTrue(engine.requestHistory[1].body.contentType.toString().startsWith("multipart/form-data"))
@@ -165,7 +172,7 @@ class PublicCharacterRepositoryTest {
             archiveWriter = CapturingArchiveWriter(),
         )
 
-        val result = repository.share(testCharacter())
+        val result = repository.share(testCharacter(), primaryCategoryId = "game")
 
         val error = assertIs<ApiResult.UnexpectedError>(result)
         assertTrue(error.message.orEmpty().contains("审核中"))
@@ -194,6 +201,20 @@ private class FakeFileManager : KmpFileManager {
 private fun testClient(engine: MockEngine) = HttpClient(engine) {
     install(ContentNegotiation) {
         json(Json { ignoreUnknownKeys = true })
+    }
+}
+
+private suspend fun OutgoingContent.readText(): String {
+    return when (this) {
+        is TextContent -> text
+        is OutgoingContent.ByteArrayContent -> bytes().decodeToString()
+        is OutgoingContent.WriteChannelContent -> {
+            val channel = io.ktor.utils.io.ByteChannel(true)
+            writeTo(channel)
+            channel.close()
+            channel.readRemaining().readText()
+        }
+        else -> ""
     }
 }
 

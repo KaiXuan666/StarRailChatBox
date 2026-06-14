@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.data.character.CharacterAvatarSource
 import com.kaixuan.starrailchatbox.data.character.CharacterSummary
+import com.kaixuan.starrailchatbox.data.character.catalog.PublicCategory
 import com.kaixuan.starrailchatbox.data.character.importer.ImportedCharacterDraft
 
 @Immutable
@@ -45,6 +46,10 @@ data class CharactersUiState(
     val exportDialogCharacterId: String? = null,
     val pendingLocalExportCharacterId: String? = null,
     val sharingCharacterId: String? = null,
+    val shareCategoryDialogCharacterId: String? = null,
+    val shareCategories: List<PublicCategory> = emptyList(),
+    val selectedShareCategoryId: String? = null,
+    val isLoadingShareCategories: Boolean = false,
 ) {
     val selectedCharacter: CharacterSummary?
         get() = characters.firstOrNull { it.id == selectedCharacterId }

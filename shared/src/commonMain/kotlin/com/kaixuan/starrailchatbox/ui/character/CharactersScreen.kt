@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -29,6 +30,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -58,6 +60,7 @@ import androidx.compose.ui.zIndex
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.ui.text.style.TextAlign
 import com.kaixuan.starrailchatbox.data.character.CharacterSummary
+import com.kaixuan.starrailchatbox.data.character.catalog.PublicCategory
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
@@ -94,6 +97,10 @@ import starrailchatbox.shared.generated.resources.character_list_help_title
 import starrailchatbox.shared.generated.resources.character_list_help_what_is_card
 import starrailchatbox.shared.generated.resources.character_list_title
 import starrailchatbox.shared.generated.resources.character_share_public
+import starrailchatbox.shared.generated.resources.character_share_category_confirm
+import starrailchatbox.shared.generated.resources.character_share_category_loading
+import starrailchatbox.shared.generated.resources.character_share_category_message
+import starrailchatbox.shared.generated.resources.character_share_category_title
 import starrailchatbox.shared.generated.resources.character_share_public_sharing
 import starrailchatbox.shared.generated.resources.character_share_public_hint
 import starrailchatbox.shared.generated.resources.confirm
@@ -419,6 +426,117 @@ fun CharactersScreen(
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(horizontal = 8.dp),
                     )
+                }
+            }
+        }
+
+        if (state.shareCategoryDialogCharacterId != null) {
+            val isSharing = state.sharingCharacterId == state.shareCategoryDialogCharacterId
+            val canConfirm = state.selectedShareCategoryId != null &&
+                !state.isLoadingShareCategories &&
+                !isSharing
+            StarRailDialog(
+                title = stringResource(Res.string.character_share_category_title),
+                dismissText = if (isSharing || state.isLoadingShareCategories) {
+                    null
+                } else {
+                    stringResource(Res.string.cancel)
+                },
+                confirmText = if (canConfirm) {
+                    stringResource(Res.string.character_share_category_confirm)
+                } else {
+                    null
+                },
+                onDismissRequest = {
+                    onAction(CharacterAction.CharacterShareCategoryDialogDismissed)
+                },
+                onConfirm = {
+                    onAction(CharacterAction.CharacterShareCategoryConfirmed)
+                },
+            ) {
+                Text(
+                    text = stringResource(Res.string.character_share_category_message),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                if (state.isLoadingShareCategories || isSharing) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = StarRailSpacing.md),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                        Text(
+                            text = stringResource(
+                                if (isSharing) {
+                                    Res.string.character_share_public_sharing
+                                } else {
+                                    Res.string.character_share_category_loading
+                                },
+                            ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 320.dp),
+                        verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
+                    ) {
+                        items(
+                            items = state.shareCategories,
+                            key = { it.id },
+                        ) { category ->
+                            val selected = category.id == state.selectedShareCategoryId
+                            Surface(
+                                onClick = {
+                                    onAction(CharacterAction.CharacterShareCategorySelected(category.id))
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = MaterialTheme.shapes.medium,
+                                color = if (selected) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceContainer
+                                },
+                                border = BorderStroke(
+                                    width = if (selected) 2.dp else 1.dp,
+                                    color = if (selected) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.outlineVariant
+                                    },
+                                ),
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = StarRailSpacing.md, vertical = StarRailSpacing.sm),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                ) {
+                                    Text(
+                                        text = category.name,
+                                        color = if (selected) {
+                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurface
+                                        },
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                    )
+                                    if (selected) {
+                                        StarRailIcon(
+                                            kind = StarRailIconKind.CHECK,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(20.dp),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -865,6 +983,59 @@ private fun CharacterExportDialogDarkPreview() {
         )
     }
 }
+
+@Preview(widthDp = 360, heightDp = 800)
+@Composable
+private fun CharacterShareCategoryDialogLightPreview() {
+    StarRailTheme(darkThemeOverride = false) {
+        CharactersScreen(
+            state = previewState.copy(
+                shareCategoryDialogCharacterId = "role",
+                shareCategories = previewCategories,
+                selectedShareCategoryId = "game",
+            ),
+            contentPadding = PaddingValues(0.dp),
+            compact = true,
+            onMainAction = {},
+            onAction = {},
+        )
+    }
+}
+
+@Preview(widthDp = 360, heightDp = 800)
+@Composable
+private fun CharacterShareCategoryDialogDarkPreview() {
+    StarRailTheme(darkThemeOverride = true) {
+        CharactersScreen(
+            state = previewState.copy(
+                shareCategoryDialogCharacterId = "role",
+                shareCategories = previewCategories,
+                selectedShareCategoryId = "game",
+            ),
+            contentPadding = PaddingValues(0.dp),
+            compact = true,
+            onMainAction = {},
+            onAction = {},
+        )
+    }
+}
+
+private val previewCategories = listOf(
+    PublicCategory(
+        id = "game",
+        name = "游戏角色",
+        sortOrder = 1,
+        characterCount = 12,
+        firstPageUrl = "",
+    ),
+    PublicCategory(
+        id = "original",
+        name = "原创角色",
+        sortOrder = 2,
+        characterCount = 8,
+        firstPageUrl = "",
+    ),
+)
 
 private val previewState = CharactersUiState(
     characters = listOf(
