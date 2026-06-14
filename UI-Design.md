@@ -123,6 +123,8 @@ shared/src/commonMain/kotlin/com/kaixuan/starrailchatbox/
   主操作按钮等通用实现。确需差异时，应通过公共组件参数或主题令牌表达。
 - 带返回按钮的二级页面必须复用统一页面骨架（当前为 `StarRailPageLayout`），由公共
   布局统一处理顶部安全区、水平边距、标题栏尺寸与位置、滚动容器和底部 inset。
+  标题栏与状态栏之间保持 `StarRailSpacing.xs` (8dp) 的空隙，标题栏与下方内容区域的默认间距为
+  `StarRailSpacing.sm` (12dp)。
   页面不得自行复制标题栏，或单独计算 `statusBars` 顶部间距。
 - 可见文本必须使用 Compose Multiplatform Resources。
 - 图片和图标必须提供语义名称；纯装饰资源使用 `contentDescription = null`。
@@ -382,6 +384,8 @@ object StarRailSpacing {
 | 角色选择头像 | 56-64dp |
 | 消息头像 | 40-44dp |
 | 圆形操作按钮 | 48-56dp |
+| 标题栏与内容区域间距 | 12dp (StarRailSpacing.sm) |
+| 标题栏上方间距 | 8dp (StarRailSpacing.xs) |
 | 发送区域按钮 | 38-52dp |
 | 输入框最小高度 | 38-56dp |
 | 底部导航栏高度 | 72-80dp |
@@ -614,7 +618,7 @@ sealed interface ChatMessageUiModel {
 - 根容器必须处理系统栏、刘海、圆角和手势区域。
 - Compose UI 使用 `WindowInsets.safeDrawing`、`safeDrawingPadding()` 或等价方式。
 - 同级二级页面的标题栏必须由同一公共页面布局处理系统区域和外边距，确保返回按钮、
-  标题字号、水平位置与顶部位置一致。
+  标题字号、水平位置与顶部位置一致。标题栏与状态栏之间保留 `StarRailSpacing.xs` (8dp) 的微小间距。
 - 底部输入区和导航不得被 iOS Home Indicator 或 Android 手势条遮挡。
 - Web 和 Desktop 应支持鼠标悬停、滚轮、键盘 Tab 与窗口缩放。
 - iOS 保持 Compose 共享界面，不在 SwiftUI 重复实现同一聊天页。
@@ -715,7 +719,8 @@ Modifier.semantics {
 2. 优先复用已有主题令牌和组件，不重复创建相同实现；新增页面样式前必须先检查
    `ui/components` 和相邻页面，已有同语义组件时直接复用。
 3. 带返回导航的二级页面必须优先使用 `StarRailPageLayout`；不得在业务页面中重复
-   实现返回标题栏或自行设置标题栏顶部安全区与外边距。
+   实现返回标题栏或自行设置标题栏顶部安全区与外边距。标题栏位置应与 `ChatSessionScreen` 
+   保持一致，与状态栏间距为 `StarRailSpacing.xs` (8dp)，并使用 `StarRailSpacing.sm` 作为内容间距。
 4. 新颜色先判断是否能映射到 M3 `ColorScheme`。
 5. 只有产品专属语义才允许加入 `StarRailExtendedColors`。
 6. 业务 Composable 中不得出现 `Color(0x...)`。

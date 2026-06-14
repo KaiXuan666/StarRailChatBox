@@ -191,7 +191,7 @@ fun CharacterChatScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(top = scaffoldPadding.calculateTopPadding())
+                    .padding(top = scaffoldPadding.calculateTopPadding() + StarRailSpacing.xs)
             ) {
                 Box(
                     modifier = Modifier

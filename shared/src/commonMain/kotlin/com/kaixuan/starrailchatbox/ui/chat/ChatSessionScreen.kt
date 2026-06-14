@@ -198,6 +198,7 @@ fun ChatSessionScreen(
             maxLines = 1,
             modifier = Modifier
                 .padding(horizontal = if (compact) StarRailSpacing.sm else StarRailSpacing.md)
+                .padding(top = StarRailSpacing.xs)
         )
 
         // 固定顶部的角色选择器

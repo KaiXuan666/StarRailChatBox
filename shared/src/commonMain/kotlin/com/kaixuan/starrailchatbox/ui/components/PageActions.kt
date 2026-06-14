@@ -54,7 +54,8 @@ fun StarRailPageLayout(
             .verticalScroll(rememberScrollState())
             .padding(
                 start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding(),
+                top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() +
+                    StarRailSpacing.xs,
                 end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
                 bottom = contentPadding.calculateBottomPadding() + StarRailSpacing.lg,
             ),
