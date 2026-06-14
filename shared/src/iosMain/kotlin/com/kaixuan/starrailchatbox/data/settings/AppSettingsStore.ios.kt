@@ -49,6 +49,10 @@ private class DataStoreAppSettingsStore(
         }
     }
 
+    override suspend fun getCatalogAdminKey(): String? = null
+
+    override suspend fun setCatalogAdminKey(key: String?) = Unit
+
     override val userNickname: Flow<String> = dataStore.data.map { preferences ->
         preferences[UserNicknameKey] ?: ""
     }

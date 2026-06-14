@@ -12,6 +12,8 @@ interface AppSettingsStore {
     suspend fun setDarkThemeOverride(darkThemeOverride: Boolean?)
     suspend fun getCharacterUpdateToken(characterKey: String): String?
     suspend fun setCharacterUpdateToken(characterKey: String, token: String)
+    suspend fun getCatalogAdminKey(): String?
+    suspend fun setCatalogAdminKey(key: String?)
     val userNickname: Flow<String>
     suspend fun setUserNickname(nickname: String)
 }
@@ -35,6 +37,14 @@ class InMemoryAppSettingsStore(
 
     override suspend fun setCharacterUpdateToken(characterKey: String, token: String) {
         characterUpdateTokens[characterKey] = token
+    }
+
+    private var catalogAdminKey: String? = null
+
+    override suspend fun getCatalogAdminKey(): String? = catalogAdminKey
+
+    override suspend fun setCatalogAdminKey(key: String?) {
+        catalogAdminKey = key
     }
 
     override suspend fun setUserNickname(nickname: String) {

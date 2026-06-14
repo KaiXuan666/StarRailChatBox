@@ -32,6 +32,10 @@ private class WasmAppSettingsStore : AppSettingsStore {
         localStorage.setItem("character_update_token_$characterKey", token)
     }
 
+    override suspend fun getCatalogAdminKey(): String? = null
+
+    override suspend fun setCatalogAdminKey(key: String?) = Unit
+
     override suspend fun setUserNickname(nickname: String) {
         localStorage.setItem("user_nickname", nickname)
         _userNickname.value = nickname

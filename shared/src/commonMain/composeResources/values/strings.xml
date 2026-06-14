@@ -316,4 +316,19 @@
     <string name="retry">重试</string>
     <string name="scroll_to_oldest_message">滚动到最早消息</string>
     <string name="scroll_to_latest_message">滚动到最新消息</string>
+    <string name="catalog_admin_key_title">开启管理员模式</string>
+    <string name="catalog_admin_key_hint">请输入管理密钥</string>
+    <string name="catalog_admin_verify">验证</string>
+    <string name="catalog_admin_create_category">创建分类</string>
+    <string name="catalog_admin_disable">退出管理</string>
+    <string name="catalog_admin_category_title">创建公共分类</string>
+    <string name="catalog_admin_category_hint">分类名称</string>
+    <string name="catalog_admin_create">创建</string>
+    <string name="catalog_admin_move">移动分类</string>
+    <string name="catalog_admin_move_title">移动角色分类</string>
+    <string name="catalog_admin_delete">删除角色</string>
+    <string name="catalog_admin_delete_title">申请下架角色</string>
+    <string name="catalog_admin_delete_message">确定申请下架“%1$s”吗？提交后需要在飞书审批，历史版本和素材不会被删除。</string>
+    <string name="catalog_admin_submit_review">提交审批</string>
+    <string name="catalog_admin_pending_review">等待审批</string>
 </resources>

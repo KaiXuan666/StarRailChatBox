@@ -58,6 +58,21 @@ private class DataStoreAppSettingsStore(
         }
     }
 
+    override suspend fun getCatalogAdminKey(): String? {
+        val encrypted = dataStore.data.first()[CatalogAdminKey] ?: return null
+        return runCatching { decryptUpdateToken(encrypted) }.getOrNull()
+    }
+
+    override suspend fun setCatalogAdminKey(key: String?) {
+        dataStore.edit { preferences ->
+            if (key.isNullOrBlank()) {
+                preferences.remove(CatalogAdminKey)
+            } else {
+                preferences[CatalogAdminKey] = encryptUpdateToken(key)
+            }
+        }
+    }
+
     override val userNickname: Flow<String> = dataStore.data.map { preferences ->
         preferences[UserNicknameKey] ?: ""
     }
@@ -71,6 +86,7 @@ private class DataStoreAppSettingsStore(
 
 private val DarkThemeKey = booleanPreferencesKey("dark_theme_override")
 private val UserNicknameKey = stringPreferencesKey("user_nickname")
+private val CatalogAdminKey = stringPreferencesKey("catalog_admin_key")
 private fun characterUpdateTokenKey(characterKey: String) =
     stringPreferencesKey("character_update_token_$characterKey")
 

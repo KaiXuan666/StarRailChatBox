@@ -1,11 +1,15 @@
 package com.kaixuan.starrailchatbox.ui.character.catalog
 
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
@@ -24,12 +28,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kaixuan.starrailchatbox.data.character.catalog.PublicCategory
@@ -37,15 +45,37 @@ import com.kaixuan.starrailchatbox.data.character.catalog.PublicCharacterSummary
 import com.kaixuan.starrailchatbox.data.character.catalog.PublicTag
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.starRailColors
+import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.ui.components.AvatarImage
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import com.kaixuan.starrailchatbox.ui.components.StarRailPageHeader
 import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
+import com.kaixuan.starrailchatbox.ui.components.StarRailDialog
 import com.kaixuan.starrailchatbox.ui.main.MainAction
 import com.kaixuan.starrailchatbox.ui.navigation.Route
 import org.koin.core.Koin
 import kotlin.math.absoluteValue
+import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
+import starrailchatbox.shared.generated.resources.Res
+import starrailchatbox.shared.generated.resources.cancel
+import starrailchatbox.shared.generated.resources.catalog_admin_category_hint
+import starrailchatbox.shared.generated.resources.catalog_admin_category_title
+import starrailchatbox.shared.generated.resources.catalog_admin_create
+import starrailchatbox.shared.generated.resources.catalog_admin_create_category
+import starrailchatbox.shared.generated.resources.catalog_admin_delete
+import starrailchatbox.shared.generated.resources.catalog_admin_delete_message
+import starrailchatbox.shared.generated.resources.catalog_admin_delete_title
+import starrailchatbox.shared.generated.resources.catalog_admin_disable
+import starrailchatbox.shared.generated.resources.catalog_admin_key_hint
+import starrailchatbox.shared.generated.resources.catalog_admin_key_title
+import starrailchatbox.shared.generated.resources.catalog_admin_move
+import starrailchatbox.shared.generated.resources.catalog_admin_move_title
+import starrailchatbox.shared.generated.resources.catalog_admin_pending_review
+import starrailchatbox.shared.generated.resources.catalog_admin_submit_review
+import starrailchatbox.shared.generated.resources.catalog_admin_verify
 
 @Composable
 fun CharacterCatalogRoute(
@@ -139,6 +169,7 @@ fun CharacterCatalogScreen(
                 compact = compact,
                 backContentDescription = if (onBackClick != null) "返回" else null,
                 onBackClick = onBackClick,
+                onTitleClick = { onAction(CharacterCatalogAction.TitleClicked) },
             )
 
             LazyColumn(
@@ -147,6 +178,29 @@ fun CharacterCatalogScreen(
                 verticalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
                 modifier = Modifier.fillMaxSize()
             ) {
+                if (state.adminModeEnabled) {
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
+                        ) {
+                            Button(
+                                onClick = { onAction(CharacterCatalogAction.CreateCategoryClicked) },
+                                enabled = !state.isAdminBusy,
+                                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                            ) {
+                                Text(stringResource(Res.string.catalog_admin_create_category))
+                            }
+                            OutlinedButton(
+                                onClick = { onAction(CharacterCatalogAction.DisableAdminMode) },
+                                enabled = !state.isAdminBusy,
+                                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                            ) {
+                                Text(stringResource(Res.string.catalog_admin_disable))
+                            }
+                        }
+                    }
+                }
                 // 1. 分类筛选横滑栏和标签筛选按钮
                 item {
                     Row(
@@ -237,25 +291,38 @@ fun CharacterCatalogScreen(
                         items = state.filteredCharacters,
                         key = { it.id }
                     ) { char ->
-                        CharacterCatalogItem(
-                            char = char,
-                            isImporting = state.importingCharacterIds.contains(char.id),
-                            isImported = state.importedCharacterIds.contains(char.id),
-                            resolveUrl = resolveUrl,
-                            onImportClick = { onAction(CharacterCatalogAction.ImportCharacterClicked(char)) },
-                            onItemClick = {
-                                onMainAction(
-                                    MainAction.NavigateTo(
-                                        Route.CharacterCatalogDetail(
-                                            characterId = char.id,
-                                            detailUrl = char.detailUrl,
-                                            name = char.name,
-                                            avatarUrl = char.avatarUrl,
+                        SwipeableCharacterCatalogItem(
+                            adminModeEnabled = state.adminModeEnabled,
+                            deletePending = state.pendingDeleteCharacterKeys.contains(char.characterKey),
+                            onMove = {
+                                onAction(CharacterCatalogAction.MoveCharacterClicked(char))
+                            },
+                            onDelete = {
+                                onAction(CharacterCatalogAction.DeleteCharacterClicked(char))
+                            },
+                        ) {
+                            CharacterCatalogItem(
+                                char = char,
+                                isImporting = state.importingCharacterIds.contains(char.id),
+                                isImported = state.importedCharacterIds.contains(char.id),
+                                resolveUrl = resolveUrl,
+                                onImportClick = {
+                                    onAction(CharacterCatalogAction.ImportCharacterClicked(char))
+                                },
+                                onItemClick = {
+                                    onMainAction(
+                                        MainAction.NavigateTo(
+                                            Route.CharacterCatalogDetail(
+                                                characterId = char.id,
+                                                detailUrl = char.detailUrl,
+                                                name = char.name,
+                                                avatarUrl = char.avatarUrl,
+                                            )
                                         )
                                     )
-                                )
-                            }
-                        )
+                                },
+                            )
+                        }
                     }
 
                     if (state.isPageLoading) {
@@ -294,6 +361,104 @@ fun CharacterCatalogScreen(
                 onClearClick = { onAction(CharacterCatalogAction.ClearTags) },
                 onCloseClick = { onAction(CharacterCatalogAction.ToggleTagFilter) }
             )
+        }
+
+        if (state.showAdminKeyDialog) {
+            StarRailDialog(
+                title = stringResource(Res.string.catalog_admin_key_title),
+                confirmText = stringResource(Res.string.catalog_admin_verify),
+                dismissText = stringResource(Res.string.cancel),
+                onConfirm = { onAction(CharacterCatalogAction.ConfirmAdminKey) },
+                onDismissRequest = {
+                    onAction(CharacterCatalogAction.DismissAdminKeyDialog)
+                },
+            ) {
+                OutlinedTextField(
+                    value = state.adminKeyDraft,
+                    onValueChange = {
+                        onAction(CharacterCatalogAction.AdminKeyChanged(it))
+                    },
+                    label = { Text(stringResource(Res.string.catalog_admin_key_hint)) },
+                    singleLine = true,
+                    enabled = !state.isAdminBusy,
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+
+        if (state.showCreateCategoryDialog) {
+            StarRailDialog(
+                title = stringResource(Res.string.catalog_admin_category_title),
+                confirmText = stringResource(Res.string.catalog_admin_create),
+                dismissText = stringResource(Res.string.cancel),
+                onConfirm = { onAction(CharacterCatalogAction.ConfirmCreateCategory) },
+                onDismissRequest = {
+                    onAction(CharacterCatalogAction.DismissCreateCategoryDialog)
+                },
+            ) {
+                OutlinedTextField(
+                    value = state.categoryNameDraft,
+                    onValueChange = {
+                        onAction(CharacterCatalogAction.CategoryNameChanged(it))
+                    },
+                    label = { Text(stringResource(Res.string.catalog_admin_category_hint)) },
+                    singleLine = true,
+                    enabled = !state.isAdminBusy,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+
+        state.movingCharacter?.let { character ->
+            StarRailDialog(
+                title = stringResource(Res.string.catalog_admin_move_title),
+                dismissText = stringResource(Res.string.cancel),
+                onDismissRequest = {
+                    onAction(CharacterCatalogAction.DismissMoveCharacterDialog)
+                },
+            ) {
+                Text(
+                    text = character.name,
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                state.categories
+                    .filter { it.id != character.primaryCategoryId }
+                    .forEach { category ->
+                        OutlinedButton(
+                            onClick = {
+                                onAction(
+                                    CharacterCatalogAction.ConfirmMoveCharacter(category.id),
+                                )
+                            },
+                            enabled = !state.isAdminBusy,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        ) {
+                            Text(category.name)
+                        }
+                    }
+            }
+        }
+
+        state.deletingCharacter?.let { character ->
+            StarRailDialog(
+                title = stringResource(Res.string.catalog_admin_delete_title),
+                confirmText = stringResource(Res.string.catalog_admin_submit_review),
+                dismissText = stringResource(Res.string.cancel),
+                destructive = true,
+                onConfirm = { onAction(CharacterCatalogAction.ConfirmDeleteCharacter) },
+                onDismissRequest = {
+                    onAction(CharacterCatalogAction.DismissDeleteCharacterDialog)
+                },
+            ) {
+                Text(
+                    text = stringResource(
+                        Res.string.catalog_admin_delete_message,
+                        character.name,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -575,6 +740,145 @@ fun CharacterCatalogItem(
                     }
                 }
             }
+
+        }
+    }
+}
+
+@Composable
+private fun SwipeableCharacterCatalogItem(
+    adminModeEnabled: Boolean,
+    deletePending: Boolean,
+    onMove: () -> Unit,
+    onDelete: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    val density = LocalDensity.current
+    val actionWidth = 88.dp
+    val actionWidthPx = with(density) { actionWidth.toPx() }
+    val scope = rememberCoroutineScope()
+    val offsetX = remember { Animatable(0f) }
+
+    LaunchedEffect(adminModeEnabled) {
+        if (!adminModeEnabled) {
+            offsetX.animateTo(0f)
+        }
+    }
+
+    val progress = if (actionWidthPx > 0f) {
+        (offsetX.value.absoluteValue / actionWidthPx).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp)),
+    ) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .graphicsLayer { alpha = progress },
+        ) {
+            CatalogSwipeAction(
+                text = stringResource(Res.string.catalog_admin_move),
+                icon = StarRailIconKind.EDIT,
+                color = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                onClick = {
+                    onMove()
+                    scope.launch { offsetX.animateTo(0f) }
+                },
+                modifier = Modifier.align(Alignment.CenterStart).width(actionWidth),
+            )
+            CatalogSwipeAction(
+                text = stringResource(
+                    if (deletePending) {
+                        Res.string.catalog_admin_pending_review
+                    } else {
+                        Res.string.catalog_admin_delete
+                    },
+                ),
+                icon = StarRailIconKind.DELETE,
+                color = MaterialTheme.colorScheme.error,
+                contentColor = MaterialTheme.colorScheme.onError,
+                enabled = !deletePending,
+                onClick = {
+                    onDelete()
+                    scope.launch { offsetX.animateTo(0f) }
+                },
+                modifier = Modifier.align(Alignment.CenterEnd).width(actionWidth),
+            )
+        }
+
+        val draggableState = rememberDraggableState { delta ->
+            scope.launch {
+                offsetX.snapTo(
+                    (offsetX.value + delta).coerceIn(-actionWidthPx, actionWidthPx),
+                )
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .offset { IntOffset(offsetX.value.roundToInt(), 0) }
+                .draggable(
+                    state = draggableState,
+                    orientation = Orientation.Horizontal,
+                    enabled = adminModeEnabled,
+                    onDragStopped = {
+                        scope.launch {
+                            when {
+                                offsetX.value > actionWidthPx * 0.5f -> onMove()
+                                offsetX.value < -actionWidthPx * 0.5f && !deletePending -> onDelete()
+                            }
+                            offsetX.animateTo(0f)
+                        }
+                    },
+                ),
+        ) {
+            content()
+        }
+    }
+}
+
+@Composable
+private fun CatalogSwipeAction(
+    text: String,
+    icon: StarRailIconKind,
+    color: Color,
+    contentColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        color = color,
+        contentColor = contentColor,
+        modifier = modifier.fillMaxHeight(),
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            StarRailIcon(
+                kind = icon,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(20.dp),
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = contentColor,
+            )
         }
     }
 }
@@ -707,5 +1011,56 @@ fun TagFilterPanel(
                 }
             }
         }
+    }
+}
+
+@Preview(widthDp = 360, heightDp = 800)
+@Composable
+private fun CharacterCatalogAdminLightPreview() {
+    CharacterCatalogAdminPreview(darkTheme = false)
+}
+
+@Preview(widthDp = 360, heightDp = 800)
+@Composable
+private fun CharacterCatalogAdminDarkPreview() {
+    CharacterCatalogAdminPreview(darkTheme = true)
+}
+
+@Composable
+private fun CharacterCatalogAdminPreview(darkTheme: Boolean) {
+    val category = PublicCategory(
+        id = "general",
+        name = "综合",
+        sortOrder = 1,
+        characterCount = 1,
+        firstPageUrl = "/page1.json",
+    )
+    val character = PublicCharacterSummary(
+        characterKey = "a".repeat(64),
+        id = "preview",
+        name = "流萤",
+        author = "星轨旅人",
+        description = "用于预览管理员操作按钮的公共角色。",
+        primaryCategoryId = "general",
+        updatedAt = "2026-06-14T00:00:00Z",
+        revision = "r_preview",
+        detailUrl = "/detail.json",
+    )
+    StarRailTheme(darkThemeOverride = darkTheme) {
+        CharacterCatalogScreen(
+            state = CharacterCatalogUiState(
+                categories = listOf(category),
+                selectedCategoryId = category.id,
+                characters = listOf(character),
+                filteredCharacters = listOf(character),
+                adminSupported = true,
+                adminModeEnabled = true,
+            ),
+            contentPadding = PaddingValues(0.dp),
+            compact = true,
+            onMainAction = {},
+            onAction = {},
+            resolveUrl = { it },
+        )
     }
 }

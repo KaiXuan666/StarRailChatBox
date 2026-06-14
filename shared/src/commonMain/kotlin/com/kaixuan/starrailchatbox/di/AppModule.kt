@@ -35,6 +35,8 @@ import com.kaixuan.starrailchatbox.data.character.sharing.DefaultPublicCharacter
 import com.kaixuan.starrailchatbox.data.character.sharing.PublicCharacterRepository
 import com.kaixuan.starrailchatbox.data.character.catalog.DefaultPublicCharacterCatalogRepository
 import com.kaixuan.starrailchatbox.data.character.catalog.PublicCharacterCatalogRepository
+import com.kaixuan.starrailchatbox.data.character.catalog.CatalogAdminRepository
+import com.kaixuan.starrailchatbox.data.character.catalog.DefaultCatalogAdminRepository
 import com.kaixuan.starrailchatbox.data.chat.ChatSessionRepository
 import com.kaixuan.starrailchatbox.data.update.DefaultUpdateRepository
 import com.kaixuan.starrailchatbox.data.update.UpdateRepository
@@ -111,6 +113,7 @@ fun appModule(
     single<CharacterCardExporter> { getCharacterCardExporter() }
     single<PublicCharacterRepository> { DefaultPublicCharacterRepository(get(), get(), get()) }
     single<PublicCharacterCatalogRepository> { DefaultPublicCharacterCatalogRepository(get()) }
+    single<CatalogAdminRepository> { DefaultCatalogAdminRepository(get()) }
     single<KmpFileManager> { KmpFileManager.Default }
     single<UpdateRepository> { DefaultUpdateRepository(get()) }
     factory { MainViewModel(get(), get()) }
@@ -158,7 +161,7 @@ fun appModule(
     }
     factory { SettingsOverviewViewModel(get()) }
     factory { ProfileViewModel(get(), get(), get()) }
-    factory { CharacterCatalogViewModel(get(), get(), get()) }
+    factory { CharacterCatalogViewModel(get(), get(), get(), get(), get()) }
     factory { (characterId: String, detailUrl: String, name: String, avatarUrl: String?) ->
         CharacterCatalogDetailViewModel(
             characterId = characterId,

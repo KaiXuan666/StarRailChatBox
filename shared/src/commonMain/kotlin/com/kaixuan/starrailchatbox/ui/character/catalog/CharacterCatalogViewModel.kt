@@ -8,6 +8,13 @@ import com.kaixuan.starrailchatbox.data.character.CharacterAvatarSource
 import com.kaixuan.starrailchatbox.data.character.CharacterRepository
 import com.kaixuan.starrailchatbox.data.character.catalog.PublicCharacterCatalogRepository
 import com.kaixuan.starrailchatbox.data.character.catalog.PublicCharacterSummary
+import com.kaixuan.starrailchatbox.data.character.catalog.CatalogAdminOperationPayload
+import com.kaixuan.starrailchatbox.data.character.catalog.CatalogAdminOperationRequest
+import com.kaixuan.starrailchatbox.data.character.catalog.CatalogAdminOperationType
+import com.kaixuan.starrailchatbox.data.character.catalog.CatalogAdminRepository
+import com.kaixuan.starrailchatbox.data.settings.AppSettingsStore
+import com.kaixuan.starrailchatbox.PlatformType
+import com.kaixuan.starrailchatbox.getPlatform
 import com.kaixuan.starrailchatbox.platform.KmpFileManager
 import io.github.aakira.napier.Napier
 import io.ktor.client.HttpClient
@@ -19,6 +26,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlin.time.Clock
 import okio.Path.Companion.toPath
 
@@ -26,8 +34,13 @@ class CharacterCatalogViewModel(
     private val catalogRepository: PublicCharacterCatalogRepository,
     private val characterRepository: CharacterRepository,
     private val httpClient: HttpClient,
+    private val adminRepository: CatalogAdminRepository,
+    private val appSettingsStore: AppSettingsStore,
     private val fileManager: KmpFileManager = KmpFileManager.Default,
 ) : ViewModel() {
+    private var adminKey: String? = null
+    private var titleClickCount = 0
+    private var lastTitleClickAt = 0L
 
     private val _uiState = MutableStateFlow(CharacterCatalogUiState())
     val uiState = _uiState.asStateFlow()
@@ -36,6 +49,8 @@ class CharacterCatalogViewModel(
     val effects = _effects.receiveAsFlow()
 
     init {
+        val adminSupported = getPlatform().type in setOf(PlatformType.Android, PlatformType.Windows)
+        _uiState.update { it.copy(adminSupported = adminSupported) }
         // 观察本地已经导入的角色，随时刷新勾选状态
         viewModelScope.launch {
             characterRepository.observeCharacterSummaries().collect { list ->
@@ -43,6 +58,7 @@ class CharacterCatalogViewModel(
             }
         }
         onAction(CharacterCatalogAction.LoadCatalog)
+        if (adminSupported) restoreAdminMode()
     }
 
     fun onAction(action: CharacterCatalogAction) {
@@ -55,6 +71,258 @@ class CharacterCatalogViewModel(
             is CharacterCatalogAction.ImportCharacterClicked -> importCharacter(action.character)
             is CharacterCatalogAction.ToggleTagFilter -> _uiState.update { it.copy(isTagFilterOpen = !it.isTagFilterOpen) }
             is CharacterCatalogAction.LoadNextPage -> loadNextPage()
+            CharacterCatalogAction.TitleClicked -> onTitleClicked()
+            is CharacterCatalogAction.AdminKeyChanged -> {
+                _uiState.update { it.copy(adminKeyDraft = action.value) }
+            }
+            CharacterCatalogAction.ConfirmAdminKey -> confirmAdminKey()
+            CharacterCatalogAction.DismissAdminKeyDialog -> {
+                _uiState.update { it.copy(showAdminKeyDialog = false, adminKeyDraft = "") }
+            }
+            CharacterCatalogAction.DisableAdminMode -> disableAdminMode()
+            CharacterCatalogAction.CreateCategoryClicked -> {
+                _uiState.update { it.copy(showCreateCategoryDialog = true, categoryNameDraft = "") }
+            }
+            is CharacterCatalogAction.CategoryNameChanged -> {
+                _uiState.update { it.copy(categoryNameDraft = action.value) }
+            }
+            CharacterCatalogAction.ConfirmCreateCategory -> createCategory()
+            CharacterCatalogAction.DismissCreateCategoryDialog -> {
+                _uiState.update { it.copy(showCreateCategoryDialog = false, categoryNameDraft = "") }
+            }
+            is CharacterCatalogAction.MoveCharacterClicked -> {
+                _uiState.update { it.copy(movingCharacter = action.character) }
+            }
+            CharacterCatalogAction.DismissMoveCharacterDialog -> {
+                _uiState.update { it.copy(movingCharacter = null) }
+            }
+            is CharacterCatalogAction.ConfirmMoveCharacter -> moveCharacter(action.categoryId)
+            is CharacterCatalogAction.DeleteCharacterClicked -> {
+                _uiState.update { it.copy(deletingCharacter = action.character) }
+            }
+            CharacterCatalogAction.DismissDeleteCharacterDialog -> {
+                _uiState.update { it.copy(deletingCharacter = null) }
+            }
+            CharacterCatalogAction.ConfirmDeleteCharacter -> deleteCharacter()
+        }
+    }
+
+    private fun restoreAdminMode() {
+        viewModelScope.launch {
+            val storedKey = appSettingsStore.getCatalogAdminKey() ?: return@launch
+            when (val result = adminRepository.verify(storedKey)) {
+                is ApiResult.Success -> {
+                    if (result.value.success && result.value.admin) {
+                        adminKey = storedKey
+                        _uiState.update { it.copy(adminModeEnabled = true) }
+                    } else {
+                        appSettingsStore.setCatalogAdminKey(null)
+                    }
+                }
+                is ApiResult.HttpError -> {
+                    if (result.statusCode == 401 || result.statusCode == 403) {
+                        appSettingsStore.setCatalogAdminKey(null)
+                    }
+                }
+                else -> Unit
+            }
+        }
+    }
+
+    private fun onTitleClicked() {
+        if (!_uiState.value.adminSupported || _uiState.value.adminModeEnabled) return
+        val now = Clock.System.now().toEpochMilliseconds()
+        titleClickCount = if (now - lastTitleClickAt <= 2_000) titleClickCount + 1 else 1
+        lastTitleClickAt = now
+        if (titleClickCount >= 7) {
+            titleClickCount = 0
+            _uiState.update { it.copy(showAdminKeyDialog = true, adminKeyDraft = "") }
+        }
+    }
+
+    private fun confirmAdminKey() {
+        val key = _uiState.value.adminKeyDraft.trim()
+        if (key.isBlank() || _uiState.value.isAdminBusy) return
+        _uiState.update { it.copy(isAdminBusy = true) }
+        viewModelScope.launch {
+            when (val result = adminRepository.verify(key)) {
+                is ApiResult.Success -> {
+                    if (result.value.success && result.value.admin) {
+                        adminKey = key
+                        appSettingsStore.setCatalogAdminKey(key)
+                        _uiState.update {
+                            it.copy(
+                                adminModeEnabled = true,
+                                isAdminBusy = false,
+                                showAdminKeyDialog = false,
+                                adminKeyDraft = "",
+                            )
+                        }
+                        _effects.send(CharacterCatalogEffect.ShowToast("管理员模式已开启"))
+                    } else {
+                        _uiState.update { it.copy(isAdminBusy = false) }
+                        _effects.send(CharacterCatalogEffect.ShowToast("管理员密钥无效"))
+                    }
+                }
+                else -> {
+                    _uiState.update { it.copy(isAdminBusy = false) }
+                    _effects.send(CharacterCatalogEffect.ShowToast("管理员密钥验证失败"))
+                }
+            }
+        }
+    }
+
+    private fun disableAdminMode() {
+        adminKey = null
+        viewModelScope.launch { appSettingsStore.setCatalogAdminKey(null) }
+        _uiState.update {
+            it.copy(
+                adminModeEnabled = false,
+                showAdminKeyDialog = false,
+                adminKeyDraft = "",
+            )
+        }
+    }
+
+    private fun createCategory() {
+        val key = adminKey ?: return
+        val name = _uiState.value.categoryNameDraft.trim()
+        if (name.isBlank() || _uiState.value.isAdminBusy) return
+        _uiState.update { it.copy(isAdminBusy = true) }
+        viewModelScope.launch {
+            val result = adminRepository.createOperation(
+                adminKey = key,
+                request = CatalogAdminOperationRequest(
+                    type = CatalogAdminOperationType.CreateCategory,
+                    payload = CatalogAdminOperationPayload(name = name),
+                ),
+                idempotencyKey = "create-category-${Clock.System.now().toEpochMilliseconds()}",
+            )
+            if (result is ApiResult.Success && result.value.status == "APPROVED") {
+                _uiState.update {
+                    it.copy(
+                        isAdminBusy = false,
+                        showCreateCategoryDialog = false,
+                        categoryNameDraft = "",
+                    )
+                }
+                _effects.send(CharacterCatalogEffect.ShowToast("分类已创建"))
+                loadCatalog()
+            } else {
+                _uiState.update { it.copy(isAdminBusy = false) }
+                handleAdminFailure(result, "创建分类失败")
+            }
+        }
+    }
+
+    private fun moveCharacter(categoryId: String) {
+        val key = adminKey ?: return
+        val character = _uiState.value.movingCharacter ?: return
+        if (_uiState.value.isAdminBusy) return
+        _uiState.update { it.copy(isAdminBusy = true) }
+        viewModelScope.launch {
+            val result = adminRepository.createOperation(
+                adminKey = key,
+                request = CatalogAdminOperationRequest(
+                    type = CatalogAdminOperationType.MoveCharacter,
+                    payload = CatalogAdminOperationPayload(
+                        characterKey = character.characterKey,
+                        primaryCategoryId = categoryId,
+                    ),
+                ),
+                idempotencyKey = "move-${character.characterKey}-$categoryId-${Clock.System.now().toEpochMilliseconds()}",
+            )
+            if (result is ApiResult.Success && result.value.status == "APPROVED") {
+                _uiState.update { it.copy(isAdminBusy = false, movingCharacter = null) }
+                _effects.send(CharacterCatalogEffect.ShowToast("角色分类已更新"))
+                loadCatalog()
+            } else {
+                _uiState.update { it.copy(isAdminBusy = false) }
+                handleAdminFailure(result, "移动角色失败")
+            }
+        }
+    }
+
+    private fun deleteCharacter() {
+        val key = adminKey ?: return
+        val character = _uiState.value.deletingCharacter ?: return
+        if (_uiState.value.isAdminBusy) return
+        _uiState.update { it.copy(isAdminBusy = true) }
+        viewModelScope.launch {
+            val result = adminRepository.createOperation(
+                adminKey = key,
+                request = CatalogAdminOperationRequest(
+                    type = CatalogAdminOperationType.DeleteCharacter,
+                    payload = CatalogAdminOperationPayload(characterKey = character.characterKey),
+                ),
+                idempotencyKey = "delete-${character.characterKey}-${Clock.System.now().toEpochMilliseconds()}",
+            )
+            if (result is ApiResult.Success && result.value.status == "PENDING_REVIEW") {
+                _uiState.update {
+                    it.copy(
+                        isAdminBusy = false,
+                        deletingCharacter = null,
+                        pendingDeleteCharacterKeys =
+                            it.pendingDeleteCharacterKeys + character.characterKey,
+                    )
+                }
+                _effects.send(CharacterCatalogEffect.ShowToast("已提交飞书审批"))
+                pollDeleteOperation(key, result.value.operationId, character.characterKey)
+            } else {
+                _uiState.update { it.copy(isAdminBusy = false) }
+                handleAdminFailure(result, "提交下架审批失败")
+            }
+        }
+    }
+
+    private fun pollDeleteOperation(key: String, operationId: String, characterKey: String) {
+        viewModelScope.launch {
+            while (true) {
+                delay(3_000)
+                when (val result = adminRepository.getOperation(key, operationId)) {
+                    is ApiResult.Success -> when (result.value.status) {
+                        "APPROVED" -> {
+                            _uiState.update {
+                                it.copy(
+                                    pendingDeleteCharacterKeys =
+                                        it.pendingDeleteCharacterKeys - characterKey,
+                                )
+                            }
+                            _effects.send(CharacterCatalogEffect.ShowToast("角色已下架"))
+                            loadCatalog()
+                            return@launch
+                        }
+                        "REJECTED", "FAILED" -> {
+                            _uiState.update {
+                                it.copy(
+                                    pendingDeleteCharacterKeys =
+                                        it.pendingDeleteCharacterKeys - characterKey,
+                                )
+                            }
+                            _effects.send(
+                                CharacterCatalogEffect.ShowToast(
+                                    result.value.message ?: "角色下架未通过",
+                                ),
+                            )
+                            return@launch
+                        }
+                    }
+                    is ApiResult.HttpError -> if (result.statusCode == 401 || result.statusCode == 403) {
+                        disableAdminMode()
+                        return@launch
+                    }
+                    else -> Unit
+                }
+            }
+        }
+    }
+
+    private suspend fun handleAdminFailure(result: ApiResult<*>, fallback: String) {
+        if (result is ApiResult.HttpError && (result.statusCode == 401 || result.statusCode == 403)) {
+            disableAdminMode()
+            _effects.send(CharacterCatalogEffect.ShowToast("管理员凭证已失效"))
+        } else {
+            _effects.send(CharacterCatalogEffect.ShowToast(fallback))
         }
     }
 
