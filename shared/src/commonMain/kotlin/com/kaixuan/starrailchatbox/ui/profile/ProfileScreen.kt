@@ -70,6 +70,11 @@ import starrailchatbox.shared.generated.resources.navigation_back
 import starrailchatbox.shared.generated.resources.profile_avatar_title
 import starrailchatbox.shared.generated.resources.profile_restore_default
 import starrailchatbox.shared.generated.resources.settings_profile_title
+import starrailchatbox.shared.generated.resources.profile_nickname_section
+import starrailchatbox.shared.generated.resources.profile_nickname_title
+import starrailchatbox.shared.generated.resources.profile_nickname_placeholder
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import io.github.vinceglb.filekit.extension
 import io.github.vinceglb.filekit.name
 import io.github.vinceglb.filekit.path
@@ -183,6 +188,52 @@ fun ProfileScreen(
                         modifier = Modifier.weight(1f)
                     )
                 }
+            }
+        }
+
+        // User Settings Section (用户昵称设置，在通用设置上面)
+        SettingsSection(
+            title = stringResource(Res.string.profile_nickname_section)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = stringResource(Res.string.profile_nickname_title),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold
+                )
+                OutlinedTextField(
+                    value = state.userNickname,
+                    onValueChange = { onAction(ProfileAction.UserNicknameChanged(it)) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .clip(RoundedCornerShape(24.dp)),
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyMedium,
+                    shape = RoundedCornerShape(24.dp),
+                    placeholder = {
+                        Text(
+                            text = stringResource(Res.string.profile_nickname_placeholder),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                        disabledContainerColor = Color.Transparent,
+                        errorContainerColor = Color.Transparent,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f),
+                        disabledBorderColor = Color.Transparent,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    )
+                )
             }
         }
 

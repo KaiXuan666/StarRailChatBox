@@ -35,6 +35,8 @@ import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.readRemaining
 import kotlin.io.encoding.Base64
 import kotlinx.io.readByteArray
+import kotlinx.coroutines.flow.first
+import com.kaixuan.starrailchatbox.data.settings.AppSettingsStore
 
 data class CharacterEditArgs(
     val characterId: String?,
@@ -56,6 +58,7 @@ class CharacterEditViewModel(
     private val fileManager: KmpFileManager,
     private val imageProviderRegistry: ImageGenerationProviderRegistry,
     private val httpClient: HttpClient,
+    private val appSettingsStore: AppSettingsStore,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(
         CharacterEditUiState(
@@ -74,6 +77,9 @@ class CharacterEditViewModel(
                 characterRepository.getCharacter(characterId)?.let { character ->
                     _uiState.value = character.toEditUiState()
                 }
+            } else {
+                val nickname = appSettingsStore.userNickname.first()
+                update { it.copy(author = nickname) }
             }
             if (importPath != null && importName != null && importExtension != null) {
                 importCharacter(importPath, importName, importExtension)

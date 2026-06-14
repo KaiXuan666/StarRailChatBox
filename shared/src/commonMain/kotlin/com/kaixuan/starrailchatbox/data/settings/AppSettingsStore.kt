@@ -12,6 +12,8 @@ interface AppSettingsStore {
     suspend fun setDarkThemeOverride(darkThemeOverride: Boolean?)
     suspend fun getCharacterUpdateToken(characterKey: String): String?
     suspend fun setCharacterUpdateToken(characterKey: String, token: String)
+    val userNickname: Flow<String>
+    suspend fun setUserNickname(nickname: String)
 }
 
 class InMemoryAppSettingsStore(
@@ -19,7 +21,9 @@ class InMemoryAppSettingsStore(
 ) : AppSettingsStore {
     private val _darkThemeOverride = MutableStateFlow(initialTheme)
     private val characterUpdateTokens = mutableMapOf<String, String>()
+    private val _userNickname = MutableStateFlow("")
     override val darkThemeOverride: Flow<Boolean?> = _darkThemeOverride.asStateFlow()
+    override val userNickname: Flow<String> = _userNickname.asStateFlow()
 
     override suspend fun setDarkThemeOverride(darkThemeOverride: Boolean?) {
         _darkThemeOverride.value = darkThemeOverride
@@ -31,6 +35,10 @@ class InMemoryAppSettingsStore(
 
     override suspend fun setCharacterUpdateToken(characterKey: String, token: String) {
         characterUpdateTokens[characterKey] = token
+    }
+
+    override suspend fun setUserNickname(nickname: String) {
+        _userNickname.value = nickname
     }
 }
 

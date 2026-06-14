@@ -48,8 +48,19 @@ private class DataStoreAppSettingsStore(
             preferences[characterUpdateTokenKey(characterKey)] = token
         }
     }
+
+    override val userNickname: Flow<String> = dataStore.data.map { preferences ->
+        preferences[UserNicknameKey] ?: ""
+    }
+
+    override suspend fun setUserNickname(nickname: String) {
+        dataStore.edit { preferences ->
+            preferences[UserNicknameKey] = nickname
+        }
+    }
 }
 
 private val DarkThemeKey = booleanPreferencesKey("dark_theme_override")
+private val UserNicknameKey = stringPreferencesKey("user_nickname")
 private fun characterUpdateTokenKey(characterKey: String) =
     stringPreferencesKey("character_update_token_$characterKey")

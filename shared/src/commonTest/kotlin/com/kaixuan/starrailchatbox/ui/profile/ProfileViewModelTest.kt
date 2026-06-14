@@ -5,6 +5,9 @@ import com.kaixuan.starrailchatbox.data.database.InMemoryDatabaseManager
 import com.kaixuan.starrailchatbox.data.settings.ProfileStore
 import com.kaixuan.starrailchatbox.data.settings.UserProfile
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import com.kaixuan.starrailchatbox.data.settings.AppSettingsStore
+import com.kaixuan.starrailchatbox.data.settings.InMemoryAppSettingsStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -112,6 +115,29 @@ class ProfileViewModelTest {
     }
 
     @Test
+    fun userNicknameIsLoaded() = runTest {
+        val appSettingsStore = InMemoryAppSettingsStore()
+        appSettingsStore.setUserNickname("测试旅人")
+        val viewModel = createViewModel(appSettingsStore = appSettingsStore, scope = this)
+        runCurrent()
+
+        assertEquals("测试旅人", viewModel.uiState.value.userNickname)
+    }
+
+    @Test
+    fun nicknameChangeTriggersSave() = runTest {
+        val appSettingsStore = InMemoryAppSettingsStore()
+        val viewModel = createViewModel(appSettingsStore = appSettingsStore, scope = this)
+        runCurrent()
+
+        viewModel.onAction(ProfileAction.UserNicknameChanged("新昵称"))
+        advanceUntilIdle()
+
+        assertEquals("新昵称", appSettingsStore.userNickname.first())
+        assertEquals("新昵称", viewModel.uiState.value.userNickname)
+    }
+
+    @Test
     fun restoreDefaultAvatarClearsCustomAvatarAndSaves() = runTest {
         val store = FakeProfileStore(UserProfile(customAvatarUri = "file:///test/avatar.png"))
         val viewModel = createViewModel(store = store, scope = this)
@@ -126,11 +152,13 @@ class ProfileViewModelTest {
 
     private fun createViewModel(
         store: ProfileStore = FakeProfileStore(),
+        appSettingsStore: AppSettingsStore = InMemoryAppSettingsStore(),
         scope: kotlinx.coroutines.CoroutineScope,
         databaseManager: DatabaseManager = InMemoryDatabaseManager()
     ) = ProfileViewModel(
         profileStore = store,
         databaseManager = databaseManager,
+        appSettingsStore = appSettingsStore,
         coroutineScope = scope
     )
 }

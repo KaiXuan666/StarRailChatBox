@@ -11,7 +11,9 @@ private class WasmAppSettingsStore : AppSettingsStore {
             if (it == "true") true else if (it == "false") false else null
         }
     )
+    private val _userNickname = MutableStateFlow(localStorage.getItem("user_nickname") ?: "")
     override val darkThemeOverride: Flow<Boolean?> = _darkThemeOverride.asStateFlow()
+    override val userNickname: Flow<String> = _userNickname.asStateFlow()
 
     override suspend fun setDarkThemeOverride(darkThemeOverride: Boolean?) {
         if (darkThemeOverride != null) {
@@ -28,6 +30,11 @@ private class WasmAppSettingsStore : AppSettingsStore {
 
     override suspend fun setCharacterUpdateToken(characterKey: String, token: String) {
         localStorage.setItem("character_update_token_$characterKey", token)
+    }
+
+    override suspend fun setUserNickname(nickname: String) {
+        localStorage.setItem("user_nickname", nickname)
+        _userNickname.value = nickname
     }
 }
 

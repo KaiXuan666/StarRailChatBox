@@ -650,15 +650,6 @@ private fun CharacterIdentityCard(
                     onValueChange = onNameChanged,
                     singleLine = true,
                 )
-                LabeledTextField(
-                    label = stringResource(Res.string.character_edit_author),
-                    value = state.author,
-                    onValueChange = {
-                        onAction(CharacterAction.CharacterAuthorChanged(it))
-                    },
-                    supportingText = stringResource(Res.string.character_edit_author_hint),
-                    singleLine = true,
-                )
             }
         }
     }

@@ -8,16 +8,19 @@ import com.kaixuan.starrailchatbox.data.settings.UserProfile
 import io.github.vinceglb.filekit.FileKit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import okio.Path.Companion.toPath
+import com.kaixuan.starrailchatbox.data.settings.AppSettingsStore
 
 class ProfileViewModel(
     private val profileStore: ProfileStore,
     private val databaseManager: DatabaseManager,
+    private val appSettingsStore: AppSettingsStore,
     private val coroutineScope: CoroutineScope? = null
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ProfileUiState())
@@ -29,12 +32,14 @@ class ProfileViewModel(
     init {
         scope().launch {
             val profile = profileStore.load()
+            val nickname = appSettingsStore.userNickname.first()
             _uiState.update { state ->
                 state.copy(
                     customAvatarUri = profile?.customAvatarUri,
                     summaryThreshold = profile?.summaryThreshold ?: 20,
                     saveMultimodalToken = profile?.saveMultimodalToken ?: false,
                     enableWebSearch = profile?.enableWebSearch ?: false,
+                    userNickname = nickname,
                     isLoaded = true
                 )
             }
@@ -77,6 +82,12 @@ class ProfileViewModel(
             is ProfileAction.EnableWebSearchChanged -> {
                 _uiState.update { it.copy(enableWebSearch = action.enabled) }
                 saveProfile()
+            }
+            is ProfileAction.UserNicknameChanged -> {
+                _uiState.update { it.copy(userNickname = action.nickname) }
+                scope().launch {
+                    appSettingsStore.setUserNickname(action.nickname)
+                }
             }
             is ProfileAction.ExportData -> {
                 scope().launch {

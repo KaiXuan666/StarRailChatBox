@@ -8,6 +8,7 @@ data class ProfileUiState(
     val summaryThreshold: Int = 20,
     val saveMultimodalToken: Boolean = false,
     val enableWebSearch: Boolean = false,
+    val userNickname: String = "",
     val isSaving: Boolean = false,
     val isLoaded: Boolean = false,
 )
