@@ -30,6 +30,8 @@ enum class CatalogAdminOperationType {
     MoveCharacter,
     @SerialName("DELETE_CHARACTER")
     DeleteCharacter,
+    @SerialName("REBUILD_CATALOG")
+    RebuildCatalog,
 }
 
 @Serializable
@@ -51,6 +53,7 @@ data class CatalogAdminOperationResult(
     val characterKey: String? = null,
     val revision: String? = null,
     val catalogVersion: String? = null,
+    val generatedAt: String? = null,
 )
 
 @Serializable

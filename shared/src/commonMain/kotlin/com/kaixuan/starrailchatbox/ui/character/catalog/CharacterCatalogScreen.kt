@@ -75,6 +75,7 @@ import starrailchatbox.shared.generated.resources.catalog_admin_key_title
 import starrailchatbox.shared.generated.resources.catalog_admin_move
 import starrailchatbox.shared.generated.resources.catalog_admin_move_title
 import starrailchatbox.shared.generated.resources.catalog_admin_pending_review
+import starrailchatbox.shared.generated.resources.catalog_admin_refresh_taxonomy
 import starrailchatbox.shared.generated.resources.catalog_admin_submit_review
 import starrailchatbox.shared.generated.resources.catalog_admin_verify
 import starrailchatbox.shared.generated.resources.catalog_all_characters
@@ -188,15 +189,24 @@ fun CharacterCatalogScreen(
                         ) {
                             Button(
                                 onClick = { onAction(CharacterCatalogAction.CreateCategoryClicked) },
-                                enabled = !state.isAdminBusy,
+                                enabled = !state.isAdminBusy && !state.isLoading,
                                 modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                             ) {
                                 Text(stringResource(Res.string.catalog_admin_create_category))
                             }
                             OutlinedButton(
-                                onClick = { onAction(CharacterCatalogAction.DisableAdminMode) },
-                                enabled = !state.isAdminBusy,
+                                onClick = { onAction(CharacterCatalogAction.RefreshTaxonomy) },
+                                enabled = !state.isAdminBusy && !state.isLoading,
                                 modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                                contentPadding = PaddingValues(horizontal = StarRailSpacing.xs),
+                            ) {
+                                Text(stringResource(Res.string.catalog_admin_refresh_taxonomy))
+                            }
+                            OutlinedButton(
+                                onClick = { onAction(CharacterCatalogAction.DisableAdminMode) },
+                                enabled = !state.isAdminBusy && !state.isLoading,
+                                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                                contentPadding = PaddingValues(horizontal = StarRailSpacing.xs),
                             ) {
                                 Text(stringResource(Res.string.catalog_admin_disable))
                             }

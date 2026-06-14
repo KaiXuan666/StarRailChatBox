@@ -81,6 +81,7 @@ class CharacterCatalogViewModel(
                 _uiState.update { it.copy(showAdminKeyDialog = false, adminKeyDraft = "") }
             }
             CharacterCatalogAction.DisableAdminMode -> disableAdminMode()
+            CharacterCatalogAction.RefreshTaxonomy -> rebuildCatalog()
             CharacterCatalogAction.CreateCategoryClicked -> {
                 _uiState.update { it.copy(showCreateCategoryDialog = true, categoryNameDraft = "") }
             }
@@ -212,6 +213,30 @@ class CharacterCatalogViewModel(
             } else {
                 _uiState.update { it.copy(isAdminBusy = false) }
                 handleAdminFailure(result, "创建分类失败")
+            }
+        }
+    }
+
+    private fun rebuildCatalog() {
+        val key = adminKey ?: return
+        if (_uiState.value.isAdminBusy || _uiState.value.isLoading) return
+        _uiState.update { it.copy(isAdminBusy = true) }
+        viewModelScope.launch {
+            val result = adminRepository.createOperation(
+                adminKey = key,
+                request = CatalogAdminOperationRequest(
+                    type = CatalogAdminOperationType.RebuildCatalog,
+                    payload = CatalogAdminOperationPayload(),
+                ),
+                idempotencyKey = "rebuild-catalog-${Clock.System.now().toEpochMilliseconds()}",
+            )
+            if (result is ApiResult.Success && result.value.status == "APPROVED") {
+                _uiState.update { it.copy(isAdminBusy = false) }
+                _effects.send(CharacterCatalogEffect.ShowToast("OSS 目录已重新生成"))
+                loadCatalog()
+            } else {
+                _uiState.update { it.copy(isAdminBusy = false) }
+                handleAdminFailure(result, "重新生成目录失败")
             }
         }
     }

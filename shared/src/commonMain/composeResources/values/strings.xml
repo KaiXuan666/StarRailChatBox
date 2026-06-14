@@ -325,6 +325,7 @@
     <string name="catalog_admin_key_hint">请输入管理密钥</string>
     <string name="catalog_admin_verify">验证</string>
     <string name="catalog_admin_create_category">创建分类</string>
+    <string name="catalog_admin_refresh_taxonomy">刷新分类</string>
     <string name="catalog_all_characters">全部</string>
     <string name="catalog_admin_disable">退出管理</string>
     <string name="catalog_admin_category_title">创建公共分类</string>

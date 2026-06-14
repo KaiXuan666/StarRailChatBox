@@ -17,6 +17,7 @@ sealed interface CharacterCatalogAction {
     data object ConfirmAdminKey : CharacterCatalogAction
     data object DismissAdminKeyDialog : CharacterCatalogAction
     data object DisableAdminMode : CharacterCatalogAction
+    data object RefreshTaxonomy : CharacterCatalogAction
     data object CreateCategoryClicked : CharacterCatalogAction
     data class CategoryNameChanged(val value: String) : CharacterCatalogAction
     data object ConfirmCreateCategory : CharacterCatalogAction

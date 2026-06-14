@@ -10,6 +10,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -17,6 +18,16 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class CatalogAdminRepositoryTest {
+    @Test
+    fun rebuildCatalogUsesBackendOperationName() {
+        val request = CatalogAdminOperationRequest(
+            type = CatalogAdminOperationType.RebuildCatalog,
+            payload = CatalogAdminOperationPayload(),
+        )
+
+        assertTrue(Json.encodeToString(request).contains("\"type\":\"REBUILD_CATALOG\""))
+    }
+
     @Test
     fun verifySendsBearerCredentialAndParsesResponse() = runTest {
         val engine = MockEngine { request ->
