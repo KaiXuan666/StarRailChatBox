@@ -143,13 +143,18 @@ class PublicCharacterRepositoryTest {
             archiveWriter = CapturingArchiveWriter(),
         )
 
-        val result = repository.share(testCharacter(), primaryCategoryId = "game")
+        val result = repository.share(
+            testCharacter(),
+            primaryCategoryId = "game",
+            tagIds = listOf("gentle", "healing"),
+        )
 
         assertIs<ApiResult.Success<Unit>>(result)
         assertEquals(2, requestCount)
         assertEquals(HttpMethod.Post, engine.requestHistory[0].method)
         assertTrue(engine.requestHistory[0].url.toString().startsWith("https://api.qyaichat.com/v1/submissions"))
         assertTrue(submissionBody.contains("\"primaryCategoryId\":\"game\""))
+        assertTrue(submissionBody.contains("\"tagIds\":[\"gentle\",\"healing\"]"))
         assertEquals(HttpMethod.Post, engine.requestHistory[1].method)
         assertTrue(engine.requestHistory[1].url.toString().startsWith("https://oss.example/upload"))
         assertTrue(engine.requestHistory[1].body.contentType.toString().startsWith("multipart/form-data"))
@@ -172,11 +177,41 @@ class PublicCharacterRepositoryTest {
             archiveWriter = CapturingArchiveWriter(),
         )
 
-        val result = repository.share(testCharacter(), primaryCategoryId = "game")
+        val result = repository.share(
+            testCharacter(),
+            primaryCategoryId = "game",
+            tagIds = emptyList(),
+        )
 
         val error = assertIs<ApiResult.UnexpectedError>(result)
         assertTrue(error.message.orEmpty().contains("审核中"))
         assertEquals(1, requestCount)
+    }
+
+    @Test
+    fun shareRejectsBlankSystemPromptBeforePackagingOrNetwork() = runTest {
+        var requestCount = 0
+        val archiveWriter = CapturingArchiveWriter()
+        val repository = DefaultPublicCharacterRepository(
+            httpClient = testClient(MockEngine {
+                requestCount++
+                error("Network should not be called")
+            }),
+            fileManager = FakeFileManager(),
+            appSettingsStore = InMemoryAppSettingsStore(),
+            archiveWriter = archiveWriter,
+        )
+
+        val result = repository.share(
+            testCharacter(prompt = " \n "),
+            primaryCategoryId = "game",
+            tagIds = emptyList(),
+        )
+
+        val error = assertIs<ApiResult.UnexpectedError>(result)
+        assertEquals(DefaultPublicCharacterRepository.ERROR_SYSTEM_PROMPT_REQUIRED, error.message)
+        assertEquals(0, requestCount)
+        assertTrue(archiveWriter.entries.isEmpty())
     }
 }
 
@@ -221,12 +256,13 @@ private suspend fun OutgoingContent.readText(): String {
 private fun testCharacter(
     avatarUri: String = "",
     voiceSampleUri: String? = null,
+    prompt: String = "prompt",
 ) = Character(
     id = "role",
     name = "Role",
     author = "author",
     description = "description",
-    prompt = "prompt",
+    prompt = prompt,
     openingMessage = "hello",
     avatarUri = avatarUri,
     voiceSampleUri = voiceSampleUri,

@@ -152,6 +152,7 @@ class CharacterEditViewModel(
             CharacterAction.CharacterShareCategoryConfirmed,
             CharacterAction.CharacterShareCategoryDialogDismissed,
             is CharacterAction.CharacterShareCategorySelected,
+            is CharacterAction.CharacterShareTagToggled,
             -> Unit
             is CharacterAction.CharacterEditOpened,
             CharacterAction.CharacterImportClicked,

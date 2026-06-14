@@ -5,6 +5,7 @@ import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.data.character.CharacterAvatarSource
 import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 import com.kaixuan.starrailchatbox.data.character.catalog.PublicCategory
+import com.kaixuan.starrailchatbox.data.character.catalog.PublicTag
 import com.kaixuan.starrailchatbox.data.character.importer.ImportedCharacterDraft
 
 @Immutable
@@ -51,7 +52,9 @@ data class CharactersUiState(
     val sharingCharacterId: String? = null,
     val shareCategoryDialogCharacterId: String? = null,
     val shareCategories: List<PublicCategory> = emptyList(),
+    val shareTags: List<PublicTag> = emptyList(),
     val selectedShareCategoryId: String? = null,
+    val selectedShareTagIds: Set<String> = emptySet(),
     val isLoadingShareCategories: Boolean = false,
 ) {
     val selectedCharacter: CharacterSummary?

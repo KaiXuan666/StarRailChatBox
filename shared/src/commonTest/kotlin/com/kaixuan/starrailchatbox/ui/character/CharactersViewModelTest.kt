@@ -12,6 +12,7 @@ import com.kaixuan.starrailchatbox.data.character.catalog.PublicCategory
 import com.kaixuan.starrailchatbox.data.character.catalog.PublicCharacterCatalogRepository
 import com.kaixuan.starrailchatbox.data.character.catalog.PublicCharacterDetail
 import com.kaixuan.starrailchatbox.data.character.catalog.PublicCharacterPage
+import com.kaixuan.starrailchatbox.data.character.catalog.PublicTag
 import com.kaixuan.starrailchatbox.data.character.importer.CharacterCardExporter
 import com.kaixuan.starrailchatbox.data.character.sharing.PublicCharacterRepository
 import com.kaixuan.starrailchatbox.data.settings.AppSettingsStore
@@ -157,6 +158,7 @@ class CharactersViewModelTest {
         assertEquals(1, catalogRepository.categoriesRequestCount)
         assertEquals("role", viewModel.uiState.value.shareCategoryDialogCharacterId)
         assertEquals(listOf("game", "general"), viewModel.uiState.value.shareCategories.map { it.id })
+        assertEquals(listOf("gentle", "healing"), viewModel.uiState.value.shareTags.map { it.id })
         assertEquals(0, sharingRepository.shareCount)
 
         viewModel.onAction(CharacterAction.CharacterShareCategoryConfirmed)
@@ -164,6 +166,9 @@ class CharactersViewModelTest {
         assertEquals(0, sharingRepository.shareCount)
 
         viewModel.onAction(CharacterAction.CharacterShareCategorySelected("general"))
+        viewModel.onAction(CharacterAction.CharacterShareTagToggled("healing"))
+        viewModel.onAction(CharacterAction.CharacterShareTagToggled("gentle"))
+        viewModel.onAction(CharacterAction.CharacterShareTagToggled("healing"))
         viewModel.onAction(CharacterAction.CharacterShareCategoryConfirmed)
         assertEquals(
             CharacterEffect.ShowMessage(CharacterEffectMessage.CHARACTER_SHARE_SUCCESS),
@@ -171,6 +176,7 @@ class CharactersViewModelTest {
         )
         assertEquals(1, sharingRepository.shareCount)
         assertEquals("general", sharingRepository.lastCategoryId)
+        assertEquals(listOf("gentle"), sharingRepository.lastTagIds)
     }
 }
 
@@ -203,14 +209,17 @@ private class FakePublicCharacterRepository(
     var shareCount: Int = 0
     var lastSharedCharacter: Character? = null
     var lastCategoryId: String? = null
+    var lastTagIds: List<String> = emptyList()
 
     override suspend fun share(
         character: Character,
         primaryCategoryId: String,
+        tagIds: List<String>,
     ): ApiResult<Unit> {
         shareCount++
         lastSharedCharacter = character
         lastCategoryId = primaryCategoryId
+        lastTagIds = tagIds
         return result()
     }
 }
@@ -228,6 +237,20 @@ private class FakePublicCharacterCatalogRepository : PublicCharacterCatalogRepos
                     catalogVersion = "test",
                     generatedAt = "",
                     categoriesUrl = "/categories.json",
+                    tags = listOf(
+                        PublicTag(
+                            id = "healing",
+                            name = "治愈",
+                            sortOrder = 2,
+                            firstPageUrl = "",
+                        ),
+                        PublicTag(
+                            id = "gentle",
+                            name = "温柔",
+                            sortOrder = 1,
+                            firstPageUrl = "",
+                        ),
+                    ),
                 ),
                 etag = null,
                 notModified = false,

@@ -133,7 +133,11 @@
     <string name="character_share_public">分享到角色工坊</string>
     <string name="character_share_public_sharing">正在上传角色...</string>
     <string name="character_share_category_title">选择角色类目</string>
-    <string name="character_share_category_message">请选择最适合该角色的类目，确认后才会上传角色卡。</string>
+    <string name="character_share_category_message">请选择最适合该角色的类目，并可添加多个标签。</string>
+    <string name="character_share_category_label">角色类目</string>
+    <string name="character_share_category_placeholder">请选择类目</string>
+    <string name="character_share_tag_label">角色标签（可多选）</string>
+    <string name="character_share_tag_empty">暂无可用标签</string>
     <string name="character_share_category_loading">正在加载类目...</string>
     <string name="character_share_category_confirm">确认上传</string>
     <string name="character_share_public_success">角色已上传，等待审核</string>

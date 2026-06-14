@@ -77,6 +77,7 @@ interface PublicCharacterRepository {
     suspend fun share(
         character: Character,
         primaryCategoryId: String,
+        tagIds: List<String>,
     ): ApiResult<Unit>
 }
 
@@ -97,9 +98,13 @@ class DefaultPublicCharacterRepository(
     override suspend fun share(
         character: Character,
         primaryCategoryId: String,
+        tagIds: List<String>,
     ): ApiResult<Unit> {
         if (!isSupported) {
             return ApiResult.UnexpectedError(ERROR_PLATFORM_UNSUPPORTED)
+        }
+        if (character.prompt.isBlank()) {
+            return ApiResult.UnexpectedError(ERROR_SYSTEM_PROMPT_REQUIRED)
         }
         var stage = ShareStage.PACKAGE
         val totalTimer = TimeSource.Monotonic.markNow()
@@ -129,7 +134,7 @@ class DefaultPublicCharacterRepository(
                         characterId = character.id,
                         author = character.author,
                         primaryCategoryId = primaryCategoryId,
-                        tagIds = emptyList(),
+                        tagIds = tagIds,
                         contentFingerprint = prepared.contentFingerprint,
                         packageSize = prepared.archive.size,
                         updateToken = updateToken,
@@ -306,6 +311,7 @@ class DefaultPublicCharacterRepository(
     companion object {
         const val ERROR_PLATFORM_UNSUPPORTED = "platform_unsupported"
         const val ERROR_MEDIA_READ = "media_read_failed"
+        const val ERROR_SYSTEM_PROMPT_REQUIRED = "系统提示词为空，无法提交"
         private const val ERROR_UPLOAD_URL = "upload_url_failed"
         private const val SUBMISSION_ENDPOINT = "https://api.qyaichat.com/v1/submissions"
         private const val LOG_TAG = "PublicCharacterShare"

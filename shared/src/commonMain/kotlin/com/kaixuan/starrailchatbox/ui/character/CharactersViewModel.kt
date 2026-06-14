@@ -60,6 +60,7 @@ class CharactersViewModel(
             CharacterAction.CharacterExportLocalClicked -> requestLocalExport()
             CharacterAction.CharacterSharePublicClicked -> loadShareCategories()
             is CharacterAction.CharacterShareCategorySelected -> selectShareCategory(action.categoryId)
+            is CharacterAction.CharacterShareTagToggled -> toggleShareTag(action.tagId)
             CharacterAction.CharacterShareCategoryConfirmed -> sharePublic()
             CharacterAction.CharacterShareCategoryDialogDismissed -> dismissShareCategoryDialog()
             is CharacterAction.CharacterExportDirectorySelected -> exportSelected(action.directory)
@@ -157,7 +158,9 @@ class CharactersViewModel(
                 exportDialogCharacterId = null,
                 shareCategoryDialogCharacterId = characterId,
                 shareCategories = emptyList(),
+                shareTags = emptyList(),
                 selectedShareCategoryId = null,
+                selectedShareTagIds = emptySet(),
                 isLoadingShareCategories = true,
             )
         }
@@ -203,6 +206,9 @@ class CharactersViewModel(
                 ?.categories
                 ?.sortedBy { it.sortOrder }
                 .orEmpty()
+            val tags = catalog?.tags
+                ?.sortedBy { it.sortOrder }
+                .orEmpty()
             if (categories.isEmpty()) {
                 _uiState.update {
                     it.copy(
@@ -217,6 +223,7 @@ class CharactersViewModel(
             _uiState.update {
                 it.copy(
                     shareCategories = categories,
+                    shareTags = tags,
                     isLoadingShareCategories = false,
                 )
             }
@@ -229,13 +236,27 @@ class CharactersViewModel(
         _uiState.update { it.copy(selectedShareCategoryId = categoryId) }
     }
 
+    private fun toggleShareTag(tagId: String) {
+        val state = _uiState.value
+        if (state.sharingCharacterId != null || state.shareTags.none { it.id == tagId }) return
+        _uiState.update {
+            val selectedTagIds = it.selectedShareTagIds.toMutableSet()
+            if (!selectedTagIds.add(tagId)) {
+                selectedTagIds.remove(tagId)
+            }
+            it.copy(selectedShareTagIds = selectedTagIds)
+        }
+    }
+
     private fun dismissShareCategoryDialog() {
         if (_uiState.value.sharingCharacterId != null || _uiState.value.isLoadingShareCategories) return
         _uiState.update {
             it.copy(
                 shareCategoryDialogCharacterId = null,
                 shareCategories = emptyList(),
+                shareTags = emptyList(),
                 selectedShareCategoryId = null,
+                selectedShareTagIds = emptySet(),
                 isLoadingShareCategories = false,
             )
         }
@@ -257,7 +278,9 @@ class CharactersViewModel(
                         sharingCharacterId = null,
                         shareCategoryDialogCharacterId = null,
                         shareCategories = emptyList(),
+                        shareTags = emptyList(),
                         selectedShareCategoryId = null,
+                        selectedShareTagIds = emptySet(),
                     )
                 }
                 showMessage(CharacterEffectMessage.CHARACTER_SHARE_FAILED)
@@ -266,13 +289,18 @@ class CharactersViewModel(
             val result = publicCharacterRepository.share(
                 character = character.copy(author = nickname),
                 primaryCategoryId = categoryId,
+                tagIds = state.shareTags
+                    .map { it.id }
+                    .filter { it in state.selectedShareTagIds },
             )
             _uiState.update { state ->
                 state.copy(
                     sharingCharacterId = null,
                     shareCategoryDialogCharacterId = null,
                     shareCategories = emptyList(),
+                    shareTags = emptyList(),
                     selectedShareCategoryId = null,
+                    selectedShareTagIds = emptySet(),
                 )
             }
             var customMessage: String? = null

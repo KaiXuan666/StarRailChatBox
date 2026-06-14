@@ -11,6 +11,8 @@ import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -27,8 +29,13 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
@@ -61,6 +68,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.ui.text.style.TextAlign
 import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 import com.kaixuan.starrailchatbox.data.character.catalog.PublicCategory
+import com.kaixuan.starrailchatbox.data.character.catalog.PublicTag
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.design.starRailColors
@@ -98,11 +106,15 @@ import starrailchatbox.shared.generated.resources.character_list_help_what_is_ca
 import starrailchatbox.shared.generated.resources.character_list_title
 import starrailchatbox.shared.generated.resources.character_share_public
 import starrailchatbox.shared.generated.resources.character_share_category_confirm
+import starrailchatbox.shared.generated.resources.character_share_category_label
 import starrailchatbox.shared.generated.resources.character_share_category_loading
 import starrailchatbox.shared.generated.resources.character_share_category_message
+import starrailchatbox.shared.generated.resources.character_share_category_placeholder
 import starrailchatbox.shared.generated.resources.character_share_category_title
 import starrailchatbox.shared.generated.resources.character_share_public_sharing
 import starrailchatbox.shared.generated.resources.character_share_public_hint
+import starrailchatbox.shared.generated.resources.character_share_tag_empty
+import starrailchatbox.shared.generated.resources.character_share_tag_label
 import starrailchatbox.shared.generated.resources.confirm
 import kotlin.math.roundToInt
 
@@ -110,6 +122,7 @@ import kotlin.math.roundToInt
 /**
  * 角色列表界面，展示所有已创建或导入的角色，支持排序、删除和导出操作。
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CharactersScreen(
     state: CharactersUiState,
@@ -479,32 +492,32 @@ fun CharactersScreen(
                         )
                     }
                 } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 320.dp),
-                        verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
+                    var categoryMenuExpanded by remember { mutableStateOf(false) }
+                    val selectedCategory = state.shareCategories.firstOrNull {
+                        it.id == state.selectedShareCategoryId
+                    }
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
                     ) {
-                        items(
-                            items = state.shareCategories,
-                            key = { it.id },
-                        ) { category ->
-                            val selected = category.id == state.selectedShareCategoryId
+                        Text(
+                            text = stringResource(Res.string.character_share_category_label),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Box(modifier = Modifier.fillMaxWidth()) {
                             Surface(
-                                onClick = {
-                                    onAction(CharacterAction.CharacterShareCategorySelected(category.id))
-                                },
-                                modifier = Modifier.fillMaxWidth(),
+                                onClick = { categoryMenuExpanded = true },
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                                 shape = MaterialTheme.shapes.medium,
-                                color = if (selected) {
-                                    MaterialTheme.colorScheme.primaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.surfaceContainer
-                                },
+                                color = MaterialTheme.colorScheme.surfaceContainer,
                                 border = BorderStroke(
-                                    width = if (selected) 2.dp else 1.dp,
-                                    color = if (selected) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
+                                    1.dp,
+                                    if (selectedCategory == null) {
                                         MaterialTheme.colorScheme.outlineVariant
+                                    } else {
+                                        MaterialTheme.colorScheme.primary
                                     },
                                 ),
                             ) {
@@ -516,23 +529,115 @@ fun CharactersScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                 ) {
                                     Text(
-                                        text = category.name,
-                                        color = if (selected) {
-                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                        text = selectedCategory?.name
+                                            ?: stringResource(Res.string.character_share_category_placeholder),
+                                        color = if (selectedCategory == null) {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
                                         } else {
                                             MaterialTheme.colorScheme.onSurface
                                         },
                                         style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                                     )
-                                    if (selected) {
-                                        StarRailIcon(
-                                            kind = StarRailIconKind.CHECK,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(20.dp),
-                                        )
-                                    }
+                                    StarRailIcon(
+                                        kind = StarRailIconKind.CHEVRON_RIGHT,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier
+                                            .size(18.dp)
+                                            .graphicsLayer {
+                                                rotationZ = if (categoryMenuExpanded) -90f else 90f
+                                            },
+                                    )
+                                }
+                            }
+                            DropdownMenu(
+                                expanded = categoryMenuExpanded,
+                                onDismissRequest = { categoryMenuExpanded = false },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                state.shareCategories.forEach { category ->
+                                    val selected = category.id == state.selectedShareCategoryId
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text = category.name,
+                                                color = if (selected) {
+                                                    MaterialTheme.colorScheme.primary
+                                                } else {
+                                                    MaterialTheme.colorScheme.onSurface
+                                                },
+                                            )
+                                        },
+                                        onClick = {
+                                            categoryMenuExpanded = false
+                                            onAction(
+                                                CharacterAction.CharacterShareCategorySelected(category.id),
+                                            )
+                                        },
+                                        trailingIcon = if (selected) {
+                                            {
+                                                StarRailIcon(
+                                                    kind = StarRailIconKind.CHECK,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(18.dp),
+                                                )
+                                            }
+                                        } else {
+                                            null
+                                        },
+                                    )
+                                }
+                            }
+                        }
+
+                        Text(
+                            text = stringResource(Res.string.character_share_tag_label),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        if (state.shareTags.isEmpty()) {
+                            Text(
+                                text = stringResource(Res.string.character_share_tag_empty),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        } else {
+                            FlowRow(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 180.dp)
+                                    .verticalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.xxs),
+                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                            ) {
+                                state.shareTags.forEach { tag ->
+                                    FilterChip(
+                                        modifier = Modifier.height(32.dp),
+                                        selected = tag.id in state.selectedShareTagIds,
+                                        onClick = {
+                                            onAction(CharacterAction.CharacterShareTagToggled(tag.id))
+                                        },
+                                        label = {
+                                            Text(
+                                                text = tag.name,
+                                                style = MaterialTheme.typography.labelMedium,
+                                            )
+                                        },
+                                        leadingIcon = if (tag.id in state.selectedShareTagIds) {
+                                            {
+                                                StarRailIcon(
+                                                    kind = StarRailIconKind.CHECK,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(14.dp),
+                                                )
+                                            }
+                                        } else {
+                                            null
+                                        },
+                                    )
                                 }
                             }
                         }
@@ -992,7 +1097,9 @@ private fun CharacterShareCategoryDialogLightPreview() {
             state = previewState.copy(
                 shareCategoryDialogCharacterId = "role",
                 shareCategories = previewCategories,
+                shareTags = previewTags,
                 selectedShareCategoryId = "game",
+                selectedShareTagIds = setOf("gentle", "healing"),
             ),
             contentPadding = PaddingValues(0.dp),
             compact = true,
@@ -1010,7 +1117,9 @@ private fun CharacterShareCategoryDialogDarkPreview() {
             state = previewState.copy(
                 shareCategoryDialogCharacterId = "role",
                 shareCategories = previewCategories,
+                shareTags = previewTags,
                 selectedShareCategoryId = "game",
+                selectedShareTagIds = setOf("gentle", "healing"),
             ),
             contentPadding = PaddingValues(0.dp),
             compact = true,
@@ -1035,6 +1144,12 @@ private val previewCategories = listOf(
         characterCount = 8,
         firstPageUrl = "",
     ),
+)
+
+private val previewTags = listOf(
+    PublicTag(id = "gentle", name = "温柔", sortOrder = 1, firstPageUrl = ""),
+    PublicTag(id = "tsundere", name = "傲娇", sortOrder = 2, firstPageUrl = ""),
+    PublicTag(id = "healing", name = "治愈", sortOrder = 3, firstPageUrl = ""),
 )
 
 private val previewState = CharactersUiState(
