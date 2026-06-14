@@ -222,7 +222,9 @@ fun CharacterCatalogScreen(
                                     isSelected = state.selectedCategoryId == null,
                                 ) { onAction(CharacterCatalogAction.SelectAll) }
                             }
-                            state.categories.forEach { category ->
+                            state.categories
+                                .filter { category -> category.characterCount > 0 }
+                                .forEach { category ->
                                 val isSelected = category.id == state.selectedCategoryId
                                 CategoryBadge(
                                     name = category.name,

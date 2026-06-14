@@ -353,7 +353,7 @@ class CharacterCatalogViewModel(
                                 if (catalog.allCharacters != null) {
                                     selectAll()
                                 } else {
-                                    categoriesData.firstOrNull()?.let { firstCat ->
+                                    categoriesData.firstOrNull { it.characterCount > 0 }?.let { firstCat ->
                                         selectCategory(firstCat.id)
                                     }
                                 }
