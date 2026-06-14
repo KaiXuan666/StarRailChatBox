@@ -54,6 +54,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.ui.text.style.TextAlign
 import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
@@ -61,6 +63,7 @@ import com.kaixuan.starrailchatbox.design.starRailColors
 import com.kaixuan.starrailchatbox.platform.formatLastChatTime
 import com.kaixuan.starrailchatbox.ui.components.AvatarImage
 import com.kaixuan.starrailchatbox.ui.components.StarRailDialog
+import com.kaixuan.starrailchatbox.ui.components.StarRailDialogButton
 import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import com.kaixuan.starrailchatbox.ui.components.StarRailPageHeader
@@ -91,6 +94,7 @@ import starrailchatbox.shared.generated.resources.character_list_help_what_is_ca
 import starrailchatbox.shared.generated.resources.character_list_title
 import starrailchatbox.shared.generated.resources.character_share_public
 import starrailchatbox.shared.generated.resources.character_share_public_sharing
+import starrailchatbox.shared.generated.resources.character_share_public_hint
 import starrailchatbox.shared.generated.resources.confirm
 import kotlin.math.roundToInt
 
@@ -392,22 +396,8 @@ fun CharactersScreen(
             val isSharing = state.sharingCharacterId == state.exportDialogCharacterId
             StarRailDialog(
                 title = stringResource(Res.string.character_export_dialog_title),
-                dismissText = stringResource(Res.string.character_export_local),
-                confirmText = stringResource(
-                    if (isSharing) {
-                        Res.string.character_share_public_sharing
-                    } else {
-                        Res.string.character_share_public
-                    },
-                ),
                 onDismissRequest = {
                     onAction(CharacterAction.CharacterExportDialogDismissed)
-                },
-                onDismissButton = {
-                    onAction(CharacterAction.CharacterExportLocalClicked)
-                },
-                onConfirm = {
-                    onAction(CharacterAction.CharacterSharePublicClicked)
                 },
             ) {
                 Text(
@@ -415,6 +405,45 @@ fun CharactersScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyLarge,
                 )
+                Spacer(modifier = Modifier.height(12.dp))
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    StarRailDialogButton(
+                        text = stringResource(Res.string.character_export_local),
+                        onClick = {
+                            onAction(CharacterAction.CharacterExportLocalClicked)
+                        },
+                        primary = true,
+                        modifier = Modifier.fillMaxWidth().height(44.dp),
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    StarRailDialogButton(
+                        text = stringResource(
+                            if (isSharing) {
+                                Res.string.character_share_public_sharing
+                            } else {
+                                Res.string.character_share_public
+                            },
+                        ),
+                        onClick = {
+                            if (!isSharing) {
+                                onAction(CharacterAction.CharacterSharePublicClicked)
+                            }
+                        },
+                        primary = true,
+                        modifier = Modifier.fillMaxWidth().height(44.dp),
+                    )
+                    Text(
+                        text = stringResource(Res.string.character_share_public_hint),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        style = MaterialTheme.typography.bodySmall,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                    )
+                }
             }
         }
 

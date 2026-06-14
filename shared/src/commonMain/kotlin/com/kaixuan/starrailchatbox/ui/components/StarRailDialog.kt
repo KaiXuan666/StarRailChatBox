@@ -40,8 +40,8 @@ import com.kaixuan.starrailchatbox.design.starRailColors
 @Composable
 fun StarRailDialog(
     title: String,
-    confirmText: String,
-    onConfirm: () -> Unit,
+    confirmText: String? = null,
+    onConfirm: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     dismissText: String? = null,
     onDismissRequest: () -> Unit = {},
@@ -105,33 +105,40 @@ fun StarRailDialog(
 
                 content()
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (neutralText != null && onNeutral != null) {
-                        DialogActionButton(
-                            text = neutralText,
-                            onClick = onNeutral,
-                            primary = false,
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
+                if (confirmText != null || dismissText != null || neutralText != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (neutralText != null && onNeutral != null) {
+                            StarRailDialogButton(
+                                text = neutralText,
+                                onClick = onNeutral,
+                                primary = false,
+                                modifier = Modifier.width(96.dp).height(38.dp),
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                        }
+                        if (dismissText != null) {
+                            StarRailDialogButton(
+                                text = dismissText,
+                                onClick = onDismissButton ?: onDismissRequest,
+                                primary = false,
+                                modifier = Modifier.width(96.dp).height(38.dp),
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                        }
+                        if (confirmText != null && onConfirm != null) {
+                            StarRailDialogButton(
+                                text = confirmText,
+                                onClick = onConfirm,
+                                primary = true,
+                                destructive = destructive,
+                                modifier = Modifier.width(96.dp).height(38.dp),
+                            )
+                        }
                     }
-                    if (dismissText != null) {
-                        DialogActionButton(
-                            text = dismissText,
-                            onClick = onDismissButton ?: onDismissRequest,
-                            primary = false,
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                    }
-                    DialogActionButton(
-                        text = confirmText,
-                        onClick = onConfirm,
-                        primary = true,
-                        destructive = destructive,
-                    )
                 }
             }
         }
@@ -139,10 +146,11 @@ fun StarRailDialog(
 }
 
 @Composable
-private fun DialogActionButton(
+fun StarRailDialogButton(
     text: String,
     onClick: () -> Unit,
     primary: Boolean,
+    modifier: Modifier = Modifier,
     destructive: Boolean = false,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -167,9 +175,7 @@ private fun DialogActionButton(
     Surface(
         onClick = onClick,
         interactionSource = interactionSource,
-        modifier = Modifier
-            .width(96.dp)
-            .height(38.dp)
+        modifier = modifier
             .scale(scale),
         shape = RoundedCornerShape(50),
         color = if (gradient == null) {
