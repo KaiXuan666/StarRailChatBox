@@ -154,35 +154,35 @@ fun CharacterCatalogScreen(
                 // 漏斗过滤按钮
                 Surface(
                     onClick = { onAction(CharacterCatalogAction.ToggleTagFilter) },
-                    shape = RoundedCornerShape(50),
+                    shape = RoundedCornerShape(12.dp),
                     color = if (state.selectedTagIds.isNotEmpty()) {
-                        MaterialTheme.colorScheme.primaryContainer
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)
                     } else {
-                        MaterialTheme.colorScheme.surfaceVariant
+                        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f)
                     },
                     border = BorderStroke(
                         width = 1.dp,
                         color = if (state.selectedTagIds.isNotEmpty()) {
                             MaterialTheme.colorScheme.primary
                         } else {
-                            MaterialTheme.colorScheme.outlineVariant
+                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
                         }
                     ),
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(32.dp)
                 ) {
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.fillMaxSize()
                     ) {
                         StarRailIcon(
-                            kind = StarRailIconKind.SETTINGS,
+                            kind = StarRailIconKind.FILTER,
                             contentDescription = "过滤标签",
                             tint = if (state.selectedTagIds.isNotEmpty()) {
                                 MaterialTheme.colorScheme.primary
                             } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                             },
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }

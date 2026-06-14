@@ -73,6 +73,7 @@ enum class StarRailIconKind {
     PLAY,
     STOP,
     CLOCK,
+    FILTER,
 }
 
 @Composable
@@ -764,6 +765,20 @@ fun StarRailIcon(
                 drawCircle(tint, side * 0.38f, point(0.5f, 0.5f), style = stroke)
                 drawLine(tint, point(0.5f, 0.5f), point(0.5f, 0.28f), strokeWidth)
                 drawLine(tint, point(0.5f, 0.5f), point(0.66f, 0.6f), strokeWidth)
+            }
+
+            StarRailIconKind.FILTER -> {
+                path.reset()
+                path.apply {
+                    moveTo(size.width * 0.25f, size.height * 0.28f)
+                    lineTo(size.width * 0.75f, size.height * 0.28f)
+                    lineTo(size.width * 0.56f, size.height * 0.54f)
+                    lineTo(size.width * 0.56f, size.height * 0.78f)
+                    lineTo(size.width * 0.44f, size.height * 0.78f)
+                    lineTo(size.width * 0.44f, size.height * 0.54f)
+                    close()
+                }
+                drawPath(path, tint, style = stroke)
             }
                 }
             }
