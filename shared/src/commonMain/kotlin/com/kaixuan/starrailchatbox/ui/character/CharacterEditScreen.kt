@@ -866,14 +866,14 @@ private fun CharacterVoiceSampleCard(
                         color = if (state.isGeneratingVoice) {
                             MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f)
                         } else {
-                            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.28f)
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f)
                         },
                         border = BorderStroke(
                             1.dp,
                             if (state.isGeneratingVoice) {
                                 MaterialTheme.colorScheme.outlineVariant
                             } else {
-                                MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f)
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
                             }
                         ),
                         enabled = !state.isGeneratingVoice
@@ -888,7 +888,7 @@ private fun CharacterVoiceSampleCard(
                             color = if (state.isGeneratingVoice) {
                                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                             } else {
-                                MaterialTheme.colorScheme.secondary
+                                MaterialTheme.colorScheme.primary
                             },
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
