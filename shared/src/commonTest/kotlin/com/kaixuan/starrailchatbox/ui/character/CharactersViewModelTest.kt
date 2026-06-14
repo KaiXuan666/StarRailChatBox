@@ -87,6 +87,20 @@ class CharactersViewModelTest {
     }
 
     @Test
+    fun sharingRestrictsBuiltinCharacters() = runTest {
+        val viewModel = createViewModel()
+        runCurrent()
+        viewModel.onAction(CharacterAction.CharacterExportClicked("builtin:role"))
+        viewModel.onAction(CharacterAction.CharacterSharePublicClicked)
+
+        assertEquals(
+            CharacterEffect.ShowMessage(CharacterEffectMessage.CHARACTER_SHARE_BUILTIN_RESTRICTED),
+            viewModel.effects.first(),
+        )
+        assertNull(viewModel.uiState.value.exportDialogCharacterId)
+    }
+
+    @Test
     fun sharingUsesUserNicknameAsAuthor() = runTest {
         val sharingRepository = FakePublicCharacterRepository { ApiResult.Success(Unit) }
         val appSettingsStore = InMemoryAppSettingsStore().apply {

@@ -3,6 +3,7 @@ package com.kaixuan.starrailchatbox.ui.character
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.draggable
@@ -685,8 +686,12 @@ private fun CharacterCard(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = StarRailSpacing.md, vertical = StarRailSpacing.sm),
-            horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
+            modifier = Modifier.padding(
+                start = StarRailSpacing.sm,
+                end = StarRailSpacing.md,
+                top = StarRailSpacing.sm,
+                bottom = StarRailSpacing.sm
+            ),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 左侧序号卡片
@@ -705,12 +710,16 @@ private fun CharacterCard(
                 }
             }
 
+            Spacer(modifier = Modifier.width(StarRailSpacing.sm))
+
             // 圆形头像
             CharacterListAvatar(
                 avatarUri = character.avatarUri,
                 contentDescription = null,
                 size = if (compact) 56.dp else 64.dp
             )
+
+            Spacer(modifier = Modifier.width(StarRailSpacing.md))
 
             // 中间文字描述（占据剩余可用空间）
             Column(
@@ -719,6 +728,7 @@ private fun CharacterCard(
             ) {
                 Text(
                     text = character.name,
+                    modifier = Modifier.basicMarquee(),
                     color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
@@ -746,6 +756,8 @@ private fun CharacterCard(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.width(StarRailSpacing.sm))
 
             // 右侧操作按钮
             Row(

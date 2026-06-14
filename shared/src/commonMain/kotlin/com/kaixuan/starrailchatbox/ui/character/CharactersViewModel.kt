@@ -160,6 +160,16 @@ class CharactersViewModel(
                 _effects.send(CharacterEffect.NavigateToProfile)
                 return@launch
             }
+            if (characterId.startsWith("builtin:")) {
+                _uiState.update {
+                    it.copy(
+                        sharingCharacterId = null,
+                        exportDialogCharacterId = null,
+                    )
+                }
+                showMessage(CharacterEffectMessage.CHARACTER_SHARE_BUILTIN_RESTRICTED)
+                return@launch
+            }
             val character = characterRepository.getCharacter(characterId)
             if (character == null) {
                 _uiState.update {

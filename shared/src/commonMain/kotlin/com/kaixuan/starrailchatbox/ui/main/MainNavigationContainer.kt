@@ -116,6 +116,7 @@ import starrailchatbox.shared.generated.resources.chat_empty_response
 import starrailchatbox.shared.generated.resources.character_saved
 import starrailchatbox.shared.generated.resources.character_deleted
 import starrailchatbox.shared.generated.resources.character_delete_builtin_restricted
+import starrailchatbox.shared.generated.resources.character_share_builtin_restricted
 import starrailchatbox.shared.generated.resources.character_name_empty
 import starrailchatbox.shared.generated.resources.character_save_failed
 import starrailchatbox.shared.generated.resources.character_edit_prompt_gen_failed
@@ -454,6 +455,7 @@ fun MainRoute(
         CharacterEffectMessage.CHARACTER_NAME_REQUIRED to stringResource(Res.string.character_name_required),
         CharacterEffectMessage.MODEL_CONFIG_REQUIRED to stringResource(Res.string.chat_model_config_required),
         CharacterEffectMessage.CHARACTER_DELETE_BUILTIN_RESTRICTED to stringResource(Res.string.character_delete_builtin_restricted),
+        CharacterEffectMessage.CHARACTER_SHARE_BUILTIN_RESTRICTED to stringResource(Res.string.character_share_builtin_restricted),
         CharacterEffectMessage.CHARACTER_EXPORT_SUCCESS to stringResource(Res.string.character_edit_export_success),
         CharacterEffectMessage.CHARACTER_EXPORT_FAILED to stringResource(Res.string.character_edit_export_failed),
         CharacterEffectMessage.CHARACTER_SHARE_SUCCESS to stringResource(Res.string.character_share_public_success),
