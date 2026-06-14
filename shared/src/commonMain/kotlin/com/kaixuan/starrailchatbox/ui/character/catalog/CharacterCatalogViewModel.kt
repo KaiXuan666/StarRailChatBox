@@ -64,6 +64,7 @@ class CharacterCatalogViewModel(
     fun onAction(action: CharacterCatalogAction) {
         when (action) {
             is CharacterCatalogAction.LoadCatalog -> loadCatalog()
+            CharacterCatalogAction.RefreshCatalog -> refreshCatalog()
             CharacterCatalogAction.SelectAll -> selectAll()
             is CharacterCatalogAction.SelectCategory -> selectCategory(action.categoryId)
             is CharacterCatalogAction.ToggleTag -> toggleTag(action.tagId)
@@ -410,6 +411,78 @@ class CharacterCatalogViewModel(
         loadCatalog()
     }
 
+    private fun refreshCatalog() {
+        val currentState = _uiState.value
+        if (currentState.isLoading || currentState.isRefreshing) return
+
+        _uiState.update { it.copy(isRefreshing = true) }
+        viewModelScope.launch {
+            when (val catalogResult = catalogRepository.getCatalog()) {
+                is ApiResult.Success -> {
+                    val catalog = catalogResult.value.catalog
+                    if (catalog == null) {
+                        _uiState.update { it.copy(isRefreshing = false) }
+                        return@launch
+                    }
+
+                    when (val categoriesResult = catalogRepository.getCategories(catalog.categoriesUrl)) {
+                        is ApiResult.Success -> {
+                            val categories = categoriesResult.value.categories.sortedBy { it.sortOrder }
+                            val previousCategoryId = _uiState.value.selectedCategoryId
+                            val selectedCategory = previousCategoryId?.let { categoryId ->
+                                categories.firstOrNull {
+                                    it.id == categoryId && it.characterCount > 0
+                                }
+                            }
+                            val fallbackCategory = categories.firstOrNull { it.characterCount > 0 }
+                            val targetCategoryId = when {
+                                selectedCategory != null -> selectedCategory.id
+                                catalog.allCharacters != null -> null
+                                else -> fallbackCategory?.id
+                            }
+                            val targetPageUrl = when {
+                                selectedCategory != null -> selectedCategory.firstPageUrl
+                                catalog.allCharacters != null -> catalog.allCharacters.firstPageUrl
+                                else -> fallbackCategory?.firstPageUrl
+                            }
+
+                            catalogLoaded = true
+                            _uiState.update { state ->
+                                val availableTagIds = catalog.tags.mapTo(mutableSetOf()) { it.id }
+                                state.copy(
+                                    allCharacters = catalog.allCharacters,
+                                    categories = categories,
+                                    tags = catalog.tags,
+                                    selectedCategoryId = targetCategoryId,
+                                    activeFirstPageUrl = targetPageUrl,
+                                    selectedTagIds = state.selectedTagIds.intersect(availableTagIds),
+                                    characters = emptyList(),
+                                    filteredCharacters = emptyList(),
+                                    page = 1,
+                                    totalPages = 1,
+                                )
+                            }
+
+                            if (targetPageUrl == null) {
+                                _uiState.update { it.copy(isRefreshing = false) }
+                            } else {
+                                loadPage(targetPageUrl, finishRefresh = true)
+                            }
+                        }
+                        else -> {
+                            _uiState.update { it.copy(isRefreshing = false) }
+                            _effects.send(CharacterCatalogEffect.ShowToast("刷新角色品类失败"))
+                        }
+                    }
+                }
+                else -> {
+                    _uiState.update { it.copy(isRefreshing = false) }
+                    _effects.send(CharacterCatalogEffect.ShowToast("刷新目录配置失败"))
+                }
+            }
+        }
+    }
+
     private fun selectAll() {
         val allCharacters = _uiState.value.allCharacters ?: return
         selectList(categoryId = null, firstPageUrl = allCharacters.firstPageUrl)
@@ -434,7 +507,10 @@ class CharacterCatalogViewModel(
         loadPage(firstPageUrl)
     }
 
-    private fun loadPage(url: String) {
+    private fun loadPage(
+        url: String,
+        finishRefresh: Boolean = false,
+    ) {
         _uiState.update { it.copy(isPageLoading = true) }
         viewModelScope.launch {
             when (val result = catalogRepository.getCharacterPage(url)) {
@@ -446,12 +522,18 @@ class CharacterCatalogViewModel(
                             characters = updatedList,
                             page = pageData.page,
                             totalPages = pageData.totalPages,
-                            isPageLoading = false
+                            isPageLoading = false,
+                            isRefreshing = if (finishRefresh) false else state.isRefreshing,
                         ).applyFilter(state.searchQuery, state.selectedTagIds)
                     }
                 }
                 else -> {
-                    _uiState.update { it.copy(isPageLoading = false) }
+                    _uiState.update {
+                        it.copy(
+                            isPageLoading = false,
+                            isRefreshing = if (finishRefresh) false else it.isRefreshing,
+                        )
+                    }
                     _effects.send(CharacterCatalogEffect.ShowToast("加载角色列表失败"))
                 }
             }

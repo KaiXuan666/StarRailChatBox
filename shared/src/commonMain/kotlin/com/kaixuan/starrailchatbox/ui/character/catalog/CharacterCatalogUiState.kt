@@ -7,6 +7,7 @@ import com.kaixuan.starrailchatbox.data.character.catalog.PublicTag
 
 data class CharacterCatalogUiState(
     val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
     val allCharacters: PublicAllCharacters? = null,
     val categories: List<PublicCategory> = emptyList(),
     val tags: List<PublicTag> = emptyList(),

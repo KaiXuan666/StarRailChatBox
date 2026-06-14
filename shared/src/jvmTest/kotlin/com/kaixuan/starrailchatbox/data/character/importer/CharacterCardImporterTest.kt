@@ -32,10 +32,17 @@ class CharacterCardImporterTest {
         val cardJson = """
             {
               "name": "March 7th",
+              "author": "Astral Express",
+              "description": "A cheerful photographer",
               "systemPrompt": "Be cheerful",
               "openingMessage": "Ready to go?",
-              "temperature": 0.85,
-              "topP": 0.9
+              "temperature": 0.75,
+              "topP": 0.8,
+              "voice": {
+                "fileName": "march.wav",
+                "mimeType": "audio/wav",
+                "base64Content": "AQID"
+              }
             }
         """.trimIndent()
         val emptyPng = "89504e470d0a1a0a0000000049454e44ae426082".decodeHex().toByteArray()
@@ -55,6 +62,15 @@ class CharacterCardImporterTest {
 
             val draft = assertIs<ApiResult.Success<ImportedCharacterDraft>>(result).value
             assertEquals("March 7th", draft.name)
+            assertEquals("Astral Express", draft.author)
+            assertEquals("A cheerful photographer", draft.description)
+            assertEquals("Be cheerful", draft.prompt)
+            assertEquals("Ready to go?", draft.openingMessage)
+            assertEquals(0.75, draft.temperature)
+            assertEquals(0.8, draft.topP)
+            assertEquals("march.wav", draft.voice?.fileName)
+            assertEquals("audio/wav", draft.voice?.mimeType)
+            assertEquals("AQID", draft.voice?.base64Content)
             val avatarPath = requireNotNull(draft.avatarUri).toPath()
             assertNotEquals(sourcePath, avatarPath)
             assertTrue(fileManager.exists(avatarPath))
@@ -66,6 +82,74 @@ class CharacterCardImporterTest {
         } finally {
             appDataDirectory.toFile().deleteRecursively()
             cacheDirectory.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun importsSillyTavernV2CreatorAsAuthor() = runTest {
+        val result = importJson(
+            """
+                {
+                  "data": {
+                    "name": "Firefly",
+                    "creator": "Stellaron Hunter",
+                    "description": "A traveler seeking life",
+                    "first_mes": "Hello.",
+                    "system_prompt": "Stay in character."
+                  }
+                }
+            """.trimIndent(),
+        )
+
+        val draft = assertIs<ApiResult.Success<ImportedCharacterDraft>>(result).value
+        assertEquals("Firefly", draft.name)
+        assertEquals("Stellaron Hunter", draft.author)
+        assertEquals("A traveler seeking life", draft.description)
+        assertEquals("Hello.", draft.openingMessage)
+    }
+
+    @Test
+    fun importsSillyTavernV3CreatorAsAuthor() = runTest {
+        val result = importJson(
+            """
+                {
+                  "spec": "chara_card_v3",
+                  "spec_version": "3.0",
+                  "data": {
+                    "name": "Acheron",
+                    "creator": "Galaxy Ranger",
+                    "first_mes": "We meet again."
+                  }
+                }
+            """.trimIndent(),
+        )
+
+        val draft = assertIs<ApiResult.Success<ImportedCharacterDraft>>(result).value
+        assertEquals("Acheron", draft.name)
+        assertEquals("Galaxy Ranger", draft.author)
+        assertEquals("We meet again.", draft.openingMessage)
+        assertEquals("V3 (3.0)", draft.sourceVersion)
+    }
+
+    private suspend fun importJson(json: String): ApiResult<ImportedCharacterDraft> {
+        val directory = Files.createTempDirectory("character-import-json")
+        val fileManager = object : KmpFileManager {
+            override val appDataDir: Path = directory.toString().toPath()
+            override val cacheDir: Path = directory.toString().toPath()
+            override val fileSystem: FileSystem = FileSystem.SYSTEM
+            override suspend fun saveImageToGallery(bytes: ByteArray, name: String) = Unit
+        }
+        val sourcePath = fileManager.cacheDir / "character.json".toPath()
+        fileManager.writeBytes(sourcePath, json.encodeToByteArray())
+
+        return try {
+            DefaultCharacterCardImporter(fileManager).importFromFile(
+                path = sourcePath.toString(),
+                name = "character.json",
+                extension = "json",
+            )
+        } finally {
+            directory.toFile().deleteRecursively()
         }
     }
 }

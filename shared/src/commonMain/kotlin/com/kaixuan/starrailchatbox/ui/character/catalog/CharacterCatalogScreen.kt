@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -119,7 +120,7 @@ fun CharacterCatalogRoute(
     )
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun CharacterCatalogScreen(
     state: CharacterCatalogUiState,
@@ -179,12 +180,17 @@ fun CharacterCatalogScreen(
                 onTitleClick = { onAction(CharacterCatalogAction.TitleClicked) },
             )
 
-            LazyColumn(
-                state = listState,
-                contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding() + StarRailSpacing.lg),
-                verticalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
-                modifier = Modifier.fillMaxSize()
+            PullToRefreshBox(
+                isRefreshing = state.isRefreshing,
+                onRefresh = { onAction(CharacterCatalogAction.RefreshCatalog) },
+                modifier = Modifier.fillMaxSize(),
             ) {
+                LazyColumn(
+                    state = listState,
+                    contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding() + StarRailSpacing.lg),
+                    verticalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
+                    modifier = Modifier.fillMaxSize()
+                ) {
                 if (state.adminModeEnabled) {
                     item {
                         Row(
@@ -365,6 +371,7 @@ fun CharacterCatalogScreen(
                             }
                         }
                     }
+                }
                 }
             }
         }

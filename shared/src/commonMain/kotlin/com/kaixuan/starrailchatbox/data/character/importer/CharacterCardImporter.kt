@@ -196,6 +196,7 @@ class DefaultCharacterCardImporter(
     private fun SillyTavernV2Card.toDraft(avatarUri: String?): ImportedCharacterDraft {
         return ImportedCharacterDraft(
             name = data.name,
+            author = data.creator,
             description = data.description,
             prompt = buildPrompt(
                 systemPrompt = data.systemPrompt,
@@ -214,6 +215,7 @@ class DefaultCharacterCardImporter(
     private fun SillyTavernV3Card.toDraft(avatarUri: String?): ImportedCharacterDraft {
         return ImportedCharacterDraft(
             name = data.name,
+            author = data.creator,
             description = data.description,
             prompt = buildPrompt(
                 systemPrompt = data.systemPrompt,
