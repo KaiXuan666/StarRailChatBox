@@ -641,23 +641,23 @@ fun CharacterCatalogItem(
                         )
 
                         // 类别徽章
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
-                        ) {
-                            Text(
-                                text = when(char.primaryCategoryId) {
-                                    "game" -> "游戏"
-                                    "anime" -> "动漫"
-                                    "original" -> "原创"
-                                    else -> char.primaryCategoryId
-                                },
-                                color = MaterialTheme.colorScheme.secondary,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
+//                        Surface(
+//                            shape = RoundedCornerShape(6.dp),
+//                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+//                        ) {
+//                            Text(
+//                                text = when(char.primaryCategoryId) {
+//                                    "game" -> "游戏"
+//                                    "anime" -> "动漫"
+//                                    "original" -> "原创"
+//                                    else -> char.primaryCategoryId
+//                                },
+//                                color = MaterialTheme.colorScheme.secondary,
+//                                style = MaterialTheme.typography.labelSmall,
+//                                fontWeight = FontWeight.Bold,
+//                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+//                            )
+//                        }
                     }
 
                     // 描述
