@@ -33,6 +33,8 @@ import com.kaixuan.starrailchatbox.data.character.importer.CharacterCardExporter
 import com.kaixuan.starrailchatbox.data.character.importer.getCharacterCardExporter
 import com.kaixuan.starrailchatbox.data.character.sharing.DefaultPublicCharacterRepository
 import com.kaixuan.starrailchatbox.data.character.sharing.PublicCharacterRepository
+import com.kaixuan.starrailchatbox.data.character.catalog.DefaultPublicCharacterCatalogRepository
+import com.kaixuan.starrailchatbox.data.character.catalog.PublicCharacterCatalogRepository
 import com.kaixuan.starrailchatbox.data.chat.ChatSessionRepository
 import com.kaixuan.starrailchatbox.data.update.DefaultUpdateRepository
 import com.kaixuan.starrailchatbox.data.update.UpdateRepository
@@ -105,7 +107,8 @@ fun appModule(
     single { databaseManager }
     single<CharacterCardImporter> { DefaultCharacterCardImporter(get()) }
     single<CharacterCardExporter> { getCharacterCardExporter() }
-    single<PublicCharacterRepository> { DefaultPublicCharacterRepository(get(), get()) }
+    single<PublicCharacterRepository> { DefaultPublicCharacterRepository(get(), get(), get()) }
+    single<PublicCharacterCatalogRepository> { DefaultPublicCharacterCatalogRepository(get()) }
     single<KmpFileManager> { KmpFileManager.Default }
     single<UpdateRepository> { DefaultUpdateRepository(get()) }
     factory { MainViewModel(get(), get()) }

@@ -10,16 +10,27 @@ import kotlinx.coroutines.flow.asStateFlow
 interface AppSettingsStore {
     val darkThemeOverride: Flow<Boolean?>
     suspend fun setDarkThemeOverride(darkThemeOverride: Boolean?)
+    suspend fun getCharacterUpdateToken(characterKey: String): String?
+    suspend fun setCharacterUpdateToken(characterKey: String, token: String)
 }
 
 class InMemoryAppSettingsStore(
     initialTheme: Boolean? = null
 ) : AppSettingsStore {
     private val _darkThemeOverride = MutableStateFlow(initialTheme)
+    private val characterUpdateTokens = mutableMapOf<String, String>()
     override val darkThemeOverride: Flow<Boolean?> = _darkThemeOverride.asStateFlow()
 
     override suspend fun setDarkThemeOverride(darkThemeOverride: Boolean?) {
         _darkThemeOverride.value = darkThemeOverride
+    }
+
+    override suspend fun getCharacterUpdateToken(characterKey: String): String? {
+        return characterUpdateTokens[characterKey]
+    }
+
+    override suspend fun setCharacterUpdateToken(characterKey: String, token: String) {
+        characterUpdateTokens[characterKey] = token
     }
 }
 

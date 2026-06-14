@@ -173,6 +173,7 @@ class CharactersViewModel(
                     },
                 )
             }
+            var customMessage: String? = null
             val message = when (result) {
                 is ApiResult.Success -> CharacterEffectMessage.CHARACTER_SHARE_SUCCESS
                 is ApiResult.UnexpectedError -> when {
@@ -182,15 +183,25 @@ class CharactersViewModel(
                         CharacterEffectMessage.CHARACTER_SHARE_REVIEWING
                     result.message == DefaultPublicCharacterRepository.ERROR_PLATFORM_UNSUPPORTED ->
                         CharacterEffectMessage.CHARACTER_SHARE_PLATFORM_UNSUPPORTED
-                    else -> CharacterEffectMessage.CHARACTER_SHARE_FAILED
+                    else -> {
+                        customMessage = result.message
+                        CharacterEffectMessage.CHARACTER_SHARE_FAILED
+                    }
                 }
-                else -> CharacterEffectMessage.CHARACTER_SHARE_FAILED
+                is ApiResult.HttpError -> {
+                    customMessage = "HTTP ${result.statusCode}: ${result.message}"
+                    CharacterEffectMessage.CHARACTER_SHARE_FAILED
+                }
+                is ApiResult.NetworkError -> {
+                    customMessage = "网络错误: ${result.message}"
+                    CharacterEffectMessage.CHARACTER_SHARE_FAILED
+                }
             }
-            showMessage(message)
+            showMessage(message, customMessage)
         }
     }
 
-    private suspend fun showMessage(message: CharacterEffectMessage) {
-        _effects.send(CharacterEffect.ShowMessage(message))
+    private suspend fun showMessage(message: CharacterEffectMessage, customMessage: String? = null) {
+        _effects.send(CharacterEffect.ShowMessage(message, customMessage))
     }
 }

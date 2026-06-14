@@ -529,9 +529,8 @@ fun MainRoute(
         characters.effects.collectLatest { effect ->
             when (effect) {
                 is CharacterEffect.ShowMessage -> {
-                    snackbarHostState.showSnackbar(
-                        characterEffectMessages.getValue(effect.message),
-                    )
+                    val text = effect.customMessage ?: characterEffectMessages.getValue(effect.message)
+                    snackbarHostState.showSnackbar(text)
                 }
                 CharacterEffect.CharacterSaved -> {
                     onMainAction(MainAction.PopBackStack)
@@ -552,9 +551,8 @@ fun MainRoute(
         chatCharacters.effects.collectLatest { effect ->
             when (effect) {
                 is CharacterEffect.ShowMessage -> {
-                    snackbarHostState.showSnackbar(
-                        characterEffectMessages.getValue(effect.message),
-                    )
+                    val text = effect.customMessage ?: characterEffectMessages.getValue(effect.message)
+                    snackbarHostState.showSnackbar(text)
                 }
                 CharacterEffect.CharacterSaved -> {
                     onMainAction(MainAction.PopBackStack)

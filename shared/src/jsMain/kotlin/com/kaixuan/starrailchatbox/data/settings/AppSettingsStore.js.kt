@@ -21,6 +21,14 @@ private class JsAppSettingsStore : AppSettingsStore {
         }
         _darkThemeOverride.value = darkThemeOverride
     }
+
+    override suspend fun getCharacterUpdateToken(characterKey: String): String? {
+        return localStorage.getItem("character_update_token_$characterKey")
+    }
+
+    override suspend fun setCharacterUpdateToken(characterKey: String, token: String) {
+        localStorage.setItem("character_update_token_$characterKey", token)
+    }
 }
 
 actual fun createAppSettingsStore(path: String?, context: Any?): AppSettingsStore = JsAppSettingsStore()

@@ -1,7 +1,10 @@
 package com.kaixuan.starrailchatbox.ui.character
 
 sealed interface CharacterEffect {
-    data class ShowMessage(val message: CharacterEffectMessage) : CharacterEffect
+    data class ShowMessage(
+        val message: CharacterEffectMessage,
+        val customMessage: String? = null,
+    ) : CharacterEffect
     data object CharacterSaved : CharacterEffect
     data object CharacterDeleted : CharacterEffect
     data object RequestDirectoryPicker : CharacterEffect

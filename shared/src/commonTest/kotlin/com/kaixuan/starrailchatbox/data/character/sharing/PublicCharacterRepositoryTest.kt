@@ -2,6 +2,7 @@ package com.kaixuan.starrailchatbox.data.character.sharing
 
 import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.character.Character
+import com.kaixuan.starrailchatbox.data.settings.InMemoryAppSettingsStore
 import com.kaixuan.starrailchatbox.platform.KmpFileManager
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -36,6 +37,7 @@ class PublicCharacterRepositoryTest {
         val repository = DefaultPublicCharacterRepository(
             httpClient = testClient(MockEngine { error("Network should not be called") }),
             fileManager = FakeFileManager(),
+            appSettingsStore = InMemoryAppSettingsStore(),
             archiveWriter = archiveWriter,
         )
         val character = testCharacter(
@@ -60,6 +62,7 @@ class PublicCharacterRepositoryTest {
         val repository = DefaultPublicCharacterRepository(
             httpClient = testClient(MockEngine { error("Network should not be called") }),
             fileManager = FakeFileManager(),
+            appSettingsStore = InMemoryAppSettingsStore(),
             archiveWriter = archiveWriter,
         )
 
@@ -77,6 +80,23 @@ class PublicCharacterRepositoryTest {
     }
 
     @Test
+    fun fingerprintMatchesServerCanonicalAlgorithm() = runTest {
+        val repository = DefaultPublicCharacterRepository(
+            httpClient = testClient(MockEngine { error("Network should not be called") }),
+            fileManager = FakeFileManager(),
+            appSettingsStore = InMemoryAppSettingsStore(),
+            archiveWriter = CapturingArchiveWriter(),
+        )
+
+        val prepared = repository.prepareArchive(testCharacter())
+
+        assertEquals(
+            "b265442247a54be404c988e8b8e47a478683d049df18b3c89039facc5a8a3742",
+            prepared.contentFingerprint,
+        )
+    }
+
+    @Test
     fun shareRequestsUploadUrlThenPutsZip() = runTest {
         var requestCount = 0
         val engine = MockEngine { request ->
@@ -84,7 +104,24 @@ class PublicCharacterRepositoryTest {
             when (requestCount) {
                 1 -> {
                     respond(
-                        content = """{"success":true,"uploadUrl":"https://oss.example/upload","ossKey":"uploads/role.zip"}""",
+                        content = """
+                            {
+                              "success": true,
+                              "submissionId": "0123456789abcdef0123456789abcdef",
+                              "characterKey": "abc",
+                              "updateToken": "secret",
+                              "upload": {
+                                "url": "https://oss.example/upload",
+                                "method": "POST",
+                                "expiresAt": "2026-06-14T00:00:00Z",
+                                "fields": {
+                                  "key": "private/incoming/id/package.zip",
+                                  "policy": "policy",
+                                  "Signature": "signature"
+                                }
+                              }
+                            }
+                        """.trimIndent(),
                         headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
                     )
                 }
@@ -96,6 +133,7 @@ class PublicCharacterRepositoryTest {
         val repository = DefaultPublicCharacterRepository(
             httpClient = testClient(engine),
             fileManager = FakeFileManager(),
+            appSettingsStore = InMemoryAppSettingsStore(),
             archiveWriter = CapturingArchiveWriter(),
         )
 
@@ -104,10 +142,10 @@ class PublicCharacterRepositoryTest {
         assertIs<ApiResult.Success<Unit>>(result)
         assertEquals(2, requestCount)
         assertEquals(HttpMethod.Post, engine.requestHistory[0].method)
-        assertTrue(engine.requestHistory[0].url.toString().startsWith("https://api.qyaichat.com/getUploadUrl"))
-        assertEquals(HttpMethod.Put, engine.requestHistory[1].method)
+        assertTrue(engine.requestHistory[0].url.toString().startsWith("https://api.qyaichat.com/v1/submissions"))
+        assertEquals(HttpMethod.Post, engine.requestHistory[1].method)
         assertTrue(engine.requestHistory[1].url.toString().startsWith("https://oss.example/upload"))
-        assertEquals(ContentType.Application.Zip, engine.requestHistory[1].body.contentType)
+        assertTrue(engine.requestHistory[1].body.contentType.toString().startsWith("multipart/form-data"))
     }
 
     @Test
@@ -123,6 +161,7 @@ class PublicCharacterRepositoryTest {
         val repository = DefaultPublicCharacterRepository(
             httpClient = testClient(engine),
             fileManager = FakeFileManager(),
+            appSettingsStore = InMemoryAppSettingsStore(),
             archiveWriter = CapturingArchiveWriter(),
         )
 
