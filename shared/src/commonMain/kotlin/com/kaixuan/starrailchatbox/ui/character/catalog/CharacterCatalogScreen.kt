@@ -247,43 +247,43 @@ fun CharacterCatalogScreen(
                             }
                         }
 
-//                        Spacer(modifier = Modifier.width(StarRailSpacing.sm))
-//
-//                        // 漏斗过滤按钮
-//                        Surface(
-//                            onClick = { onAction(CharacterCatalogAction.ToggleTagFilter) },
-//                            shape = RoundedCornerShape(12.dp),
-//                            color = if (state.selectedTagIds.isNotEmpty()) {
-//                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)
-//                            } else {
-//                                MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f)
-//                            },
-//                            border = BorderStroke(
-//                                width = 1.dp,
-//                                color = if (state.selectedTagIds.isNotEmpty()) {
-//                                    MaterialTheme.colorScheme.primary
-//                                } else {
-//                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-//                                }
-//                            ),
-//                            modifier = Modifier.size(32.dp)
-//                        ) {
-//                            Box(
-//                                contentAlignment = Alignment.Center,
-//                                modifier = Modifier.fillMaxSize()
-//                            ) {
-//                                StarRailIcon(
-//                                    kind = StarRailIconKind.FILTER,
-//                                    contentDescription = "过滤标签",
-//                                    tint = if (state.selectedTagIds.isNotEmpty()) {
-//                                        MaterialTheme.colorScheme.primary
-//                                    } else {
-//                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-//                                    },
-//                                    modifier = Modifier.size(18.dp)
-//                                )
-//                            }
-//                        }
+                        Spacer(modifier = Modifier.width(StarRailSpacing.sm))
+
+                        // 漏斗过滤按钮
+                        Surface(
+                            onClick = { onAction(CharacterCatalogAction.ToggleTagFilter) },
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (state.selectedTagIds.isNotEmpty()) {
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)
+                            } else {
+                                MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f)
+                            },
+                            border = BorderStroke(
+                                width = 1.dp,
+                                color = if (state.selectedTagIds.isNotEmpty()) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                }
+                            ),
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                StarRailIcon(
+                                    kind = StarRailIconKind.FILTER,
+                                    contentDescription = "过滤标签",
+                                    tint = if (state.selectedTagIds.isNotEmpty()) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                                    },
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -327,6 +327,7 @@ fun CharacterCatalogScreen(
                         ) {
                             CharacterCatalogItem(
                                 char = char,
+                                tags = state.tags,
                                 isImporting = state.importingCharacterIds.contains(char.id),
                                 isImported = state.importedCharacterIds.contains(char.id),
                                 resolveUrl = resolveUrl,
@@ -588,6 +589,7 @@ fun CategoryBadge(
 @Composable
 fun CharacterCatalogItem(
     char: PublicCharacterSummary,
+    tags: List<PublicTag>,
     isImporting: Boolean,
     isImported: Boolean,
     resolveUrl: (String) -> String,
@@ -692,6 +694,10 @@ fun CharacterCatalogItem(
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         lineHeight = 18.sp
+                    )
+
+                    CharacterTagChips(
+                        tagNames = resolveCharacterTagNames(char.tagIds, tags),
                     )
 
                     // 作者
@@ -1066,6 +1072,7 @@ private fun CharacterCatalogAdminPreview(darkTheme: Boolean) {
         author = "星轨旅人",
         description = "用于预览管理员操作按钮的公共角色。",
         primaryCategoryId = "general",
+        tagIds = listOf("gentle", "healing"),
         updatedAt = "2026-06-14T00:00:00Z",
         revision = "r_preview",
         detailUrl = "/detail.json",
@@ -1079,6 +1086,10 @@ private fun CharacterCatalogAdminPreview(darkTheme: Boolean) {
                     firstPageUrl = "/all/page1.json",
                 ),
                 categories = listOf(category),
+                tags = listOf(
+                    PublicTag("gentle", "温柔", 1, "/tags/gentle/page1.json"),
+                    PublicTag("healing", "治愈", 2, "/tags/healing/page1.json"),
+                ),
                 selectedCategoryId = null,
                 activeFirstPageUrl = "/all/page1.json",
                 characters = listOf(character),

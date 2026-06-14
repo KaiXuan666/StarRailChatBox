@@ -138,6 +138,7 @@
     <string name="character_share_category_placeholder">请选择类目</string>
     <string name="character_share_tag_label">角色标签（可多选）</string>
     <string name="character_share_tag_empty">暂无可用标签</string>
+    <string name="character_catalog_tags_label">角色标签</string>
     <string name="character_share_category_loading">正在加载类目...</string>
     <string name="character_share_category_confirm">确认上传</string>
     <string name="character_share_public_success">角色已上传，等待审核</string>

@@ -31,11 +31,16 @@ import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
 import com.kaixuan.starrailchatbox.ui.components.StarRailPrimaryButton
+import com.kaixuan.starrailchatbox.ui.character.catalog.CharacterTagChips
+import com.kaixuan.starrailchatbox.ui.character.catalog.resolveCharacterTagNames
 import com.kaixuan.starrailchatbox.ui.main.MainAction
 import com.kaixuan.starrailchatbox.ui.navigation.Route
 import org.koin.core.Koin
 import org.koin.core.parameter.parametersOf
 import kotlin.math.roundToInt
+import org.jetbrains.compose.resources.stringResource
+import starrailchatbox.shared.generated.resources.Res
+import starrailchatbox.shared.generated.resources.character_catalog_tags_label
 
 @Composable
 fun CharacterCatalogDetailRoute(
@@ -152,6 +157,7 @@ fun CharacterCatalogDetailScreen(
                 author = detail.author.takeIf { it.isNotBlank() } ?: "星轨旅人",
                 avatarUri = avatarUri,
                 categoryName = categoryName,
+                tagNames = resolveCharacterTagNames(detail.tagIds, state.tags),
                 compact = compact,
             )
 
@@ -215,6 +221,7 @@ private fun CharacterReadOnlyIdentityCard(
     author: String,
     avatarUri: String,
     categoryName: String,
+    tagNames: List<String>,
     compact: Boolean,
 ) {
     Surface(
@@ -287,6 +294,15 @@ private fun CharacterReadOnlyIdentityCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                     )
                 }
+            }
+            if (tagNames.isNotEmpty()) {
+                Text(
+                    text = stringResource(Res.string.character_catalog_tags_label),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                CharacterTagChips(tagNames = tagNames)
             }
         }
     }

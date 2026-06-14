@@ -74,10 +74,22 @@ class CharacterCatalogDetailViewModel(
             when (val result = catalogRepository.getCharacterDetail(detailUrl)) {
                 is ApiResult.Success -> {
                     _uiState.update { it.copy(detail = result.value, isLoading = false) }
+                    loadTags()
                 }
                 else -> {
                     _uiState.update { it.copy(isLoading = false) }
                     _effects.send(CharacterCatalogDetailEffect.ShowToast("加载角色详情失败"))
+                }
+            }
+        }
+    }
+
+    private fun loadTags() {
+        viewModelScope.launch {
+            val result = catalogRepository.getCatalog()
+            if (result is ApiResult.Success) {
+                _uiState.update {
+                    it.copy(tags = result.value.catalog?.tags.orEmpty())
                 }
             }
         }
