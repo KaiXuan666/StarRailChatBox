@@ -140,51 +140,58 @@ fun CharactersScreen(
             ),
         verticalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
     ) {
-        StarRailPageHeader(
-            title = stringResource(Res.string.character_list_title),
-            compact = compact,
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            StarRailPageHeader(
+                title = stringResource(Res.string.character_list_title),
+                compact = compact,
+                modifier = Modifier.weight(1f)
+            )
+
+            Surface(
+                onClick = {
+                    onMainAction(MainAction.NavigateTo(Route.CharacterCatalog))
+                },
+                shape = RoundedCornerShape(50),
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.height(34.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "角色工坊",
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    StarRailIcon(
+                        kind = StarRailIconKind.COMPASS,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(12.dp)
+                    )
+                }
+            }
+        }
 
         // "我的角色" 与 "新建角色" 标题行，以及拖动提示
         Column(verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Bottom
             ) {
+                // 辅助操作：导入与帮助
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.xs)
                 ) {
-
-                    Surface(
-                        onClick = {
-                            onMainAction(MainAction.NavigateTo(Route.CharacterCatalog))
-                        },
-                        shape = RoundedCornerShape(50),
-                        color = MaterialTheme.colorScheme.secondaryContainer,
-                        modifier = Modifier.height(34.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "角色工坊",
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                            StarRailIcon(
-                                kind = StarRailIconKind.COMPASS,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.size(12.dp)
-                            )
-                        }
-                    }
-
                     Surface(
                         onClick = {
                             onAction(CharacterAction.CharacterImportClicked)
@@ -238,33 +245,36 @@ fun CharactersScreen(
                             )
                         }
                     }
+                }
 
-                    Surface(
-                        onClick = {
-                            onMainAction(MainAction.NavigateTo(Route.CharacterEdit(null)))
-                        },
-                        shape = RoundedCornerShape(50),
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.height(34.dp)
+                Spacer(modifier = Modifier.width(StarRailSpacing.xs))
+
+                // 主要操作：新建角色
+                Surface(
+                    onClick = {
+                        onMainAction(MainAction.NavigateTo(Route.CharacterEdit(null)))
+                    },
+                    shape = RoundedCornerShape(50),
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.height(34.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = stringResource(Res.string.character_list_create_btn),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                            StarRailIcon(
-                                kind = StarRailIconKind.ADD,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(12.dp)
-                            )
-                        }
+                        Text(
+                            text = stringResource(Res.string.character_list_create_btn),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        StarRailIcon(
+                            kind = StarRailIconKind.ADD,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(12.dp)
+                        )
                     }
                 }
             }

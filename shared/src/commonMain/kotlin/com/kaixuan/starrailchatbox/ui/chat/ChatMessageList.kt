@@ -210,7 +210,7 @@ fun ChatMessageList(
                     .align(Alignment.BottomStart)
                     .padding(
                         start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                        bottom = contentPadding.calculateBottomPadding() + StarRailSpacing.md,
+                        bottom = contentPadding.calculateBottomPadding() - StarRailSpacing.xs,
                     )
                     .size(if (compact) 38.dp else 48.dp),
                 shape = CircleShape,
