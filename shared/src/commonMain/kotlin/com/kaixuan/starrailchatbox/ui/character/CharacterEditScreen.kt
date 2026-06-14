@@ -277,6 +277,16 @@ fun CharacterEditScreen(
             onAction = onAction,
         )
 
+        CharacterTextCard(
+            title = "角色描述",
+            value = editState.description,
+            minLines = 3,
+            onValueChange = { description ->
+                onAction(CharacterAction.CharacterDescriptionChanged(description))
+            },
+            hint = "仅用作展示，不会影响prompt"
+        )
+
         val defaultPromptRequestText = stringResource(
             Res.string.character_edit_prompt_gen_default_input,
             editState.name
