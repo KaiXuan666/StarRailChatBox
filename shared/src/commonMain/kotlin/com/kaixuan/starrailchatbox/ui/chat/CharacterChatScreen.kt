@@ -199,7 +199,7 @@ fun CharacterChatScreen(
                         .padding(
                             start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
                             end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                            bottom = StarRailSpacing.md,
+                            bottom = StarRailSpacing.sm,
                         )
                 ) {
                     CharacterChatHeader(

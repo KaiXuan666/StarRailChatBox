@@ -210,11 +210,11 @@ fun SettingsScreen(
             .verticalScroll(rememberScrollState())
             .padding(
                 start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + StarRailSpacing.lg,
+                top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding(),
                 end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
                 bottom = contentPadding.calculateBottomPadding() + StarRailSpacing.lg
             ),
-        verticalArrangement = Arrangement.spacedBy(StarRailSpacing.lg)
+        verticalArrangement = Arrangement.spacedBy(StarRailSpacing.sm)
     ) {
         // Top Large Title
         Text(

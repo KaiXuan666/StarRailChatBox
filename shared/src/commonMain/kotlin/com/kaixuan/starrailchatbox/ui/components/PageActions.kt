@@ -45,7 +45,7 @@ fun StarRailPageLayout(
     backContentDescription: String? = null,
     onBackClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
-    contentSpacing: Dp = StarRailSpacing.xl,
+    contentSpacing: Dp = StarRailSpacing.sm,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
@@ -54,8 +54,7 @@ fun StarRailPageLayout(
             .verticalScroll(rememberScrollState())
             .padding(
                 start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() +
-                    StarRailSpacing.lg,
+                top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding(),
                 end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
                 bottom = contentPadding.calculateBottomPadding() + StarRailSpacing.lg,
             ),
