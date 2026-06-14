@@ -238,6 +238,7 @@ private val NavigationSavedStateConfiguration = SavedStateConfiguration {
             subclass(Route.PrivacyPolicy::class, Route.PrivacyPolicy.serializer())
             subclass(Route.CharacterChat::class, Route.CharacterChat.serializer())
             subclass(Route.CharacterCatalog::class, Route.CharacterCatalog.serializer())
+            subclass(Route.CharacterCatalogDetail::class, Route.CharacterCatalogDetail.serializer())
         }
     }
 }
@@ -1018,6 +1019,22 @@ fun MainNavigationContainer(
                             )
                         }
                     }
+                    entry<Route.CharacterCatalogDetail> { entry ->
+                        NavigationTraceDestination(
+                            route = entry,
+                            isPresented = presentedRoute == entry,
+                            onMounted = { presentedRoute = entry },
+                        ) {
+                            com.kaixuan.starrailchatbox.ui.character.catalog.detail.CharacterCatalogDetailRoute(
+                                route = entry,
+                                koin = koin,
+                                contentPadding = contentPadding,
+                                compact = compact,
+                                onMainAction = onMainAction,
+                                snackbarHostState = snackbarHostState,
+                            )
+                        }
+                    }
                     entry<Route.PrivacyPolicy> {
                         NavigationTraceDestination(
                             route = Route.PrivacyPolicy,
@@ -1496,6 +1513,7 @@ private fun Route.traceName(): String = when (this) {
     Route.PrivacyPolicy -> "PrivacyPolicy"
     is Route.CharacterChat -> "CharacterChat"
     Route.CharacterCatalog -> "CharacterCatalog"
+    is Route.CharacterCatalogDetail -> "CharacterCatalogDetail"
 }
 
 private fun List<NavKey>.tracePath(): String =

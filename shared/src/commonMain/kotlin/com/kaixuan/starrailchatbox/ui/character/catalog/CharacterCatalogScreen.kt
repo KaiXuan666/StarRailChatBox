@@ -43,6 +43,7 @@ import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import com.kaixuan.starrailchatbox.ui.components.StarRailPageHeader
 import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
 import com.kaixuan.starrailchatbox.ui.main.MainAction
+import com.kaixuan.starrailchatbox.ui.navigation.Route
 import org.koin.core.Koin
 import kotlin.math.absoluteValue
 
@@ -241,7 +242,19 @@ fun CharacterCatalogScreen(
                             isImporting = state.importingCharacterIds.contains(char.id),
                             isImported = state.importedCharacterIds.contains(char.id),
                             resolveUrl = resolveUrl,
-                            onImportClick = { onAction(CharacterCatalogAction.ImportCharacterClicked(char)) }
+                            onImportClick = { onAction(CharacterCatalogAction.ImportCharacterClicked(char)) },
+                            onItemClick = {
+                                onMainAction(
+                                    MainAction.NavigateTo(
+                                        Route.CharacterCatalogDetail(
+                                            characterId = char.id,
+                                            detailUrl = char.detailUrl,
+                                            name = char.name,
+                                            avatarUrl = char.avatarUrl,
+                                        )
+                                    )
+                                )
+                            }
                         )
                     }
 
@@ -390,6 +403,7 @@ fun CharacterCatalogItem(
     isImported: Boolean,
     resolveUrl: (String) -> String,
     onImportClick: () -> Unit,
+    onItemClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     // 伪热度计算，根据 ID 哈希生成
@@ -400,6 +414,7 @@ fun CharacterCatalogItem(
     }
 
     Surface(
+        onClick = onItemClick,
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surface,

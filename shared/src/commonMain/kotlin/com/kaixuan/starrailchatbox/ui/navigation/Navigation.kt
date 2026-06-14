@@ -65,4 +65,13 @@ sealed interface Route : NavKey {
     // 某个特定角色的二级对话界面
     @Serializable
     data class CharacterChat(val characterId: String) : Route
+
+    // 角色工坊只读详情二级界面
+    @Serializable
+    data class CharacterCatalogDetail(
+        val characterId: String,
+        val detailUrl: String,
+        val name: String,
+        val avatarUrl: String?,
+    ) : Route
 }

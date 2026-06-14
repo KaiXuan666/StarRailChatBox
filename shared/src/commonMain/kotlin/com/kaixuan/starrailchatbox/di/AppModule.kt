@@ -52,6 +52,7 @@ import com.kaixuan.starrailchatbox.ui.character.CharactersViewModel
 import com.kaixuan.starrailchatbox.ui.character.CharacterEditViewModel
 import com.kaixuan.starrailchatbox.ui.character.CharacterEditArgs
 import com.kaixuan.starrailchatbox.ui.character.catalog.CharacterCatalogViewModel
+import com.kaixuan.starrailchatbox.ui.character.catalog.detail.CharacterCatalogDetailViewModel
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
@@ -158,4 +159,16 @@ fun appModule(
     factory { SettingsOverviewViewModel(get()) }
     factory { ProfileViewModel(get(), get(), get()) }
     factory { CharacterCatalogViewModel(get(), get(), get()) }
+    factory { (characterId: String, detailUrl: String, name: String, avatarUrl: String?) ->
+        CharacterCatalogDetailViewModel(
+            characterId = characterId,
+            detailUrl = detailUrl,
+            initialName = name,
+            initialAvatarUrl = avatarUrl,
+            catalogRepository = get(),
+            characterRepository = get(),
+            httpClient = get(),
+            fileManager = get(),
+        )
+    }
 }
