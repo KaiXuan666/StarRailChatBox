@@ -20,6 +20,7 @@ import io.github.aakira.napier.Napier
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -42,6 +43,7 @@ class CharacterCatalogViewModel(
     private var titleClickCount = 0
     private var lastTitleClickAt = 0L
     private var catalogLoaded = false
+    private var loadJob: Job? = null
 
     private val _uiState = MutableStateFlow(CharacterCatalogUiState())
     val uiState = _uiState.asStateFlow()
@@ -360,7 +362,8 @@ class CharacterCatalogViewModel(
     private fun loadCatalog() {
         if (_uiState.value.isLoading || catalogLoaded) return
         _uiState.update { it.copy(isLoading = true) }
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             when (val result = catalogRepository.getCatalog()) {
                 is ApiResult.Success -> {
                     val catalogFetch = result.value
@@ -416,7 +419,8 @@ class CharacterCatalogViewModel(
         if (currentState.isLoading || currentState.isRefreshing) return
 
         _uiState.update { it.copy(isRefreshing = true) }
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             when (val catalogResult = catalogRepository.getCatalog()) {
                 is ApiResult.Success -> {
                     val catalog = catalogResult.value.catalog
@@ -494,6 +498,7 @@ class CharacterCatalogViewModel(
     }
 
     private fun selectList(categoryId: String?, firstPageUrl: String) {
+        loadJob?.cancel()
         _uiState.update {
             it.copy(
                 selectedCategoryId = categoryId,
@@ -512,12 +517,12 @@ class CharacterCatalogViewModel(
         finishRefresh: Boolean = false,
     ) {
         _uiState.update { it.copy(isPageLoading = true) }
-        viewModelScope.launch {
+        loadJob = viewModelScope.launch {
             when (val result = catalogRepository.getCharacterPage(url)) {
                 is ApiResult.Success -> {
                     val pageData = result.value
                     _uiState.update { state ->
-                        val updatedList = state.characters + pageData.items
+                        val updatedList = (state.characters + pageData.items).distinctBy { it.id }
                         state.copy(
                             characters = updatedList,
                             page = pageData.page,
@@ -579,7 +584,7 @@ class CharacterCatalogViewModel(
                     char.author.contains(query, ignoreCase = true)
             val matchesTags = tagIds.isEmpty() || char.tagIds.containsAll(tagIds)
             matchesQuery && matchesTags
-        }
+        }.distinctBy { it.id }
         return this.copy(filteredCharacters = filtered, searchQuery = query, selectedTagIds = tagIds)
     }
 

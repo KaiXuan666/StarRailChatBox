@@ -174,7 +174,11 @@ class RoomDatabaseManager(
                                 val targetPath = appDataDir / name.toPath()
                                 val isInCacheDir = targetPath.toString().startsWith(cacheDir.toString())
                                 if (!isInCacheDir) {
-                                    KmpFileManager.Default.writeBytes(targetPath, entryBytes)
+                                    try {
+                                        KmpFileManager.Default.writeBytes(targetPath, entryBytes)
+                                    } catch (e: Exception) {
+                                        Napier.w(e) { "解压还原文件失败: $targetPath, 可能是文件被占用，已忽略" }
+                                    }
                                 }
                             }
                         }
@@ -219,7 +223,7 @@ class RoomDatabaseManager(
 
                 val newBaseDir = KmpFileManager.Default.appDataDir.toString().replace('\\', '/')
 
-                val keyDirs = listOf("character_avatars/", "chat_attachments/", "character_voice_samples/")
+                val keyDirs = listOf("character_avatars/", "chat_attachments/", "character_voice_samples/", "generated_images/")
                 val targets = listOf(
                     "agent_role" to "avatar_uri",
                     "agent_role" to "voice_sample_uri",
