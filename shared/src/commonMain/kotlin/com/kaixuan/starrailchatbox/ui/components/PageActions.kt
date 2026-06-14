@@ -46,28 +46,60 @@ fun StarRailPageLayout(
     onBackClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     contentSpacing: Dp = StarRailSpacing.sm,
+    footer: @Composable (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(
-                start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() +
-                    StarRailSpacing.xs,
-                end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                bottom = contentPadding.calculateBottomPadding() + StarRailSpacing.lg,
-            ),
-        verticalArrangement = Arrangement.spacedBy(contentSpacing),
-    ) {
-        StarRailPageHeader(
-            title = title,
-            compact = compact,
-            backContentDescription = backContentDescription,
-            onBackClick = onBackClick,
-        )
-        content()
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(
+                    start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                    top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() +
+                            StarRailSpacing.xs,
+                    end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                    bottom = contentPadding.calculateBottomPadding() +
+                            (if (footer != null) 100.dp else StarRailSpacing.lg),
+                ),
+            verticalArrangement = Arrangement.spacedBy(contentSpacing),
+        ) {
+            StarRailPageHeader(
+                title = title,
+                compact = compact,
+                backContentDescription = backContentDescription,
+                onBackClick = onBackClick,
+            )
+            content()
+        }
+
+        if (footer != null) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(bottom = contentPadding.calculateBottomPadding()),
+                color = MaterialTheme.colorScheme.background.copy(alpha = 0.95f),
+            ) {
+                Column {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                    )
+                    Box(
+                        modifier = Modifier
+                            .padding(
+                                horizontal = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                                vertical = StarRailSpacing.md
+                            )
+                    ) {
+                        footer()
+                    }
+                }
+            }
+        }
     }
 }
 

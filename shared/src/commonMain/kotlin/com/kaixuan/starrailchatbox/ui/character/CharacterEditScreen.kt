@@ -80,6 +80,7 @@ import starrailchatbox.shared.generated.resources.character_edit_system_prompt
 import starrailchatbox.shared.generated.resources.character_edit_system_prompt_hint
 import starrailchatbox.shared.generated.resources.character_edit_temperature
 import starrailchatbox.shared.generated.resources.character_edit_temperature_hint
+import starrailchatbox.shared.generated.resources.character_create_title
 import starrailchatbox.shared.generated.resources.character_edit_title
 import starrailchatbox.shared.generated.resources.character_edit_top_p
 import starrailchatbox.shared.generated.resources.character_edit_top_p_hint
@@ -143,13 +144,54 @@ fun CharacterEditScreen(
     }
 
     StarRailPageLayout(
-        title = stringResource(Res.string.character_edit_title),
+        title = stringResource(
+            if (editState.characterId == null) Res.string.character_create_title
+            else Res.string.character_edit_title
+        ),
         contentPadding = contentPadding,
         compact = compact,
         backContentDescription = stringResource(Res.string.navigation_back),
         onBackClick = { onMainAction(MainAction.PopBackStack) },
         modifier = modifier,
         contentSpacing = StarRailSpacing.md,
+        footer = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Surface(
+                    onClick = { onMainAction(MainAction.PopBackStack) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    color = Color.Transparent,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = stringResource(Res.string.cancel),
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+                StarRailPrimaryButton(
+                    text = stringResource(
+                        if (editState.isSaving) {
+                            Res.string.settings_saving
+                        } else {
+                            Res.string.character_edit_save
+                        },
+                    ),
+                    onClick = { onAction(CharacterAction.CharacterSaveClicked) },
+                    modifier = Modifier.weight(1f),
+                    enabled = !editState.isSaving && editState.name.isNotBlank(),
+                )
+            }
+        }
     ) {
         if (editState.isImporting) {
             Surface(
@@ -351,43 +393,6 @@ fun CharacterEditScreen(
                     }
                 }
             }
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Surface(
-                onClick = { onMainAction(MainAction.PopBackStack) },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(50.dp),
-                shape = MaterialTheme.shapes.extraLarge,
-                color = Color.Transparent,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = stringResource(Res.string.cancel),
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
-            StarRailPrimaryButton(
-                text = stringResource(
-                    if (editState.isSaving) {
-                        Res.string.settings_saving
-                    } else {
-                        Res.string.character_edit_save
-                    },
-                ),
-                onClick = { onAction(CharacterAction.CharacterSaveClicked) },
-                modifier = Modifier.weight(1f),
-                enabled = !editState.isSaving && editState.name.isNotBlank(),
-            )
         }
 
         if (editState.isPromptGenDialogOpen) {
