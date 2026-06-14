@@ -41,6 +41,7 @@ class CharacterCatalogViewModel(
     private var adminKey: String? = null
     private var titleClickCount = 0
     private var lastTitleClickAt = 0L
+    private var catalogLoaded = false
 
     private val _uiState = MutableStateFlow(CharacterCatalogUiState())
     val uiState = _uiState.asStateFlow()
@@ -57,7 +58,6 @@ class CharacterCatalogViewModel(
                 _uiState.update { it.copy(importedCharacterIds = list.map { c -> c.id }.toSet()) }
             }
         }
-        onAction(CharacterCatalogAction.LoadCatalog)
         if (adminSupported) restoreAdminMode()
     }
 
@@ -209,7 +209,7 @@ class CharacterCatalogViewModel(
                     )
                 }
                 _effects.send(CharacterCatalogEffect.ShowToast("分类已创建"))
-                loadCatalog()
+                reloadCatalog()
             } else {
                 _uiState.update { it.copy(isAdminBusy = false) }
                 handleAdminFailure(result, "创建分类失败")
@@ -233,7 +233,7 @@ class CharacterCatalogViewModel(
             if (result is ApiResult.Success && result.value.status == "APPROVED") {
                 _uiState.update { it.copy(isAdminBusy = false) }
                 _effects.send(CharacterCatalogEffect.ShowToast("OSS 目录已重新生成"))
-                loadCatalog()
+                reloadCatalog()
             } else {
                 _uiState.update { it.copy(isAdminBusy = false) }
                 handleAdminFailure(result, "重新生成目录失败")
@@ -261,7 +261,7 @@ class CharacterCatalogViewModel(
             if (result is ApiResult.Success && result.value.status == "APPROVED") {
                 _uiState.update { it.copy(isAdminBusy = false, movingCharacter = null) }
                 _effects.send(CharacterCatalogEffect.ShowToast("角色分类已更新"))
-                loadCatalog()
+                reloadCatalog()
             } else {
                 _uiState.update { it.copy(isAdminBusy = false) }
                 handleAdminFailure(result, "移动角色失败")
@@ -315,7 +315,7 @@ class CharacterCatalogViewModel(
                                 )
                             }
                             _effects.send(CharacterCatalogEffect.ShowToast("角色已下架"))
-                            loadCatalog()
+                            reloadCatalog()
                             return@launch
                         }
                         "REJECTED", "FAILED" -> {
@@ -357,6 +357,7 @@ class CharacterCatalogViewModel(
     }
 
     private fun loadCatalog() {
+        if (_uiState.value.isLoading || catalogLoaded) return
         _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
             when (val result = catalogRepository.getCatalog()) {
@@ -374,6 +375,7 @@ class CharacterCatalogViewModel(
                         when (val categoriesResult = catalogRepository.getCategories(catalog.categoriesUrl)) {
                             is ApiResult.Success -> {
                                 val categoriesData = categoriesResult.value.categories.sortedBy { it.sortOrder }
+                                catalogLoaded = true
                                 _uiState.update { it.copy(categories = categoriesData, isLoading = false) }
                                 if (catalog.allCharacters != null) {
                                     selectAll()
@@ -384,20 +386,28 @@ class CharacterCatalogViewModel(
                                 }
                             }
                             else -> {
+                                catalogLoaded = false
                                 _uiState.update { it.copy(isLoading = false) }
                                 _effects.send(CharacterCatalogEffect.ShowToast("加载角色品类失败"))
                             }
                         }
                     } else {
+                        catalogLoaded = true
                         _uiState.update { it.copy(isLoading = false) }
                     }
                 }
                 else -> {
+                    catalogLoaded = false
                     _uiState.update { it.copy(isLoading = false) }
                     _effects.send(CharacterCatalogEffect.ShowToast("加载目录配置失败"))
                 }
             }
         }
+    }
+
+    private fun reloadCatalog() {
+        catalogLoaded = false
+        loadCatalog()
     }
 
     private fun selectAll() {

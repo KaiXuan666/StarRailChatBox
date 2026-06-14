@@ -39,7 +39,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kaixuan.starrailchatbox.data.character.catalog.PublicAllCharacters
 import com.kaixuan.starrailchatbox.data.character.catalog.PublicCategory
 import com.kaixuan.starrailchatbox.data.character.catalog.PublicCharacterSummary
@@ -55,7 +54,6 @@ import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
 import com.kaixuan.starrailchatbox.ui.components.StarRailDialog
 import com.kaixuan.starrailchatbox.ui.main.MainAction
 import com.kaixuan.starrailchatbox.ui.navigation.Route
-import org.koin.core.Koin
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
@@ -82,7 +80,8 @@ import starrailchatbox.shared.generated.resources.catalog_all_characters
 
 @Composable
 fun CharacterCatalogRoute(
-    koin: Koin,
+    model: CharacterCatalogViewModel,
+    isActive: Boolean,
     contentPadding: PaddingValues,
     compact: Boolean,
     onMainAction: (MainAction) -> Unit,
@@ -90,8 +89,13 @@ fun CharacterCatalogRoute(
     modifier: Modifier = Modifier,
     onBackClick: (() -> Unit)? = null,
 ) {
-    val model = viewModel { koin.get<CharacterCatalogViewModel>() }
     val state by model.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(isActive) {
+        if (isActive) {
+            model.onAction(CharacterCatalogAction.LoadCatalog)
+        }
+    }
 
     LaunchedEffect(model.effects) {
         model.effects.collect { effect ->

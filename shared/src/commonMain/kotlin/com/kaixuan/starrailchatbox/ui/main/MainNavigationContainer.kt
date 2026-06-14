@@ -160,6 +160,7 @@ import com.kaixuan.starrailchatbox.ui.character.CharacterEditScreen
 import com.kaixuan.starrailchatbox.ui.character.CharacterEditViewModel
 import com.kaixuan.starrailchatbox.ui.character.CharacterEditArgs
 import com.kaixuan.starrailchatbox.ui.character.CharactersViewModel
+import com.kaixuan.starrailchatbox.ui.character.catalog.CharacterCatalogViewModel
 import com.kaixuan.starrailchatbox.ui.chat.ChatUiState
 import com.kaixuan.starrailchatbox.ui.chat.CharacterChatState
 import com.kaixuan.starrailchatbox.ui.chat.ChatMessageUiModel
@@ -297,6 +298,11 @@ fun MainRoute(
         effects = charactersViewModel.effects,
         onAction = charactersViewModel::onAction,
     )
+
+    val characterCatalogViewModel = viewModel<CharacterCatalogViewModel>(
+        viewModelStoreOwner = rootViewModelStoreOwner,
+        key = "root-character-catalog",
+    ) { koin.get() }
 
     val settingsViewModel = viewModel<SettingsOverviewViewModel>(
         viewModelStoreOwner = rootViewModelStoreOwner,
@@ -595,6 +601,7 @@ fun MainRoute(
         chatCharactersState = chatCharacters.state,
         chatState = chat.state,
         settingsState = settings.state,
+        characterCatalogViewModel = characterCatalogViewModel,
         snackbarHostState = snackbarHostState,
         characterEffectMessages = characterEffectMessages,
         settingsEffectMessages = settingsEffectMessages,
@@ -735,6 +742,7 @@ fun MainNavigationContainer(
     chatCharactersState: ChatCharactersUiState,
     chatState: ChatUiState,
     settingsState: SettingsOverviewUiState,
+    characterCatalogViewModel: CharacterCatalogViewModel,
     snackbarHostState: SnackbarHostState,
     characterEffectMessages: Map<CharacterEffectMessage, String>,
     settingsEffectMessages: Map<SettingsEffectMessage, String>,
@@ -834,6 +842,7 @@ fun MainNavigationContainer(
                         ) {
                             RootTabsPager(
                                 selectedRoute = selectedRootRoute,
+                                characterCatalogViewModel = characterCatalogViewModel,
                                 mainState = mainState,
                                 charactersState = charactersState,
                                 chatCharactersState = chatCharactersState,
@@ -855,7 +864,6 @@ fun MainNavigationContainer(
                                     isRecording = recording
                                     isCancelTargeted = cancelTargeted
                                 },
-                                koin = koin,
                                 snackbarHostState = snackbarHostState,
                             )
                         }
@@ -1015,7 +1023,8 @@ fun MainNavigationContainer(
                             onMounted = { presentedRoute = Route.CharacterCatalog },
                         ) {
                             com.kaixuan.starrailchatbox.ui.character.catalog.CharacterCatalogRoute(
-                                koin = koin,
+                                model = characterCatalogViewModel,
+                                isActive = true,
                                 contentPadding = contentPadding,
                                 compact = compact,
                                 onMainAction = onMainAction,
@@ -1103,6 +1112,7 @@ fun MainNavigationContainer(
 @Composable
 private fun RootTabsPager(
     selectedRoute: Route,
+    characterCatalogViewModel: CharacterCatalogViewModel,
     mainState: MainUiState,
     charactersState: CharactersUiState,
     chatCharactersState: ChatCharactersUiState,
@@ -1120,7 +1130,6 @@ private fun RootTabsPager(
     isRecording: Boolean,
     isCancelTargeted: Boolean,
     onRecordingStateChanged: (Boolean, Boolean) -> Unit,
-    koin: Koin,
     snackbarHostState: SnackbarHostState,
 ) {
     val selectedPage = RootTabRoutes.indexOf(selectedRoute).coerceAtLeast(0)
@@ -1152,7 +1161,8 @@ private fun RootTabsPager(
         when (RootTabRoutes[page]) {
             Route.CharacterCatalog -> {
                 com.kaixuan.starrailchatbox.ui.character.catalog.CharacterCatalogRoute(
-                    koin = koin,
+                    model = characterCatalogViewModel,
+                    isActive = selectedRoute == Route.CharacterCatalog,
                     contentPadding = contentPadding,
                     compact = compact,
                     onMainAction = onMainAction,
