@@ -64,6 +64,7 @@ class CharacterCatalogViewModel(
     fun onAction(action: CharacterCatalogAction) {
         when (action) {
             is CharacterCatalogAction.LoadCatalog -> loadCatalog()
+            CharacterCatalogAction.SelectAll -> selectAll()
             is CharacterCatalogAction.SelectCategory -> selectCategory(action.categoryId)
             is CharacterCatalogAction.ToggleTag -> toggleTag(action.tagId)
             is CharacterCatalogAction.ClearTags -> clearTags()
@@ -338,15 +339,23 @@ class CharacterCatalogViewModel(
                     val catalogFetch = result.value
                     val catalog = catalogFetch.catalog
                     if (catalog != null) {
-                        _uiState.update { it.copy(tags = catalog.tags) }
+                        _uiState.update {
+                            it.copy(
+                                allCharacters = catalog.allCharacters,
+                                tags = catalog.tags,
+                            )
+                        }
                         // 获取品类
                         when (val categoriesResult = catalogRepository.getCategories(catalog.categoriesUrl)) {
                             is ApiResult.Success -> {
                                 val categoriesData = categoriesResult.value.categories.sortedBy { it.sortOrder }
                                 _uiState.update { it.copy(categories = categoriesData, isLoading = false) }
-                                // 默认选择第一个分类
-                                categoriesData.firstOrNull()?.let { firstCat ->
-                                    selectCategory(firstCat.id)
+                                if (catalog.allCharacters != null) {
+                                    selectAll()
+                                } else {
+                                    categoriesData.firstOrNull()?.let { firstCat ->
+                                        selectCategory(firstCat.id)
+                                    }
                                 }
                             }
                             else -> {
@@ -366,18 +375,28 @@ class CharacterCatalogViewModel(
         }
     }
 
+    private fun selectAll() {
+        val allCharacters = _uiState.value.allCharacters ?: return
+        selectList(categoryId = null, firstPageUrl = allCharacters.firstPageUrl)
+    }
+
     private fun selectCategory(categoryId: String) {
         val selectedCat = _uiState.value.categories.find { it.id == categoryId } ?: return
+        selectList(categoryId = categoryId, firstPageUrl = selectedCat.firstPageUrl)
+    }
+
+    private fun selectList(categoryId: String?, firstPageUrl: String) {
         _uiState.update {
             it.copy(
                 selectedCategoryId = categoryId,
+                activeFirstPageUrl = firstPageUrl,
                 characters = emptyList(),
                 filteredCharacters = emptyList(),
                 page = 1,
-                totalPages = 1
+                totalPages = 1,
             )
         }
-        loadPage(selectedCat.firstPageUrl)
+        loadPage(firstPageUrl)
     }
 
     private fun loadPage(url: String) {
@@ -407,9 +426,9 @@ class CharacterCatalogViewModel(
     private fun loadNextPage() {
         val state = _uiState.value
         if (state.isPageLoading || state.page >= state.totalPages) return
-        val selectedCat = state.categories.find { it.id == state.selectedCategoryId } ?: return
+        val firstPageUrl = state.activeFirstPageUrl ?: return
         val nextPage = state.page + 1
-        val nextPageUrl = getPageUrl(selectedCat.firstPageUrl, nextPage)
+        val nextPageUrl = getPageUrl(firstPageUrl, nextPage)
         loadPage(nextPageUrl)
     }
 

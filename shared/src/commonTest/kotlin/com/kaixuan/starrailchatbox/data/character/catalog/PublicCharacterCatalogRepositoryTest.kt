@@ -18,6 +18,39 @@ import kotlin.test.assertTrue
 
 class PublicCharacterCatalogRepositoryTest {
     @Test
+    fun catalogParsesOptionalAllCharactersEntry() = runTest {
+        val engine = MockEngine {
+            respond(
+                content = """
+                    {
+                      "schemaVersion": 1,
+                      "catalogVersion": "v1",
+                      "generatedAt": "2026-06-14T00:00:00Z",
+                      "categoriesUrl": "/categories.json",
+                      "allCharacters": {
+                        "name": "全部",
+                        "characterCount": 2,
+                        "firstPageUrl": "/api/v1/releases/v1/all/pages/1.json"
+                      },
+                      "tags": []
+                    }
+                """.trimIndent(),
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+        val repository = DefaultPublicCharacterCatalogRepository(testClient(engine))
+
+        val result = repository.getCatalog()
+
+        val catalog = assertIs<ApiResult.Success<PublicCatalogFetch>>(result).value.catalog
+        assertEquals(2, catalog?.allCharacters?.characterCount)
+        assertEquals(
+            "/api/v1/releases/v1/all/pages/1.json",
+            catalog?.allCharacters?.firstPageUrl,
+        )
+    }
+
+    @Test
     fun catalogSupportsConditionalRequests() = runTest {
         val engine = MockEngine { request ->
             assertEquals("\"catalog-v1\"", request.headers[HttpHeaders.IfNoneMatch])

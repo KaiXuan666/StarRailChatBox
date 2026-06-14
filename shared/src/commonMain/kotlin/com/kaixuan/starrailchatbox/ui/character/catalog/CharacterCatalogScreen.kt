@@ -40,6 +40,7 @@ import androidx.compose.ui.zIndex
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.kaixuan.starrailchatbox.data.character.catalog.PublicAllCharacters
 import com.kaixuan.starrailchatbox.data.character.catalog.PublicCategory
 import com.kaixuan.starrailchatbox.data.character.catalog.PublicCharacterSummary
 import com.kaixuan.starrailchatbox.data.character.catalog.PublicTag
@@ -76,6 +77,7 @@ import starrailchatbox.shared.generated.resources.catalog_admin_move_title
 import starrailchatbox.shared.generated.resources.catalog_admin_pending_review
 import starrailchatbox.shared.generated.resources.catalog_admin_submit_review
 import starrailchatbox.shared.generated.resources.catalog_admin_verify
+import starrailchatbox.shared.generated.resources.catalog_all_characters
 
 @Composable
 fun CharacterCatalogRoute(
@@ -214,52 +216,58 @@ fun CharacterCatalogScreen(
                                 .horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.xs)
                         ) {
+                            state.allCharacters?.let {
+                                CategoryBadge(
+                                    name = stringResource(Res.string.catalog_all_characters),
+                                    isSelected = state.selectedCategoryId == null,
+                                ) { onAction(CharacterCatalogAction.SelectAll) }
+                            }
                             state.categories.forEach { category ->
                                 val isSelected = category.id == state.selectedCategoryId
                                 CategoryBadge(
-                                    category = category,
+                                    name = category.name,
                                     isSelected = isSelected,
                                 ) { onAction(CharacterCatalogAction.SelectCategory(category.id)) }
                             }
                         }
 
-                        Spacer(modifier = Modifier.width(StarRailSpacing.sm))
-
-                        // 漏斗过滤按钮
-                        Surface(
-                            onClick = { onAction(CharacterCatalogAction.ToggleTagFilter) },
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (state.selectedTagIds.isNotEmpty()) {
-                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)
-                            } else {
-                                MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f)
-                            },
-                            border = BorderStroke(
-                                width = 1.dp,
-                                color = if (state.selectedTagIds.isNotEmpty()) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                                }
-                            ),
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier.fillMaxSize()
-                            ) {
-                                StarRailIcon(
-                                    kind = StarRailIconKind.FILTER,
-                                    contentDescription = "过滤标签",
-                                    tint = if (state.selectedTagIds.isNotEmpty()) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                                    },
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
+//                        Spacer(modifier = Modifier.width(StarRailSpacing.sm))
+//
+//                        // 漏斗过滤按钮
+//                        Surface(
+//                            onClick = { onAction(CharacterCatalogAction.ToggleTagFilter) },
+//                            shape = RoundedCornerShape(12.dp),
+//                            color = if (state.selectedTagIds.isNotEmpty()) {
+//                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)
+//                            } else {
+//                                MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f)
+//                            },
+//                            border = BorderStroke(
+//                                width = 1.dp,
+//                                color = if (state.selectedTagIds.isNotEmpty()) {
+//                                    MaterialTheme.colorScheme.primary
+//                                } else {
+//                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+//                                }
+//                            ),
+//                            modifier = Modifier.size(32.dp)
+//                        ) {
+//                            Box(
+//                                contentAlignment = Alignment.Center,
+//                                modifier = Modifier.fillMaxSize()
+//                            ) {
+//                                StarRailIcon(
+//                                    kind = StarRailIconKind.FILTER,
+//                                    contentDescription = "过滤标签",
+//                                    tint = if (state.selectedTagIds.isNotEmpty()) {
+//                                        MaterialTheme.colorScheme.primary
+//                                    } else {
+//                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+//                                    },
+//                                    modifier = Modifier.size(18.dp)
+//                                )
+//                            }
+//                        }
                     }
                 }
 
@@ -533,7 +541,7 @@ fun SearchBar(
 
 @Composable
 fun CategoryBadge(
-    category: PublicCategory,
+    name: String,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
@@ -548,7 +556,7 @@ fun CategoryBadge(
         border = if (isSelected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
     ) {
         Text(
-            text = category.name,
+            text = name,
             color = if (isSelected) {
                 MaterialTheme.colorScheme.onPrimary
             } else {
@@ -1049,8 +1057,14 @@ private fun CharacterCatalogAdminPreview(darkTheme: Boolean) {
     StarRailTheme(darkThemeOverride = darkTheme) {
         CharacterCatalogScreen(
             state = CharacterCatalogUiState(
+                allCharacters = PublicAllCharacters(
+                    name = "全部",
+                    characterCount = 1,
+                    firstPageUrl = "/all/page1.json",
+                ),
                 categories = listOf(category),
-                selectedCategoryId = category.id,
+                selectedCategoryId = null,
+                activeFirstPageUrl = "/all/page1.json",
                 characters = listOf(character),
                 filteredCharacters = listOf(character),
                 adminSupported = true,

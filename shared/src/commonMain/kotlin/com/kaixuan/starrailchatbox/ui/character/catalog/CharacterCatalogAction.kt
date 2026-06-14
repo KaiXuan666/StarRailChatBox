@@ -4,6 +4,7 @@ import com.kaixuan.starrailchatbox.data.character.catalog.PublicCharacterSummary
 
 sealed interface CharacterCatalogAction {
     data object LoadCatalog : CharacterCatalogAction
+    data object SelectAll : CharacterCatalogAction
     data class SelectCategory(val categoryId: String) : CharacterCatalogAction
     data class ToggleTag(val tagId: String) : CharacterCatalogAction
     data object ClearTags : CharacterCatalogAction

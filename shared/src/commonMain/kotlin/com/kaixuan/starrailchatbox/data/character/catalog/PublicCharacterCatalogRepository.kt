@@ -17,7 +17,15 @@ data class PublicCatalog(
     val catalogVersion: String,
     val generatedAt: String,
     val categoriesUrl: String,
+    val allCharacters: PublicAllCharacters? = null,
     val tags: List<PublicTag> = emptyList(),
+)
+
+@Serializable
+data class PublicAllCharacters(
+    val name: String,
+    val characterCount: Int,
+    val firstPageUrl: String,
 )
 
 @Serializable
