@@ -1,6 +1,7 @@
 package com.kaixuan.starrailchatbox.data.database
 
 import androidx.room.useWriterConnection
+import androidx.sqlite.execSQL
 import io.github.aakira.napier.Napier
 import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.delete
@@ -102,7 +103,7 @@ class RoomDatabaseManager(
             val cleanNickname = userNickname.replace(Regex("[\\\\/:*?\"<>|]"), "_")
             val appName = "崩铁ChatBox"
             val dateTimeStr = getFormattedDateTime()
-            val destFileName = "${cleanNickname}+${appName}+${dateTimeStr}.zip"
+            val destFileName = "${cleanNickname}-${appName}-${dateTimeStr}.zip"
             val destFile = directoryPath / destFileName
 
             if (destFile.exists()) {
@@ -151,6 +152,11 @@ class RoomDatabaseManager(
                 // 导入前必须关闭 Room，避免覆盖时数据库仍被占用
                 database.close()
 
+                // 前置删除已存在的 -wal、-shm、-journal 文件，避免旧日志污染覆盖后的新 db 导致故障恢复崩溃
+                KmpFileManager.Default.delete(("$databasePath-wal").toPath())
+                KmpFileManager.Default.delete(("$databasePath-shm").toPath())
+                KmpFileManager.Default.delete(("$databasePath-journal").toPath())
+
                 val appDataDir = KmpFileManager.Default.appDataDir
                 val cacheDir = KmpFileManager.Default.cacheDir
 
@@ -162,8 +168,7 @@ class RoomDatabaseManager(
                             val entryBytes = zip.readBytes()
                             if (name == "starrail_chat_box.db") {
                                 // 写入主数据库文件
-                                val targetDbFile = PlatformFile(databasePath)
-                                targetDbFile.write(entryBytes)
+                                KmpFileManager.Default.writeBytes(databasePath.toPath(), entryBytes)
                             } else {
                                 // 还原到私有目录中的相对位置（排除 cacheDir 下的文件）
                                 val targetPath = appDataDir / name.toPath()
@@ -178,10 +183,8 @@ class RoomDatabaseManager(
                     }
                 }
 
-                // 删除旧 WAL/SHM，避免旧日志污染新导入的 db
-                PlatformFile("$databasePath-wal").delete(mustExist = false)
-                PlatformFile("$databasePath-shm").delete(mustExist = false)
-                PlatformFile("$databasePath-journal").delete(mustExist = false)
+                // 统一修整数据库中的跨平台绝对路径
+                fixDatabasePaths()
 
                 Napier.d { "RoomDatabaseManager ZIP 导入数据成功" }
             } else {
@@ -190,18 +193,67 @@ class RoomDatabaseManager(
                 // 导入前必须关闭 Room，避免覆盖时数据库仍被占用
                 database.close()
 
-                val targetDbFile = PlatformFile(databasePath)
+                // 前置删除已存在的 -wal、-shm、-journal 文件，避免旧日志污染覆盖后的新 db 导致故障恢复崩溃
+                KmpFileManager.Default.delete(("$databasePath-wal").toPath())
+                KmpFileManager.Default.delete(("$databasePath-shm").toPath())
+                KmpFileManager.Default.delete(("$databasePath-journal").toPath())
 
                 // 覆盖主数据库文件
-                targetDbFile.write(bytes)
+                KmpFileManager.Default.writeBytes(databasePath.toPath(), bytes)
 
-                // 删除旧 WAL/SHM，避免旧日志污染新导入的 db
-                PlatformFile("$databasePath-wal").delete(mustExist = false)
-                PlatformFile("$databasePath-shm").delete(mustExist = false)
-                PlatformFile("$databasePath-journal").delete(mustExist = false)
+                // 统一修整数据库中的跨平台绝对路径
+                fixDatabasePaths()
 
                 Napier.d { "RoomDatabaseManager DB 导入数据成功" }
             }
+        }
+    }
+
+    private fun fixDatabasePaths() {
+        try {
+            val driver = androidx.sqlite.driver.bundled.BundledSQLiteDriver()
+            val connection = driver.open(databasePath)
+            try {
+                // 强制将修改模式设置为 TRUNCATE，确保所有的路径修改直接在主 db 文件中生效，绝不产生 WAL
+                connection.execSQL("PRAGMA journal_mode = TRUNCATE")
+
+                val newBaseDir = KmpFileManager.Default.appDataDir.toString().replace('\\', '/')
+
+                val keyDirs = listOf("character_avatars/", "chat_attachments/", "character_voice_samples/")
+                val targets = listOf(
+                    "agent_role" to "avatar_uri",
+                    "agent_role" to "voice_sample_uri",
+                    "message_attachment" to "uri"
+                )
+
+                val sqls = mutableListOf<String>()
+                for (keyDir in keyDirs) {
+                    for ((table, column) in targets) {
+                        sqls.add(
+                            """
+                            UPDATE $table 
+                            SET $column = '$newBaseDir' || '/' || SUBSTR(REPLACE($column, '\', '/'), INSTR(REPLACE($column, '\', '/'), '$keyDir'))
+                            WHERE REPLACE($column, '\', '/') LIKE '%$keyDir%'
+                            """.trimIndent()
+                        )
+                    }
+                }
+
+                for (sql in sqls) {
+                    connection.prepare(sql).use { statement ->
+                        statement.step()
+                    }
+                }
+
+                // 强制执行一次 checkpoint 确保彻底落盘
+                connection.execSQL("PRAGMA wal_checkpoint(TRUNCATE)")
+
+                Napier.d { "RoomDatabaseManager: 成功执行了跨平台备份数据库路径修正" }
+            } finally {
+                connection.close()
+            }
+        } catch (e: Exception) {
+            Napier.e("RoomDatabaseManager: 执行跨平台备份数据库路径修正失败", e)
         }
     }
 }

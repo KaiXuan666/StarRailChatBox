@@ -33,9 +33,19 @@ class ProfileViewModel(
         scope().launch {
             val profile = profileStore.load()
             val nickname = appSettingsStore.userNickname.first()
+            val fixedAvatarUri = profile?.customAvatarUri?.let { uri ->
+                val keyword = "user_avatar_"
+                val index = uri.lastIndexOf(keyword)
+                if (index != -1) {
+                    val fileName = uri.substring(index)
+                    (com.kaixuan.starrailchatbox.platform.KmpFileManager.Default.appDataDir / fileName.toPath()).toString()
+                } else {
+                    uri
+                }
+            }
             _uiState.update { state ->
                 state.copy(
-                    customAvatarUri = profile?.customAvatarUri,
+                    customAvatarUri = fixedAvatarUri,
                     summaryThreshold = profile?.summaryThreshold ?: 20,
                     saveMultimodalToken = profile?.saveMultimodalToken ?: false,
                     enableWebSearch = profile?.enableWebSearch ?: false,
