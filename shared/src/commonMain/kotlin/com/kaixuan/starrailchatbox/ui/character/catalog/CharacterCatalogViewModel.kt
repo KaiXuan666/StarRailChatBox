@@ -44,6 +44,7 @@ class CharacterCatalogViewModel(
     private var lastTitleClickAt = 0L
     private var catalogLoaded = false
     private var loadJob: Job? = null
+    private val loadJobs = mutableMapOf<String?, Job>()
 
     private val _uiState = MutableStateFlow(CharacterCatalogUiState())
     val uiState = _uiState.asStateFlow()
@@ -69,6 +70,12 @@ class CharacterCatalogViewModel(
             CharacterCatalogAction.RefreshCatalog -> refreshCatalog()
             CharacterCatalogAction.SelectAll -> selectAll()
             is CharacterCatalogAction.SelectCategory -> selectCategory(action.categoryId)
+            is CharacterCatalogAction.PreloadCategory -> {
+                val catState = _uiState.value.categoryStates[action.categoryId]
+                if (catState != null && catState.characters.isEmpty() && !catState.isPageLoading) {
+                    loadCategoryPage(action.categoryId, action.firstPageUrl)
+                }
+            }
             is CharacterCatalogAction.ToggleTag -> toggleTag(action.tagId)
             is CharacterCatalogAction.ClearTags -> clearTags()
             is CharacterCatalogAction.SearchQueryChanged -> changeSearchQuery(action.query)
@@ -380,7 +387,20 @@ class CharacterCatalogViewModel(
                             is ApiResult.Success -> {
                                 val categoriesData = categoriesResult.value.categories.sortedBy { it.sortOrder }
                                 catalogLoaded = true
-                                _uiState.update { it.copy(categories = categoriesData, isLoading = false) }
+                                val newStates = mutableMapOf<String?, CategoryState>()
+                                if (catalog.allCharacters != null) {
+                                    newStates[null] = CategoryState(categoryId = null, firstPageUrl = catalog.allCharacters.firstPageUrl)
+                                }
+                                categoriesData.filter { it.characterCount > 0 }.forEach { cat ->
+                                    newStates[cat.id] = CategoryState(categoryId = cat.id, firstPageUrl = cat.firstPageUrl)
+                                }
+                                _uiState.update { 
+                                    it.copy(
+                                        categories = categoriesData, 
+                                        categoryStates = newStates,
+                                        isLoading = false
+                                    ) 
+                                }
                                 if (catalog.allCharacters != null) {
                                     selectAll()
                                 } else {
@@ -451,6 +471,14 @@ class CharacterCatalogViewModel(
                             }
 
                             catalogLoaded = true
+                            val newStates = mutableMapOf<String?, CategoryState>()
+                            if (catalog.allCharacters != null) {
+                                newStates[null] = CategoryState(categoryId = null, firstPageUrl = catalog.allCharacters.firstPageUrl)
+                            }
+                            categories.filter { it.characterCount > 0 }.forEach { cat ->
+                                newStates[cat.id] = CategoryState(categoryId = cat.id, firstPageUrl = cat.firstPageUrl)
+                            }
+
                             _uiState.update { state ->
                                 val availableTagIds = catalog.tags.mapTo(mutableSetOf()) { it.id }
                                 state.copy(
@@ -460,6 +488,7 @@ class CharacterCatalogViewModel(
                                     selectedCategoryId = targetCategoryId,
                                     activeFirstPageUrl = targetPageUrl,
                                     selectedTagIds = state.selectedTagIds.intersect(availableTagIds),
+                                    categoryStates = newStates,
                                     characters = emptyList(),
                                     filteredCharacters = emptyList(),
                                     page = 1,
@@ -470,7 +499,7 @@ class CharacterCatalogViewModel(
                             if (targetPageUrl == null) {
                                 _uiState.update { it.copy(isRefreshing = false) }
                             } else {
-                                loadPage(targetPageUrl, finishRefresh = true)
+                                loadCategoryPage(targetCategoryId, targetPageUrl, finishRefresh = true)
                             }
                         }
                         else -> {
@@ -487,57 +516,115 @@ class CharacterCatalogViewModel(
         }
     }
 
-    private fun selectAll() {
-        val allCharacters = _uiState.value.allCharacters ?: return
-        selectList(categoryId = null, firstPageUrl = allCharacters.firstPageUrl)
+    private fun filterCategoryCharacters(
+        characters: List<PublicCharacterSummary>,
+        query: String,
+        tagIds: Set<String>
+    ): List<PublicCharacterSummary> {
+        return characters.filter { char ->
+            val matchesQuery = query.isBlank() ||
+                    char.name.contains(query, ignoreCase = true) ||
+                    char.author.contains(query, ignoreCase = true)
+            val matchesTags = tagIds.isEmpty() || char.tagIds.containsAll(tagIds)
+            matchesQuery && matchesTags
+        }.distinctBy { it.id }
     }
 
-    private fun selectCategory(categoryId: String) {
-        val selectedCat = _uiState.value.categories.find { it.id == categoryId } ?: return
-        selectList(categoryId = categoryId, firstPageUrl = selectedCat.firstPageUrl)
-    }
-
-    private fun selectList(categoryId: String?, firstPageUrl: String) {
-        loadJob?.cancel()
-        _uiState.update {
-            it.copy(
-                selectedCategoryId = categoryId,
-                activeFirstPageUrl = firstPageUrl,
-                characters = emptyList(),
-                filteredCharacters = emptyList(),
-                page = 1,
-                totalPages = 1,
-            )
+    private fun selectCategoryInternal(categoryId: String?) {
+        _uiState.update { state ->
+            val catState = state.categoryStates[categoryId]
+            if (catState != null) {
+                state.copy(
+                    selectedCategoryId = categoryId,
+                    activeFirstPageUrl = catState.firstPageUrl,
+                    characters = catState.characters,
+                    filteredCharacters = catState.filteredCharacters,
+                    page = catState.page,
+                    totalPages = catState.totalPages,
+                    isPageLoading = catState.isPageLoading
+                )
+            } else {
+                state.copy(selectedCategoryId = categoryId)
+            }
         }
-        loadPage(firstPageUrl)
+        val currentCatState = _uiState.value.categoryStates[categoryId]
+        if (currentCatState != null && currentCatState.characters.isEmpty() && !currentCatState.isPageLoading) {
+            loadCategoryPage(categoryId, currentCatState.firstPageUrl)
+        }
     }
 
-    private fun loadPage(
+    private fun loadCategoryPage(
+        categoryId: String?,
         url: String,
         finishRefresh: Boolean = false,
     ) {
-        _uiState.update { it.copy(isPageLoading = true) }
-        loadJob = viewModelScope.launch {
+        _uiState.update { state ->
+            val catState = state.categoryStates[categoryId]
+            if (catState != null) {
+                val newState = catState.copy(isPageLoading = true)
+                val newStates = state.categoryStates + (categoryId to newState)
+                if (state.selectedCategoryId == categoryId) {
+                    state.copy(
+                        categoryStates = newStates,
+                        isPageLoading = true
+                    )
+                } else {
+                    state.copy(categoryStates = newStates)
+                }
+            } else {
+                state
+            }
+        }
+
+        loadJobs[categoryId]?.cancel()
+        loadJobs[categoryId] = viewModelScope.launch {
             when (val result = catalogRepository.getCharacterPage(url)) {
                 is ApiResult.Success -> {
                     val pageData = result.value
                     _uiState.update { state ->
-                        val updatedList = (state.characters + pageData.items).distinctBy { it.id }
-                        state.copy(
-                            characters = updatedList,
-                            page = pageData.page,
-                            totalPages = pageData.totalPages,
-                            isPageLoading = false,
-                            isRefreshing = if (finishRefresh) false else state.isRefreshing,
-                        ).applyFilter(state.searchQuery, state.selectedTagIds)
+                        val catState = state.categoryStates[categoryId]
+                        if (catState != null) {
+                            val updatedList = (catState.characters + pageData.items).distinctBy { it.id }
+                            val filtered = filterCategoryCharacters(updatedList, state.searchQuery, state.selectedTagIds)
+                            val newState = catState.copy(
+                                characters = updatedList,
+                                filteredCharacters = filtered,
+                                page = pageData.page,
+                                totalPages = pageData.totalPages,
+                                isPageLoading = false
+                            )
+                            val newStates = state.categoryStates + (categoryId to newState)
+                            
+                            val isCurrent = state.selectedCategoryId == categoryId
+                            state.copy(
+                                categoryStates = newStates,
+                                isRefreshing = if (finishRefresh && isCurrent) false else state.isRefreshing,
+                                characters = if (isCurrent) updatedList else state.characters,
+                                filteredCharacters = if (isCurrent) filtered else state.filteredCharacters,
+                                page = if (isCurrent) pageData.page else state.page,
+                                totalPages = if (isCurrent) pageData.totalPages else state.totalPages,
+                                isPageLoading = if (isCurrent) false else state.isPageLoading
+                            )
+                        } else {
+                            state
+                        }
                     }
                 }
                 else -> {
-                    _uiState.update {
-                        it.copy(
-                            isPageLoading = false,
-                            isRefreshing = if (finishRefresh) false else it.isRefreshing,
-                        )
+                    _uiState.update { state ->
+                        val catState = state.categoryStates[categoryId]
+                        if (catState != null) {
+                            val newState = catState.copy(isPageLoading = false)
+                            val newStates = state.categoryStates + (categoryId to newState)
+                            val isCurrent = state.selectedCategoryId == categoryId
+                            state.copy(
+                                categoryStates = newStates,
+                                isRefreshing = if (finishRefresh && isCurrent) false else state.isRefreshing,
+                                isPageLoading = if (isCurrent) false else state.isPageLoading
+                            )
+                        } else {
+                            state
+                        }
                     }
                     _effects.send(CharacterCatalogEffect.ShowToast("加载角色列表失败"))
                 }
@@ -545,13 +632,22 @@ class CharacterCatalogViewModel(
         }
     }
 
+    private fun selectAll() {
+        selectCategoryInternal(null)
+    }
+
+    private fun selectCategory(categoryId: String) {
+        selectCategoryInternal(categoryId)
+    }
+
     private fun loadNextPage() {
-        val state = _uiState.value
-        if (state.isPageLoading || state.page >= state.totalPages) return
-        val firstPageUrl = state.activeFirstPageUrl ?: return
-        val nextPage = state.page + 1
+        val categoryId = _uiState.value.selectedCategoryId
+        val catState = _uiState.value.categoryStates[categoryId] ?: return
+        if (catState.isPageLoading || catState.page >= catState.totalPages) return
+        val firstPageUrl = catState.firstPageUrl
+        val nextPage = catState.page + 1
         val nextPageUrl = getPageUrl(firstPageUrl, nextPage)
-        loadPage(nextPageUrl)
+        loadCategoryPage(categoryId, nextPageUrl)
     }
 
     private fun toggleTag(tagId: String) {
@@ -578,14 +674,21 @@ class CharacterCatalogViewModel(
     }
 
     private fun CharacterCatalogUiState.applyFilter(query: String, tagIds: Set<String>): CharacterCatalogUiState {
-        val filtered = characters.filter { char ->
-            val matchesQuery = query.isBlank() ||
-                    char.name.contains(query, ignoreCase = true) ||
-                    char.author.contains(query, ignoreCase = true)
-            val matchesTags = tagIds.isEmpty() || char.tagIds.containsAll(tagIds)
-            matchesQuery && matchesTags
-        }.distinctBy { it.id }
-        return this.copy(filteredCharacters = filtered, searchQuery = query, selectedTagIds = tagIds)
+        val updatedStates = categoryStates.mapValues { (_, catState) ->
+            val filtered = filterCategoryCharacters(catState.characters, query, tagIds)
+            catState.copy(filteredCharacters = filtered)
+        }
+        val currentCatState = updatedStates[selectedCategoryId]
+        return this.copy(
+            categoryStates = updatedStates,
+            searchQuery = query,
+            selectedTagIds = tagIds,
+            characters = currentCatState?.characters ?: emptyList(),
+            filteredCharacters = currentCatState?.filteredCharacters ?: emptyList(),
+            page = currentCatState?.page ?: 1,
+            totalPages = currentCatState?.totalPages ?: 1,
+            isPageLoading = currentCatState?.isPageLoading ?: false
+        )
     }
 
     private fun importCharacter(summary: PublicCharacterSummary) {

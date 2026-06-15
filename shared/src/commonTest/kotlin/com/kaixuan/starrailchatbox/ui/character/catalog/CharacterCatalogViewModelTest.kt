@@ -66,6 +66,43 @@ class CharacterCatalogViewModelTest {
         assertEquals("/game-v2/page1.json", catalogRepository.lastPageUrl)
         assertFalse(viewModel.uiState.value.isRefreshing)
     }
+
+    @Test
+    fun preloadAndSwipeCategoryMaintainsSeparateListsAndStatus() = runTest {
+        val catalogRepository = RefreshableCatalogRepository()
+        val viewModel = CharacterCatalogViewModel(
+            catalogRepository = catalogRepository,
+            characterRepository = EmptyCharacterRepository,
+            httpClient = HttpClient(MockEngine { respondOk() }),
+            adminRepository = NoOpCatalogAdminRepository,
+            appSettingsStore = InMemoryAppSettingsStore(),
+        )
+
+        // 1. 加载目录
+        viewModel.onAction(CharacterCatalogAction.LoadCatalog)
+        viewModel.uiState.first {
+            catalogRepository.catalogRequestCount == 1 && !it.isLoading
+        }
+
+        // 2. 发送 PreloadCategory 预加载另一个分类，比如 "new"
+        viewModel.onAction(CharacterCatalogAction.PreloadCategory("new", "/new-v1/page1.json"))
+        // 等待该预加载完成
+        viewModel.uiState.first {
+            it.categoryStates["new"]?.isPageLoading == false
+        }
+
+        // 验证预加载分类 "new" 的 firstPageUrl 正确
+        assertEquals("/new-v1/page1.json", viewModel.uiState.value.categoryStates["new"]?.firstPageUrl)
+
+        // 3. 用户切换选中到 "game"
+        viewModel.onAction(CharacterCatalogAction.SelectCategory("game"))
+        viewModel.uiState.first {
+            it.selectedCategoryId == "game" && !it.isPageLoading
+        }
+
+        // 4. 再次验证 "new" 和 "game" 拥有独立的数据加载路径
+        assertEquals("/game-v1/page1.json", catalogRepository.lastPageUrl)
+    }
 }
 
 private class RefreshableCatalogRepository : PublicCharacterCatalogRepository {

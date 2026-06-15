@@ -7,6 +7,7 @@ sealed interface CharacterCatalogAction {
     data object RefreshCatalog : CharacterCatalogAction
     data object SelectAll : CharacterCatalogAction
     data class SelectCategory(val categoryId: String) : CharacterCatalogAction
+    data class PreloadCategory(val categoryId: String?, val firstPageUrl: String) : CharacterCatalogAction
     data class ToggleTag(val tagId: String) : CharacterCatalogAction
     data object ClearTags : CharacterCatalogAction
     data class SearchQueryChanged(val query: String) : CharacterCatalogAction

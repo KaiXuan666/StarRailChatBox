@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -132,22 +134,15 @@ fun CharacterCatalogScreen(
     modifier: Modifier = Modifier,
     onBackClick: (() -> Unit)? = null,
 ) {
-    val listState = rememberLazyListState()
-
-    // 监听滑动到底部触发加载下一页
-    val shouldLoadMore = remember {
-        derivedStateOf {
-            val layoutInfo = listState.layoutInfo
-            val totalItemsNumber = layoutInfo.totalItemsCount
-            val lastVisibleItemIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            totalItemsNumber > 0 && lastVisibleItemIndex >= (totalItemsNumber - 5)
+    val tabs = remember(state.allCharacters, state.categories) {
+        val list = mutableListOf<CategoryTab>()
+        state.allCharacters?.let {
+            list.add(CategoryTab(null, state.allCharacters.name, it.firstPageUrl))
         }
-    }
-
-    LaunchedEffect(shouldLoadMore.value) {
-        if (shouldLoadMore.value && !state.isPageLoading && state.page < state.totalPages) {
-            onAction(CharacterCatalogAction.LoadNextPage)
+        state.categories.filter { it.characterCount > 0 }.forEach { cat ->
+            list.add(CategoryTab(cat.id, cat.name, cat.firstPageUrl))
         }
+        list
     }
 
     Box(
@@ -162,216 +157,283 @@ fun CharacterCatalogScreen(
                 )
             ),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(
-                    start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                    top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + StarRailSpacing.xs,
-                    end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
-                ),
-            verticalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
-        ) {
-            StarRailPageHeader(
-                title = "角色工坊",
-                compact = compact,
-                backContentDescription = if (onBackClick != null) "返回" else null,
-                onBackClick = onBackClick,
-                onTitleClick = { onAction(CharacterCatalogAction.TitleClicked) },
-            )
-
-            PullToRefreshBox(
-                isRefreshing = state.isRefreshing,
-                onRefresh = { onAction(CharacterCatalogAction.RefreshCatalog) },
+        if (tabs.isEmpty() && state.isLoading) {
+            Box(
                 modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
             ) {
-                LazyColumn(
-                    state = listState,
-                    contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding() + StarRailSpacing.lg),
-                    verticalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                if (state.adminModeEnabled) {
-                    item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
-                        ) {
-                            Button(
-                                onClick = { onAction(CharacterCatalogAction.CreateCategoryClicked) },
-                                enabled = !state.isAdminBusy && !state.isLoading,
-                                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                            ) {
-                                Text(stringResource(Res.string.catalog_admin_create_category))
-                            }
-                            OutlinedButton(
-                                onClick = { onAction(CharacterCatalogAction.RefreshTaxonomy) },
-                                enabled = !state.isAdminBusy && !state.isLoading,
-                                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                                contentPadding = PaddingValues(horizontal = StarRailSpacing.xs),
-                            ) {
-                                Text(stringResource(Res.string.catalog_admin_refresh_taxonomy))
-                            }
-                            OutlinedButton(
-                                onClick = { onAction(CharacterCatalogAction.DisableAdminMode) },
-                                enabled = !state.isAdminBusy && !state.isLoading,
-                                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                                contentPadding = PaddingValues(horizontal = StarRailSpacing.xs),
-                            ) {
-                                Text(stringResource(Res.string.catalog_admin_disable))
-                            }
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            }
+        } else {
+            val pagerState = rememberPagerState(
+                initialPage = 0,
+                pageCount = { tabs.size }
+            )
+            val categoryListState = rememberLazyListState()
+
+            // 监听 selectedCategoryId 的变化，并自动滚动分类列表和 Pager
+            LaunchedEffect(state.selectedCategoryId, tabs) {
+                if (tabs.isNotEmpty()) {
+                    val targetIndex = tabs.indexOfFirst { it.id == state.selectedCategoryId }
+                    if (targetIndex >= 0) {
+                        if (pagerState.currentPage != targetIndex) {
+                            pagerState.animateScrollToPage(targetIndex)
+                        }
+                        categoryListState.animateScrollToItem(targetIndex)
+                    }
+                }
+            }
+
+            // 监听 Pager 滑动，并更新 ViewModel 的选中分类
+            LaunchedEffect(pagerState, tabs) {
+                snapshotFlow { pagerState.currentPage }.collect { page ->
+                    if (tabs.isNotEmpty() && page < tabs.size) {
+                        val targetTab = tabs[page]
+                        if (targetTab.id != state.selectedCategoryId) {
+                            onAction(if (targetTab.id == null) CharacterCatalogAction.SelectAll else CharacterCatalogAction.SelectCategory(targetTab.id))
                         }
                     }
                 }
-                // 1. 分类筛选横滑栏和标签筛选按钮
-                item {
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(
+                        start = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                        top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + StarRailSpacing.xs,
+                        end = if (compact) StarRailSpacing.sm else StarRailSpacing.md,
+                    ),
+                verticalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
+            ) {
+                StarRailPageHeader(
+                    title = "角色工坊",
+                    compact = compact,
+                    backContentDescription = if (onBackClick != null) "返回" else null,
+                    onBackClick = onBackClick,
+                    onTitleClick = { onAction(CharacterCatalogAction.TitleClicked) },
+                )
+
+                if (state.adminModeEnabled) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                        horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
                     ) {
-                        // 品类横向滑动列表
-                        Row(
-                            modifier = Modifier
-                                .weight(1f)
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.xs)
+                        Button(
+                            onClick = { onAction(CharacterCatalogAction.CreateCategoryClicked) },
+                            enabled = !state.isAdminBusy && !state.isLoading,
+                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                         ) {
-                            state.allCharacters?.let {
-                                CategoryBadge(
-                                    name = stringResource(Res.string.catalog_all_characters),
-                                    isSelected = state.selectedCategoryId == null,
-                                ) { onAction(CharacterCatalogAction.SelectAll) }
-                            }
-                            state.categories
-                                .filter { category -> category.characterCount > 0 }
-                                .forEach { category ->
-                                val isSelected = category.id == state.selectedCategoryId
-                                CategoryBadge(
-                                    name = category.name,
-                                    isSelected = isSelected,
-                                ) { onAction(CharacterCatalogAction.SelectCategory(category.id)) }
+                            Text(stringResource(Res.string.catalog_admin_create_category))
+                        }
+                        OutlinedButton(
+                            onClick = { onAction(CharacterCatalogAction.RefreshTaxonomy) },
+                            enabled = !state.isAdminBusy && !state.isLoading,
+                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                            contentPadding = PaddingValues(horizontal = StarRailSpacing.xs),
+                        ) {
+                            Text(stringResource(Res.string.catalog_admin_refresh_taxonomy))
+                        }
+                        OutlinedButton(
+                            onClick = { onAction(CharacterCatalogAction.DisableAdminMode) },
+                            enabled = !state.isAdminBusy && !state.isLoading,
+                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                            contentPadding = PaddingValues(horizontal = StarRailSpacing.xs),
+                        ) {
+                            Text(stringResource(Res.string.catalog_admin_disable))
+                        }
+                    }
+                }
+
+                // 1. 分类筛选横滑栏和标签筛选按钮
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // 品类横向滑动列表
+                    androidx.compose.foundation.lazy.LazyRow(
+                        state = categoryListState,
+                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.xs)
+                    ) {
+                        items(tabs.size) { index ->
+                            val tab = tabs[index]
+                            val isSelected = index == pagerState.currentPage
+                            CategoryBadge(
+                                name = tab.name,
+                                isSelected = isSelected,
+                            ) {
+                                onAction(if (tab.id == null) CharacterCatalogAction.SelectAll else CharacterCatalogAction.SelectCategory(tab.id))
                             }
                         }
+                    }
 
-                        Spacer(modifier = Modifier.width(StarRailSpacing.sm))
+                    Spacer(modifier = Modifier.width(StarRailSpacing.sm))
 
-                        // 漏斗过滤按钮
-                        Surface(
-                            onClick = { onAction(CharacterCatalogAction.ToggleTagFilter) },
-                            shape = RoundedCornerShape(12.dp),
+                    // 漏斗过滤按钮
+                    Surface(
+                        onClick = { onAction(CharacterCatalogAction.ToggleTagFilter) },
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (state.selectedTagIds.isNotEmpty()) {
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f)
+                        },
+                        border = BorderStroke(
+                            width = 1.dp,
                             color = if (state.selectedTagIds.isNotEmpty()) {
-                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)
+                                MaterialTheme.colorScheme.primary
                             } else {
-                                MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f)
-                            },
-                            border = BorderStroke(
-                                width = 1.dp,
-                                color = if (state.selectedTagIds.isNotEmpty()) {
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                            }
+                        ),
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            StarRailIcon(
+                                kind = StarRailIconKind.FILTER,
+                                contentDescription = "过滤标签",
+                                tint = if (state.selectedTagIds.isNotEmpty()) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
-                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                                }
-                            ),
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier.fillMaxSize()
-                            ) {
-                                StarRailIcon(
-                                    kind = StarRailIconKind.FILTER,
-                                    contentDescription = "过滤标签",
-                                    tint = if (state.selectedTagIds.isNotEmpty()) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                                    },
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                                },
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
                     }
                 }
 
-                // 2. 角色列表区域
-                if (state.isLoading && state.characters.isEmpty()) {
-                    item {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().height(200.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                PullToRefreshBox(
+                    isRefreshing = state.isRefreshing,
+                    onRefresh = { onAction(CharacterCatalogAction.RefreshCatalog) },
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    HorizontalPager(
+                        state = pagerState,
+                        beyondViewportPageCount = 1,
+                        modifier = Modifier.fillMaxSize()
+                    ) { pageIndex ->
+                        if (pageIndex >= tabs.size) return@HorizontalPager
+                        val tab = tabs[pageIndex]
+                        val catState = state.categoryStates[tab.id] ?: CategoryState(tab.id, tab.firstPageUrl)
+
+                        val pageListState = rememberLazyListState()
+
+                        // 监听滑动到底部触发加载该 Category 的下一页
+                        val shouldLoadMore = remember {
+                            derivedStateOf {
+                                val layoutInfo = pageListState.layoutInfo
+                                val totalItemsNumber = layoutInfo.totalItemsCount
+                                val lastVisibleItemIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+                                totalItemsNumber > 0 && lastVisibleItemIndex >= (totalItemsNumber - 5)
+                            }
                         }
-                    }
-                } else if (state.filteredCharacters.isEmpty()) {
-                    item {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().height(200.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "没有找到符合条件的角色",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+
+                        LaunchedEffect(shouldLoadMore.value) {
+                            if (shouldLoadMore.value && !catState.isPageLoading && catState.page < catState.totalPages) {
+                                onAction(CharacterCatalogAction.LoadNextPage)
+                            }
                         }
-                    }
-                } else {
-                    items(
-                        items = state.filteredCharacters,
-                        key = { it.id }
-                    ) { char ->
-                        SwipeableCharacterCatalogItem(
-                            adminModeEnabled = state.adminModeEnabled,
-                            deletePending = state.pendingDeleteCharacterKeys.contains(char.characterKey),
-                            onMove = {
-                                onAction(CharacterCatalogAction.MoveCharacterClicked(char))
-                            },
-                            onDelete = {
-                                onAction(CharacterCatalogAction.DeleteCharacterClicked(char))
-                            },
+
+                        // 预加载触发
+                        LaunchedEffect(tab.id) {
+                            if (catState.characters.isEmpty() && !catState.isPageLoading) {
+                                onAction(CharacterCatalogAction.PreloadCategory(tab.id, tab.firstPageUrl))
+                            }
+                        }
+
+                        LazyColumn(
+                            state = pageListState,
+                            contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding() + StarRailSpacing.lg),
+                            verticalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
+                            modifier = Modifier.fillMaxSize()
                         ) {
-                            CharacterCatalogItem(
-                                char = char,
-                                tags = state.tags,
-                                isImporting = state.importingCharacterIds.contains(char.id),
-                                isImported = state.importedCharacterIds.contains(char.id),
-                                resolveUrl = resolveUrl,
-                                onImportClick = {
-                                    onAction(CharacterCatalogAction.ImportCharacterClicked(char))
-                                },
-                                onItemClick = {
-                                    onMainAction(
-                                        MainAction.NavigateTo(
-                                            Route.CharacterCatalogDetail(
-                                                characterId = char.id,
-                                                detailUrl = char.detailUrl,
-                                                name = char.name,
-                                                avatarUrl = char.avatarUrl,
+                            if (catState.filteredCharacters.isEmpty()) {
+                                if (state.isLoading && catState.characters.isEmpty()) {
+                                    item {
+                                        Box(
+                                            modifier = Modifier.fillMaxWidth().height(200.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                                        }
+                                    }
+                                } else {
+                                    item {
+                                        Box(
+                                            modifier = Modifier.fillMaxWidth().height(200.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "没有找到符合条件的角色",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
+                                        }
+                                    }
+                                }
+                            } else {
+                                items(
+                                    items = catState.filteredCharacters,
+                                    key = { it.id }
+                                ) { char ->
+                                    SwipeableCharacterCatalogItem(
+                                        adminModeEnabled = state.adminModeEnabled,
+                                        deletePending = state.pendingDeleteCharacterKeys.contains(char.characterKey),
+                                        onMove = {
+                                            onAction(CharacterCatalogAction.MoveCharacterClicked(char))
+                                        },
+                                        onDelete = {
+                                            onAction(CharacterCatalogAction.DeleteCharacterClicked(char))
+                                        },
+                                    ) {
+                                        CharacterCatalogItem(
+                                            char = char,
+                                            tags = state.tags,
+                                            isImporting = state.importingCharacterIds.contains(char.id),
+                                            isImported = state.importedCharacterIds.contains(char.id),
+                                            resolveUrl = resolveUrl,
+                                            onImportClick = {
+                                                onAction(CharacterCatalogAction.ImportCharacterClicked(char))
+                                            },
+                                            onItemClick = {
+                                                onMainAction(
+                                                    MainAction.NavigateTo(
+                                                        Route.CharacterCatalogDetail(
+                                                            characterId = char.id,
+                                                            detailUrl = char.detailUrl,
+                                                            name = char.name,
+                                                            avatarUrl = char.avatarUrl,
+                                                        )
+                                                    )
+                                                )
+                                            },
                                         )
-                                    )
-                                },
-                            )
-                        }
-                    }
+                                    }
+                                }
 
-                    if (state.isPageLoading) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = StarRailSpacing.md),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator(
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
-                                )
+                                if (catState.isPageLoading) {
+                                    item {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = StarRailSpacing.md),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            CircularProgressIndicator(
+                                                color = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
-                }
                 }
             }
         }
@@ -1088,3 +1150,9 @@ private fun CharacterCatalogAdminPreview(darkTheme: Boolean) {
         )
     }
 }
+
+data class CategoryTab(
+    val id: String?,
+    val name: String,
+    val firstPageUrl: String
+)

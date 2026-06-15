@@ -5,6 +5,16 @@ import com.kaixuan.starrailchatbox.data.character.catalog.PublicCategory
 import com.kaixuan.starrailchatbox.data.character.catalog.PublicCharacterSummary
 import com.kaixuan.starrailchatbox.data.character.catalog.PublicTag
 
+data class CategoryState(
+    val categoryId: String?,
+    val firstPageUrl: String,
+    val characters: List<PublicCharacterSummary> = emptyList(),
+    val filteredCharacters: List<PublicCharacterSummary> = emptyList(),
+    val page: Int = 1,
+    val totalPages: Int = 1,
+    val isPageLoading: Boolean = false,
+)
+
 data class CharacterCatalogUiState(
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
@@ -15,6 +25,7 @@ data class CharacterCatalogUiState(
     val activeFirstPageUrl: String? = null,
     val selectedTagIds: Set<String> = emptySet(),
     val searchQuery: String = "",
+    val categoryStates: Map<String?, CategoryState> = emptyMap(),
     val characters: List<PublicCharacterSummary> = emptyList(),
     val filteredCharacters: List<PublicCharacterSummary> = emptyList(),
     val isTagFilterOpen: Boolean = false,
