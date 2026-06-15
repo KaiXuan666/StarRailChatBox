@@ -224,6 +224,37 @@ class ChatViewModelTest {
 
 
     @Test
+    fun timelineItemsIncludeDateDividersCorrectly() = runTest {
+        val fixture = createFixture()
+        advanceUntilIdle()
+
+        // 默认状态下只有一条开场白消息，且 sessionId 为空，此时是 emptyGreetingPagingData，不含 DateDivider
+        val initialTimeline = fixture.viewModel.uiState.value.messagePagingData.flow.asSnapshot()
+        assertEquals(1, initialTimeline.size)
+        assertIs<ChatTimelineItem.Message>(initialTimeline[0])
+
+        // 发送一条消息，触发创建 Session 并且数据持久化到数据库
+        fixture.send("你好")
+        advanceUntilIdle()
+
+        val timeline = fixture.viewModel.uiState.value.messagePagingData.flow.asSnapshot()
+        // 应该包含 3 条消息（开场白、你好、你好呀）和 1 个针对最早消息的 DateDivider
+        assertEquals(4, timeline.size)
+
+        // 验证 timeline 的顺序
+        val msg0 = assertIs<ChatTimelineItem.Message>(timeline[0])
+        assertEquals("你好呀", (msg0.message.content as MessageContent.Custom).text)
+
+        val msg1 = assertIs<ChatTimelineItem.Message>(timeline[1])
+        assertEquals("你好", (msg1.message.content as MessageContent.Custom).text)
+
+        val msg2 = assertIs<ChatTimelineItem.Message>(timeline[2])
+        assertEquals("今天要聊点什么呢？", (msg2.message.content as MessageContent.Custom).text)
+
+        assertIs<ChatTimelineItem.DateDivider>(timeline[3])
+    }
+
+    @Test
     fun restoreMainCharacterResetsSelectedToLastActiveMainCharacter() = runTest {
         val characterRepository = EditableCharacterRepository(
             initialCharacters = listOf(

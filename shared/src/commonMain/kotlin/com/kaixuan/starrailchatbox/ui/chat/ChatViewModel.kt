@@ -1604,6 +1604,11 @@ private fun PagingData<ChatMessagePageEntry>.toTimelineItems(
             key = "date_${newerMessage.id}_${olderMessage.id}",
             text = formatHeaderDate(newerMessage.createdAt),
         )
+    } else if (newerMessage != null && olderMessage == null) {
+        ChatTimelineItem.DateDivider(
+            key = "date_oldest_${newerMessage.id}",
+            text = formatHeaderDate(newerMessage.createdAt),
+        )
     } else {
         null
     }
