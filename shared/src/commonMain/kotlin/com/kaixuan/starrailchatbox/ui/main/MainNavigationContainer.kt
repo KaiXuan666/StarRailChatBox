@@ -327,6 +327,11 @@ fun MainRoute(
                 }
             }
             is MainAction.NavigateTo -> {
+                if (action.route is Route.CharacterChat) {
+                    chatViewModel.onCharacterAction(
+                        CharacterAction.CharacterSelected(action.route.characterId),
+                    )
+                }
                 if (backStack.lastOrNull() != action.route) {
                     backStack.add(action.route)
                 }

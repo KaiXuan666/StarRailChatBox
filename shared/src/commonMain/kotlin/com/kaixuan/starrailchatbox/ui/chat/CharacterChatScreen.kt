@@ -69,7 +69,33 @@ fun CharacterChatScreen(
 ) {
     val character = remember(charactersState.characters, characterId) {
         charactersState.characters.firstOrNull { it.id == characterId }
-    } ?: return
+    }
+
+    LaunchedEffect(characterId, character, charactersState.selectedCharacterId, state.selectedCharacterId) {
+        if (
+            character != null &&
+            (
+                charactersState.selectedCharacterId != characterId ||
+                    state.selectedCharacterId != characterId
+            )
+        ) {
+            onCharacterAction(CharacterAction.CharacterSelected(characterId))
+        }
+    }
+
+    if (
+        character == null ||
+        charactersState.selectedCharacterId != characterId ||
+        state.selectedCharacterId != characterId
+    ) {
+        Box(
+            modifier = modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
 
     val pageState = state.characterStates[characterId] ?: CharacterChatState()
 

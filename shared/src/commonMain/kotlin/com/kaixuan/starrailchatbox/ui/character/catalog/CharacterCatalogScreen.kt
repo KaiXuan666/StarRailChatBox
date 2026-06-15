@@ -165,21 +165,28 @@ fun CharacterCatalogScreen(
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         } else {
+            val initialCategoryIndex = catalogCategoryIndex(
+                tabs = tabs,
+                selectedCategoryId = state.selectedCategoryId,
+            )
             val pagerState = rememberPagerState(
-                initialPage = 0,
+                initialPage = initialCategoryIndex,
                 pageCount = { tabs.size }
             )
-            val categoryListState = rememberLazyListState()
+            val categoryListState = rememberLazyListState(
+                initialFirstVisibleItemIndex = initialCategoryIndex,
+            )
             val selectedCategoryId by rememberUpdatedState(state.selectedCategoryId)
 
             // 监听 selectedCategoryId 的变化，并自动滚动分类列表和 Pager
             LaunchedEffect(state.selectedCategoryId, tabs) {
                 if (tabs.isNotEmpty()) {
-                    val targetIndex = tabs.indexOfFirst { it.id == state.selectedCategoryId }
-                    if (targetIndex >= 0) {
-                        if (pagerState.currentPage != targetIndex) {
-                            pagerState.animateScrollToPage(targetIndex)
-                        }
+                    val targetIndex = catalogCategoryIndex(
+                        tabs = tabs,
+                        selectedCategoryId = state.selectedCategoryId,
+                    )
+                    if (pagerState.currentPage != targetIndex) {
+                        pagerState.animateScrollToPage(targetIndex)
                     }
                 }
             }
@@ -1176,6 +1183,11 @@ internal data class CatalogPagerSyncSnapshot(
     val settledPage: Int,
     val isScrollInProgress: Boolean,
 )
+
+internal fun catalogCategoryIndex(
+    tabs: List<CategoryTab>,
+    selectedCategoryId: String?,
+): Int = tabs.indexOfFirst { it.id == selectedCategoryId }.coerceAtLeast(0)
 
 internal fun catalogPageSelectionAction(
     tabs: List<CategoryTab>,

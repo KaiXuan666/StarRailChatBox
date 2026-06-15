@@ -35,6 +35,18 @@ import kotlin.test.assertNull
 @OptIn(ExperimentalCoroutinesApi::class)
 class CharacterCatalogViewModelTest {
     @Test
+    fun catalogInitialPageRestoresSelectedCategory() {
+        val tabs = listOf(
+            CategoryTab(id = null, name = "全部", firstPageUrl = "/all.json"),
+            CategoryTab(id = "game", name = "崩坏：星穹铁道", firstPageUrl = "/game.json"),
+            CategoryTab(id = "new", name = "崩坏3", firstPageUrl = "/new.json"),
+        )
+
+        assertEquals(2, catalogCategoryIndex(tabs, selectedCategoryId = "new"))
+        assertEquals(0, catalogCategoryIndex(tabs, selectedCategoryId = "missing"))
+    }
+
+    @Test
     fun pagerSyncDoesNotChangeSelectionUntilTargetPageSettles() {
         val tabs = listOf(
             CategoryTab(id = null, name = "全部", firstPageUrl = "/all.json"),

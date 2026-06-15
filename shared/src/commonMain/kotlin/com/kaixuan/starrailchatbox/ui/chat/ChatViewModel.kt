@@ -654,7 +654,12 @@ class ChatViewModel(
         val charState = characterUiState.value
         val characters = charState.characters
         if (characters.none { it.id == characterId }) return
-        if (charState.selectedCharacterId == characterId) return
+        if (
+            charState.selectedCharacterId == characterId &&
+            uiState.value.selectedCharacterId == characterId
+        ) {
+            return
+        }
 
         val isTopFour = characters.take(4).any { it.id == characterId }
         if (isTopFour) {
