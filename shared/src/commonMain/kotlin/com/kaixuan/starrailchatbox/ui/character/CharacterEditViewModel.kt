@@ -227,6 +227,36 @@ class CharacterEditViewModel(
 
     private fun generatePrompt() {
         val input = _uiState.value.promptGenInputText
+        val isDescEmpty = _uiState.value.description.isBlank()
+        val isOpeningEmpty = _uiState.value.openingMessage.isBlank()
+        val isInjecting = isDescEmpty || isOpeningEmpty
+        
+        val actualInput = if (isInjecting) {
+            val itemsNeeded = mutableListOf<String>()
+            val xmlExamples = mutableListOf<String>()
+            
+            if (isDescEmpty) {
+                itemsNeeded.add("“角色描述”")
+                xmlExamples.add("<description>在此处填写你为该角色设计的简短描述或背景介绍（适合放在角色卡片上）</description>")
+            }
+            if (isOpeningEmpty) {
+                itemsNeeded.add("“第一句聊天开场白”")
+                xmlExamples.add("<opening_message>在此处填写你为该角色设计的第一句聊天开场白（要符合角色性格和语气）</opening_message>")
+            }
+            
+            val itemsStr = itemsNeeded.joinToString("和")
+            val xmlExamplesStr = (xmlExamples + "<prompt>在此处填写你为该角色生成的完整系统提示词（System Prompt）</prompt>").joinToString("\n")
+
+            """
+            $input
+
+            [系统指令：请根据上述要求生成该角色的设定。由于目前该角色的${itemsStr}为空，请在生成该角色的设定（Prompt）时，同时为其设计${itemsStr}。请严格按照以下 XML 标签格式回复，不要包含任何其他多余的说明文字：
+            $xmlExamplesStr]
+            """.trimIndent()
+        } else {
+            input
+        }
+
         update { it.copy(isPromptGenDialogOpen = false, isGeneratingPrompt = true) }
         viewModelScope.launch {
             try {
@@ -242,7 +272,7 @@ class CharacterEditViewModel(
                 var failed = false
                 aiRepository.createPromptCompletion(
                     config,
-                    listOf(AiMessage(role = ChatRole.USER.apiValue, content = input)),
+                    listOf(AiMessage(role = ChatRole.USER.apiValue, content = actualInput)),
                 ).collect { result ->
                     if (result is ApiResult.Success) {
                         generated = result.value.content.trim()
@@ -253,7 +283,29 @@ class CharacterEditViewModel(
                 if (failed || generated.isBlank()) {
                     showMessage(CharacterEffectMessage.PROMPT_GEN_FAILED)
                 } else {
-                    update { it.copy(prompt = generated) }
+                    if (isInjecting) {
+                        val descriptionRegex = Regex("<description>([\\s\\S]*?)</description>", RegexOption.IGNORE_CASE)
+                        val openingMessageRegex = Regex("<opening_message>([\\s\\S]*?)</opening_message>", RegexOption.IGNORE_CASE)
+                        val promptRegex = Regex("<prompt>([\\s\\S]*?)</prompt>", RegexOption.IGNORE_CASE)
+
+                        val parsedDesc = if (isDescEmpty) descriptionRegex.find(generated)?.groupValues?.getOrNull(1)?.trim() else null
+                        val parsedOpening = if (isOpeningEmpty) openingMessageRegex.find(generated)?.groupValues?.getOrNull(1)?.trim() else null
+                        val parsedPrompt = promptRegex.find(generated)?.groupValues?.getOrNull(1)?.trim()
+
+                        if (parsedDesc != null || parsedOpening != null || parsedPrompt != null) {
+                            update {
+                                it.copy(
+                                    description = parsedDesc ?: it.description,
+                                    openingMessage = parsedOpening ?: it.openingMessage,
+                                    prompt = parsedPrompt ?: it.prompt
+                                )
+                            }
+                        } else {
+                            update { it.copy(prompt = generated) }
+                        }
+                    } else {
+                        update { it.copy(prompt = generated) }
+                    }
                 }
             } catch (cancellation: CancellationException) {
                 throw cancellation
