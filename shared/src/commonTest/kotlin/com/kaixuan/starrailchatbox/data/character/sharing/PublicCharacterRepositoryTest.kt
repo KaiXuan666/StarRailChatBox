@@ -145,7 +145,7 @@ class PublicCharacterRepositoryTest {
 
         val result = repository.share(
             testCharacter(),
-            primaryCategoryId = "game",
+            categorySelection = ShareCategorySelection.Existing("game"),
             tagIds = listOf("gentle", "healing"),
         )
 
@@ -158,6 +158,55 @@ class PublicCharacterRepositoryTest {
         assertEquals(HttpMethod.Post, engine.requestHistory[1].method)
         assertTrue(engine.requestHistory[1].url.toString().startsWith("https://oss.example/upload"))
         assertTrue(engine.requestHistory[1].body.contentType.toString().startsWith("multipart/form-data"))
+    }
+
+    @Test
+    fun proposedCategorySendsOnlyTheCategoryName() = runTest {
+        var submissionBody = ""
+        var requestCount = 0
+        val engine = MockEngine { request ->
+            requestCount++
+            if (requestCount == 1) {
+                submissionBody = request.body.readText()
+                respond(
+                    content = """
+                        {
+                          "success": true,
+                          "submissionId": "0123456789abcdef0123456789abcdef",
+                          "characterKey": "abc",
+                          "upload": {
+                            "url": "https://oss.example/upload",
+                            "method": "POST",
+                            "expiresAt": "2026-06-14T00:00:00Z",
+                            "fields": {}
+                          }
+                        }
+                    """.trimIndent(),
+                    headers = headersOf(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.Json.toString(),
+                    ),
+                )
+            } else {
+                respond("", HttpStatusCode.OK)
+            }
+        }
+        val repository = DefaultPublicCharacterRepository(
+            httpClient = testClient(engine),
+            fileManager = FakeFileManager(),
+            appSettingsStore = InMemoryAppSettingsStore(),
+            archiveWriter = CapturingArchiveWriter(),
+        )
+
+        val result = repository.share(
+            testCharacter(),
+            categorySelection = ShareCategorySelection.Proposed("新类目"),
+            tagIds = emptyList(),
+        )
+
+        assertIs<ApiResult.Success<Unit>>(result)
+        assertTrue(submissionBody.contains("\"primaryCategoryName\":\"新类目\""))
+        assertFalse(submissionBody.contains("\"primaryCategoryId\""))
     }
 
     @Test
@@ -179,7 +228,7 @@ class PublicCharacterRepositoryTest {
 
         val result = repository.share(
             testCharacter(),
-            primaryCategoryId = "game",
+            categorySelection = ShareCategorySelection.Existing("game"),
             tagIds = emptyList(),
         )
 
@@ -204,7 +253,7 @@ class PublicCharacterRepositoryTest {
 
         val result = repository.share(
             testCharacter(prompt = " \n "),
-            primaryCategoryId = "game",
+            categorySelection = ShareCategorySelection.Existing("game"),
             tagIds = emptyList(),
         )
 

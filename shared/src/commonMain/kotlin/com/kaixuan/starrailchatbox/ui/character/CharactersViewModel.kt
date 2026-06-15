@@ -9,6 +9,7 @@ import com.kaixuan.starrailchatbox.data.character.catalog.PublicCharacterCatalog
 import com.kaixuan.starrailchatbox.data.character.importer.CharacterCardExporter
 import com.kaixuan.starrailchatbox.data.character.sharing.DefaultPublicCharacterRepository
 import com.kaixuan.starrailchatbox.data.character.sharing.PublicCharacterRepository
+import com.kaixuan.starrailchatbox.data.character.sharing.ShareCategorySelection
 import com.kaixuan.starrailchatbox.data.settings.AppSettingsStore
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.channels.Channel
@@ -60,6 +61,9 @@ class CharactersViewModel(
             CharacterAction.CharacterExportLocalClicked -> requestLocalExport()
             CharacterAction.CharacterSharePublicClicked -> loadShareCategories()
             is CharacterAction.CharacterShareCategorySelected -> selectShareCategory(action.categoryId)
+            CharacterAction.CharacterShareCustomCategorySelected -> selectCustomShareCategory()
+            is CharacterAction.CharacterShareCustomCategoryNameChanged ->
+                updateCustomShareCategoryName(action.name)
             is CharacterAction.CharacterShareTagToggled -> toggleShareTag(action.tagId)
             CharacterAction.CharacterShareCategoryConfirmed -> sharePublic()
             CharacterAction.CharacterShareCategoryDialogDismissed -> dismissShareCategoryDialog()
@@ -159,7 +163,7 @@ class CharactersViewModel(
                 shareCategoryDialogCharacterId = characterId,
                 shareCategories = emptyList(),
                 shareTags = emptyList(),
-                selectedShareCategoryId = null,
+                shareCategorySelection = null,
                 selectedShareTagIds = emptySet(),
                 isLoadingShareCategories = true,
             )
@@ -233,7 +237,26 @@ class CharactersViewModel(
     private fun selectShareCategory(categoryId: String) {
         val state = _uiState.value
         if (state.sharingCharacterId != null || state.shareCategories.none { it.id == categoryId }) return
-        _uiState.update { it.copy(selectedShareCategoryId = categoryId) }
+        _uiState.update {
+            it.copy(shareCategorySelection = ShareCategorySelection.Existing(categoryId))
+        }
+    }
+
+    private fun selectCustomShareCategory() {
+        if (_uiState.value.sharingCharacterId != null) return
+        _uiState.update {
+            val currentName = (it.shareCategorySelection as? ShareCategorySelection.Proposed)
+                ?.name
+                .orEmpty()
+            it.copy(shareCategorySelection = ShareCategorySelection.Proposed(currentName))
+        }
+    }
+
+    private fun updateCustomShareCategoryName(name: String) {
+        if (_uiState.value.sharingCharacterId != null) return
+        _uiState.update {
+            it.copy(shareCategorySelection = ShareCategorySelection.Proposed(name))
+        }
     }
 
     private fun toggleShareTag(tagId: String) {
@@ -255,7 +278,7 @@ class CharactersViewModel(
                 shareCategoryDialogCharacterId = null,
                 shareCategories = emptyList(),
                 shareTags = emptyList(),
-                selectedShareCategoryId = null,
+                shareCategorySelection = null,
                 selectedShareTagIds = emptySet(),
                 isLoadingShareCategories = false,
             )
@@ -265,9 +288,20 @@ class CharactersViewModel(
     private fun sharePublic() {
         val state = _uiState.value
         val characterId = state.shareCategoryDialogCharacterId ?: return
-        val categoryId = state.selectedShareCategoryId ?: return
+        val requestedCategory = state.shareCategorySelection ?: return
         if (state.sharingCharacterId != null || state.isLoadingShareCategories) return
-        if (state.shareCategories.none { it.id == categoryId }) return
+        if (!state.canConfirmShareCategory) return
+        val categorySelection = when (requestedCategory) {
+            is ShareCategorySelection.Existing -> requestedCategory
+            is ShareCategorySelection.Proposed -> {
+                val name = requestedCategory.name.trim()
+                val normalizedName = normalizeShareCategoryName(name)
+                state.shareCategories.firstOrNull {
+                    normalizeShareCategoryName(it.name) == normalizedName
+                }?.let { ShareCategorySelection.Existing(it.id) }
+                    ?: ShareCategorySelection.Proposed(name)
+            }
+        }
         _uiState.update { it.copy(sharingCharacterId = characterId) }
         viewModelScope.launch {
             val nickname = appSettingsStore.userNickname.first()
@@ -279,7 +313,7 @@ class CharactersViewModel(
                         shareCategoryDialogCharacterId = null,
                         shareCategories = emptyList(),
                         shareTags = emptyList(),
-                        selectedShareCategoryId = null,
+                        shareCategorySelection = null,
                         selectedShareTagIds = emptySet(),
                     )
                 }
@@ -288,7 +322,7 @@ class CharactersViewModel(
             }
             val result = publicCharacterRepository.share(
                 character = character.copy(author = nickname),
-                primaryCategoryId = categoryId,
+                categorySelection = categorySelection,
                 tagIds = state.shareTags
                     .map { it.id }
                     .filter { it in state.selectedShareTagIds },
@@ -299,7 +333,7 @@ class CharactersViewModel(
                     shareCategoryDialogCharacterId = null,
                     shareCategories = emptyList(),
                     shareTags = emptyList(),
-                    selectedShareCategoryId = null,
+                    shareCategorySelection = null,
                     selectedShareTagIds = emptySet(),
                 )
             }
@@ -330,6 +364,9 @@ class CharactersViewModel(
             showMessage(message, customMessage)
         }
     }
+
+    private fun normalizeShareCategoryName(name: String): String =
+        name.trim().replace(Regex("\\s+"), " ").lowercase()
 
     private suspend fun showMessage(message: CharacterEffectMessage, customMessage: String? = null) {
         _effects.send(CharacterEffect.ShowMessage(message, customMessage))

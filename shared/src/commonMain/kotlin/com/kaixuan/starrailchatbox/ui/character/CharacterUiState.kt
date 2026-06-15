@@ -7,6 +7,7 @@ import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 import com.kaixuan.starrailchatbox.data.character.catalog.PublicCategory
 import com.kaixuan.starrailchatbox.data.character.catalog.PublicTag
 import com.kaixuan.starrailchatbox.data.character.importer.ImportedCharacterDraft
+import com.kaixuan.starrailchatbox.data.character.sharing.ShareCategorySelection
 
 @Immutable
 data class CharacterEditUiState(
@@ -53,13 +54,30 @@ data class CharactersUiState(
     val shareCategoryDialogCharacterId: String? = null,
     val shareCategories: List<PublicCategory> = emptyList(),
     val shareTags: List<PublicTag> = emptyList(),
-    val selectedShareCategoryId: String? = null,
+    val shareCategorySelection: ShareCategorySelection? = null,
     val selectedShareTagIds: Set<String> = emptySet(),
     val isLoadingShareCategories: Boolean = false,
 ) {
     val selectedCharacter: CharacterSummary?
         get() = characters.firstOrNull { it.id == selectedCharacterId }
             ?: characters.firstOrNull()
+
+    val canConfirmShareCategory: Boolean
+        get() = when (val selection = shareCategorySelection) {
+            is ShareCategorySelection.Existing ->
+                shareCategories.any { it.id == selection.id }
+            is ShareCategorySelection.Proposed ->
+                isValidProposedCategoryName(selection.name)
+            null -> false
+        }
+}
+
+internal fun isValidProposedCategoryName(name: String): Boolean {
+    val trimmed = name.trim()
+    return trimmed.isNotEmpty() &&
+        '\r' !in trimmed &&
+        '\n' !in trimmed &&
+        trimmed.encodeToByteArray().size <= 128
 }
 
 @Immutable

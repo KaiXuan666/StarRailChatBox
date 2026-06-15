@@ -45,7 +45,8 @@ data class PublicCharacterManifest(
 private data class SubmissionRequest(
     val characterId: String,
     val author: String,
-    val primaryCategoryId: String,
+    val primaryCategoryId: String? = null,
+    val primaryCategoryName: String? = null,
     val tagIds: List<String>,
     val contentFingerprint: String,
     val packageSize: Int,
@@ -71,12 +72,17 @@ private data class SubmissionResponse(
     val upload: UploadForm? = null,
 )
 
+sealed interface ShareCategorySelection {
+    data class Existing(val id: String) : ShareCategorySelection
+    data class Proposed(val name: String) : ShareCategorySelection
+}
+
 interface PublicCharacterRepository {
     val isSupported: Boolean
 
     suspend fun share(
         character: Character,
-        primaryCategoryId: String,
+        categorySelection: ShareCategorySelection,
         tagIds: List<String>,
     ): ApiResult<Unit>
 }
@@ -97,7 +103,7 @@ class DefaultPublicCharacterRepository(
 
     override suspend fun share(
         character: Character,
-        primaryCategoryId: String,
+        categorySelection: ShareCategorySelection,
         tagIds: List<String>,
     ): ApiResult<Unit> {
         if (!isSupported) {
@@ -133,7 +139,8 @@ class DefaultPublicCharacterRepository(
                     SubmissionRequest(
                         characterId = character.id,
                         author = character.author,
-                        primaryCategoryId = primaryCategoryId,
+                        primaryCategoryId = (categorySelection as? ShareCategorySelection.Existing)?.id,
+                        primaryCategoryName = (categorySelection as? ShareCategorySelection.Proposed)?.name,
                         tagIds = tagIds,
                         contentFingerprint = prepared.contentFingerprint,
                         packageSize = prepared.archive.size,

@@ -15,6 +15,7 @@ import com.kaixuan.starrailchatbox.data.character.catalog.PublicCharacterPage
 import com.kaixuan.starrailchatbox.data.character.catalog.PublicTag
 import com.kaixuan.starrailchatbox.data.character.importer.CharacterCardExporter
 import com.kaixuan.starrailchatbox.data.character.sharing.PublicCharacterRepository
+import com.kaixuan.starrailchatbox.data.character.sharing.ShareCategorySelection
 import com.kaixuan.starrailchatbox.data.settings.AppSettingsStore
 import com.kaixuan.starrailchatbox.data.settings.InMemoryAppSettingsStore
 import io.github.vinceglb.filekit.PlatformFile
@@ -137,7 +138,10 @@ class CharactersViewModelTest {
             viewModel.effects.first(),
         )
         assertEquals("custom_nickname", sharingRepository.lastSharedCharacter?.author)
-        assertEquals("game", sharingRepository.lastCategoryId)
+        assertEquals(
+            ShareCategorySelection.Existing("game"),
+            sharingRepository.lastCategorySelection,
+        )
     }
 
     @Test
@@ -175,8 +179,81 @@ class CharactersViewModelTest {
             viewModel.effects.first(),
         )
         assertEquals(1, sharingRepository.shareCount)
-        assertEquals("general", sharingRepository.lastCategoryId)
+        assertEquals(
+            ShareCategorySelection.Existing("general"),
+            sharingRepository.lastCategorySelection,
+        )
         assertEquals(listOf("gentle"), sharingRepository.lastTagIds)
+    }
+
+    @Test
+    fun sharingAcceptsANewCategoryName() = runTest {
+        val sharingRepository = FakePublicCharacterRepository { ApiResult.Success(Unit) }
+        val viewModel = createViewModel(publicRepository = sharingRepository)
+        runCurrent()
+        viewModel.onAction(CharacterAction.CharacterExportClicked("role"))
+        viewModel.onAction(CharacterAction.CharacterSharePublicClicked)
+        viewModel.uiState.first { it.shareCategories.isNotEmpty() }
+
+        viewModel.onAction(CharacterAction.CharacterShareCustomCategorySelected)
+        viewModel.onAction(
+            CharacterAction.CharacterShareCustomCategoryNameChanged("  新类目  "),
+        )
+        viewModel.onAction(CharacterAction.CharacterShareCategoryConfirmed)
+
+        assertEquals(
+            CharacterEffect.ShowMessage(CharacterEffectMessage.CHARACTER_SHARE_SUCCESS),
+            viewModel.effects.first(),
+        )
+        assertEquals(
+            ShareCategorySelection.Proposed("新类目"),
+            sharingRepository.lastCategorySelection,
+        )
+    }
+
+    @Test
+    fun customCategoryNameMatchingAnExistingCategoryUsesItsId() = runTest {
+        val sharingRepository = FakePublicCharacterRepository { ApiResult.Success(Unit) }
+        val viewModel = createViewModel(publicRepository = sharingRepository)
+        runCurrent()
+        viewModel.onAction(CharacterAction.CharacterExportClicked("role"))
+        viewModel.onAction(CharacterAction.CharacterSharePublicClicked)
+        viewModel.uiState.first { it.shareCategories.isNotEmpty() }
+
+        viewModel.onAction(CharacterAction.CharacterShareCustomCategorySelected)
+        viewModel.onAction(
+            CharacterAction.CharacterShareCustomCategoryNameChanged("  GAME  "),
+        )
+        viewModel.onAction(CharacterAction.CharacterShareCategoryConfirmed)
+
+        assertEquals(
+            CharacterEffect.ShowMessage(CharacterEffectMessage.CHARACTER_SHARE_SUCCESS),
+            viewModel.effects.first(),
+        )
+        assertEquals(
+            ShareCategorySelection.Existing("game"),
+            sharingRepository.lastCategorySelection,
+        )
+    }
+
+    @Test
+    fun invalidCustomCategoryNameDoesNotStartUpload() = runTest {
+        val sharingRepository = FakePublicCharacterRepository { ApiResult.Success(Unit) }
+        val viewModel = createViewModel(publicRepository = sharingRepository)
+        runCurrent()
+        viewModel.onAction(CharacterAction.CharacterExportClicked("role"))
+        viewModel.onAction(CharacterAction.CharacterSharePublicClicked)
+        viewModel.uiState.first { it.shareCategories.isNotEmpty() }
+
+        viewModel.onAction(CharacterAction.CharacterShareCustomCategorySelected)
+        viewModel.onAction(
+            CharacterAction.CharacterShareCustomCategoryNameChanged("分".repeat(43)),
+        )
+        viewModel.onAction(CharacterAction.CharacterShareCategoryConfirmed)
+        runCurrent()
+
+        assertEquals(0, sharingRepository.shareCount)
+        assertEquals(false, viewModel.uiState.value.canConfirmShareCategory)
     }
 }
 
@@ -208,17 +285,17 @@ private class FakePublicCharacterRepository(
     override val isSupported: Boolean = true
     var shareCount: Int = 0
     var lastSharedCharacter: Character? = null
-    var lastCategoryId: String? = null
+    var lastCategorySelection: ShareCategorySelection? = null
     var lastTagIds: List<String> = emptyList()
 
     override suspend fun share(
         character: Character,
-        primaryCategoryId: String,
+        categorySelection: ShareCategorySelection,
         tagIds: List<String>,
     ): ApiResult<Unit> {
         shareCount++
         lastSharedCharacter = character
-        lastCategoryId = primaryCategoryId
+        lastCategorySelection = categorySelection
         lastTagIds = tagIds
         return result()
     }

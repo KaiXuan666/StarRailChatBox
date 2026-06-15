@@ -37,6 +37,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -68,6 +69,7 @@ import androidx.compose.ui.text.style.TextAlign
 import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 import com.kaixuan.starrailchatbox.data.character.catalog.PublicCategory
 import com.kaixuan.starrailchatbox.data.character.catalog.PublicTag
+import com.kaixuan.starrailchatbox.data.character.sharing.ShareCategorySelection
 import com.kaixuan.starrailchatbox.ui.character.catalog.SelectableCharacterTagChip
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import com.kaixuan.starrailchatbox.design.StarRailTheme
@@ -106,9 +108,13 @@ import starrailchatbox.shared.generated.resources.character_list_help_what_is_ca
 import starrailchatbox.shared.generated.resources.character_list_title
 import starrailchatbox.shared.generated.resources.character_share_public
 import starrailchatbox.shared.generated.resources.character_share_category_confirm
+import starrailchatbox.shared.generated.resources.character_share_category_create
 import starrailchatbox.shared.generated.resources.character_share_category_label
 import starrailchatbox.shared.generated.resources.character_share_category_loading
 import starrailchatbox.shared.generated.resources.character_share_category_message
+import starrailchatbox.shared.generated.resources.character_share_category_name_error
+import starrailchatbox.shared.generated.resources.character_share_category_name_label
+import starrailchatbox.shared.generated.resources.character_share_category_name_placeholder
 import starrailchatbox.shared.generated.resources.character_share_category_placeholder
 import starrailchatbox.shared.generated.resources.character_share_category_title
 import starrailchatbox.shared.generated.resources.character_share_public_sharing
@@ -445,7 +451,7 @@ fun CharactersScreen(
 
         if (state.shareCategoryDialogCharacterId != null) {
             val isSharing = state.sharingCharacterId == state.shareCategoryDialogCharacterId
-            val canConfirm = state.selectedShareCategoryId != null &&
+            val canConfirm = state.canConfirmShareCategory &&
                 !state.isLoadingShareCategories &&
                 !isSharing
             StarRailDialog(
@@ -493,9 +499,10 @@ fun CharactersScreen(
                     }
                 } else {
                     var categoryMenuExpanded by remember { mutableStateOf(false) }
-                    val selectedCategory = state.shareCategories.firstOrNull {
-                        it.id == state.selectedShareCategoryId
-                    }
+                    val categorySelection = state.shareCategorySelection
+                    val selectedCategory = (categorySelection as? ShareCategorySelection.Existing)
+                        ?.let { selected -> state.shareCategories.firstOrNull { it.id == selected.id } }
+                    val isCustomCategory = categorySelection is ShareCategorySelection.Proposed
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
@@ -514,10 +521,10 @@ fun CharactersScreen(
                                 color = MaterialTheme.colorScheme.surfaceContainer,
                                 border = BorderStroke(
                                     1.dp,
-                                    if (selectedCategory == null) {
-                                        MaterialTheme.colorScheme.outlineVariant
-                                    } else {
+                                    if (selectedCategory != null || isCustomCategory) {
                                         MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.outlineVariant
                                     },
                                 ),
                             ) {
@@ -529,9 +536,14 @@ fun CharactersScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                 ) {
                                     Text(
-                                        text = selectedCategory?.name
-                                            ?: stringResource(Res.string.character_share_category_placeholder),
-                                        color = if (selectedCategory == null) {
+                                        text = when {
+                                            selectedCategory != null -> selectedCategory.name
+                                            isCustomCategory ->
+                                                stringResource(Res.string.character_share_category_create)
+                                            else ->
+                                                stringResource(Res.string.character_share_category_placeholder)
+                                        },
+                                        color = if (selectedCategory == null && !isCustomCategory) {
                                             MaterialTheme.colorScheme.onSurfaceVariant
                                         } else {
                                             MaterialTheme.colorScheme.onSurface
@@ -556,7 +568,9 @@ fun CharactersScreen(
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 state.shareCategories.forEach { category ->
-                                    val selected = category.id == state.selectedShareCategoryId
+                                    val selected =
+                                        (categorySelection as? ShareCategorySelection.Existing)
+                                            ?.id == category.id
                                     DropdownMenuItem(
                                         text = {
                                             Text(
@@ -588,7 +602,81 @@ fun CharactersScreen(
                                         },
                                     )
                                 }
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = stringResource(
+                                                Res.string.character_share_category_create,
+                                            ),
+                                            color = if (isCustomCategory) {
+                                                MaterialTheme.colorScheme.primary
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurface
+                                            },
+                                        )
+                                    },
+                                    onClick = {
+                                        categoryMenuExpanded = false
+                                        onAction(
+                                            CharacterAction.CharacterShareCustomCategorySelected,
+                                        )
+                                    },
+                                    trailingIcon = if (isCustomCategory) {
+                                        {
+                                            StarRailIcon(
+                                                kind = StarRailIconKind.CHECK,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(18.dp),
+                                            )
+                                        }
+                                    } else {
+                                        null
+                                    },
+                                )
                             }
+                        }
+
+                        if (categorySelection is ShareCategorySelection.Proposed) {
+                            val validName = isValidProposedCategoryName(categorySelection.name)
+                            OutlinedTextField(
+                                value = categorySelection.name,
+                                onValueChange = {
+                                    onAction(
+                                        CharacterAction.CharacterShareCustomCategoryNameChanged(it),
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = {
+                                    Text(
+                                        stringResource(
+                                            Res.string.character_share_category_name_label,
+                                        ),
+                                    )
+                                },
+                                placeholder = {
+                                    Text(
+                                        stringResource(
+                                            Res.string.character_share_category_name_placeholder,
+                                        ),
+                                    )
+                                },
+                                supportingText = if (
+                                    categorySelection.name.isNotEmpty() && !validName
+                                ) {
+                                    {
+                                        Text(
+                                            stringResource(
+                                                Res.string.character_share_category_name_error,
+                                            ),
+                                        )
+                                    }
+                                } else {
+                                    null
+                                },
+                                isError = categorySelection.name.isNotEmpty() && !validName,
+                                singleLine = true,
+                            )
                         }
 
                         Text(
@@ -1080,7 +1168,7 @@ private fun CharacterShareCategoryDialogLightPreview() {
                 shareCategoryDialogCharacterId = "role",
                 shareCategories = previewCategories,
                 shareTags = previewTags,
-                selectedShareCategoryId = "game",
+                shareCategorySelection = ShareCategorySelection.Existing("game"),
                 selectedShareTagIds = setOf("gentle", "healing"),
             ),
             contentPadding = PaddingValues(0.dp),
@@ -1100,7 +1188,7 @@ private fun CharacterShareCategoryDialogDarkPreview() {
                 shareCategoryDialogCharacterId = "role",
                 shareCategories = previewCategories,
                 shareTags = previewTags,
-                selectedShareCategoryId = "game",
+                shareCategorySelection = ShareCategorySelection.Existing("game"),
                 selectedShareTagIds = setOf("gentle", "healing"),
             ),
             contentPadding = PaddingValues(0.dp),

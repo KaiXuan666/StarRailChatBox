@@ -136,6 +136,10 @@
     <string name="character_share_category_message">请选择最适合该角色的类目，并可添加多个标签。</string>
     <string name="character_share_category_label">角色类目</string>
     <string name="character_share_category_placeholder">请选择类目</string>
+    <string name="character_share_category_create">新建类目</string>
+    <string name="character_share_category_name_label">新类目名称</string>
+    <string name="character_share_category_name_placeholder">请输入类目名称</string>
+    <string name="character_share_category_name_error">名称不能为空、不能换行，且最多 128 字节</string>
     <string name="character_share_tag_label">角色标签（可多选）</string>
     <string name="character_share_tag_empty">暂无可用标签</string>
     <string name="character_catalog_tags_label">角色标签</string>

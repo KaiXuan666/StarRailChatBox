@@ -44,6 +44,8 @@ sealed interface CharacterAction {
     data object CharacterExportLocalClicked : CharacterAction
     data object CharacterSharePublicClicked : CharacterAction
     data class CharacterShareCategorySelected(val categoryId: String) : CharacterAction
+    data object CharacterShareCustomCategorySelected : CharacterAction
+    data class CharacterShareCustomCategoryNameChanged(val name: String) : CharacterAction
     data class CharacterShareTagToggled(val tagId: String) : CharacterAction
     data object CharacterShareCategoryConfirmed : CharacterAction
     data object CharacterShareCategoryDialogDismissed : CharacterAction
