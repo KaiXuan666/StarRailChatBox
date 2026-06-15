@@ -15,6 +15,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -768,6 +769,7 @@ fun MainNavigationContainer(
     onSettingsAction: (SettingsAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val containerCoroutineScope = rememberCoroutineScope()
     val colors = MaterialTheme.starRailColors
     val backStackPath = backStack.tracePath()
     val currentRoute = if (backStack.size <= 1) {
@@ -1013,6 +1015,7 @@ fun MainNavigationContainer(
                                 onMainAction = onMainAction,
                                 snackbarHostState = snackbarHostState,
                                 effectMessages = profileEffectMessages,
+                                globalCoroutineScope = containerCoroutineScope,
                             )
                         }
                     }
@@ -1397,6 +1400,7 @@ private fun ProfileRoute(
     onMainAction: (MainAction) -> Unit,
     snackbarHostState: SnackbarHostState,
     effectMessages: Map<ProfileEffectMessage, String>,
+    globalCoroutineScope: CoroutineScope,
 ) {
     val viewModel = viewModel { koin.get<ProfileViewModel>() }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -1413,12 +1417,16 @@ private fun ProfileRoute(
                 }
                 ProfileEffect.NavigateBack -> onMainAction(MainAction.PopBackStack)
                 ProfileEffect.RestartApp -> {
-                    snackbarHostState.showSnackbar(
-                        effectMessages.getValue(ProfileEffectMessage.IMPORT_SUCCESS),
-                    )
-                    withContext(NonCancellable) {
-                        kotlinx.coroutines.delay(1500)
-                        restartApp()
+                    globalCoroutineScope.launch {
+                        snackbarHostState.showSnackbar(
+                            effectMessages.getValue(ProfileEffectMessage.IMPORT_SUCCESS),
+                        )
+                    }
+                    globalCoroutineScope.launch {
+                        withContext(NonCancellable) {
+                            kotlinx.coroutines.delay(1500)
+                            restartApp()
+                        }
                     }
                 }
             }
