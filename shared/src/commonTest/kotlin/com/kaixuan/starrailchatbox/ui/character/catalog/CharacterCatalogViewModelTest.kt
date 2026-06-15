@@ -30,9 +30,51 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CharacterCatalogViewModelTest {
+    @Test
+    fun pagerSyncDoesNotChangeSelectionUntilTargetPageSettles() {
+        val tabs = listOf(
+            CategoryTab(id = null, name = "全部", firstPageUrl = "/all.json"),
+            CategoryTab(id = "game", name = "崩坏：星穹铁道", firstPageUrl = "/game.json"),
+            CategoryTab(id = "new", name = "崩坏3", firstPageUrl = "/new.json"),
+        )
+
+        assertNull(
+            catalogPageSelectionAction(
+                tabs = tabs,
+                snapshot = CatalogPagerSyncSnapshot(
+                    settledPage = 2,
+                    isScrollInProgress = true,
+                ),
+                selectedCategoryId = null,
+            ),
+        )
+        assertNull(
+            catalogPageSelectionAction(
+                tabs = tabs,
+                snapshot = CatalogPagerSyncSnapshot(
+                    settledPage = 0,
+                    isScrollInProgress = true,
+                ),
+                selectedCategoryId = "new",
+            ),
+        )
+        assertEquals(
+            CharacterCatalogAction.SelectAll,
+            catalogPageSelectionAction(
+                tabs = tabs,
+                snapshot = CatalogPagerSyncSnapshot(
+                    settledPage = 0,
+                    isScrollInProgress = false,
+                ),
+                selectedCategoryId = "new",
+            ),
+        )
+    }
+
     @Test
     fun refreshReloadsCatalogTaxonomyAndSelectedCategoryPage() = runTest {
         val catalogRepository = RefreshableCatalogRepository()

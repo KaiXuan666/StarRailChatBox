@@ -170,6 +170,7 @@ fun CharacterCatalogScreen(
                 pageCount = { tabs.size }
             )
             val categoryListState = rememberLazyListState()
+            val selectedCategoryId by rememberUpdatedState(state.selectedCategoryId)
 
             // 监听 selectedCategoryId 的变化，并自动滚动分类列表和 Pager
             LaunchedEffect(state.selectedCategoryId, tabs) {
@@ -184,14 +185,20 @@ fun CharacterCatalogScreen(
                 }
             }
 
-            // 监听 Pager 滑动，并更新 ViewModel 的选中分类
+            // Pager 停稳后再同步分类，避免跨页动画经过中间页时反向打断目标切换。
             LaunchedEffect(pagerState, tabs) {
-                snapshotFlow { pagerState.currentPage }.collect { page ->
-                    if (tabs.isNotEmpty() && page < tabs.size) {
-                        val targetTab = tabs[page]
-                        if (targetTab.id != state.selectedCategoryId) {
-                            onAction(if (targetTab.id == null) CharacterCatalogAction.SelectAll else CharacterCatalogAction.SelectCategory(targetTab.id))
-                        }
+                snapshotFlow {
+                    CatalogPagerSyncSnapshot(
+                        settledPage = pagerState.settledPage,
+                        isScrollInProgress = pagerState.isScrollInProgress,
+                    )
+                }.collect { snapshot ->
+                    catalogPageSelectionAction(
+                        tabs = tabs,
+                        snapshot = snapshot,
+                        selectedCategoryId = selectedCategoryId,
+                    )?.let { action ->
+                        onAction(action)
                     }
                 }
             }
@@ -258,7 +265,7 @@ fun CharacterCatalogScreen(
                     ) {
                         items(tabs.size) { index ->
                             val tab = tabs[index]
-                            val isSelected = index == pagerState.currentPage
+                            val isSelected = tab.id == state.selectedCategoryId
                             CategoryBadge(
                                 name = tab.name,
                                 isSelected = isSelected,
@@ -1156,3 +1163,29 @@ data class CategoryTab(
     val name: String,
     val firstPageUrl: String
 )
+
+internal data class CatalogPagerSyncSnapshot(
+    val settledPage: Int,
+    val isScrollInProgress: Boolean,
+)
+
+internal fun catalogPageSelectionAction(
+    tabs: List<CategoryTab>,
+    snapshot: CatalogPagerSyncSnapshot,
+    selectedCategoryId: String?,
+): CharacterCatalogAction? {
+    if (snapshot.isScrollInProgress || snapshot.settledPage !in tabs.indices) {
+        return null
+    }
+
+    val categoryId = tabs[snapshot.settledPage].id
+    if (categoryId == selectedCategoryId) {
+        return null
+    }
+
+    return if (categoryId == null) {
+        CharacterCatalogAction.SelectAll
+    } else {
+        CharacterCatalogAction.SelectCategory(categoryId)
+    }
+}
