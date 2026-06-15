@@ -47,6 +47,22 @@ class CharacterCatalogViewModelTest {
     }
 
     @Test
+    fun dynamicCategoryListOnlyContainsServerGeneratedCategoryIds() {
+        val state = CharacterCatalogUiState(
+            categories = listOf(
+                category("bt", "崩坏：星穹铁道"),
+                category("cat_123456789abc", "动态分类"),
+                category("cat_invalid", "无效动态分类"),
+            ),
+        )
+
+        assertEquals(
+            listOf("cat_123456789abc"),
+            state.dynamicCategories.map { it.id },
+        )
+    }
+
+    @Test
     fun pagerSyncDoesNotChangeSelectionUntilTargetPageSettles() {
         val tabs = listOf(
             CategoryTab(id = null, name = "全部", firstPageUrl = "/all.json"),
@@ -158,6 +174,14 @@ class CharacterCatalogViewModelTest {
         assertEquals("/game-v1/page1.json", catalogRepository.lastPageUrl)
     }
 }
+
+private fun category(id: String, name: String) = PublicCategory(
+    id = id,
+    name = name,
+    sortOrder = 1,
+    characterCount = 0,
+    firstPageUrl = "/$id/page1.json",
+)
 
 private class RefreshableCatalogRepository : PublicCharacterCatalogRepository {
     var version = 1

@@ -41,7 +41,15 @@ data class CharacterCatalogUiState(
     val adminKeyDraft: String = "",
     val showCreateCategoryDialog: Boolean = false,
     val categoryNameDraft: String = "",
+    val showDeleteCategoryDialog: Boolean = false,
+    val deletingCategoryId: String? = null,
+    val replacementCategoryId: String? = null,
     val movingCharacter: PublicCharacterSummary? = null,
     val deletingCharacter: PublicCharacterSummary? = null,
     val pendingDeleteCharacterKeys: Set<String> = emptySet(),
-)
+) {
+    val dynamicCategories: List<PublicCategory>
+        get() = categories.filter { DYNAMIC_CATEGORY_ID.matches(it.id) }
+}
+
+private val DYNAMIC_CATEGORY_ID = Regex("^cat_[a-f0-9]{12}$")

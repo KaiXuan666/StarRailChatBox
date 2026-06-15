@@ -29,6 +29,22 @@ class CatalogAdminRepositoryTest {
     }
 
     @Test
+    fun deleteCategoryUsesBackendOperationAndReplacementFields() {
+        val request = CatalogAdminOperationRequest(
+            type = CatalogAdminOperationType.DeleteCategory,
+            payload = CatalogAdminOperationPayload(
+                categoryId = "cat_123456789abc",
+                replacementCategoryId = "qita",
+            ),
+        )
+        val encoded = Json.encodeToString(request)
+
+        assertTrue(encoded.contains("\"type\":\"DELETE_CATEGORY\""))
+        assertTrue(encoded.contains("\"categoryId\":\"cat_123456789abc\""))
+        assertTrue(encoded.contains("\"replacementCategoryId\":\"qita\""))
+    }
+
+    @Test
     fun verifySendsBearerCredentialAndParsesResponse() = runTest {
         val engine = MockEngine { request ->
             respond(

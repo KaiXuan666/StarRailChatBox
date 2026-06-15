@@ -68,6 +68,14 @@ import starrailchatbox.shared.generated.resources.catalog_admin_category_title
 import starrailchatbox.shared.generated.resources.catalog_admin_create
 import starrailchatbox.shared.generated.resources.catalog_admin_create_category
 import starrailchatbox.shared.generated.resources.catalog_admin_delete
+import starrailchatbox.shared.generated.resources.catalog_admin_delete_category
+import starrailchatbox.shared.generated.resources.catalog_admin_delete_category_back
+import starrailchatbox.shared.generated.resources.catalog_admin_delete_category_confirm
+import starrailchatbox.shared.generated.resources.catalog_admin_delete_category_empty
+import starrailchatbox.shared.generated.resources.catalog_admin_delete_category_replacement
+import starrailchatbox.shared.generated.resources.catalog_admin_delete_category_select
+import starrailchatbox.shared.generated.resources.catalog_admin_delete_category_selected
+import starrailchatbox.shared.generated.resources.catalog_admin_delete_category_title
 import starrailchatbox.shared.generated.resources.catalog_admin_delete_message
 import starrailchatbox.shared.generated.resources.catalog_admin_delete_title
 import starrailchatbox.shared.generated.resources.catalog_admin_disable
@@ -237,9 +245,11 @@ fun CharacterCatalogScreen(
                 )
 
                 if (state.adminModeEnabled) {
-                    Row(
+                    FlowRow(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
+                        verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
+                        maxItemsInEachRow = if (compact) 2 else 4,
                     ) {
                         Button(
                             onClick = { onAction(CharacterCatalogAction.CreateCategoryClicked) },
@@ -247,6 +257,14 @@ fun CharacterCatalogScreen(
                             modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                         ) {
                             Text(stringResource(Res.string.catalog_admin_create_category))
+                        }
+                        OutlinedButton(
+                            onClick = { onAction(CharacterCatalogAction.DeleteCategoryClicked) },
+                            enabled = !state.isAdminBusy && !state.isLoading,
+                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                            contentPadding = PaddingValues(horizontal = StarRailSpacing.xs),
+                        ) {
+                            Text(stringResource(Res.string.catalog_admin_delete_category))
                         }
                         OutlinedButton(
                             onClick = { onAction(CharacterCatalogAction.RefreshTaxonomy) },
@@ -523,6 +541,142 @@ fun CharacterCatalogScreen(
                     enabled = !state.isAdminBusy,
                     modifier = Modifier.fillMaxWidth(),
                 )
+            }
+        }
+
+        if (state.showDeleteCategoryDialog) {
+            val deletingCategory = state.dynamicCategories.firstOrNull {
+                it.id == state.deletingCategoryId
+            }
+            val canConfirmDelete =
+                deletingCategory != null && state.replacementCategoryId != null
+            StarRailDialog(
+                title = stringResource(Res.string.catalog_admin_delete_category_title),
+                confirmText = if (canConfirmDelete) {
+                    stringResource(Res.string.catalog_admin_delete_category_confirm)
+                } else {
+                    null
+                },
+                dismissText = stringResource(Res.string.cancel),
+                neutralText = if (deletingCategory != null) {
+                    stringResource(Res.string.catalog_admin_delete_category_back)
+                } else {
+                    null
+                },
+                destructive = true,
+                onConfirm = if (canConfirmDelete) {
+                    { onAction(CharacterCatalogAction.ConfirmDeleteCategory) }
+                } else {
+                    null
+                },
+                onNeutral = if (deletingCategory != null) {
+                    { onAction(CharacterCatalogAction.DeleteCategorySelectionCleared) }
+                } else {
+                    null
+                },
+                onDismissRequest = {
+                    onAction(CharacterCatalogAction.DismissDeleteCategoryDialog)
+                },
+            ) {
+                if (deletingCategory == null) {
+                    Text(
+                        text = stringResource(
+                            if (state.dynamicCategories.isEmpty()) {
+                                Res.string.catalog_admin_delete_category_empty
+                            } else {
+                                Res.string.catalog_admin_delete_category_select
+                            },
+                        ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    if (state.dynamicCategories.isNotEmpty()) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxWidth().heightIn(max = 320.dp),
+                            verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
+                        ) {
+                            items(
+                                items = state.dynamicCategories,
+                                key = { it.id },
+                            ) { category ->
+                                OutlinedButton(
+                                    onClick = {
+                                        onAction(
+                                            CharacterCatalogAction.DeleteCategorySelected(
+                                                category.id,
+                                            ),
+                                        )
+                                    },
+                                    enabled = !state.isAdminBusy,
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                                ) {
+                                    Text(
+                                        text = category.name,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Text(
+                        text = stringResource(
+                            Res.string.catalog_admin_delete_category_selected,
+                            deletingCategory.name,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        text = stringResource(
+                            Res.string.catalog_admin_delete_category_replacement,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 320.dp),
+                        verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
+                    ) {
+                        items(
+                            items = state.categories.filter { it.id != deletingCategory.id },
+                            key = { it.id },
+                        ) { category ->
+                            val selected = category.id == state.replacementCategoryId
+                            if (selected) {
+                                Button(
+                                    onClick = {
+                                        onAction(
+                                            CharacterCatalogAction.DeleteCategoryReplacementSelected(
+                                                category.id,
+                                            ),
+                                        )
+                                    },
+                                    enabled = !state.isAdminBusy,
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                                ) {
+                                    Text(category.name)
+                                }
+                            } else {
+                                OutlinedButton(
+                                    onClick = {
+                                        onAction(
+                                            CharacterCatalogAction.DeleteCategoryReplacementSelected(
+                                                category.id,
+                                            ),
+                                        )
+                                    },
+                                    enabled = !state.isAdminBusy,
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                                ) {
+                                    Text(category.name)
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -1132,6 +1286,13 @@ private fun CharacterCatalogAdminPreview(darkTheme: Boolean) {
         characterCount = 1,
         firstPageUrl = "/page1.json",
     )
+    val dynamicCategory = PublicCategory(
+        id = "cat_123456789abc",
+        name = "自定义分类",
+        sortOrder = 2,
+        characterCount = 0,
+        firstPageUrl = "/dynamic/page1.json",
+    )
     val character = PublicCharacterSummary(
         characterKey = "a".repeat(64),
         id = "preview",
@@ -1152,7 +1313,7 @@ private fun CharacterCatalogAdminPreview(darkTheme: Boolean) {
                     characterCount = 1,
                     firstPageUrl = "/all/page1.json",
                 ),
-                categories = listOf(category),
+                categories = listOf(category, dynamicCategory),
                 tags = listOf(
                     PublicTag("gentle", "温柔", 1, "/tags/gentle/page1.json"),
                     PublicTag("healing", "治愈", 2, "/tags/healing/page1.json"),
@@ -1163,6 +1324,7 @@ private fun CharacterCatalogAdminPreview(darkTheme: Boolean) {
                 filteredCharacters = listOf(character),
                 adminSupported = true,
                 adminModeEnabled = true,
+                showDeleteCategoryDialog = true,
             ),
             contentPadding = PaddingValues(0.dp),
             compact = true,

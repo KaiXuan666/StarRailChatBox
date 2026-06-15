@@ -26,6 +26,8 @@ data class CatalogAdminVerifyResponse(
 enum class CatalogAdminOperationType {
     @SerialName("CREATE_CATEGORY")
     CreateCategory,
+    @SerialName("DELETE_CATEGORY")
+    DeleteCategory,
     @SerialName("MOVE_CHARACTER")
     MoveCharacter,
     @SerialName("DELETE_CHARACTER")
@@ -37,6 +39,8 @@ enum class CatalogAdminOperationType {
 @Serializable
 data class CatalogAdminOperationPayload(
     val name: String? = null,
+    val categoryId: String? = null,
+    val replacementCategoryId: String? = null,
     val characterKey: String? = null,
     val primaryCategoryId: String? = null,
 )
@@ -50,6 +54,10 @@ data class CatalogAdminOperationRequest(
 @Serializable
 data class CatalogAdminOperationResult(
     val categoryId: String? = null,
+    val categoryName: String? = null,
+    val replacementCategoryId: String? = null,
+    val replacementCategoryName: String? = null,
+    val migratedCharacterCount: Int? = null,
     val characterKey: String? = null,
     val revision: String? = null,
     val catalogVersion: String? = null,

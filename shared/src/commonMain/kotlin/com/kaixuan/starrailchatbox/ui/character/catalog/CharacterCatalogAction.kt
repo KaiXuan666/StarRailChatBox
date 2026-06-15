@@ -24,6 +24,12 @@ sealed interface CharacterCatalogAction {
     data class CategoryNameChanged(val value: String) : CharacterCatalogAction
     data object ConfirmCreateCategory : CharacterCatalogAction
     data object DismissCreateCategoryDialog : CharacterCatalogAction
+    data object DeleteCategoryClicked : CharacterCatalogAction
+    data class DeleteCategorySelected(val categoryId: String) : CharacterCatalogAction
+    data object DeleteCategorySelectionCleared : CharacterCatalogAction
+    data class DeleteCategoryReplacementSelected(val categoryId: String) : CharacterCatalogAction
+    data object ConfirmDeleteCategory : CharacterCatalogAction
+    data object DismissDeleteCategoryDialog : CharacterCatalogAction
     data class MoveCharacterClicked(val character: PublicCharacterSummary) : CharacterCatalogAction
     data object DismissMoveCharacterDialog : CharacterCatalogAction
     data class ConfirmMoveCharacter(val categoryId: String) : CharacterCatalogAction

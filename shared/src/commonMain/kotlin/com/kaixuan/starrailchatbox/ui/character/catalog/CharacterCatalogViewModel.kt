@@ -102,6 +102,44 @@ class CharacterCatalogViewModel(
             CharacterCatalogAction.DismissCreateCategoryDialog -> {
                 _uiState.update { it.copy(showCreateCategoryDialog = false, categoryNameDraft = "") }
             }
+            CharacterCatalogAction.DeleteCategoryClicked -> {
+                _uiState.update {
+                    it.copy(
+                        showDeleteCategoryDialog = true,
+                        deletingCategoryId = null,
+                        replacementCategoryId = null,
+                    )
+                }
+            }
+            is CharacterCatalogAction.DeleteCategorySelected -> {
+                _uiState.update {
+                    it.copy(
+                        deletingCategoryId = action.categoryId,
+                        replacementCategoryId = null,
+                    )
+                }
+            }
+            CharacterCatalogAction.DeleteCategorySelectionCleared -> {
+                _uiState.update {
+                    it.copy(
+                        deletingCategoryId = null,
+                        replacementCategoryId = null,
+                    )
+                }
+            }
+            is CharacterCatalogAction.DeleteCategoryReplacementSelected -> {
+                _uiState.update { it.copy(replacementCategoryId = action.categoryId) }
+            }
+            CharacterCatalogAction.ConfirmDeleteCategory -> deleteCategory()
+            CharacterCatalogAction.DismissDeleteCategoryDialog -> {
+                _uiState.update {
+                    it.copy(
+                        showDeleteCategoryDialog = false,
+                        deletingCategoryId = null,
+                        replacementCategoryId = null,
+                    )
+                }
+            }
             is CharacterCatalogAction.MoveCharacterClicked -> {
                 _uiState.update { it.copy(movingCharacter = action.character) }
             }
@@ -192,6 +230,9 @@ class CharacterCatalogViewModel(
                 adminModeEnabled = false,
                 showAdminKeyDialog = false,
                 adminKeyDraft = "",
+                showDeleteCategoryDialog = false,
+                deletingCategoryId = null,
+                replacementCategoryId = null,
             )
         }
     }
@@ -247,6 +288,42 @@ class CharacterCatalogViewModel(
             } else {
                 _uiState.update { it.copy(isAdminBusy = false) }
                 handleAdminFailure(result, "重新生成目录失败")
+            }
+        }
+    }
+
+    private fun deleteCategory() {
+        val key = adminKey ?: return
+        val categoryId = _uiState.value.deletingCategoryId ?: return
+        val replacementCategoryId = _uiState.value.replacementCategoryId ?: return
+        if (_uiState.value.isAdminBusy) return
+        _uiState.update { it.copy(isAdminBusy = true) }
+        viewModelScope.launch {
+            val result = adminRepository.createOperation(
+                adminKey = key,
+                request = CatalogAdminOperationRequest(
+                    type = CatalogAdminOperationType.DeleteCategory,
+                    payload = CatalogAdminOperationPayload(
+                        categoryId = categoryId,
+                        replacementCategoryId = replacementCategoryId,
+                    ),
+                ),
+                idempotencyKey = "delete-category-$categoryId-$replacementCategoryId",
+            )
+            if (result is ApiResult.Success && result.value.status == "APPROVED") {
+                _uiState.update {
+                    it.copy(
+                        isAdminBusy = false,
+                        showDeleteCategoryDialog = false,
+                        deletingCategoryId = null,
+                        replacementCategoryId = null,
+                    )
+                }
+                _effects.send(CharacterCatalogEffect.ShowToast("动态分类已删除"))
+                reloadCatalog()
+            } else {
+                _uiState.update { it.copy(isAdminBusy = false) }
+                handleAdminFailure(result, "删除动态分类失败")
             }
         }
     }
