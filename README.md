@@ -35,6 +35,11 @@
 | 🖥️ **macOS & Linux** | ⏳ 未来支持 | - | 规划中 |
 | 🌐 **Web (JS/WasmJS)** | ⏳ 未来支持 | - | 规划中 |
 
+<div align="center">
+  <img src="download/scan_code.png" width="150px" alt="扫码下载" /><br/>
+  <sub><b>扫码下载</b></sub>
+</div>
+
 ---
 
 ## 📸 界面预览
