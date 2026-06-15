@@ -13,3 +13,7 @@ VOICE_API_KEY=
 # Image Generation API
 IMAGE_GENERATION_API_HOST=https://dashscope.aliyuncs.com/compatible-mode/v1
 IMAGE_GENERATION_API_KEY=
+
+# Optional: Custom Update URLs for testing update check flow locally
+ANDROID_UPDATE_URL=
+WINDOWS_UPDATE_URL=
