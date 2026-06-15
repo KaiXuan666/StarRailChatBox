@@ -31,6 +31,7 @@ import com.kaixuan.starrailchatbox.ui.components.StarRailIcon
 import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
 import com.kaixuan.starrailchatbox.ui.components.StarRailPrimaryButton
+import com.kaixuan.starrailchatbox.ui.components.StarRailDialog
 import com.kaixuan.starrailchatbox.ui.character.catalog.CharacterTagChips
 import com.kaixuan.starrailchatbox.ui.character.catalog.resolveCharacterTagNames
 import com.kaixuan.starrailchatbox.ui.main.MainAction
@@ -96,6 +97,7 @@ fun CharacterCatalogDetailScreen(
 ) {
     val clipboardManager = LocalClipboardManager.current
     val audioPlayer = rememberAudioPlayer()
+    var showReportDialog by remember { mutableStateOf(false) }
 
     val detail = state.detail
     val avatarUri = detail?.avatarUrl?.let { resolveUrl(it) } ?: state.initialAvatarUrl?.let { resolveUrl(it) }.orEmpty()
@@ -109,6 +111,31 @@ fun CharacterCatalogDetailScreen(
         onBackClick = { onMainAction(MainAction.PopBackStack) },
         modifier = modifier,
         contentSpacing = StarRailSpacing.md,
+        action = {
+            Surface(
+                onClick = { showReportDialog = true },
+                color = Color.Transparent,
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.padding(horizontal = StarRailSpacing.xs, vertical = StarRailSpacing.xs)
+                ) {
+                    StarRailIcon(
+                        kind = StarRailIconKind.INFO,
+                        contentDescription = "投诉",
+                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        text = "投诉",
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+            }
+        },
         footer = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -210,6 +237,22 @@ fun CharacterCatalogDetailScreen(
                 title = "核心采样 (Top P)",
                 value = detail.topP,
                 valueRange = 0.0..1.0,
+            )
+        }
+    }
+
+    if (showReportDialog) {
+        StarRailDialog(
+            title = "版权投诉说明",
+            confirmText = "我知道了",
+            onConfirm = { showReportDialog = false },
+            onDismissRequest = { showReportDialog = false },
+        ) {
+            Text(
+                text = "若您是该角色的知识产权所有人（或官方版权方），认为该用户二创内容侵犯了您的权益，请直接发送邮件至 kaixuanapp@163.com 提交版权证明，我们将在3-5个工作日内进行下架审核。",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
+                lineHeight = 20.sp,
             )
         }
     }

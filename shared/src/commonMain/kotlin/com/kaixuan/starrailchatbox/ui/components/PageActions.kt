@@ -47,6 +47,7 @@ fun StarRailPageLayout(
     onBackClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     contentSpacing: Dp = StarRailSpacing.sm,
+    action: @Composable (() -> Unit)? = null,
     footer: @Composable (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -70,6 +71,7 @@ fun StarRailPageLayout(
                 compact = compact,
                 backContentDescription = backContentDescription,
                 onBackClick = onBackClick,
+                action = action,
             )
             content()
         }
@@ -112,42 +114,53 @@ fun StarRailPageHeader(
     onBackClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     onTitleClick: (() -> Unit)? = null,
+    action: @Composable (() -> Unit)? = null,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (onBackClick != null && backContentDescription != null) {
-            IconButton(
-                onClick = onBackClick,
-                modifier = Modifier.size(if (compact) 32.dp else 40.dp),
-            ) {
-                StarRailIcon(
-                    kind = StarRailIconKind.CHEVRON_LEFT,
-                    contentDescription = backContentDescription,
-                    tint = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.size(if (compact) 24.dp else 28.dp),
-                )
+        Row(
+            modifier = Modifier.weight(1f, fill = false),
+            horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (onBackClick != null && backContentDescription != null) {
+                IconButton(
+                    onClick = onBackClick,
+                    modifier = Modifier.size(if (compact) 32.dp else 40.dp),
+                ) {
+                    StarRailIcon(
+                        kind = StarRailIconKind.CHEVRON_LEFT,
+                        contentDescription = backContentDescription,
+                        tint = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.size(if (compact) 24.dp else 28.dp),
+                    )
+                }
             }
+
+            Text(
+                text = title,
+                color = MaterialTheme.colorScheme.onBackground,
+                style = if (compact) {
+                    MaterialTheme.typography.headlineSmall
+                } else {
+                    MaterialTheme.typography.headlineLarge
+                },
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                modifier = if (onTitleClick != null) {
+                    Modifier.clickable(onClick = onTitleClick)
+                } else {
+                    Modifier
+                },
+            )
         }
 
-        Text(
-            text = title,
-            color = MaterialTheme.colorScheme.onBackground,
-            style = if (compact) {
-                MaterialTheme.typography.headlineSmall
-            } else {
-                MaterialTheme.typography.headlineLarge
-            },
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            modifier = if (onTitleClick != null) {
-                Modifier.clickable(onClick = onTitleClick)
-            } else {
-                Modifier
-            },
-        )
+        if (action != null) {
+            action()
+        }
     }
 }
 
