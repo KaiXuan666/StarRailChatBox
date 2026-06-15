@@ -41,6 +41,7 @@ data class CharacterFiles(
     val createdAt: Long = Clock.System.now().toEpochMilliseconds(),
     val sortOrder: Int = 0,
     val lastMessageAt: Long? = null,
+    val deletedAt: Long? = null,
 )
 
 data class CharacterAvatarSource(
@@ -92,6 +93,10 @@ interface CharacterStorage {
     suspend fun updateSortOrder(id: String, sortOrder: Int)
 
     suspend fun deleteCharacter(id: String, deletedAt: Long)
+
+    suspend fun hasDeletedBuiltinCharacters(): Boolean = false
+
+    suspend fun restoreDeletedBuiltinCharacters() {}
 }
 
 interface CharacterRepository {
@@ -127,6 +132,10 @@ interface CharacterRepository {
     suspend fun deleteCharacter(id: String, deletedAt: Long)
 
     suspend fun getDefaultCharacter(id: String): Character?
+
+    suspend fun hasDeletedBuiltinCharacters(): Boolean = false
+
+    suspend fun restoreDeletedBuiltinCharacters() {}
 }
 
 class DefaultCharacterRepository(
@@ -234,6 +243,14 @@ class DefaultCharacterRepository(
             temperature = asset.temperature,
             topP = asset.topP,
         )
+    }
+
+    override suspend fun hasDeletedBuiltinCharacters(): Boolean {
+        return storage.hasDeletedBuiltinCharacters()
+    }
+
+    override suspend fun restoreDeletedBuiltinCharacters() {
+        storage.restoreDeletedBuiltinCharacters()
     }
 }
 

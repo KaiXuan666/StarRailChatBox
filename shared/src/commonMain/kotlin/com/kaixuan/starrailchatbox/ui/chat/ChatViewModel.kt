@@ -596,6 +596,11 @@ class ChatViewModel(
 
     private fun deleteCharacter(characterId: String) {
         viewModelScope.launch {
+            val currentList = characterRepository.loadCharacters()
+            if (currentList.size <= 1 && currentList.any { it.id == characterId }) {
+                emitCharacterMessage(CharacterEffectMessage.CHARACTER_DELETE_LAST_RESTRICTED)
+                return@launch
+            }
             runCatching {
                 characterRepository.deleteCharacter(characterId, currentTimeMillis())
                 val remaining = characterRepository.loadCharacters()

@@ -34,6 +34,7 @@ class InMemoryCharacterStorage : CharacterStorage {
 
     override suspend fun loadCharacters(): List<CharacterFiles> {
         return characters.values
+            .filter { it.deletedAt == null }
             .sortedWith(compareBy({ it.sortOrder }, { it.createdAt }))
             .toList()
     }
@@ -46,6 +47,7 @@ class InMemoryCharacterStorage : CharacterStorage {
 
     private fun currentSummaries(): List<CharacterSummary> =
         characters.values
+            .filter { it.deletedAt == null }
             .sortedWith(compareBy({ it.sortOrder }, { it.createdAt }))
             .map {
                 CharacterSummary(
@@ -87,7 +89,24 @@ class InMemoryCharacterStorage : CharacterStorage {
     }
 
     override suspend fun deleteCharacter(id: String, deletedAt: Long) {
-        characters.remove(id)
+        val existing = characters[id]
+        if (existing != null) {
+            characters[id] = existing.copy(deletedAt = deletedAt)
+        }
+        publishSummaries()
+    }
+
+    override suspend fun hasDeletedBuiltinCharacters(): Boolean {
+        return characters.values.any { it.id.startsWith("builtin:") && it.deletedAt != null }
+    }
+
+    override suspend fun restoreDeletedBuiltinCharacters() {
+        characters.keys.toList().forEach { id ->
+            val existing = characters[id]
+            if (id.startsWith("builtin:") && existing?.deletedAt != null) {
+                characters[id] = existing.copy(deletedAt = null)
+            }
+        }
         publishSummaries()
     }
 }

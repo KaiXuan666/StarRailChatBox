@@ -19,6 +19,7 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 
 class RoomCharacterStorageTest {
     private fun createMockFileManager(appDir: java.nio.file.Path, cacheDir: java.nio.file.Path) = object : KmpFileManager {
@@ -220,17 +221,28 @@ class RoomCharacterStorageTest {
         )
             .setDriver(BundledSQLiteDriver())
             .build()
+        var mockTime = 1_000L
         val storage = RoomCharacterStorage(
             dao = database.agentRoleDao(),
             fileManager = createMockFileManager(appDataDirectory, cacheDirectory),
-            currentTimeMillis = { 1_000L },
+            currentTimeMillis = { mockTime },
         )
 
         try {
-            val initial = characterFiles("builtin:流萤", "流萤", "first")
-            storage.initializeDefaults(listOf(initial))
-            val oldAvatarUri = requireNotNull(database.agentRoleDao().findById(initial.id)).avatarUri
+            val initialAvatar = Files.createTempFile(cacheDirectory, "init_avatar", ".webp")
+            Files.write(initialAvatar, byteArrayOf(1, 2, 3))
 
+            val initial = CharacterFiles(
+                id = "custom:流萤",
+                name = "流萤",
+                prompt = "first",
+                openingMessage = "",
+                avatarUri = "",
+            )
+            val initialSaved = storage.saveCharacter(initial, CharacterAvatarSource(initialAvatar.toString()))
+            val oldAvatarUri = initialSaved.avatarUri
+
+            mockTime = 2_000L
             val avatarBytes = byteArrayOf(9, 8, 7)
             val tempAvatar = Files.createTempFile(cacheDirectory, "temp_avatar", ".webp")
             Files.write(tempAvatar, avatarBytes)
@@ -254,6 +266,50 @@ class RoomCharacterStorageTest {
 
             assertEquals(null, database.agentRoleDao().findById(initial.id))
             assertEquals(false, Files.exists(java.nio.file.Path.of(saved.avatarUri)))
+        } finally {
+            database.close()
+            Files.deleteIfExists(databasePath)
+            appDataDirectory.toFile().deleteRecursively()
+            cacheDirectory.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun deleteBuiltinCharacterDoesNotRemoveAvatarAndCanBeRestored() = runTest {
+        val databasePath = Files.createTempFile("starrail-agent-role-builtin", ".db")
+        val appDataDirectory = Files.createTempDirectory("starrail-agent-appdata-builtin")
+        val cacheDirectory = Files.createTempDirectory("starrail-agent-cache-builtin")
+        val database = Room.databaseBuilder<StarRailDatabase>(
+            name = databasePath.toString(),
+            factory = StarRailDatabaseConstructor::initialize,
+        )
+            .setDriver(BundledSQLiteDriver())
+            .build()
+        val storage = RoomCharacterStorage(
+            dao = database.agentRoleDao(),
+            fileManager = createMockFileManager(appDataDirectory, cacheDirectory),
+            currentTimeMillis = { 1_000L },
+        )
+
+        try {
+            val initial = characterFiles("builtin:流萤", "流萤", "first")
+            storage.initializeDefaults(listOf(initial))
+            val avatarUri = requireNotNull(database.agentRoleDao().findById(initial.id)).avatarUri
+
+            assertTrue(Files.exists(java.nio.file.Path.of(avatarUri)))
+
+            storage.deleteCharacter(initial.id, deletedAt = 2_000L)
+
+            assertEquals(null, database.agentRoleDao().findById(initial.id))
+            assertTrue(Files.exists(java.nio.file.Path.of(avatarUri)))
+
+            assertTrue(storage.hasDeletedBuiltinCharacters())
+
+            storage.restoreDeletedBuiltinCharacters()
+
+            assertFalse(storage.hasDeletedBuiltinCharacters())
+            assertNotNull(database.agentRoleDao().findById(initial.id))
+            assertTrue(Files.exists(java.nio.file.Path.of(avatarUri)))
         } finally {
             database.close()
             Files.deleteIfExists(databasePath)

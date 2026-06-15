@@ -138,6 +138,9 @@ import starrailchatbox.shared.generated.resources.character_edit_avatar_gen_fail
 import starrailchatbox.shared.generated.resources.character_edit_avatar_gen_config_required
 import starrailchatbox.shared.generated.resources.character_edit_voice_gen_config_required
 import starrailchatbox.shared.generated.resources.character_edit_voice_gen_failed
+import starrailchatbox.shared.generated.resources.character_list_restore_default_no_deleted
+import starrailchatbox.shared.generated.resources.character_list_restore_default_success
+import starrailchatbox.shared.generated.resources.character_delete_last_restricted
 import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.design.StarRailSpacing
 import io.github.aakira.napier.Napier
@@ -488,6 +491,9 @@ fun MainRoute(
         CharacterEffectMessage.IMAGE_CONFIG_REQUIRED to stringResource(Res.string.character_edit_avatar_gen_config_required),
         CharacterEffectMessage.VOICE_CONFIG_REQUIRED to stringResource(Res.string.character_edit_voice_gen_config_required),
         CharacterEffectMessage.VOICE_GEN_FAILED to stringResource(Res.string.character_edit_voice_gen_failed),
+        CharacterEffectMessage.CHARACTER_RESTORE_BUILTIN_NO_DELETED to stringResource(Res.string.character_list_restore_default_no_deleted),
+        CharacterEffectMessage.CHARACTER_RESTORE_BUILTIN_SUCCESS to stringResource(Res.string.character_list_restore_default_success),
+        CharacterEffectMessage.CHARACTER_DELETE_LAST_RESTRICTED to stringResource(Res.string.character_delete_last_restricted),
     )
     val settingsEffectMessages = mapOf(
         SettingsEffectMessage.SETTINGS_API_NOT_READY to stringResource(Res.string.settings_api_not_ready),

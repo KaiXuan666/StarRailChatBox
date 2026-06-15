@@ -122,6 +122,7 @@ class CharacterEditViewModel(
             CharacterAction.CharacterDeleteBuiltinClicked -> {
                 showMessage(CharacterEffectMessage.CHARACTER_DELETE_BUILTIN_RESTRICTED)
             }
+            CharacterAction.RestoreBuiltinCharactersClicked -> Unit
             is CharacterAction.CharacterPromptGenClicked -> openPromptGenerator(action.defaultPromptRequestText)
             is CharacterAction.CharacterPromptGenInputChanged -> update { it.copy(promptGenInputText = action.text) }
             CharacterAction.CharacterPromptGenCancelClicked -> update { it.copy(isPromptGenDialogOpen = false) }

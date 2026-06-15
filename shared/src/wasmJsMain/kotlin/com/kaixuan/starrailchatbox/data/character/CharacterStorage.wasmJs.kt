@@ -50,7 +50,7 @@ class WasmJsCharacterStorage : CharacterStorage {
         }
     }
 
-    override suspend fun loadCharacters(): List<CharacterFiles> = getStoredCharacters()
+    override suspend fun loadCharacters(): List<CharacterFiles> = getStoredCharacters().filter { it.deletedAt == null }
 
     override suspend fun loadCharacterSummaries(): List<CharacterSummary> =
         loadCharacterSummariesFromStorage()
@@ -61,7 +61,8 @@ class WasmJsCharacterStorage : CharacterStorage {
         getStoredCharacters().toSummaries()
 
     private fun List<CharacterFiles>.toSummaries(): List<CharacterSummary> =
-        map {
+        filter { it.deletedAt == null }
+        .map {
             CharacterSummary(
                 id = it.id,
                 name = it.name,
@@ -97,8 +98,26 @@ class WasmJsCharacterStorage : CharacterStorage {
     }
 
     override suspend fun deleteCharacter(id: String, deletedAt: Long) {
-        val current = getStoredCharacters()
-        val filtered = current.filterNot { it.id == id }
-        saveStoredCharacters(filtered)
+        val current = getStoredCharacters().toMutableList()
+        val index = current.indexOfFirst { it.id == id }
+        if (index >= 0) {
+            current[index] = current[index].copy(deletedAt = deletedAt)
+            saveStoredCharacters(current)
+        }
+    }
+
+    override suspend fun hasDeletedBuiltinCharacters(): Boolean {
+        return getStoredCharacters().any { it.id.startsWith("builtin:") && it.deletedAt != null }
+    }
+
+    override suspend fun restoreDeletedBuiltinCharacters() {
+        val current = getStoredCharacters().map {
+            if (it.id.startsWith("builtin:") && it.deletedAt != null) {
+                it.copy(deletedAt = null)
+            } else {
+                it
+            }
+        }
+        saveStoredCharacters(current)
     }
 }

@@ -163,8 +163,18 @@ class RoomCharacterStorage(
         check(dao.softDelete(id, deletedAt) == 1) {
             "Character does not exist: $id"
         }
-        deleteFileIfAppOwned(existing.avatarUri)
-        existing.voiceSampleUri?.let { deleteFileIfAppOwned(it) }
+        if (!existing.isBuiltin) {
+            deleteFileIfAppOwned(existing.avatarUri)
+            existing.voiceSampleUri?.let { deleteFileIfAppOwned(it) }
+        }
+    }
+
+    override suspend fun hasDeletedBuiltinCharacters(): Boolean {
+        return dao.hasDeletedBuiltinCharacters()
+    }
+
+    override suspend fun restoreDeletedBuiltinCharacters() {
+        dao.restoreDeletedBuiltinCharacters(currentTimeMillis())
     }
 
     private fun CharacterFiles.toEntity(

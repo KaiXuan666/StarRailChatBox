@@ -320,6 +320,10 @@
     <string name="character_list_help_import_desc">你可以导入其他用户分享给你的角色卡。</string>
     <string name="character_list_help_export_title">导出角色卡</string>
     <string name="character_list_help_export_desc">你可以导出角色卡，以分享给其他用户，切记请以文件形式发送，或发送图片时勾选原图，否则导出的角色卡会失效。</string>
+    <string name="character_list_restore_default">恢复默认角色</string>
+    <string name="character_list_restore_default_no_deleted">没有预置角色被删除，无需恢复</string>
+    <string name="character_list_restore_default_success">预置角色已恢复</string>
+    <string name="character_delete_last_restricted">无法删除：至少需要保留一个角色</string>
     <string name="view_attachments">查看附件</string>
     <string name="attachments_title">消息附件</string>
     <string name="open_file">打开</string>

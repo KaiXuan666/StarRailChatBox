@@ -104,6 +104,7 @@ import starrailchatbox.shared.generated.resources.character_list_help_export_tit
 import starrailchatbox.shared.generated.resources.character_list_help_import_desc
 import starrailchatbox.shared.generated.resources.character_list_help_import_title
 import starrailchatbox.shared.generated.resources.character_list_help_title
+import starrailchatbox.shared.generated.resources.character_list_restore_default
 import starrailchatbox.shared.generated.resources.character_list_help_what_is_card
 import starrailchatbox.shared.generated.resources.character_list_title
 import starrailchatbox.shared.generated.resources.character_share_public
@@ -374,11 +375,7 @@ fun CharactersScreen(
                                 }
                             },
                             onDeleteClick = {
-                                if (character.id.startsWith("builtin:")) {
-                                    onAction(CharacterAction.CharacterDeleteBuiltinClicked)
-                                } else {
-                                    deleteTargetCharacter = character
-                                }
+                                deleteTargetCharacter = character
                             },
                             onExportClick = {
                                 if (draggingItemId == null) {
@@ -744,8 +741,13 @@ fun CharactersScreen(
             StarRailDialog(
                 title = stringResource(Res.string.character_list_help_title),
                 confirmText = stringResource(Res.string.confirm),
+                neutralText = stringResource(Res.string.character_list_restore_default),
                 onDismissRequest = { showHelpDialog = false },
                 onConfirm = { showHelpDialog = false },
+                onNeutral = {
+                    showHelpDialog = false
+                    onAction(CharacterAction.RestoreBuiltinCharactersClicked)
+                },
             ) {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(StarRailSpacing.md),

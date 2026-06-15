@@ -58,6 +58,7 @@ class CharactersViewModel(
             CharacterAction.CharacterExportDialogDismissed -> {
                 _uiState.update { it.copy(exportDialogCharacterId = null) }
             }
+            CharacterAction.RestoreBuiltinCharactersClicked -> restoreBuiltinCharacters()
             CharacterAction.CharacterExportLocalClicked -> requestLocalExport()
             CharacterAction.CharacterSharePublicClicked -> loadShareCategories()
             is CharacterAction.CharacterShareCategorySelected -> selectShareCategory(action.categoryId)
@@ -107,6 +108,15 @@ class CharactersViewModel(
 
     private fun delete(characterId: String) {
         viewModelScope.launch {
+            val activeCharacters = _uiState.value.characters
+            if (activeCharacters.size <= 1 && activeCharacters.any { it.id == characterId }) {
+                _effects.send(
+                    CharacterEffect.ShowMessage(
+                        CharacterEffectMessage.CHARACTER_DELETE_LAST_RESTRICTED,
+                    ),
+                )
+                return@launch
+            }
             runCatching {
                 characterRepository.deleteCharacter(
                     characterId,
@@ -117,6 +127,26 @@ class CharactersViewModel(
             }.onFailure {
                 _effects.send(
                     CharacterEffect.ShowMessage(CharacterEffectMessage.CHARACTER_SAVE_FAILED),
+                )
+            }
+        }
+    }
+
+    private fun restoreBuiltinCharacters() {
+        viewModelScope.launch {
+            val hasDeleted = characterRepository.hasDeletedBuiltinCharacters()
+            if (hasDeleted) {
+                characterRepository.restoreDeletedBuiltinCharacters()
+                _effects.send(
+                    CharacterEffect.ShowMessage(
+                        CharacterEffectMessage.CHARACTER_RESTORE_BUILTIN_SUCCESS
+                    )
+                )
+            } else {
+                _effects.send(
+                    CharacterEffect.ShowMessage(
+                        CharacterEffectMessage.CHARACTER_RESTORE_BUILTIN_NO_DELETED
+                    )
                 )
             }
         }

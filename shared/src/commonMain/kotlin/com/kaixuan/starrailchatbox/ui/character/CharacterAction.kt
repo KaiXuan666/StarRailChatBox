@@ -36,6 +36,7 @@ sealed interface CharacterAction {
     data object CharacterVoiceGenConfirmClicked : CharacterAction
     data object CharacterVoiceGenCancelClicked : CharacterAction
     data object CharacterRestoreDefaultClicked : CharacterAction
+    data object RestoreBuiltinCharactersClicked : CharacterAction
     data class CharactersReordered(val orderedCharacters: List<CharacterSummary>) : CharacterAction
     
     // Export

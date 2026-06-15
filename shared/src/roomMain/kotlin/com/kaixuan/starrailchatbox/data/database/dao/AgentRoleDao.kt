@@ -56,4 +56,10 @@ interface AgentRoleDao {
 
     @Query("UPDATE agent_role SET deleted_at = :deletedAt, updated_at = :deletedAt WHERE id = :id")
     suspend fun softDelete(id: String, deletedAt: Long): Int
+
+    @Query("SELECT EXISTS(SELECT 1 FROM agent_role WHERE is_builtin = 1 AND deleted_at IS NOT NULL)")
+    suspend fun hasDeletedBuiltinCharacters(): Boolean
+
+    @Query("UPDATE agent_role SET deleted_at = NULL, updated_at = :now WHERE is_builtin = 1 AND deleted_at IS NOT NULL")
+    suspend fun restoreDeletedBuiltinCharacters(now: Long): Int
 }
