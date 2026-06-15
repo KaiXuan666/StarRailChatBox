@@ -6,6 +6,10 @@ import com.kaixuan.starrailchatbox.data.api.ApiResult
 import com.kaixuan.starrailchatbox.data.settings.AppSettingsStore
 import com.kaixuan.starrailchatbox.data.update.UpdateRepository
 import com.kaixuan.starrailchatbox.getPlatform
+import com.kaixuan.starrailchatbox.platform.KmpFileManager
+import com.kaixuan.starrailchatbox.platform.installPackage
+import com.kaixuan.starrailchatbox.platform.openUri
+import com.kaixuan.starrailchatbox.PlatformType
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -102,7 +106,7 @@ class MainViewModel(
 
             MainAction.UpdateDialogDismiss -> {
                 val isForceUpdate = _uiState.value.updateInfo?.isForceUpdate == true
-                if (!isForceUpdate) {
+                if (!isForceUpdate && !_uiState.value.isDownloadingUpdate) {
                     _uiState.update { it.copy(showUpdateDialog = false) }
                 }
             }
@@ -111,6 +115,72 @@ class MainViewModel(
                 val isForceUpdate = _uiState.value.updateInfo?.isForceUpdate == true
                 if (!isForceUpdate) {
                     _uiState.update { it.copy(showUpdateDialog = false) }
+                }
+            }
+
+            MainAction.UpdateDialogManual -> {
+                val info = _uiState.value.updateInfo
+                if (info != null) {
+                    openUri(info.downloadUrl)
+                    val isForceUpdate = info.isForceUpdate
+                    if (!isForceUpdate) {
+                        _uiState.update { it.copy(showUpdateDialog = false) }
+                    }
+                }
+            }
+
+            MainAction.UpdateDialogAuto -> {
+                val info = _uiState.value.updateInfo
+                if (info != null && !_uiState.value.isDownloadingUpdate) {
+                    _uiState.update {
+                        it.copy(
+                            isDownloadingUpdate = true,
+                            updateDownloadProgress = 0f,
+                            updateDownloadError = null
+                        )
+                    }
+                    viewModelScope.launch {
+                        val fileName = if (getPlatform().type == PlatformType.Android) "update.apk" else "update.exe"
+                        val targetPath = KmpFileManager.Default.cacheDir / fileName
+                        
+                        when (val result = updateRepository.downloadUpdate(info.downloadUrl, targetPath) { progress ->
+                            _uiState.update { it.copy(updateDownloadProgress = progress) }
+                        }) {
+                            is ApiResult.Success -> {
+                                _uiState.update {
+                                    it.copy(
+                                        isDownloadingUpdate = false,
+                                        showUpdateDialog = info.isForceUpdate
+                                    )
+                                }
+                                installPackage(targetPath.toString())
+                            }
+                            is ApiResult.HttpError -> {
+                                _uiState.update {
+                                    it.copy(
+                                        isDownloadingUpdate = false,
+                                        updateDownloadError = "HTTP ${result.statusCode}: ${result.message}"
+                                    )
+                                }
+                            }
+                            is ApiResult.NetworkError -> {
+                                _uiState.update {
+                                    it.copy(
+                                        isDownloadingUpdate = false,
+                                        updateDownloadError = result.message ?: "网络错误"
+                                    )
+                                }
+                            }
+                            is ApiResult.UnexpectedError -> {
+                                _uiState.update {
+                                    it.copy(
+                                        isDownloadingUpdate = false,
+                                        updateDownloadError = result.message ?: "未知错误"
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
 

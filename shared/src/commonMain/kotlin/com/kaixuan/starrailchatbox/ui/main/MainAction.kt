@@ -24,6 +24,9 @@ sealed interface MainAction {
     // 更新弹窗操作
     data object UpdateDialogDismiss : MainAction
     data object UpdateDialogConfirm : MainAction
+    data object UpdateDialogManual : MainAction
+    data object UpdateDialogAuto : MainAction
+
 
     // 显示提示消息
     data class ShowMessage(val message: MainEffectMessage) : MainAction

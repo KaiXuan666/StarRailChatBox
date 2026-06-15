@@ -47,3 +47,27 @@ actual fun openUri(uri: String, mimeType: String?) {
         Napier.e(e) { "Failed to open URI: $uri" }
     }
 }
+
+actual fun installPackage(path: String) {
+    val context = AndroidContextHolder.context ?: return
+    try {
+        val file = File(path)
+        if (!file.exists()) {
+            Napier.e { "installPackage: File does not exist at path: $path" }
+            return
+        }
+        val intent = Intent(Intent.ACTION_VIEW)
+        val contentUri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
+        intent.setDataAndType(contentUri, "application/vnd.android.package-archive")
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(intent)
+    } catch (e: Exception) {
+        Napier.e(e) { "Failed to install package: $path" }
+    }
+}
+

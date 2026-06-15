@@ -19,3 +19,21 @@ actual fun openUri(uri: String, mimeType: String?) {
         e.printStackTrace()
     }
 }
+
+actual fun installPackage(path: String) {
+    try {
+        val file = File(path)
+        if (file.exists()) {
+            val os = System.getProperty("os.name").lowercase()
+            if (os.contains("win")) {
+                ProcessBuilder(file.absolutePath).start()
+                System.exit(0)
+            } else {
+                Desktop.getDesktop().open(file)
+            }
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+}
+

@@ -206,6 +206,11 @@
     <string name="settings_update_dialog_version">版本：%1$s</string>
     <string name="settings_update_dialog_confirm">立即更新</string>
     <string name="settings_update_dialog_cancel">稍后再说</string>
+    <string name="settings_update_downloading_title">更新下载中</string>
+    <string name="settings_update_manual">手动更新</string>
+    <string name="settings_update_auto">自动更新</string>
+    <string name="settings_update_downloading">正在下载更新：%1$s</string>
+    <string name="settings_update_download_failed">下载失败：%1$s</string>
     <string name="settings_update_cloud_storage_title">网盘更新</string>
     <string name="settings_update_cloud_storage_copy">复制信息</string>
     <string name="settings_update_cloud_storage_copied">已复制网盘更新信息</string>

@@ -110,7 +110,7 @@ fun CharacterCatalogDetailScreen(
         backContentDescription = "返回",
         onBackClick = { onMainAction(MainAction.PopBackStack) },
         modifier = modifier,
-        contentSpacing = StarRailSpacing.md,
+        contentSpacing = StarRailSpacing.sm,
         action = {
             Surface(
                 onClick = { showReportDialog = true },

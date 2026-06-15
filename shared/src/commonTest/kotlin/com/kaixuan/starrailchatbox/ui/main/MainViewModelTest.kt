@@ -45,6 +45,14 @@ class MainViewModelTest {
         override suspend fun checkUpdate(isManual: Boolean): ApiResult<UpdateResponse> {
             return ApiResult.NetworkError("Not implemented in test")
         }
+
+        override suspend fun downloadUpdate(
+            url: String,
+            targetPath: okio.Path,
+            onProgress: (progress: Float) -> Unit
+        ): ApiResult<Unit> {
+            return ApiResult.Success(Unit)
+        }
     }
 
     @Test

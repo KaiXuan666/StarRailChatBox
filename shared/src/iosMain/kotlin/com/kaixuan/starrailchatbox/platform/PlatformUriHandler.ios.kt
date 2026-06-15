@@ -9,3 +9,8 @@ actual fun openUri(uri: String, mimeType: String?) {
         UIApplication.sharedApplication.openURL(nsUrl)
     }
 }
+
+actual fun installPackage(path: String) {
+    // iOS doesn't support local package installation
+}
+

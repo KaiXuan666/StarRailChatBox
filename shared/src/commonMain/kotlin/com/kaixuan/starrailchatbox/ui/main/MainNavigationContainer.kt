@@ -98,6 +98,13 @@ import starrailchatbox.shared.generated.resources.settings_update_dialog_title
 import starrailchatbox.shared.generated.resources.settings_update_dialog_version
 import starrailchatbox.shared.generated.resources.settings_update_dialog_confirm
 import starrailchatbox.shared.generated.resources.settings_update_dialog_cancel
+import starrailchatbox.shared.generated.resources.settings_update_downloading_title
+import starrailchatbox.shared.generated.resources.settings_update_manual
+import starrailchatbox.shared.generated.resources.settings_update_auto
+import starrailchatbox.shared.generated.resources.settings_update_downloading
+import starrailchatbox.shared.generated.resources.settings_update_download_failed
+import androidx.compose.ui.draw.clip
+
 import starrailchatbox.shared.generated.resources.settings_update_cloud_storage_title
 import starrailchatbox.shared.generated.resources.settings_update_cloud_storage_copy
 import starrailchatbox.shared.generated.resources.settings_update_cloud_storage_copied
@@ -631,7 +638,7 @@ fun MainRoute(
     // Global Update Dialog
     if (main.state.showUpdateDialog && main.state.updateInfo != null) {
         UpdateDialog(
-            info = main.state.updateInfo,
+            mainState = main.state,
             onMainAction = onMainAction
         )
     }
@@ -639,25 +646,35 @@ fun MainRoute(
 
 @Composable
 private fun UpdateDialog(
-    info: UpdateInfo,
+    mainState: MainUiState,
     onMainAction: (MainAction) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val info = mainState.updateInfo ?: return
+    val isDownloading = mainState.isDownloadingUpdate
+    val progress = mainState.updateDownloadProgress
+    val error = mainState.updateDownloadError
+
     val isForceUpdate = info.isForceUpdate
     val clipboardManager = LocalClipboardManager.current
+
+    val dialogProperties = DialogProperties(
+        dismissOnBackPress = !isForceUpdate && !isDownloading,
+        dismissOnClickOutside = !isForceUpdate && !isDownloading
+    )
+
     StarRailDialog(
-        title = stringResource(Res.string.settings_update_dialog_title),
-        dismissText = if (isForceUpdate) null else stringResource(Res.string.settings_update_dialog_cancel),
-        confirmText = stringResource(Res.string.settings_update_dialog_confirm),
-        onDismissRequest = { onMainAction(MainAction.UpdateDialogDismiss) },
-        onConfirm = {
-            openUri(info.downloadUrl)
-            onMainAction(MainAction.UpdateDialogConfirm)
+        title = if (isDownloading) stringResource(Res.string.settings_update_downloading_title) else stringResource(Res.string.settings_update_dialog_title),
+        confirmText = if (isDownloading) null else stringResource(Res.string.settings_update_auto),
+        onConfirm = { onMainAction(MainAction.UpdateDialogAuto) },
+        dismissText = if (isDownloading) null else stringResource(Res.string.settings_update_manual),
+        onDismissButton = { onMainAction(MainAction.UpdateDialogManual) },
+        onDismissRequest = {
+            if (!isForceUpdate && !isDownloading) {
+                onMainAction(MainAction.UpdateDialogDismiss)
+            }
         },
-        properties = DialogProperties(
-            dismissOnBackPress = !isForceUpdate,
-            dismissOnClickOutside = !isForceUpdate
-        ),
+        properties = dialogProperties,
         modifier = modifier,
     ) {
         Column(
@@ -695,7 +712,7 @@ private fun UpdateDialog(
             }
 
             // Cloud Storage Update
-            if (!info.cloudStorageUpdateText.isNullOrBlank()) {
+            if (!isDownloading && !info.cloudStorageUpdateText.isNullOrBlank()) {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -742,6 +759,37 @@ private fun UpdateDialog(
                         )
                     }
                 }
+            }
+
+            // Downloading state / error state
+            if (isDownloading) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    val progressText = "${(progress * 100).toInt()}%"
+                    Text(
+                        text = stringResource(Res.string.settings_update_downloading, progressText),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium
+                    )
+
+                    androidx.compose.material3.LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                }
+            } else if (!error.isNullOrBlank()) {
+                Text(
+                    text = stringResource(Res.string.settings_update_download_failed, error),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
             }
         }
     }
@@ -1532,6 +1580,8 @@ private fun MainAction.traceName(): String = when (this) {
     MainAction.ThemeDialogDismiss -> "ThemeDialogDismiss"
     MainAction.UpdateDialogDismiss -> "UpdateDialogDismiss"
     MainAction.UpdateDialogConfirm -> "UpdateDialogConfirm"
+    MainAction.UpdateDialogManual -> "UpdateDialogManual"
+    MainAction.UpdateDialogAuto -> "UpdateDialogAuto"
     is MainAction.ShowMessage -> "ShowMessage"
 }
 

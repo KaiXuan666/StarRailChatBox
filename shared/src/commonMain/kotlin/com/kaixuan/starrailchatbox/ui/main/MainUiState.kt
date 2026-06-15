@@ -10,6 +10,9 @@ data class MainUiState(
     val showThemeDialog: Boolean = false,
     val showUpdateDialog: Boolean = false,
     val updateInfo: UpdateInfo? = null,
+    val isDownloadingUpdate: Boolean = false,
+    val updateDownloadProgress: Float = 0f,
+    val updateDownloadError: String? = null,
 )
 
 @Immutable
