@@ -54,11 +54,13 @@ class JvmAudioPlayer : AudioPlayer {
 
                     rawStream?.let { stream ->
                         val baseFormat = stream.format
-                        if (baseFormat.encoding == AudioFormat.Encoding.PCM_SIGNED || 
-                            baseFormat.encoding == AudioFormat.Encoding.PCM_UNSIGNED) {
+                        val isSupportedPcm = (baseFormat.encoding == AudioFormat.Encoding.PCM_SIGNED || 
+                                              baseFormat.encoding == AudioFormat.Encoding.PCM_UNSIGNED) &&
+                                             (baseFormat.sampleSizeInBits == 16 || baseFormat.sampleSizeInBits == 8)
+                        if (isSupportedPcm) {
                             stream
                         } else {
-                            // 尝试转换为 PCM 以支持 MP3 等格式
+                            // 尝试转换为 PCM 以支持 MP3 等格式，以及 32 位/24 位等不受直接支持的 PCM 格式
                             val decodedFormat = AudioFormat(
                                 AudioFormat.Encoding.PCM_SIGNED,
                                 baseFormat.sampleRate,
