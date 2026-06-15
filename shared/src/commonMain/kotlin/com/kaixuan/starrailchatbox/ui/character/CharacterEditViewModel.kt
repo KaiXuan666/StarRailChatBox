@@ -1,3 +1,5 @@
+@file:OptIn(kotlin.uuid.ExperimentalUuidApi::class)
+
 package com.kaixuan.starrailchatbox.ui.character
 
 import androidx.lifecycle.ViewModel
@@ -13,6 +15,7 @@ import com.kaixuan.starrailchatbox.data.character.importer.CharacterCardImporter
 import com.kaixuan.starrailchatbox.data.chat.ChatRole
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
 import com.kaixuan.starrailchatbox.platform.KmpFileManager
+import kotlin.uuid.Uuid
 import io.github.aakira.napier.Napier
 import io.github.vinceglb.filekit.PlatformFile
 import kotlinx.coroutines.CancellationException
@@ -478,7 +481,7 @@ class CharacterEditViewModel(
         update { it.copy(isSaving = true) }
         viewModelScope.launch {
             runCatching {
-                val id = edit.characterId ?: "user_${now()}"
+                val id = edit.characterId ?: Uuid.random().toString()
                 val original = edit.characterId?.let { characterRepository.getCharacter(it) }
                 characterRepository.updateCharacter(
                     Character(

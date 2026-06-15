@@ -100,6 +100,7 @@ tritonus-share = { module = "com.googlecode.soundlibs:tritonus-share", version.r
 filekit-core = { module = "io.github.vinceglb:filekit-core", version.ref = "filekit" }
 filekit-dialogs-compose = { module = "io.github.vinceglb:filekit-dialogs-compose", version.ref = "filekit" }
 filekit-coil = { module = "io.github.vinceglb:filekit-coil", version.ref = "filekit" }
+kotlinx-uuid = { module = "app.softwork:kotlinx-uuid-core", version = "0.1.7" }
 
 
 [plugins]
