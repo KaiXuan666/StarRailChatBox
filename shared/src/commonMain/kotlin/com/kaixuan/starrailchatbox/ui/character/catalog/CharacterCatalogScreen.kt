@@ -180,7 +180,15 @@ fun CharacterCatalogScreen(
                         if (pagerState.currentPage != targetIndex) {
                             pagerState.animateScrollToPage(targetIndex)
                         }
-                        categoryListState.animateScrollToItem(targetIndex)
+                    }
+                }
+            }
+
+            // 视觉反馈跟随当前页立即更新，业务选中状态仍等 Pager 停稳后再提交。
+            LaunchedEffect(pagerState, tabs) {
+                snapshotFlow { pagerState.currentPage }.collect { page ->
+                    if (page in tabs.indices) {
+                        categoryListState.scrollToItem(page)
                     }
                 }
             }
@@ -265,7 +273,7 @@ fun CharacterCatalogScreen(
                     ) {
                         items(tabs.size) { index ->
                             val tab = tabs[index]
-                            val isSelected = tab.id == state.selectedCategoryId
+                            val isSelected = index == pagerState.currentPage
                             CategoryBadge(
                                 name = tab.name,
                                 isSelected = isSelected,
