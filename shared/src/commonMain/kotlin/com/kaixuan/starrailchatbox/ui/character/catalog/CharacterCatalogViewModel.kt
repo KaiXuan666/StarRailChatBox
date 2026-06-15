@@ -13,6 +13,7 @@ import com.kaixuan.starrailchatbox.data.character.catalog.CatalogAdminOperationR
 import com.kaixuan.starrailchatbox.data.character.catalog.CatalogAdminOperationType
 import com.kaixuan.starrailchatbox.data.character.catalog.CatalogAdminRepository
 import com.kaixuan.starrailchatbox.data.settings.AppSettingsStore
+import com.kaixuan.starrailchatbox.data.settings.LocalApiSettings
 import com.kaixuan.starrailchatbox.PlatformType
 import com.kaixuan.starrailchatbox.getPlatform
 import com.kaixuan.starrailchatbox.platform.KmpFileManager
@@ -40,8 +41,6 @@ class CharacterCatalogViewModel(
     private val fileManager: KmpFileManager = KmpFileManager.Default,
 ) : ViewModel() {
     private var adminKey: String? = null
-    private var titleClickCount = 0
-    private var lastTitleClickAt = 0L
     private var catalogLoaded = false
     private var loadJob: Job? = null
     private val loadJobs = mutableMapOf<String?, Job>()
@@ -180,13 +179,13 @@ class CharacterCatalogViewModel(
     }
 
     private fun onTitleClicked() {
-        if (!_uiState.value.adminSupported || _uiState.value.adminModeEnabled) return
-        val now = Clock.System.now().toEpochMilliseconds()
-        titleClickCount = if (now - lastTitleClickAt <= 2_000) titleClickCount + 1 else 1
-        lastTitleClickAt = now
-        if (titleClickCount >= 7) {
-            titleClickCount = 0
-            _uiState.update { it.copy(showAdminKeyDialog = true, adminKeyDraft = "") }
+        val state = _uiState.value
+        if (!state.adminSupported || state.adminModeEnabled) return
+        _uiState.update {
+            it.copy(
+                showAdminKeyDialog = true,
+                adminKeyDraft = LocalApiSettings.catalogAdminKey,
+            )
         }
     }
 

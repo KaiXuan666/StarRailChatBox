@@ -58,6 +58,7 @@ abstract class GenerateLocalApiSettingsTask : DefaultTask() {
                 const val imageKey = "${propertyValue("IMAGE_GENERATION_API_KEY")}"
                 const val androidUpdateUrl = "${propertyValue("ANDROID_UPDATE_URL")}"
                 const val windowsUpdateUrl = "${propertyValue("WINDOWS_UPDATE_URL")}"
+                const val catalogAdminKey = "${propertyValue("CATALOG_ADMIN_KEY")}"
             }
             """.trimIndent() + "\n",
             Charsets.UTF_8,
