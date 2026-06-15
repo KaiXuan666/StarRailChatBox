@@ -242,7 +242,7 @@ fun CharacterCatalogScreen(
                     compact = compact,
                     backContentDescription = if (onBackClick != null) "返回" else null,
                     onBackClick = onBackClick,
-                    onTitleClick = { onAction(CharacterCatalogAction.TitleClicked) },
+                    onTitleLongClick = { onAction(CharacterCatalogAction.TitleClicked) },
                 )
 
                 if (state.adminModeEnabled) {

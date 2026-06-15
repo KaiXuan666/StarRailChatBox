@@ -2,7 +2,8 @@ package com.kaixuan.starrailchatbox.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -107,6 +108,7 @@ fun StarRailPageLayout(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun StarRailPageHeader(
     title: String,
@@ -115,6 +117,7 @@ fun StarRailPageHeader(
     onBackClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     onTitleClick: (() -> Unit)? = null,
+    onTitleLongClick: (() -> Unit)? = null,
     action: @Composable (() -> Unit)? = null,
 ) {
     Row(
@@ -153,8 +156,11 @@ fun StarRailPageHeader(
                 },
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
-                modifier = if (onTitleClick != null) {
-                    Modifier.clickable(onClick = onTitleClick)
+                modifier = if (onTitleClick != null || onTitleLongClick != null) {
+                    Modifier.combinedClickable(
+                        onClick = onTitleClick ?: {},
+                        onLongClick = onTitleLongClick
+                    )
                 } else {
                     Modifier
                 },
