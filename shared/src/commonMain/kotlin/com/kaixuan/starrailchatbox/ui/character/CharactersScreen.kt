@@ -567,6 +567,38 @@ fun CharactersScreen(
                                 onDismissRequest = { categoryMenuExpanded = false },
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = stringResource(
+                                                Res.string.character_share_category_create,
+                                            ),
+                                            color = if (isCustomCategory) {
+                                                MaterialTheme.colorScheme.primary
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurface
+                                            },
+                                        )
+                                    },
+                                    onClick = {
+                                        categoryMenuExpanded = false
+                                        onAction(
+                                            CharacterAction.CharacterShareCustomCategorySelected,
+                                        )
+                                    },
+                                    trailingIcon = if (isCustomCategory) {
+                                        {
+                                            StarRailIcon(
+                                                kind = StarRailIconKind.CHECK,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(18.dp),
+                                            )
+                                        }
+                                    } else {
+                                        null
+                                    },
+                                )
                                 state.shareCategories.forEach { category ->
                                     val selected =
                                         (categorySelection as? ShareCategorySelection.Existing)
@@ -602,38 +634,6 @@ fun CharactersScreen(
                                         },
                                     )
                                 }
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            text = stringResource(
-                                                Res.string.character_share_category_create,
-                                            ),
-                                            color = if (isCustomCategory) {
-                                                MaterialTheme.colorScheme.primary
-                                            } else {
-                                                MaterialTheme.colorScheme.onSurface
-                                            },
-                                        )
-                                    },
-                                    onClick = {
-                                        categoryMenuExpanded = false
-                                        onAction(
-                                            CharacterAction.CharacterShareCustomCategorySelected,
-                                        )
-                                    },
-                                    trailingIcon = if (isCustomCategory) {
-                                        {
-                                            StarRailIcon(
-                                                kind = StarRailIconKind.CHECK,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(18.dp),
-                                            )
-                                        }
-                                    } else {
-                                        null
-                                    },
-                                )
                             }
                         }
 
