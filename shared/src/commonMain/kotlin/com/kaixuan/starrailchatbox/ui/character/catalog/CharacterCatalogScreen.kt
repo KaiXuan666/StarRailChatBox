@@ -1,6 +1,7 @@
 package com.kaixuan.starrailchatbox.ui.character.catalog
 
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -899,8 +900,9 @@ fun CharacterCatalogItem(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.xs)
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
                             text = char.name,
@@ -908,27 +910,31 @@ fun CharacterCatalogItem(
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            modifier = Modifier
+                                .weight(1f)
+                                .basicMarquee()
                         )
 
-                        // 类别徽章
-//                        Surface(
-//                            shape = RoundedCornerShape(6.dp),
-//                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
-//                        ) {
-//                            Text(
-//                                text = when(char.primaryCategoryId) {
-//                                    "game" -> "游戏"
-//                                    "anime" -> "动漫"
-//                                    "original" -> "原创"
-//                                    else -> char.primaryCategoryId
-//                                },
-//                                color = MaterialTheme.colorScheme.secondary,
-//                                style = MaterialTheme.typography.labelSmall,
-//                                fontWeight = FontWeight.Bold,
-//                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-//                            )
-//                        }
+                        Spacer(modifier = Modifier.width(StarRailSpacing.sm))
+
+                        // 右上角热度
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            StarRailIcon(
+                                kind = StarRailIconKind.SPARKLE,
+                                contentDescription = null,
+                                tint = Color(0xFFFF8F00),
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Text(
+                                text = hotValue,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFFF8F00)
+                            )
+                        }
                     }
 
                     // 描述
@@ -952,26 +958,6 @@ fun CharacterCatalogItem(
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
                 }
-            }
-
-            // 右上角热度
-            Row(
-                modifier = Modifier.align(Alignment.TopEnd),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                StarRailIcon(
-                    kind = StarRailIconKind.SPARKLE,
-                    contentDescription = null,
-                    tint = Color(0xFFFF8F00),
-                    modifier = Modifier.size(12.dp)
-                )
-                Text(
-                    text = hotValue,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFFFF8F00)
-                )
             }
 
             // 右下角导入动作按钮
