@@ -237,16 +237,20 @@ class RoomDatabaseManager(
                         sqls.add(
                             """
                             UPDATE $table 
-                            SET $column = '$newBaseDir' || '/' || SUBSTR(REPLACE($column, '\', '/'), INSTR(REPLACE($column, '\', '/'), '$keyDir'))
-                            WHERE REPLACE($column, '\', '/') LIKE '%$keyDir%'
+                            SET $column = '$newBaseDir' || '/' || SUBSTR(REPLACE($column, char(92), '/'), INSTR(REPLACE($column, char(92), '/'), '$keyDir'))
+                            WHERE REPLACE($column, char(92), '/') LIKE '%$keyDir%'
                             """.trimIndent()
                         )
                     }
                 }
 
                 for (sql in sqls) {
-                    connection.prepare(sql).use { statement ->
-                        statement.step()
+                    try {
+                        connection.prepare(sql).use { statement ->
+                            statement.step()
+                        }
+                    } catch (e: Exception) {
+                        Napier.w(e) { "执行自愈 SQL 失败（可能由于表或字段不存在），已跳过: $sql" }
                     }
                 }
 

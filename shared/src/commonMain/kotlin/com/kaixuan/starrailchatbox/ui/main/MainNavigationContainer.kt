@@ -16,6 +16,8 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import com.kaixuan.starrailchatbox.platform.KmpFileManager
 import com.kaixuan.starrailchatbox.platform.restartApp
 import androidx.compose.foundation.layout.Box
@@ -1403,8 +1405,10 @@ private fun ProfileRoute(
                     snackbarHostState.showSnackbar(
                         effectMessages.getValue(ProfileEffectMessage.IMPORT_SUCCESS),
                     )
-                    kotlinx.coroutines.delay(1500)
-                    restartApp()
+                    withContext(NonCancellable) {
+                        kotlinx.coroutines.delay(1500)
+                        restartApp()
+                    }
                 }
             }
         }
