@@ -119,7 +119,9 @@ fun CharacterCatalogDetailScreen(
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.padding(horizontal = StarRailSpacing.xs, vertical = StarRailSpacing.xs)
+                    modifier = Modifier
+                        .height(if (compact) 32.dp else 40.dp)
+                        .padding(horizontal = StarRailSpacing.xs),
                 ) {
                     StarRailIcon(
                         kind = StarRailIconKind.INFO,
