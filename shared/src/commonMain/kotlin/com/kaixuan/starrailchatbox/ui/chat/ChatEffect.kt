@@ -1,7 +1,10 @@
 package com.kaixuan.starrailchatbox.ui.chat
 
 sealed interface ChatEffect {
-    data class ShowMessage(val message: EffectMessage) : ChatEffect
+    data class ShowMessage(
+        val message: EffectMessage,
+        val detail: String? = null,
+    ) : ChatEffect
 }
 
 enum class EffectMessage {

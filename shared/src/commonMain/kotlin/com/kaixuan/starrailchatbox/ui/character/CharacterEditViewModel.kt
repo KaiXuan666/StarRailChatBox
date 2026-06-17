@@ -53,6 +53,7 @@ import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
+import com.kaixuan.starrailchatbox.ui.failureDetail
 
 data class CharacterEditArgs(
     val characterId: String?,
@@ -270,6 +271,7 @@ class CharacterEditViewModel(
                 }
                 var generated = ""
                 var failed = false
+                var failureDetail: String? = null
                 aiRepository.createPromptCompletion(
                     config,
                     listOf(AiMessage(role = ChatRole.USER.apiValue, content = actualInput)),
@@ -278,10 +280,11 @@ class CharacterEditViewModel(
                         generated = result.value.content.trim()
                     } else {
                         failed = true
+                        failureDetail = result.failureDetail()
                     }
                 }
                 if (failed || generated.isBlank()) {
-                    showMessage(CharacterEffectMessage.PROMPT_GEN_FAILED)
+                    showMessage(CharacterEffectMessage.PROMPT_GEN_FAILED, failureDetail)
                 } else {
                     if (isInjecting) {
                         val descriptionRegex = Regex("<description>([\\s\\S]*?)</description>", RegexOption.IGNORE_CASE)
@@ -309,8 +312,8 @@ class CharacterEditViewModel(
                 }
             } catch (cancellation: CancellationException) {
                 throw cancellation
-            } catch (_: Throwable) {
-                showMessage(CharacterEffectMessage.PROMPT_GEN_FAILED)
+            } catch (t: Throwable) {
+                showMessage(CharacterEffectMessage.PROMPT_GEN_FAILED, t.failureDetail())
             } finally {
                 update { it.copy(isGeneratingPrompt = false) }
             }
@@ -366,14 +369,14 @@ class CharacterEditViewModel(
                         }
                     }
                     else -> {
-                        showMessage(CharacterEffectMessage.AVATAR_GEN_FAILED)
+                        showMessage(CharacterEffectMessage.AVATAR_GEN_FAILED, result.failureDetail())
                     }
                 }
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (error: Throwable) {
                 Napier.e("Failed to generate avatar", error)
-                showMessage(CharacterEffectMessage.AVATAR_GEN_FAILED)
+                showMessage(CharacterEffectMessage.AVATAR_GEN_FAILED, error.failureDetail())
             } finally {
                 update { it.copy(isGeneratingAvatar = false) }
             }
@@ -459,7 +462,7 @@ class CharacterEditViewModel(
                 throw cancellation
             } catch (t: Throwable) {
                 Napier.e("Failed to generate voice", t)
-                showMessage(CharacterEffectMessage.VOICE_GEN_FAILED)
+                showMessage(CharacterEffectMessage.VOICE_GEN_FAILED, t.failureDetail())
             } finally {
                 update { it.copy(isGeneratingVoice = false) }
             }
@@ -556,9 +559,9 @@ class CharacterEditViewModel(
             }.onSuccess { saved ->
                 _uiState.value = saved.toEditUiState()
                 _effects.send(CharacterEffect.CharacterSaved)
-            }.onFailure {
+            }.onFailure { error ->
                 update { state -> state.copy(isSaving = false) }
-                showMessage(CharacterEffectMessage.CHARACTER_SAVE_FAILED)
+                showMessage(CharacterEffectMessage.CHARACTER_SAVE_FAILED, error.failureDetail())
             }
         }
     }
@@ -567,7 +570,7 @@ class CharacterEditViewModel(
         viewModelScope.launch {
             runCatching { characterRepository.deleteCharacter(id, now()) }
                 .onSuccess { _effects.send(CharacterEffect.CharacterDeleted) }
-                .onFailure { showMessage(CharacterEffectMessage.CHARACTER_SAVE_FAILED) }
+                .onFailure { showMessage(CharacterEffectMessage.CHARACTER_SAVE_FAILED, it.failureDetail()) }
         }
     }
 
@@ -601,7 +604,7 @@ class CharacterEditViewModel(
                 }
                 else -> {
                     update { it.copy(isImporting = false, importError = "Import failed") }
-                    showMessage(CharacterEffectMessage.CHARACTER_IMPORT_FAILED)
+                    showMessage(CharacterEffectMessage.CHARACTER_IMPORT_FAILED, result.failureDetail())
                 }
             }
         }
@@ -611,19 +614,21 @@ class CharacterEditViewModel(
         val id = _uiState.value.characterId ?: return
         update { it.copy(isExporting = true, exportError = null) }
         viewModelScope.launch {
-            val result = runCatching {
+            val exportResult = runCatching {
                 characterRepository.getCharacter(id)?.let {
                     characterCardExporter.exportToPng(it, directory)
                 }
-            }.getOrNull()
+            }
+            val result = exportResult.getOrNull()
             update { it.copy(isExporting = false) }
-            showMessage(
-                if (result is ApiResult.Success) {
-                    CharacterEffectMessage.CHARACTER_EXPORT_SUCCESS
-                } else {
-                    CharacterEffectMessage.CHARACTER_EXPORT_FAILED
-                },
-            )
+            if (result is ApiResult.Success) {
+                showMessage(CharacterEffectMessage.CHARACTER_EXPORT_SUCCESS)
+            } else {
+                showMessage(
+                    CharacterEffectMessage.CHARACTER_EXPORT_FAILED,
+                    result?.failureDetail() ?: exportResult.exceptionOrNull()?.failureDetail(),
+                )
+            }
         }
     }
 
@@ -631,8 +636,8 @@ class CharacterEditViewModel(
         _uiState.update(transform)
     }
 
-    private fun showMessage(message: CharacterEffectMessage) {
-        _effects.trySend(CharacterEffect.ShowMessage(message))
+    private fun showMessage(message: CharacterEffectMessage, detail: String? = null) {
+        _effects.trySend(CharacterEffect.ShowMessage(message, detail = detail))
     }
 
     override fun onCleared() {

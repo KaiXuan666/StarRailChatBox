@@ -29,7 +29,10 @@ sealed interface MainAction {
 
 
     // 显示提示消息
-    data class ShowMessage(val message: MainEffectMessage) : MainAction
+    data class ShowMessage(
+        val message: MainEffectMessage,
+        val detail: String? = null,
+    ) : MainAction
 }
 
 /**

@@ -1,7 +1,10 @@
 package com.kaixuan.starrailchatbox.ui.profile
 
 sealed interface ProfileEffect {
-    data class ShowMessage(val message: ProfileEffectMessage) : ProfileEffect
+    data class ShowMessage(
+        val message: ProfileEffectMessage,
+        val detail: String? = null,
+    ) : ProfileEffect
     data object ProfileSaved : ProfileEffect
     data object NavigateBack : ProfileEffect
     data object RestartApp : ProfileEffect

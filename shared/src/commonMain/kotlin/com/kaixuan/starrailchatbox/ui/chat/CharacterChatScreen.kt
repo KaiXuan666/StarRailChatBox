@@ -51,6 +51,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.tooling.preview.Preview
 import com.kaixuan.starrailchatbox.design.StarRailTheme
 import com.kaixuan.starrailchatbox.ui.main.MainEffectMessage
+import com.kaixuan.starrailchatbox.ui.failureDetail
 
 /**
  * 二级对话界面，面向前四个角色以外的角色。
@@ -318,7 +319,12 @@ fun CharacterChatScreen(
                             onMainAction(MainAction.ShowMessage(MainEffectMessage.IMAGE_SAVED))
                         } catch (e: Exception) {
                             e.printStackTrace()
-                            onMainAction(MainAction.ShowMessage(MainEffectMessage.IMAGE_SAVE_FAILED))
+                            onMainAction(
+                                MainAction.ShowMessage(
+                                    MainEffectMessage.IMAGE_SAVE_FAILED,
+                                    detail = e.failureDetail(),
+                                ),
+                            )
                         }
                     }
                 }

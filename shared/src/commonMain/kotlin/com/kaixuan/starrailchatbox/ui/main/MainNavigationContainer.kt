@@ -214,6 +214,7 @@ import com.kaixuan.starrailchatbox.ui.profile.ProfileEffect
 import com.kaixuan.starrailchatbox.ui.profile.ProfileEffectMessage
 import com.kaixuan.starrailchatbox.ui.profile.ProfileViewModel
 import com.kaixuan.starrailchatbox.ui.components.StarRailDialog
+import com.kaixuan.starrailchatbox.ui.appendFailureDetail
 import com.kaixuan.starrailchatbox.platform.openUri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -545,7 +546,7 @@ fun MainRoute(
             when (effect) {
                 is MainEffect.ShowMessage -> {
                     snackbarHostState.showSnackbar(
-                        mainEffectMessages.getValue(effect.message),
+                        appendFailureDetail(mainEffectMessages.getValue(effect.message), effect.detail),
                     )
                 }
             }
@@ -557,7 +558,7 @@ fun MainRoute(
             when (effect) {
                 is ChatEffect.ShowMessage -> {
                     snackbarHostState.showSnackbar(
-                        chatEffectMessages.getValue(effect.message),
+                        appendFailureDetail(chatEffectMessages.getValue(effect.message), effect.detail),
                     )
                 }
             }
@@ -568,7 +569,10 @@ fun MainRoute(
         characters.effects.collectLatest { effect ->
             when (effect) {
                 is CharacterEffect.ShowMessage -> {
-                    val text = effect.customMessage ?: characterEffectMessages.getValue(effect.message)
+                    val text = appendFailureDetail(
+                        characterEffectMessages.getValue(effect.message),
+                        effect.customMessage ?: effect.detail,
+                    )
                     snackbarHostState.showSnackbar(text)
                 }
                 CharacterEffect.CharacterSaved -> {
@@ -594,7 +598,10 @@ fun MainRoute(
         chatCharacters.effects.collectLatest { effect ->
             when (effect) {
                 is CharacterEffect.ShowMessage -> {
-                    val text = effect.customMessage ?: characterEffectMessages.getValue(effect.message)
+                    val text = appendFailureDetail(
+                        characterEffectMessages.getValue(effect.message),
+                        effect.customMessage ?: effect.detail,
+                    )
                     snackbarHostState.showSnackbar(text)
                 }
                 CharacterEffect.CharacterSaved -> {
@@ -1366,7 +1373,12 @@ private fun CharacterEditRoute(
         viewModel.effects.collectLatest { effect ->
             when (effect) {
                 is CharacterEffect.ShowMessage -> {
-                    snackbarHostState.showSnackbar(effectMessages.getValue(effect.message))
+                    snackbarHostState.showSnackbar(
+                        appendFailureDetail(
+                            effectMessages.getValue(effect.message),
+                            effect.customMessage ?: effect.detail,
+                        ),
+                    )
                 }
                 CharacterEffect.CharacterSaved -> {
                     onMainAction(MainAction.PopBackStack)
@@ -1417,7 +1429,9 @@ private fun ApiSettingsRoute(
         viewModel.effects.collectLatest { effect ->
             when (effect) {
                 is ApiSettingsEffect.ShowMessage -> {
-                    snackbarHostState.showSnackbar(effectMessages.getValue(effect.message))
+                    snackbarHostState.showSnackbar(
+                        appendFailureDetail(effectMessages.getValue(effect.message), effect.detail),
+                    )
                 }
                 ApiSettingsEffect.ApiSettingsSaved -> {
                     onMainAction(MainAction.PopBackStack)
@@ -1457,7 +1471,9 @@ private fun ProfileRoute(
         viewModel.effects.collectLatest { effect ->
             when (effect) {
                 is ProfileEffect.ShowMessage -> {
-                    snackbarHostState.showSnackbar(effectMessages.getValue(effect.message))
+                    snackbarHostState.showSnackbar(
+                        appendFailureDetail(effectMessages.getValue(effect.message), effect.detail),
+                    )
                 }
                 ProfileEffect.ProfileSaved -> {
                     onMainAction(MainAction.PopBackStack)

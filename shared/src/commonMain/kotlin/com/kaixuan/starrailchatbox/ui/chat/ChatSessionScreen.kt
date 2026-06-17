@@ -49,6 +49,7 @@ import starrailchatbox.shared.generated.resources.no_characters
 import com.kaixuan.starrailchatbox.platform.KmpFileManager
 import androidx.compose.foundation.ExperimentalFoundationApi
 import com.kaixuan.starrailchatbox.ui.main.MainEffectMessage
+import com.kaixuan.starrailchatbox.ui.failureDetail
 
 /**
  * 聊天会话主屏组件，支持多角色分页切换和消息列表展示。
@@ -370,7 +371,12 @@ fun ChatSessionScreen(
                             onMainAction(MainAction.ShowMessage(MainEffectMessage.IMAGE_SAVED))
                         } catch (e: Exception) {
                             e.printStackTrace()
-                            onMainAction(MainAction.ShowMessage(MainEffectMessage.IMAGE_SAVE_FAILED))
+                            onMainAction(
+                                MainAction.ShowMessage(
+                                    MainEffectMessage.IMAGE_SAVE_FAILED,
+                                    detail = e.failureDetail(),
+                                ),
+                            )
                         }
                     }
                 }

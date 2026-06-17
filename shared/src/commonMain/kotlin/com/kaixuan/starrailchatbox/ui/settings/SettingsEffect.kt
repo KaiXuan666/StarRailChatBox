@@ -1,7 +1,10 @@
 package com.kaixuan.starrailchatbox.ui.settings
 
 sealed interface SettingsEffect {
-    data class ShowMessage(val message: SettingsEffectMessage) : SettingsEffect
+    data class ShowMessage(
+        val message: SettingsEffectMessage,
+        val detail: String? = null,
+    ) : SettingsEffect
 }
 
 enum class SettingsEffectMessage {

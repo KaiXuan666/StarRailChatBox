@@ -10,6 +10,7 @@ import com.kaixuan.starrailchatbox.platform.KmpFileManager
 import com.kaixuan.starrailchatbox.platform.installPackage
 import com.kaixuan.starrailchatbox.platform.openUri
 import com.kaixuan.starrailchatbox.PlatformType
+import com.kaixuan.starrailchatbox.ui.failureDetail
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -68,7 +69,12 @@ class MainViewModel(
                 }
                 else -> {
                     if (isManual) {
-                        _effects.trySend(MainEffect.ShowMessage(MainEffectMessage.UPDATE_CHECK_FAILED))
+                        _effects.trySend(
+                            MainEffect.ShowMessage(
+                                MainEffectMessage.UPDATE_CHECK_FAILED,
+                                detail = result.failureDetail(),
+                            ),
+                        )
                     }
                 }
             }
@@ -199,7 +205,7 @@ class MainViewModel(
             }
 
             is MainAction.ShowMessage -> {
-                _effects.trySend(MainEffect.ShowMessage(action.message))
+                _effects.trySend(MainEffect.ShowMessage(action.message, action.detail))
             }
         }
     }

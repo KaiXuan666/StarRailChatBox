@@ -8,6 +8,7 @@ import com.kaixuan.starrailchatbox.data.character.CharacterAvatarSource
 import com.kaixuan.starrailchatbox.data.character.CharacterRepository
 import com.kaixuan.starrailchatbox.data.character.catalog.PublicCharacterCatalogRepository
 import com.kaixuan.starrailchatbox.platform.KmpFileManager
+import com.kaixuan.starrailchatbox.ui.failureDetail
 import io.github.aakira.napier.Napier
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -78,7 +79,12 @@ class CharacterCatalogDetailViewModel(
                 }
                 else -> {
                     _uiState.update { it.copy(isLoading = false) }
-                    _effects.send(CharacterCatalogDetailEffect.ShowToast("加载角色详情失败"))
+                    _effects.send(
+                        CharacterCatalogDetailEffect.ShowToast(
+                            "加载角色详情失败",
+                            result.failureDetail(),
+                        ),
+                    )
                 }
             }
         }
@@ -117,7 +123,7 @@ class CharacterCatalogDetailViewModel(
                 _uiState.update { it.copy(voiceSampleLocalPath = cachePath.toString()) }
             } catch (e: Exception) {
                 Napier.e("Failed to download voice preview", e)
-                _effects.send(CharacterCatalogDetailEffect.ShowToast("下载语音样本失败"))
+                _effects.send(CharacterCatalogDetailEffect.ShowToast("下载语音样本失败", e.failureDetail()))
             } finally {
                 _uiState.update { it.copy(isVoiceDownloading = false) }
             }
@@ -190,7 +196,7 @@ class CharacterCatalogDetailViewModel(
                 _effects.send(CharacterCatalogDetailEffect.ShowToast("角色“${detail.name}”导入成功"))
             } catch (e: Exception) {
                 Napier.e("Import character failed in detail screen", e)
-                _effects.send(CharacterCatalogDetailEffect.ShowToast("导入失败：${e.message}"))
+                _effects.send(CharacterCatalogDetailEffect.ShowToast("导入失败", e.failureDetail()))
             } finally {
                 _uiState.update { it.copy(isImporting = false) }
             }

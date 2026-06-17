@@ -1,7 +1,10 @@
 package com.kaixuan.starrailchatbox.ui.main
 
 sealed interface MainEffect {
-    data class ShowMessage(val message: MainEffectMessage) : MainEffect
+    data class ShowMessage(
+        val message: MainEffectMessage,
+        val detail: String? = null,
+    ) : MainEffect
 }
 
 enum class MainEffectMessage {

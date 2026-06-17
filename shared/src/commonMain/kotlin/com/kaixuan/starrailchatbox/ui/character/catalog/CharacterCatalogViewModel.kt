@@ -17,6 +17,7 @@ import com.kaixuan.starrailchatbox.data.settings.LocalApiSettings
 import com.kaixuan.starrailchatbox.PlatformType
 import com.kaixuan.starrailchatbox.getPlatform
 import com.kaixuan.starrailchatbox.platform.KmpFileManager
+import com.kaixuan.starrailchatbox.ui.failureDetail
 import io.github.aakira.napier.Napier
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -434,7 +435,7 @@ class CharacterCatalogViewModel(
             disableAdminMode()
             _effects.send(CharacterCatalogEffect.ShowToast("管理员凭证已失效"))
         } else {
-            _effects.send(CharacterCatalogEffect.ShowToast(fallback))
+            _effects.send(CharacterCatalogEffect.ShowToast(fallback, result.failureDetail()))
         }
     }
 
@@ -488,7 +489,12 @@ class CharacterCatalogViewModel(
                             else -> {
                                 catalogLoaded = false
                                 _uiState.update { it.copy(isLoading = false) }
-                                _effects.send(CharacterCatalogEffect.ShowToast("加载角色品类失败"))
+                                _effects.send(
+                                    CharacterCatalogEffect.ShowToast(
+                                        "加载角色品类失败",
+                                        categoriesResult.failureDetail(),
+                                    ),
+                                )
                             }
                         }
                     } else {
@@ -499,7 +505,12 @@ class CharacterCatalogViewModel(
                 else -> {
                     catalogLoaded = false
                     _uiState.update { it.copy(isLoading = false) }
-                    _effects.send(CharacterCatalogEffect.ShowToast("加载目录配置失败"))
+                    _effects.send(
+                        CharacterCatalogEffect.ShowToast(
+                            "加载目录配置失败",
+                            result.failureDetail(),
+                        ),
+                    )
                 }
             }
         }
@@ -580,13 +591,23 @@ class CharacterCatalogViewModel(
                         }
                         else -> {
                             _uiState.update { it.copy(isRefreshing = false) }
-                            _effects.send(CharacterCatalogEffect.ShowToast("刷新角色品类失败"))
+                            _effects.send(
+                                CharacterCatalogEffect.ShowToast(
+                                    "刷新角色品类失败",
+                                    categoriesResult.failureDetail(),
+                                ),
+                            )
                         }
                     }
                 }
                 else -> {
                     _uiState.update { it.copy(isRefreshing = false) }
-                    _effects.send(CharacterCatalogEffect.ShowToast("刷新目录配置失败"))
+                    _effects.send(
+                        CharacterCatalogEffect.ShowToast(
+                            "刷新目录配置失败",
+                            catalogResult.failureDetail(),
+                        ),
+                    )
                 }
             }
         }
@@ -702,7 +723,12 @@ class CharacterCatalogViewModel(
                             state
                         }
                     }
-                    _effects.send(CharacterCatalogEffect.ShowToast("加载角色列表失败"))
+                    _effects.send(
+                        CharacterCatalogEffect.ShowToast(
+                            "加载角色列表失败",
+                            result.failureDetail(),
+                        ),
+                    )
                 }
             }
         }
@@ -838,12 +864,17 @@ class CharacterCatalogViewModel(
                         _effects.send(CharacterCatalogEffect.ShowToast("角色“${detail.name}”导入成功"))
                     }
                     else -> {
-                        _effects.send(CharacterCatalogEffect.ShowToast("获取角色详情失败"))
+                        _effects.send(
+                            CharacterCatalogEffect.ShowToast(
+                                "获取角色详情失败",
+                                result.failureDetail(),
+                            ),
+                        )
                     }
                 }
             } catch (e: Exception) {
                 Napier.e("Import character failed", e)
-                _effects.send(CharacterCatalogEffect.ShowToast("导入失败：${e.message}"))
+                _effects.send(CharacterCatalogEffect.ShowToast("导入失败", e.failureDetail()))
             } finally {
                 _uiState.update { it.copy(importingCharacterIds = it.importingCharacterIds - charId) }
             }

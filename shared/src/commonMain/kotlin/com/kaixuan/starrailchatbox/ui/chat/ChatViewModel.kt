@@ -59,6 +59,7 @@ import starrailchatbox.shared.generated.resources.Res
 import starrailchatbox.shared.generated.resources.chat_new_session_title
 import com.kaixuan.starrailchatbox.data.settings.ProfileStore
 import com.kaixuan.starrailchatbox.platform.KmpFileManager
+import com.kaixuan.starrailchatbox.ui.failureDetail
 import com.kaixuan.starrailchatbox.ui.character.CharacterAction
 import com.kaixuan.starrailchatbox.ui.character.CharacterEffect
 import com.kaixuan.starrailchatbox.ui.character.ChatCharactersUiState
@@ -139,7 +140,7 @@ class ChatViewModel(
                             throw cancellation
                         } catch (e: Throwable) {
                             Napier.e("Send message (text-only) failed", e)
-                            emitMessage(EffectMessage.CHAT_REQUEST_FAILED)
+                            emitMessage(EffectMessage.CHAT_REQUEST_FAILED, e.failureDetail())
                         } finally {
                             _uiState.update { s ->
                                 val curState = s.characterStates[characterId] ?: CharacterChatState()
@@ -247,7 +248,7 @@ class ChatViewModel(
                 throw cancellation
             } catch (e: Throwable) {
                 Napier.e("Retry message failed (msgId: ${messageToRetry.id})", e)
-                emitMessage(EffectMessage.CHAT_REQUEST_FAILED)
+                emitMessage(EffectMessage.CHAT_REQUEST_FAILED, e.failureDetail())
             } finally {
                 updateCharacterState(characterId) { it.copy(isSending = false) }
             }
@@ -278,7 +279,7 @@ class ChatViewModel(
                 throw cancellation
             } catch (e: Throwable) {
                 Napier.e("Send voice message failed", e)
-                emitMessage(EffectMessage.CHAT_REQUEST_FAILED)
+                emitMessage(EffectMessage.CHAT_REQUEST_FAILED, e.failureDetail())
             } finally {
                 _uiState.update { s ->
                     val curState = s.characterStates[characterId] ?: CharacterChatState()
@@ -511,7 +512,7 @@ class ChatViewModel(
             } catch (e: Throwable) {
                 e.printStackTrace()
                 Napier.e("Send message with attachments failed", e)
-                emitMessage(EffectMessage.CHAT_REQUEST_FAILED)
+                emitMessage(EffectMessage.CHAT_REQUEST_FAILED, e.failureDetail())
             } finally {
                 _uiState.update { s ->
                     val curState = s.characterStates[characterId] ?: CharacterChatState()
@@ -1132,7 +1133,7 @@ class ChatViewModel(
     ) {
         Napier.e("CHAT API request failed: configModel=${config.modelName}, errorCode=$errorCode, errorMessage=$errorMessage")
         appendFailedAssistant(session, config, errorCode, errorMessage)
-        emitMessage(EffectMessage.CHAT_REQUEST_FAILED)
+        emitMessage(EffectMessage.CHAT_REQUEST_FAILED, errorMessage)
     }
 
     private suspend fun appendFailedAssistant(
@@ -1209,8 +1210,8 @@ class ChatViewModel(
         }
     }
 
-    private fun emitMessage(message: EffectMessage) {
-        _effects.trySend(ChatEffect.ShowMessage(message))
+    private fun emitMessage(message: EffectMessage, detail: String? = null) {
+        _effects.trySend(ChatEffect.ShowMessage(message, detail))
     }
 }
 

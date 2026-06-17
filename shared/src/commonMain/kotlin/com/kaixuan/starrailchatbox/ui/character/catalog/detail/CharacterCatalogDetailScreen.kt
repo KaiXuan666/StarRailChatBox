@@ -34,6 +34,7 @@ import com.kaixuan.starrailchatbox.ui.components.StarRailPrimaryButton
 import com.kaixuan.starrailchatbox.ui.components.StarRailDialog
 import com.kaixuan.starrailchatbox.ui.character.catalog.CharacterTagChips
 import com.kaixuan.starrailchatbox.ui.character.catalog.resolveCharacterTagNames
+import com.kaixuan.starrailchatbox.ui.appendFailureDetail
 import com.kaixuan.starrailchatbox.ui.main.MainAction
 import com.kaixuan.starrailchatbox.ui.navigation.Route
 import org.koin.core.Koin
@@ -68,7 +69,9 @@ fun CharacterCatalogDetailRoute(
         model.effects.collect { effect ->
             when (effect) {
                 is CharacterCatalogDetailEffect.ShowToast -> {
-                    snackbarHostState.showSnackbar(effect.message)
+                    snackbarHostState.showSnackbar(
+                        appendFailureDetail(effect.message, effect.detail),
+                    )
                 }
             }
         }

@@ -56,6 +56,7 @@ import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import com.kaixuan.starrailchatbox.ui.components.StarRailPageHeader
 import com.kaixuan.starrailchatbox.ui.components.StarRailPageLayout
 import com.kaixuan.starrailchatbox.ui.components.StarRailDialog
+import com.kaixuan.starrailchatbox.ui.appendFailureDetail
 import com.kaixuan.starrailchatbox.ui.main.MainAction
 import com.kaixuan.starrailchatbox.ui.navigation.Route
 import kotlin.math.absoluteValue
@@ -113,7 +114,9 @@ fun CharacterCatalogRoute(
         model.effects.collect { effect ->
             when (effect) {
                 is CharacterCatalogEffect.ShowToast -> {
-                     snackbarHostState.showSnackbar(effect.message)
+                    snackbarHostState.showSnackbar(
+                        appendFailureDetail(effect.message, effect.detail),
+                    )
                 }
             }
         }

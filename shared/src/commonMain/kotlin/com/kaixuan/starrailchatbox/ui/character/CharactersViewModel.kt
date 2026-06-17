@@ -11,6 +11,7 @@ import com.kaixuan.starrailchatbox.data.character.sharing.DefaultPublicCharacter
 import com.kaixuan.starrailchatbox.data.character.sharing.PublicCharacterRepository
 import com.kaixuan.starrailchatbox.data.character.sharing.ShareCategorySelection
 import com.kaixuan.starrailchatbox.data.settings.AppSettingsStore
+import com.kaixuan.starrailchatbox.ui.failureDetail
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -124,9 +125,12 @@ class CharactersViewModel(
                 )
             }.onSuccess {
                 _effects.send(CharacterEffect.CharacterDeleted)
-            }.onFailure {
+            }.onFailure { error ->
                 _effects.send(
-                    CharacterEffect.ShowMessage(CharacterEffectMessage.CHARACTER_SAVE_FAILED),
+                    CharacterEffect.ShowMessage(
+                        CharacterEffectMessage.CHARACTER_SAVE_FAILED,
+                        detail = error.failureDetail(),
+                    ),
                 )
             }
         }
@@ -165,6 +169,7 @@ class CharactersViewModel(
                     } else {
                         CharacterEffectMessage.CHARACTER_EXPORT_FAILED
                     },
+                    detail = result?.failureDetail(),
                 ),
             )
         }

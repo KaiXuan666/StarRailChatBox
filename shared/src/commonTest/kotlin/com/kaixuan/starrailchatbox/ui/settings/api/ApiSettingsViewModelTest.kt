@@ -166,7 +166,10 @@ class ApiSettingsViewModelTest {
         assertEquals(
             listOf(
                 ApiSettingsEffect.ShowMessage(SettingsEffectMessage.SETTINGS_API_FETCH_START),
-                ApiSettingsEffect.ShowMessage(SettingsEffectMessage.SETTINGS_API_AUTH_FAILED),
+                ApiSettingsEffect.ShowMessage(
+                    SettingsEffectMessage.SETTINGS_API_AUTH_FAILED,
+                    "HTTP 401: Unauthorized",
+                ),
             ),
             effects.await(),
         )

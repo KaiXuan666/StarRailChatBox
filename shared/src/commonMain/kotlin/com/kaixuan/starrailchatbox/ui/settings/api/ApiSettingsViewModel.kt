@@ -23,6 +23,7 @@ import com.kaixuan.starrailchatbox.data.model.VoiceModelConfig
 import com.kaixuan.starrailchatbox.data.settings.ApiSettingsDefaults
 import com.kaixuan.starrailchatbox.data.settings.localApiSettingsDefaults
 import com.kaixuan.starrailchatbox.ui.settings.SettingsEffectMessage
+import com.kaixuan.starrailchatbox.ui.failureDetail
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -309,11 +310,12 @@ class ApiSettingsViewModel(
                         } else {
                             SettingsEffectMessage.SETTINGS_API_FETCH_FAILED
                         },
+                        result.failureDetail(),
                     )
                 }
                 else -> {
                     _uiState.update { it.copy(isFetchingModels = false) }
-                    emitMessage(SettingsEffectMessage.SETTINGS_API_FETCH_FAILED)
+                    emitMessage(SettingsEffectMessage.SETTINGS_API_FETCH_FAILED, result.failureDetail())
                 }
             }
         }
@@ -407,7 +409,7 @@ class ApiSettingsViewModel(
             } catch (t: Throwable) {
                 t.printStackTrace()
                 _uiState.update { it.copy(isSaving = false) }
-                emitMessage(SettingsEffectMessage.SETTINGS_API_SAVE_FAILED)
+                emitMessage(SettingsEffectMessage.SETTINGS_API_SAVE_FAILED, t.failureDetail())
             }
         }
     }
@@ -579,8 +581,8 @@ class ApiSettingsViewModel(
         return providerId in SupportedApiProviderIds
     }
 
-    private fun emitMessage(message: SettingsEffectMessage) {
-        _effects.trySend(ApiSettingsEffect.ShowMessage(message))
+    private fun emitMessage(message: SettingsEffectMessage, detail: String? = null) {
+        _effects.trySend(ApiSettingsEffect.ShowMessage(message, detail))
     }
 
     companion object {

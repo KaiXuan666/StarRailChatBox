@@ -4,6 +4,7 @@ sealed interface CharacterEffect {
     data class ShowMessage(
         val message: CharacterEffectMessage,
         val customMessage: String? = null,
+        val detail: String? = null,
     ) : CharacterEffect
     data object CharacterSaved : CharacterEffect
     data object CharacterDeleted : CharacterEffect
