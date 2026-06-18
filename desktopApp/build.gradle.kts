@@ -25,6 +25,7 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "StarRailChatBox"
             packageVersion = libs.versions.app.version.name.get()
+            modules("jdk.unsupported")
 
             windows {
                 iconFile.set(project.file("src/main/resources/app-icon.ico"))
