@@ -53,6 +53,7 @@ class AliImageProvider(
                     input = AliImageInput(
                         messages = listOf(
                             AliImageMessage(
+                                role = "user",
                                 content = listOf(AliImageContent(text = request.prompt)),
                             ),
                         ),
@@ -108,7 +109,7 @@ private data class AliImageInput(
 
 @Serializable
 private data class AliImageMessage(
-    val role: String = "user",
+    val role: String,
     val content: List<AliImageContent>,
 )
 

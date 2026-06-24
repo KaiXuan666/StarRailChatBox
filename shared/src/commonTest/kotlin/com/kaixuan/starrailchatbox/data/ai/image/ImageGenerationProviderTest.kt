@@ -9,10 +9,17 @@ import io.ktor.client.engine.mock.respond
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.OutgoingContent
+import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.utils.io.core.readText
+import io.ktor.utils.io.readRemaining
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -83,6 +90,26 @@ class ImageGenerationProviderTest {
                     "/api/v1/services/aigc/multimodal-generation/generation" -> {
                         requestedGeneration = true
                         assertEquals("test-key", request.headers["api-key"])
+                        val body = Json.parseToJsonElement(request.body.readText()).jsonObject
+                        val message = body
+                            .getValue("input")
+                            .jsonObject
+                            .getValue("messages")
+                            .jsonArray
+                            .first()
+                            .jsonObject
+                        assertEquals("user", message.getValue("role").jsonPrimitive.content)
+                        assertEquals(
+                            "a snowy forest",
+                            message
+                                .getValue("content")
+                                .jsonArray
+                                .first()
+                                .jsonObject
+                                .getValue("text")
+                                .jsonPrimitive
+                                .content,
+                        )
                         respond(
                             """{"output":{"choices":[{"message":{"content":[{"image":"https://example.com/a.png"}]}}]}}""",
                             HttpStatusCode.OK,
@@ -136,5 +163,19 @@ class ImageGenerationProviderTest {
         install(ContentNegotiation) {
             json(Json { ignoreUnknownKeys = true })
         }
+    }
+}
+
+private suspend fun OutgoingContent.readText(): String {
+    return when (this) {
+        is TextContent -> text
+        is OutgoingContent.ByteArrayContent -> bytes().decodeToString()
+        is OutgoingContent.WriteChannelContent -> {
+            val channel = io.ktor.utils.io.ByteChannel(true)
+            writeTo(channel)
+            channel.close()
+            channel.readRemaining().readText()
+        }
+        else -> ""
     }
 }
