@@ -50,6 +50,7 @@ import com.kaixuan.starrailchatbox.ui.components.StarRailIconKind
 import org.jetbrains.compose.resources.stringResource
 import starrailchatbox.shared.generated.resources.Res
 import starrailchatbox.shared.generated.resources.action_copy
+import starrailchatbox.shared.generated.resources.action_start_branch_from_here
 import starrailchatbox.shared.generated.resources.read_status
 import starrailchatbox.shared.generated.resources.received_message_description
 import starrailchatbox.shared.generated.resources.regenerate
@@ -62,6 +63,7 @@ import kotlin.math.roundToInt
 fun MessageItem(
     message: ChatMessageUiModel,
     canRegenerate: Boolean,
+    canStartBranch: Boolean,
     charactersById: Map<String, CharacterSummary>,
     userAvatarUri: String?,
     compact: Boolean,
@@ -81,6 +83,7 @@ fun MessageItem(
             onOpenAttachment = onOpenAttachment,
             onAvatarClick = onAvatarClick,
             canRegenerate = canRegenerate,
+            canStartBranch = canStartBranch,
             onAction = onAction,
         )
         is ChatMessageUiModel.Sent -> SentMessage(
@@ -105,6 +108,7 @@ fun ReceivedMessage(
     onOpenAttachment: (MessageAttachment) -> Unit,
     onAvatarClick: () -> Unit,
     canRegenerate: Boolean,
+    canStartBranch: Boolean,
     onAction: (ChatAction) -> Unit,
 ) {
     val text = message.content.resolve()
@@ -248,6 +252,15 @@ fun ReceivedMessage(
                                     onClick = {
                                         showMenu = false
                                         onAction(ChatAction.RegenerateResponse(message.id))
+                                    }
+                                )
+                            }
+                            if (canStartBranch) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(Res.string.action_start_branch_from_here)) },
+                                    onClick = {
+                                        showMenu = false
+                                        onAction(ChatAction.StartBranchFromMessage(message.id))
                                     }
                                 )
                             }

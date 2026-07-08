@@ -1966,6 +1966,7 @@ private val previewChatState = ChatUiState(
                 messages = listOf(
                 ChatMessageUiModel.Received(
                     id = "preview-opening",
+                    sourceSessionId = "preview-session",
                     timestamp = "10:21",
                     createdAt = 0L,
                     content = MessageContent.Custom("今天要聊点什么呢？"),

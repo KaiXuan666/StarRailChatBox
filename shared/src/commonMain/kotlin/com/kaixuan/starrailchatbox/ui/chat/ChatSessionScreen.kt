@@ -301,6 +301,7 @@ fun ChatSessionScreen(
                     userAvatarUri = state.userAvatarUri,
                     compact = compact,
                     isSending = pageState.isSending,
+                    activeSessionId = pageState.activeSessionId,
                     isTransientSession = pageState.messagePagingData.sessionId == null,
                     playingAudioUri = playingAudioUri,
                     contentPadding = PaddingValues(

@@ -25,6 +25,7 @@ sealed interface ChatAction {
     data object VoiceRecordingCancelled : ChatAction
     data class RetrySendMessage(val messageId: String) : ChatAction
     data class RegenerateResponse(val messageId: String) : ChatAction
+    data class StartBranchFromMessage(val messageId: String) : ChatAction
 }
 
 enum class HeaderAction {

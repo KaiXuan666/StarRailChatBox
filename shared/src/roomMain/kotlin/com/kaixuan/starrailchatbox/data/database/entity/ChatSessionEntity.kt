@@ -44,6 +44,12 @@ data class ChatSessionEntity(
     val maxContextMessageCount: Int,
     @ColumnInfo(name = "enable_summary")
     val enableSummary: Boolean,
+    @ColumnInfo(name = "parent_session_id")
+    val parentSessionId: String? = null,
+    @ColumnInfo(name = "branched_from_message_id")
+    val branchedFromMessageId: String? = null,
+    @ColumnInfo(name = "branch_depth")
+    val branchDepth: Int = 0,
     @ColumnInfo(name = "summary_threshold_tokens")
     val summaryThresholdTokens: Int,
     @ColumnInfo(name = "summary_threshold_message_count", defaultValue = "20")

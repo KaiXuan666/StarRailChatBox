@@ -68,6 +68,7 @@ val chatPreviewState = ChatUiState(
                 messages = listOf(
                 ChatMessageUiModel.Received(
                     id = "preview-opening",
+                    sourceSessionId = "preview-session",
                     timestamp = "10:21",
                     createdAt = 1715832060000L,
                     content = MessageContent.Custom("今天要聊点什么呢？"),
@@ -75,6 +76,7 @@ val chatPreviewState = ChatUiState(
                 ),
                 ChatMessageUiModel.Sent(
                     id = "preview-user-1",
+                    sourceSessionId = "preview-session",
                     timestamp = "10:22",
                     createdAt = 1715832120000L,
                     content = MessageContent.Custom("今天有点累，想和你聊聊天。"),
@@ -82,6 +84,7 @@ val chatPreviewState = ChatUiState(
                 ),
                 ChatMessageUiModel.Received(
                     id = "preview-assistant-1",
+                    sourceSessionId = "preview-session",
                     timestamp = "10:23",
                     createdAt = 1715832180000L,
                     content = MessageContent.Custom(
@@ -91,6 +94,7 @@ val chatPreviewState = ChatUiState(
                 ),
                 ChatMessageUiModel.Sent(
                     id = "preview-user-2",
+                    sourceSessionId = "preview-session",
                     timestamp = "10:24",
                     createdAt = 1715832240000L,
                     content = MessageContent.Custom("忙了一整天，不过现在感觉好多了。"),
@@ -98,6 +102,7 @@ val chatPreviewState = ChatUiState(
                 ),
                 ChatMessageUiModel.Received(
                     id = "preview-assistant-2",
+                    sourceSessionId = "preview-session",
                     timestamp = "10:25",
                     createdAt = 1715832300000L,
                     content = MessageContent.Custom(
@@ -107,6 +112,7 @@ val chatPreviewState = ChatUiState(
                 ),
                 ChatMessageUiModel.Sent(
                     id = "preview-user-voice",
+                    sourceSessionId = "preview-session",
                     timestamp = "10:26",
                     createdAt = 1715832360000L,
                     content = MessageContent.Custom(""),

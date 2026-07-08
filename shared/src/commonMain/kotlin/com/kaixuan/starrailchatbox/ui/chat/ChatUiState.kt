@@ -24,6 +24,7 @@ sealed interface ChatMessageUiModel {
 
     data class Received(
         override val id: String,
+        val sourceSessionId: String?,
         override val timestamp: String,
         override val createdAt: Long,
         override val content: MessageContent,
@@ -33,6 +34,7 @@ sealed interface ChatMessageUiModel {
 
     data class Sent(
         override val id: String,
+        val sourceSessionId: String?,
         override val timestamp: String,
         override val createdAt: Long,
         override val content: MessageContent,

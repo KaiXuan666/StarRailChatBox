@@ -258,6 +258,7 @@ fun CharacterChatScreen(
                             userAvatarUri = state.userAvatarUri,
                             compact = compact,
                             isSending = pageState.isSending,
+                            activeSessionId = pageState.activeSessionId,
                             isTransientSession = pageState.messagePagingData.sessionId == null,
                             playingAudioUri = playingAudioUri,
                             contentPadding = PaddingValues(
@@ -375,6 +376,7 @@ private val previewChatUiState = ChatUiState(
                             ChatTimelineItem.Message(
                                 ChatMessageUiModel.Received(
                                     id = "1",
+                                    sourceSessionId = "preview",
                                     content = MessageContent.Custom("你好呀，开拓者！"),
                                     timestamp = "10:00",
                                     senderId = "builtin:流萤",

@@ -23,19 +23,37 @@ interface ChatSessionDao {
         """
         SELECT s.*,
             COALESCE((
-                SELECT m.content FROM chat_message m
-                WHERE m.session_id = s.id
+                SELECT m.content FROM chat_session_segment segment
+                INNER JOIN chat_message m
+                    ON m.session_id = segment.source_session_id
+                    AND m.seq >= segment.from_seq
+                    AND (segment.to_seq IS NULL OR m.seq <= segment.to_seq)
+                WHERE segment.owner_session_id = s.id
                     AND m.status = 'completed'
                     AND m.deleted_at IS NULL
                     AND m.content != ''
-                ORDER BY m.seq DESC
+                    AND NOT EXISTS (
+                        SELECT 1 FROM chat_session_hidden_message hidden
+                        WHERE hidden.owner_session_id = s.id
+                            AND hidden.message_id = m.id
+                    )
+                ORDER BY segment.segment_index DESC, m.seq DESC
                 LIMIT 1
             ), '') AS last_message_preview,
             (
-                SELECT COUNT(*) FROM chat_message m
-                WHERE m.session_id = s.id
+                SELECT COUNT(*) FROM chat_session_segment segment
+                INNER JOIN chat_message m
+                    ON m.session_id = segment.source_session_id
+                    AND m.seq >= segment.from_seq
+                    AND (segment.to_seq IS NULL OR m.seq <= segment.to_seq)
+                WHERE segment.owner_session_id = s.id
                     AND m.status = 'completed'
                     AND m.deleted_at IS NULL
+                    AND NOT EXISTS (
+                        SELECT 1 FROM chat_session_hidden_message hidden
+                        WHERE hidden.owner_session_id = s.id
+                            AND hidden.message_id = m.id
+                    )
             ) AS message_count
         FROM chat_session s
         WHERE s.agent_id = :agentId

@@ -56,6 +56,7 @@ import kotlinx.coroutines.launch
 import kotlin.time.Clock
 import org.jetbrains.compose.resources.getString
 import starrailchatbox.shared.generated.resources.Res
+import starrailchatbox.shared.generated.resources.chat_branch_session_title
 import starrailchatbox.shared.generated.resources.chat_new_session_title
 import com.kaixuan.starrailchatbox.data.settings.ProfileStore
 import com.kaixuan.starrailchatbox.platform.KmpFileManager
@@ -86,6 +87,9 @@ class ChatViewModel(
     private val idGenerator: (String) -> String = { prefix -> newChatId(prefix) },
     private val sessionTitleProvider: suspend () -> String = {
         getString(Res.string.chat_new_session_title)
+    },
+    private val branchSessionTitleProvider: suspend () -> String = {
+        getString(Res.string.chat_branch_session_title)
     },
     private val enableFileAppend: Boolean = false,
 ) : ViewModel() {
@@ -223,6 +227,40 @@ class ChatViewModel(
             }
             is ChatAction.RetrySendMessage -> retrySendMessage(action.messageId)
             is ChatAction.RegenerateResponse -> regenerateResponse(action.messageId)
+            is ChatAction.StartBranchFromMessage -> startBranchFromMessage(action.messageId)
+        }
+    }
+
+    private fun startBranchFromMessage(messageId: String) {
+        val state = uiState.value
+        val characterId = state.selectedCharacterId ?: return
+        val characterState = state.characterStates[characterId] ?: return
+        val activeSessionId = characterState.activeSessionId ?: return
+        if (characterState.isSending || characterState.isLoadingSession) return
+
+        viewModelScope.launch {
+            val title = branchSessionTitleProvider()
+            val branch = chatSessionRepository.createBranchFromMessage(
+                activeSessionId = activeSessionId,
+                messageId = messageId,
+                title = title,
+                createdAt = currentTimeMillis(),
+            ) ?: return@launch
+            if (uiState.value.selectedCharacterId != characterId) {
+                return@launch
+            }
+            activeSession = branch
+            updateCharacterState(characterId) {
+                it.copy(
+                    activeSessionId = branch.id,
+                    hasLoadedSession = true,
+                    messagePagingData = EmptyChatMessagePagingData,
+                    suggestions = emptyList(),
+                    isLoadingSession = false,
+                    scrollToLatestRequestId = it.scrollToLatestRequestId + 1,
+                )
+            }
+            bindSessionMessages(characterId, branch.id)
         }
     }
 
@@ -794,7 +832,9 @@ class ChatViewModel(
         )
 
         val lastUserMessage = context.messages.lastOrNull { it.role == ChatRole.USER } ?: return
-        val originalHistory = context.messages.filter { it.seq < lastUserMessage.seq }
+        val lastUserIndex = context.messages.indexOfLast { it.id == lastUserMessage.id }
+        val originalHistory = context.messages
+            .take(lastUserIndex.coerceAtLeast(0))
         val saveMultimodalToken = profileStore.load()?.saveMultimodalToken ?: false
 
         // 处理历史记录的附件
@@ -1266,6 +1306,9 @@ private fun NewChatSession.toDomain(lastMessageAt: Long) = ChatSession(
     customSystemPrompt = null,
     maxContextMessageCount = maxContextMessageCount,
     enableSummary = enableSummary,
+    parentSessionId = parentSessionId,
+    branchedFromMessageId = branchedFromMessageId,
+    branchDepth = branchDepth,
     summaryThresholdMessageCount = summaryThresholdMessageCount,
     summaryRetainedMessageCount = summaryRetainedMessageCount,
     lastMessageAt = lastMessageAt,
@@ -1280,6 +1323,7 @@ private fun emptyGreeting(
     return listOf(
         ChatMessageUiModel.Received(
             id = "empty-greeting:${character.id}",
+            sourceSessionId = null,
             timestamp = formatMessageTime(now),
             createdAt = now,
             content = MessageContent.Custom(openingMessage),
@@ -1308,6 +1352,7 @@ private fun PagingData<ChatMessagePageEntry>.toTimelineItems(
     val uiModel = when (message.role) {
         ChatRole.USER -> ChatMessageUiModel.Sent(
             id = message.id,
+            sourceSessionId = message.sessionId,
             timestamp = formatMessageTime(message.createdAt),
             createdAt = message.createdAt,
             content = MessageContent.Custom(message.content),
@@ -1317,6 +1362,7 @@ private fun PagingData<ChatMessagePageEntry>.toTimelineItems(
         )
         ChatRole.ASSISTANT -> ChatMessageUiModel.Received(
             id = message.id,
+            sourceSessionId = message.sessionId,
             timestamp = formatMessageTime(message.createdAt),
             createdAt = message.createdAt,
             content = MessageContent.Custom(message.content),

@@ -143,7 +143,7 @@ class ChatViewModelTest {
     }
 
     @Test
-    fun regenerateLatestAssistantMessageDeletesOldResponseAndRequestsAgain() = runTest {
+    fun regenerateLatestAssistantMessageHidesOldResponseAndRequestsAgain() = runTest {
         val fixture = createFixture()
         advanceUntilIdle()
 
@@ -168,10 +168,16 @@ class ChatViewModelTest {
         )
         val stored = fixture.sessions.messageSnapshot(session.id)
         assertEquals(
-            listOf("今天要聊点什么呢？", "第一句", "你好呀"),
+            listOf("今天要聊点什么呢？", "第一句", "你好呀", "你好呀"),
             stored.map { it.content },
         )
-        assertFalse(stored.any { it.id == oldAssistant.id })
+        assertTrue(stored.any { it.id == oldAssistant.id })
+        val visible = fixture.viewModel.uiState.value.messageSnapshot()
+        assertEquals(
+            listOf("今天要聊点什么呢？", "第一句", "你好呀"),
+            visible.map { it.content.resolveForTest() },
+        )
+        assertFalse(visible.any { it.id == oldAssistant.id })
     }
 
     @Test
@@ -371,6 +377,88 @@ class ChatViewModelTest {
         assertEquals("char2", fixture.viewModel.uiState.value.selectedCharacterId)
     }
 
+    @Test
+    fun startBranchFromAssistantMessageCreatesAndSelectsBranchSession() = runTest {
+        val fixture = createFixture()
+        advanceUntilIdle()
+
+        fixture.send("你好")
+        advanceUntilIdle()
+
+        val rootSession = requireNotNull(fixture.sessions.findLatestSession("builtin:流萤"))
+        val response = fixture.sessions.messageSnapshot(rootSession.id)
+            .last { it.role == ChatRole.ASSISTANT && it.content == "你好呀" }
+
+        fixture.viewModel.onAction(ChatAction.StartBranchFromMessage(response.id))
+        advanceUntilIdle()
+
+        val branchSessionId = requireNotNull(fixture.viewModel.uiState.value.activeSessionId)
+        val branch = requireNotNull(fixture.sessions.findSession(branchSessionId))
+        assertEquals(rootSession.id, branch.parentSessionId)
+        assertEquals(response.id, branch.branchedFromMessageId)
+        assertEquals(1, branch.branchDepth)
+        assertEquals(
+            listOf("今天要聊点什么呢？", "你好", "你好呀"),
+            fixture.viewModel.uiState.value.messageSnapshot().map { it.content.resolveForTest() },
+        )
+
+        fixture.send("从这里继续")
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(
+                "system" to "role prompt",
+                "assistant" to "今天要聊点什么呢？",
+                "user" to "你好",
+                "assistant" to "你好呀",
+                "user" to "从这里继续",
+            ),
+            fixture.api.requests.last().map { it.role to it.content },
+        )
+    }
+
+    @Test
+    fun regeneratingParentLatestAssistantKeepsBranchSnapshotVisible() = runTest {
+        val fixture = createFixture()
+        advanceUntilIdle()
+
+        fixture.send("你好")
+        advanceUntilIdle()
+
+        val rootSession = requireNotNull(fixture.sessions.findLatestSession("builtin:流萤"))
+        val response = fixture.sessions.messageSnapshot(rootSession.id)
+            .last { it.role == ChatRole.ASSISTANT && it.content == "你好呀" }
+
+        fixture.viewModel.onAction(ChatAction.StartBranchFromMessage(response.id))
+        advanceUntilIdle()
+        val branchSessionId = requireNotNull(fixture.viewModel.uiState.value.activeSessionId)
+
+        fixture.viewModel.onAction(ChatAction.SessionSelected(rootSession.id))
+        advanceUntilIdle()
+        fixture.viewModel.onAction(ChatAction.RegenerateResponse(response.id))
+        advanceUntilIdle()
+
+        assertEquals(2, fixture.api.requests.size)
+        assertEquals(
+            listOf(
+                "system" to "role prompt",
+                "assistant" to "今天要聊点什么呢？",
+                "user" to "你好",
+            ),
+            fixture.api.requests.last().map { it.role to it.content },
+        )
+
+        fixture.viewModel.onAction(ChatAction.SessionSelected(branchSessionId))
+        advanceUntilIdle()
+
+        val branchMessages = fixture.viewModel.uiState.value.messageSnapshot()
+        assertEquals(
+            listOf("今天要聊点什么呢？", "你好", "你好呀"),
+            branchMessages.map { it.content.resolveForTest() },
+        )
+        assertTrue(branchMessages.any { it.id == response.id })
+    }
+
 
     private fun createFixture(
         config: ModelConfig? = testConfig(),
@@ -388,6 +476,7 @@ class ChatViewModelTest {
             currentTimeMillis = { 60_000L },
             idGenerator = { prefix -> "$prefix-${++id}" },
             sessionTitleProvider = { "新对话" },
+            branchSessionTitleProvider = { "分支对话" },
         )
         currentViewModel = viewModel
         viewModel.onCharacterAction(com.kaixuan.starrailchatbox.ui.character.CharacterAction.CharacterSelected("builtin:流萤"))
@@ -655,6 +744,10 @@ private suspend fun ChatUiState.messageSnapshot(): List<ChatMessageUiModel> {
     return messagePagingData.flow.asSnapshot()
         .mapNotNull { (it as? ChatTimelineItem.Message)?.message }
         .asReversed()
+}
+
+private fun MessageContent.resolveForTest(): String = when (this) {
+    is MessageContent.Custom -> text
 }
 
 private suspend fun InMemoryChatSessionRepository.messageSnapshot(

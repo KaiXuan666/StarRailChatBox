@@ -12,6 +12,8 @@ import com.kaixuan.starrailchatbox.data.database.entity.ChatMessageEntity
 import com.kaixuan.starrailchatbox.data.database.entity.ChatMessagePageRow
 import com.kaixuan.starrailchatbox.data.database.entity.ChatMessageWithAttachments
 import com.kaixuan.starrailchatbox.data.database.entity.ChatSessionEntity
+import com.kaixuan.starrailchatbox.data.database.entity.ChatSessionHiddenMessageEntity
+import com.kaixuan.starrailchatbox.data.database.entity.ChatSessionSegmentEntity
 import com.kaixuan.starrailchatbox.data.database.entity.ChatSummaryEntity
 import com.kaixuan.starrailchatbox.data.database.entity.toDomain
 import com.kaixuan.starrailchatbox.data.database.entity.toEntity
@@ -26,6 +28,8 @@ class RoomChatSessionRepository(
     private val database: StarRailDatabase,
 ) : ChatSessionRepository {
     private val sessionDao = database.chatSessionDao()
+    private val segmentDao = database.chatSessionSegmentDao()
+    private val hiddenMessageDao = database.chatSessionHiddenMessageDao()
     private val messageDao = database.chatMessageDao()
     private val summaryDao = database.chatSummaryDao()
     private val attachmentDao = database.messageAttachmentDao()
@@ -67,7 +71,7 @@ class RoomChatSessionRepository(
                     initialKey = initialOffset,
                     pagingSourceFactory = {
                         LoggingChatMessagePagingSource(
-                            delegate = messageDao.pagingSourceBySession(sessionId),
+                            delegate = messageDao.pagingSourceByVisibleSession(sessionId),
                             agentId = agentId,
                             sessionId = sessionId,
                             generationId = generationId,
@@ -87,13 +91,13 @@ class RoomChatSessionRepository(
 
     override suspend fun oldestMessagePageOffset(sessionId: String): Int {
         return (
-            messageDao.visibleMessageCount(sessionId) -
+            messageDao.visibleMessageCountByVisibleSession(sessionId) -
                 ChatMessagePagingConfig.initialLoadSize
             ).coerceAtLeast(0)
     }
 
     override fun observeLatestSuggestions(sessionId: String): Flow<List<String>> {
-        return messageDao.observeLatestSuggestionsJson(sessionId).map { json ->
+        return messageDao.observeLatestSuggestionsJsonByVisibleSession(sessionId).map { json ->
             json?.let {
                 runCatching {
                     kotlinx.serialization.json.Json.decodeFromString<List<String>>(it)
@@ -114,18 +118,37 @@ class RoomChatSessionRepository(
         val limit = maxHistoryMessageCount
             ?.takeIf { it >= 0 }
             ?: Int.MAX_VALUE
+        val session = sessionDao.findById(sessionId)
+        val messages = if (session?.parentSessionId == null) {
+            messageDao.findRecentContext(
+                sessionId = sessionId,
+                afterSeq = summary?.toSeq ?: 0,
+                limit = limit,
+            )
+        } else {
+            messageDao.findRecentVisibleContext(
+                sessionId = sessionId,
+                limit = limit,
+            )
+        }
+            .asReversed()
+            .map(ChatMessageWithAttachments::toDomain)
+        return ChatContextSnapshot(
+            summary = summary.takeIf { session?.parentSessionId == null },
+            messages = messages,
+        )
+    }
+
+    override suspend fun findSummarySource(sessionId: String): ChatContextSnapshot {
+        val summary = summaryDao.findActive(sessionId)?.toDomain()
         val messages = messageDao.findRecentContext(
             sessionId = sessionId,
             afterSeq = summary?.toSeq ?: 0,
-            limit = limit,
+            limit = Int.MAX_VALUE,
         )
             .asReversed()
             .map(ChatMessageWithAttachments::toDomain)
         return ChatContextSnapshot(summary = summary, messages = messages)
-    }
-
-    override suspend fun findSummarySource(sessionId: String): ChatContextSnapshot {
-        return findContext(sessionId, maxHistoryMessageCount = null)
     }
 
     override suspend fun createSessionWithMessages(
@@ -136,10 +159,88 @@ class RoomChatSessionRepository(
         database.useWriterConnection { connection ->
             connection.immediateTransaction {
                 sessionDao.upsert(session.toEntity(messages.last()))
+                segmentDao.upsertAll(
+                    listOf(
+                        ChatSessionSegmentEntity(
+                            ownerSessionId = session.id,
+                            segmentIndex = 0,
+                            sourceSessionId = session.id,
+                            fromSeq = 1,
+                            toSeq = null,
+                        ),
+                    ),
+                )
                 messages.forEachIndexed { index, message ->
                     messageDao.upsert(message.toEntity(seq = index + 1L))
                     attachmentDao.insertAll(message.attachments.map { it.toEntity() })
                 }
+            }
+        }
+    }
+
+    override suspend fun createBranchFromMessage(
+        activeSessionId: String,
+        messageId: String,
+        title: String,
+        createdAt: Long,
+    ): ChatSession? {
+        return database.useWriterConnection { connection ->
+            connection.immediateTransaction {
+                val parent = sessionDao.findById(activeSessionId) ?: return@immediateTransaction null
+                val target = messageDao.findVisibleById(activeSessionId, messageId)
+                    ?.message
+                    ?.takeIf {
+                        it.role == ChatRole.ASSISTANT.apiValue &&
+                            it.status == ChatMessageStatus.COMPLETED.storageValue
+                    }
+                    ?: return@immediateTransaction null
+                val parentSegments = segmentDao.findByOwner(activeSessionId)
+                val targetSegmentIndex = parentSegments.indexOfFirst { segment ->
+                    segment.sourceSessionId == target.sessionId &&
+                        target.seq >= segment.fromSeq &&
+                        (segment.toSeq == null || target.seq <= segment.toSeq)
+                }
+                if (targetSegmentIndex < 0) {
+                    return@immediateTransaction null
+                }
+
+                val branchId = newChatId("session", createdAt)
+                val branch = parent.copy(
+                    id = branchId,
+                    title = title,
+                    parentSessionId = parent.id,
+                    branchedFromMessageId = target.id,
+                    branchDepth = parent.branchDepth + 1,
+                    activeSummaryId = null,
+                    compactionSeq = 0,
+                    lastMessageId = target.id,
+                    lastMessageAt = createdAt,
+                    pinned = false,
+                    archived = false,
+                    createdAt = createdAt,
+                    updatedAt = createdAt,
+                    deletedAt = null,
+                )
+                sessionDao.upsert(branch)
+                val inheritedSegments = parentSegments
+                    .take(targetSegmentIndex + 1)
+                    .mapIndexed { index, segment ->
+                        segment.copy(
+                            ownerSessionId = branchId,
+                            segmentIndex = index,
+                            toSeq = if (index == targetSegmentIndex) target.seq else segment.toSeq,
+                        )
+                    }
+                segmentDao.upsertAll(
+                    inheritedSegments + ChatSessionSegmentEntity(
+                        ownerSessionId = branchId,
+                        segmentIndex = inheritedSegments.size,
+                        sourceSessionId = branchId,
+                        fromSeq = 1,
+                        toSeq = null,
+                    ),
+                )
+                branch.toDomain()
             }
         }
     }
@@ -204,15 +305,20 @@ class RoomChatSessionRepository(
                             it.status == ChatMessageStatus.COMPLETED.storageValue
                     }
                     ?: return@immediateTransaction false
-                val latest = messageDao.findLatestBySession(target.sessionId)?.message
+                val latest = messageDao.findLatestByVisibleSession(target.sessionId)?.message
                     ?: return@immediateTransaction false
                 if (latest.id != target.id) {
                     return@immediateTransaction false
                 }
-                if (messageDao.softDelete(messageId, deletedAt) != 1) {
-                    return@immediateTransaction false
-                }
-                messageDao.findLatestBySession(target.sessionId)?.message?.let { remaining ->
+                hiddenMessageDao.upsert(
+                    ChatSessionHiddenMessageEntity(
+                        ownerSessionId = target.sessionId,
+                        messageId = target.id,
+                        hiddenAt = deletedAt,
+                        reason = HIDDEN_REASON_REGENERATE,
+                    ),
+                )
+                messageDao.findLatestDisplayByVisibleSession(target.sessionId)?.message?.let { remaining ->
                     check(
                         sessionDao.updateLastMessage(
                             sessionId = target.sessionId,
@@ -227,6 +333,8 @@ class RoomChatSessionRepository(
     }
 
 }
+
+private const val HIDDEN_REASON_REGENERATE = "regenerate"
 
 private class LoggingChatMessagePagingSource(
     private val delegate: PagingSource<Int, ChatMessagePageRow>,
@@ -289,6 +397,9 @@ private fun NewChatSession.toEntity(message: NewChatMessage) = ChatSessionEntity
     customSystemPrompt = null,
     maxContextMessageCount = maxContextMessageCount ?: Int.MAX_VALUE,
     enableSummary = enableSummary,
+    parentSessionId = parentSessionId,
+    branchedFromMessageId = branchedFromMessageId,
+    branchDepth = branchDepth,
     summaryThresholdTokens = 0,
     summaryThresholdMessageCount = summaryThresholdMessageCount,
     summaryRetainedMessageCount = summaryRetainedMessageCount,
@@ -332,6 +443,9 @@ private fun ChatSessionEntity.toDomain() = ChatSession(
     customSystemPrompt = customSystemPrompt,
     maxContextMessageCount = maxContextMessageCount.takeUnless { it == Int.MAX_VALUE },
     enableSummary = enableSummary,
+    parentSessionId = parentSessionId,
+    branchedFromMessageId = branchedFromMessageId,
+    branchDepth = branchDepth,
     summaryThresholdMessageCount = summaryThresholdMessageCount,
     summaryRetainedMessageCount = summaryRetainedMessageCount,
     lastMessageAt = lastMessageAt,

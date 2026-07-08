@@ -50,6 +50,7 @@ fun ChatMessageList(
     userAvatarUri: String?,
     compact: Boolean,
     isSending: Boolean,
+    activeSessionId: String?,
     isTransientSession: Boolean,
     playingAudioUri: String?,
     contentPadding: PaddingValues,
@@ -135,10 +136,15 @@ fun ChatMessageList(
                         } else {
                             item.message
                         }
+                        val canRegenerate = displayedMessage is ChatMessageUiModel.Received &&
+                            index == 0 &&
+                            displayedMessage.sourceSessionId == activeSessionId
+                        val canStartBranch = displayedMessage is ChatMessageUiModel.Received &&
+                            displayedMessage.sourceSessionId != null
                         MessageItem(
                             message = displayedMessage,
-                            canRegenerate = index == 0 &&
-                                displayedMessage is ChatMessageUiModel.Received,
+                            canRegenerate = canRegenerate,
+                            canStartBranch = canStartBranch,
                             charactersById = charactersById,
                             userAvatarUri = userAvatarUri,
                             compact = compact,

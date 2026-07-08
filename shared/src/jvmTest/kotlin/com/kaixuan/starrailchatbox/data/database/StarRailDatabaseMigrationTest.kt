@@ -1,6 +1,7 @@
 package com.kaixuan.starrailchatbox.data.database
 
 import androidx.room.Room
+import com.kaixuan.starrailchatbox.data.database.entity.ChatSessionHiddenMessageEntity
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.sqlite.execSQL
 import java.nio.file.Files
@@ -20,7 +21,14 @@ class StarRailDatabaseMigrationTest {
             factory = StarRailDatabaseConstructor::initialize,
         )
             .setDriver(BundledSQLiteDriver())
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .addMigrations(
+                MIGRATION_1_2,
+                MIGRATION_2_3,
+                MIGRATION_3_4,
+                MIGRATION_4_5,
+                MIGRATION_5_6,
+                MIGRATION_6_7,
+            )
             .build()
 
         try {
@@ -28,8 +36,13 @@ class StarRailDatabaseMigrationTest {
             assertEquals(true, session.enableSummary)
             assertEquals(20, session.summaryThresholdMessageCount)
             assertEquals(8, session.summaryRetainedMessageCount)
+            assertNull(session.parentSessionId)
+            assertNull(session.branchedFromMessageId)
+            assertEquals(0, session.branchDepth)
             assertNull(database.chatSummaryDao().findActive("session"))
             assertEquals("", requireNotNull(database.agentRoleDao().findById("role")).author)
+            assertEquals(1, database.chatSessionSegmentDao().findByOwner("session").size)
+            assertEquals(0, database.chatSessionHiddenMessageDao().countByOwner("session"))
         } finally {
             database.close()
             runCatching { Files.deleteIfExists(databasePath) }
@@ -46,7 +59,14 @@ class StarRailDatabaseMigrationTest {
             factory = StarRailDatabaseConstructor::initialize,
         )
             .setDriver(BundledSQLiteDriver())
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .addMigrations(
+                MIGRATION_1_2,
+                MIGRATION_2_3,
+                MIGRATION_3_4,
+                MIGRATION_4_5,
+                MIGRATION_5_6,
+                MIGRATION_6_7,
+            )
             .build()
 
         try {
@@ -62,6 +82,15 @@ class StarRailDatabaseMigrationTest {
                     createdAt = 1000,
                 )
             )
+            database.chatSessionHiddenMessageDao().upsert(
+                ChatSessionHiddenMessageEntity(
+                    ownerSessionId = "session1",
+                    messageId = "msg1",
+                    hiddenAt = 2_000L,
+                    reason = "regenerate",
+                ),
+            )
+            assertEquals(1, database.chatSessionHiddenMessageDao().countByOwner("session1"))
         } finally {
             database.close()
             runCatching { Files.deleteIfExists(databasePath) }

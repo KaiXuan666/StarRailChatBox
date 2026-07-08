@@ -7,12 +7,16 @@ import androidx.room.RoomDatabaseConstructor
 import com.kaixuan.starrailchatbox.data.database.dao.AgentRoleDao
 import com.kaixuan.starrailchatbox.data.database.dao.ChatMessageDao
 import com.kaixuan.starrailchatbox.data.database.dao.ChatSessionDao
+import com.kaixuan.starrailchatbox.data.database.dao.ChatSessionHiddenMessageDao
+import com.kaixuan.starrailchatbox.data.database.dao.ChatSessionSegmentDao
 import com.kaixuan.starrailchatbox.data.database.dao.ChatSummaryDao
 import com.kaixuan.starrailchatbox.data.database.dao.ModelConfigDao
 import com.kaixuan.starrailchatbox.data.database.dao.MessageAttachmentDao
 import com.kaixuan.starrailchatbox.data.database.entity.AgentRoleEntity
 import com.kaixuan.starrailchatbox.data.database.entity.ChatMessageEntity
 import com.kaixuan.starrailchatbox.data.database.entity.ChatSessionEntity
+import com.kaixuan.starrailchatbox.data.database.entity.ChatSessionHiddenMessageEntity
+import com.kaixuan.starrailchatbox.data.database.entity.ChatSessionSegmentEntity
 import com.kaixuan.starrailchatbox.data.database.entity.ChatSummaryEntity
 import com.kaixuan.starrailchatbox.data.database.entity.ModelConfigEntity
 import com.kaixuan.starrailchatbox.data.database.entity.MessageAttachmentEntity
@@ -21,12 +25,14 @@ import com.kaixuan.starrailchatbox.data.database.entity.MessageAttachmentEntity
     entities = [
         AgentRoleEntity::class,
         ChatSessionEntity::class,
+        ChatSessionSegmentEntity::class,
+        ChatSessionHiddenMessageEntity::class,
         ChatMessageEntity::class,
         ChatSummaryEntity::class,
         ModelConfigEntity::class,
         MessageAttachmentEntity::class,
     ],
-    version = 5,
+    version = 7,
     exportSchema = false,
 )
 @ConstructedBy(StarRailDatabaseConstructor::class)
@@ -34,6 +40,10 @@ abstract class StarRailDatabase : RoomDatabase() {
     abstract fun agentRoleDao(): AgentRoleDao
 
     abstract fun chatSessionDao(): ChatSessionDao
+
+    abstract fun chatSessionSegmentDao(): ChatSessionSegmentDao
+
+    abstract fun chatSessionHiddenMessageDao(): ChatSessionHiddenMessageDao
 
     abstract fun chatMessageDao(): ChatMessageDao
 

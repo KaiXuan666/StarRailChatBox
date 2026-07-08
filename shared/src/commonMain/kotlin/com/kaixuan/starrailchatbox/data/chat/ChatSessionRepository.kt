@@ -22,6 +22,9 @@ data class ChatSession(
     val customSystemPrompt: String?,
     val maxContextMessageCount: Int?,
     val enableSummary: Boolean,
+    val parentSessionId: String? = null,
+    val branchedFromMessageId: String? = null,
+    val branchDepth: Int = 0,
     /**
      * 未压缩有效消息达到该数量时触发总结
      */
@@ -114,6 +117,9 @@ data class NewChatSession(
     val systemPromptSnapshot: String,
     val maxContextMessageCount: Int?,
     val enableSummary: Boolean = true,
+    val parentSessionId: String? = null,
+    val branchedFromMessageId: String? = null,
+    val branchDepth: Int = 0,
     val summaryThresholdMessageCount: Int = DEFAULT_SUMMARY_THRESHOLD_MESSAGE_COUNT,
     val summaryRetainedMessageCount: Int = DEFAULT_SUMMARY_RETAINED_MESSAGE_COUNT,
     val createdAt: Long,
@@ -182,6 +188,13 @@ interface ChatSessionRepository {
         messages: List<NewChatMessage>,
     )
 
+    suspend fun createBranchFromMessage(
+        activeSessionId: String,
+        messageId: String,
+        title: String,
+        createdAt: Long,
+    ): ChatSession?
+
     suspend fun appendMessage(message: NewChatMessage)
 
     suspend fun saveSummary(summary: NewChatSummary): Boolean
@@ -196,30 +209,50 @@ interface ChatSessionRepository {
 }
 
 class InMemoryChatSessionRepository : ChatSessionRepository {
+    private data class Segment(
+        val ownerSessionId: String,
+        val segmentIndex: Int,
+        val sourceSessionId: String,
+        val fromSeq: Long,
+        val toSeq: Long?,
+    )
+
     private val sessions = MutableStateFlow<List<ChatSession>>(emptyList())
     private val messages = MutableStateFlow<List<StoredChatMessage>>(emptyList())
     private val summaries = MutableStateFlow<List<ChatSummary>>(emptyList())
+    private val deletedSessionIds = MutableStateFlow<Set<String>>(emptySet())
+    private val segments = MutableStateFlow<List<Segment>>(emptyList())
+    private val hiddenMessages = MutableStateFlow<Set<Pair<String, String>>>(emptySet())
     private val pagingSources = mutableMapOf<String, MutableSet<PagingSource<Int, ChatMessagePageEntry>>>()
 
     override suspend fun findLatestSession(agentId: String): ChatSession? {
         return sessions.value
-            .filter { it.agentId == agentId }
+            .filter { it.agentId == agentId && it.id !in deletedSessionIds.value }
             .maxByOrNull(ChatSession::lastMessageAt)
     }
 
     override suspend fun findSession(sessionId: String): ChatSession? {
-        return sessions.value.firstOrNull { it.id == sessionId }
+        return sessions.value.firstOrNull { it.id == sessionId && it.id !in deletedSessionIds.value }
     }
 
     override fun observeSessions(agentId: String): Flow<List<ChatSessionSummary>> {
-        return combine(sessions, messages) { storedSessions, storedMessages ->
+        return combine(
+            sessions,
+            messages,
+            deletedSessionIds,
+            segments,
+            hiddenMessages,
+        ) { storedSessions, storedMessages, deletedIds, storedSegments, hidden ->
             storedSessions
-                .filter { it.agentId == agentId }
+                .filter { it.agentId == agentId && it.id !in deletedIds }
                 .sortedByDescending(ChatSession::lastMessageAt)
                 .map { session ->
-                    val sessionMessages = storedMessages
-                        .filter { it.sessionId == session.id }
-                        .sortedBy(StoredChatMessage::seq)
+                    val sessionMessages = visibleMessages(
+                        sessionId = session.id,
+                        storedMessages = storedMessages,
+                        storedSegments = storedSegments,
+                        hidden = hidden,
+                    )
                     ChatSessionSummary(
                         session = session,
                         lastMessagePreview = sessionMessages
@@ -246,8 +279,7 @@ class InMemoryChatSessionRepository : ChatSessionRepository {
             initialKey = initialOffset,
             pagingSourceFactory = {
                 InMemoryChatMessagePagingSource(
-                    snapshot = messages.value,
-                    sessionId = sessionId,
+                    snapshot = visibleMessages(sessionId),
                 ).also { source ->
                     pagingSources.getOrPut(sessionId) { mutableSetOf() } += source
                     source.registerInvalidatedCallback {
@@ -259,18 +291,16 @@ class InMemoryChatSessionRepository : ChatSessionRepository {
     }
 
     override suspend fun oldestMessagePageOffset(sessionId: String): Int {
-        val visibleMessageCount = messages.value.count {
-            it.sessionId == sessionId &&
-                !(it.role == ChatRole.ASSISTANT && it.status == ChatMessageStatus.FAILED)
+        val visibleMessageCount = visibleMessages(sessionId).count {
+            !(it.role == ChatRole.ASSISTANT && it.status == ChatMessageStatus.FAILED)
         }
         return (visibleMessageCount - ChatMessagePagingConfig.initialLoadSize).coerceAtLeast(0)
     }
 
     override fun observeLatestSuggestions(sessionId: String): Flow<List<String>> {
-        return messages.map { stored ->
-            stored.asSequence()
-                .filter { it.sessionId == sessionId }
-                .maxByOrNull(StoredChatMessage::seq)
+        return combine(messages, segments, hiddenMessages) { _, _, _ ->
+            visibleMessages(sessionId)
+                .lastOrNull()
                 ?.takeIf {
                     it.role == ChatRole.ASSISTANT &&
                         it.status == ChatMessageStatus.COMPLETED
@@ -288,15 +318,19 @@ class InMemoryChatSessionRepository : ChatSessionRepository {
         sessionId: String,
         maxHistoryMessageCount: Int?,
     ): ChatContextSnapshot {
-        val summary = summaries.value
+        val session = sessions.value.firstOrNull { it.id == sessionId }
+        val summary = if (session?.parentSessionId == null) {
+            summaries.value
             .filter { it.sessionId == sessionId }
             .maxByOrNull(ChatSummary::toSeq)
-        val context = messages.value.filter {
-            it.sessionId == sessionId &&
-                it.status == ChatMessageStatus.COMPLETED &&
+        } else {
+            null
+        }
+        val context = visibleMessages(sessionId).filter {
+            it.status == ChatMessageStatus.COMPLETED &&
                 !it.isContextExcluded &&
-                it.seq > (summary?.toSeq ?: 0)
-        }.sortedBy(StoredChatMessage::seq)
+                (summary == null || it.sessionId != sessionId || it.seq > summary.toSeq)
+        }
         val limited = maxHistoryMessageCount
             ?.takeIf { it >= 0 }
             ?.let(context::takeLast)
@@ -305,7 +339,17 @@ class InMemoryChatSessionRepository : ChatSessionRepository {
     }
 
     override suspend fun findSummarySource(sessionId: String): ChatContextSnapshot {
-        return findContext(sessionId, maxHistoryMessageCount = null)
+        val summary = summaries.value
+            .filter { it.sessionId == sessionId }
+            .maxByOrNull(ChatSummary::toSeq)
+        val context = messages.value.filter {
+            it.sessionId == sessionId &&
+                it.status == ChatMessageStatus.COMPLETED &&
+                !it.isContextExcluded &&
+                it.seq > (summary?.toSeq ?: 0) &&
+                (sessionId to it.id) !in hiddenMessages.value
+        }.sortedBy(StoredChatMessage::seq)
+        return ChatContextSnapshot(summary = summary, messages = context)
     }
 
     override suspend fun createSessionWithMessages(
@@ -316,11 +360,80 @@ class InMemoryChatSessionRepository : ChatSessionRepository {
         sessions.update {
             it + session.toStored(lastMessageAt = messages.last().createdAt)
         }
+        segments.update {
+            it + Segment(
+                ownerSessionId = session.id,
+                segmentIndex = 0,
+                sourceSessionId = session.id,
+                fromSeq = 1,
+                toSeq = null,
+            )
+        }
         val storedMessages = messages.mapIndexed { index, message ->
             message.toStored(seq = index + 1L)
         }
         this.messages.update { it + storedMessages }
         invalidatePagingSources(session.id)
+    }
+
+    override suspend fun createBranchFromMessage(
+        activeSessionId: String,
+        messageId: String,
+        title: String,
+        createdAt: Long,
+    ): ChatSession? {
+        val parent = sessions.value.firstOrNull { it.id == activeSessionId && it.id !in deletedSessionIds.value }
+            ?: return null
+        val parentSegments = segments.value
+            .filter { it.ownerSessionId == activeSessionId }
+            .sortedBy(Segment::segmentIndex)
+        val visible = visibleMessages(activeSessionId)
+        val target = visible.firstOrNull {
+            it.id == messageId &&
+                it.role == ChatRole.ASSISTANT &&
+                it.status == ChatMessageStatus.COMPLETED
+        } ?: return null
+        val targetSegmentIndex = parentSegments.indexOfFirst { segment ->
+            segment.sourceSessionId == target.sessionId &&
+                target.seq >= segment.fromSeq &&
+                (segment.toSeq == null || target.seq <= segment.toSeq)
+        }
+        if (targetSegmentIndex < 0) return null
+
+        val branch = parent.copy(
+            id = newChatId("session", createdAt),
+            title = title,
+            parentSessionId = parent.id,
+            branchedFromMessageId = target.id,
+            branchDepth = parent.branchDepth + 1,
+            lastMessageAt = createdAt,
+        )
+        val inheritedSegments = parentSegments
+            .take(targetSegmentIndex + 1)
+            .mapIndexed { index, segment ->
+                val toSeq = if (index == targetSegmentIndex) {
+                    target.seq
+                } else {
+                    segment.toSeq
+                }
+                segment.copy(
+                    ownerSessionId = branch.id,
+                    segmentIndex = index,
+                    toSeq = toSeq,
+                )
+            }
+        sessions.update { it + branch }
+        segments.update {
+            it + inheritedSegments + Segment(
+                ownerSessionId = branch.id,
+                segmentIndex = inheritedSegments.size,
+                sourceSessionId = branch.id,
+                fromSeq = 1,
+                toSeq = null,
+            )
+        }
+        invalidatePagingSources(branch.id)
+        return branch
     }
 
     override suspend fun appendMessage(message: NewChatMessage) {
@@ -354,9 +467,7 @@ class InMemoryChatSessionRepository : ChatSessionRepository {
     }
 
     override suspend fun deleteSession(sessionId: String, deletedAt: Long) {
-        sessions.update { stored -> stored.filterNot { it.id == sessionId } }
-        messages.update { stored -> stored.filterNot { it.sessionId == sessionId } }
-        summaries.update { stored -> stored.filterNot { it.sessionId == sessionId } }
+        deletedSessionIds.update { it + sessionId }
         invalidatePagingSources(sessionId)
     }
 
@@ -386,19 +497,19 @@ class InMemoryChatSessionRepository : ChatSessionRepository {
                     it.status == ChatMessageStatus.COMPLETED
             }
             ?: return false
-        val latest = messages.value
-            .filter { it.sessionId == target.sessionId }
-            .maxByOrNull(StoredChatMessage::seq)
+        val latest = visibleMessages(target.sessionId)
+            .lastOrNull()
             ?: return false
         if (latest.id != target.id) {
             return false
         }
 
-        messages.update { stored -> stored.filterNot { it.id == messageId } }
+        hiddenMessages.update { it + (target.sessionId to target.id) }
         invalidatePagingSources(target.sessionId)
-        messages.value
-            .filter { it.sessionId == target.sessionId }
-            .maxByOrNull(StoredChatMessage::seq)
+        visibleMessages(target.sessionId)
+            .lastOrNull {
+                !(it.role == ChatRole.ASSISTANT && it.status == ChatMessageStatus.FAILED)
+            }
             ?.let { latestRemaining ->
                 sessions.update { stored ->
                     stored.map {
@@ -418,6 +529,27 @@ class InMemoryChatSessionRepository : ChatSessionRepository {
     private fun invalidatePagingSources(sessionId: String) {
         pagingSources.remove(sessionId)?.toList()?.forEach(PagingSource<Int, ChatMessagePageEntry>::invalidate)
     }
+
+    private fun visibleMessages(
+        sessionId: String,
+        storedMessages: List<StoredChatMessage> = messages.value,
+        storedSegments: List<Segment> = segments.value,
+        hidden: Set<Pair<String, String>> = hiddenMessages.value,
+    ): List<StoredChatMessage> {
+        return storedSegments
+            .filter { it.ownerSessionId == sessionId }
+            .sortedBy(Segment::segmentIndex)
+            .flatMap { segment ->
+                storedMessages
+                    .filter {
+                        it.sessionId == segment.sourceSessionId &&
+                            it.seq >= segment.fromSeq &&
+                            (segment.toSeq == null || it.seq <= segment.toSeq) &&
+                            (sessionId to it.id) !in hidden
+                    }
+                    .sortedBy(StoredChatMessage::seq)
+            }
+    }
 }
 
 val ChatMessagePagingConfig = PagingConfig(
@@ -430,27 +562,23 @@ val ChatMessagePagingConfig = PagingConfig(
 
 private class InMemoryChatMessagePagingSource(
     snapshot: List<StoredChatMessage>,
-    sessionId: String,
 ) : PagingSource<Int, ChatMessagePageEntry>() {
-    private val latestVisibleUserSeq = snapshot.asSequence()
+    private val latestVisibleUserId = snapshot.asSequence()
         .filter {
-            it.sessionId == sessionId &&
-                !(it.role == ChatRole.ASSISTANT && it.status == ChatMessageStatus.FAILED)
+            !(it.role == ChatRole.ASSISTANT && it.status == ChatMessageStatus.FAILED)
         }
-        .maxByOrNull(StoredChatMessage::seq)
+        .lastOrNull()
         ?.takeIf { it.role == ChatRole.USER }
-        ?.seq
-    private val failedResponseSeqs = snapshot.asSequence()
+        ?.id
+    private val failedResponseKeys = snapshot.asSequence()
         .filter {
-            it.sessionId == sessionId &&
-                it.role == ChatRole.ASSISTANT &&
+            it.role == ChatRole.ASSISTANT &&
                 it.status == ChatMessageStatus.FAILED
         }
-        .map { it.seq }
+        .map { it.sessionId to it.seq }
         .toSet()
     private val entries = snapshot
-        .filter { it.sessionId == sessionId }
-        .sortedByDescending(StoredChatMessage::seq)
+        .asReversed()
         .mapNotNull { message ->
             if (message.role == ChatRole.ASSISTANT && message.status == ChatMessageStatus.FAILED) {
                 null
@@ -459,8 +587,8 @@ private class InMemoryChatMessagePagingSource(
                     message = message,
                     hasFailedResponse = message.role == ChatRole.USER &&
                         (
-                            message.seq + 1 in failedResponseSeqs ||
-                                message.seq == latestVisibleUserSeq
+                            (message.sessionId to message.seq + 1) in failedResponseKeys ||
+                                message.id == latestVisibleUserId
                         ),
                 )
             }
@@ -509,6 +637,9 @@ private fun NewChatSession.toStored(lastMessageAt: Long) = ChatSession(
     customSystemPrompt = null,
     maxContextMessageCount = maxContextMessageCount,
     enableSummary = enableSummary,
+    parentSessionId = parentSessionId,
+    branchedFromMessageId = branchedFromMessageId,
+    branchDepth = branchDepth,
     summaryThresholdMessageCount = summaryThresholdMessageCount,
     summaryRetainedMessageCount = summaryRetainedMessageCount,
     lastMessageAt = lastMessageAt,

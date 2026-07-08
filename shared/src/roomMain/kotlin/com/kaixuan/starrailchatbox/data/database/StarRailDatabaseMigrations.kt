@@ -88,3 +88,67 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
         )
     }
 }
+
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("ALTER TABLE `chat_session` ADD COLUMN `parent_session_id` TEXT DEFAULT NULL")
+        connection.execSQL("ALTER TABLE `chat_session` ADD COLUMN `branched_from_message_id` TEXT DEFAULT NULL")
+        connection.execSQL("ALTER TABLE `chat_session` ADD COLUMN `branch_depth` INTEGER NOT NULL DEFAULT 0")
+        connection.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `chat_session_segment` (
+                `owner_session_id` TEXT NOT NULL,
+                `segment_index` INTEGER NOT NULL,
+                `source_session_id` TEXT NOT NULL,
+                `from_seq` INTEGER NOT NULL,
+                `to_seq` INTEGER,
+                PRIMARY KEY(`owner_session_id`, `segment_index`),
+                FOREIGN KEY(`owner_session_id`) REFERENCES `chat_session`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                FOREIGN KEY(`source_session_id`) REFERENCES `chat_session`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION
+            )
+            """.trimIndent(),
+        )
+        connection.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_chat_session_segment_owner_session_id_segment_index` " +
+                "ON `chat_session_segment` (`owner_session_id`, `segment_index`)",
+        )
+        connection.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_chat_session_segment_source_session_id` " +
+                "ON `chat_session_segment` (`source_session_id`)",
+        )
+        connection.execSQL(
+            """
+            INSERT INTO `chat_session_segment` (
+                `owner_session_id`, `segment_index`, `source_session_id`, `from_seq`, `to_seq`
+            )
+            SELECT `id`, 0, `id`, 1, NULL FROM `chat_session`
+            """.trimIndent(),
+        )
+    }
+}
+
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `chat_session_hidden_message` (
+                `owner_session_id` TEXT NOT NULL,
+                `message_id` TEXT NOT NULL,
+                `hidden_at` INTEGER NOT NULL,
+                `reason` TEXT NOT NULL,
+                PRIMARY KEY(`owner_session_id`, `message_id`),
+                FOREIGN KEY(`owner_session_id`) REFERENCES `chat_session`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                FOREIGN KEY(`message_id`) REFERENCES `chat_message`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent(),
+        )
+        connection.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_chat_session_hidden_message_owner_session_id_message_id` " +
+                "ON `chat_session_hidden_message` (`owner_session_id`, `message_id`)",
+        )
+        connection.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_chat_session_hidden_message_message_id` " +
+                "ON `chat_session_hidden_message` (`message_id`)",
+        )
+    }
+}
