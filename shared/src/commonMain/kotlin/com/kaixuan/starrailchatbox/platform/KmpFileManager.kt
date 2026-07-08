@@ -1,5 +1,6 @@
 package com.kaixuan.starrailchatbox.platform
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okio.Buffer
@@ -167,6 +168,52 @@ interface KmpFileManager {
         }
     }
 
+    /**
+     * 将文件路径、平台 URI 或 data URI 以 Base64 文本分块写出，避免为大文件一次性分配字节数组。
+     */
+    @OptIn(ExperimentalEncodingApi::class)
+    suspend fun writeSourceBase64(
+        source: String,
+        writeChunk: suspend (String) -> Unit,
+    ) {
+        if (source.isBlank()) return
+        if (source.startsWith("data:")) {
+            writeBase64TextChunks(
+                encoded = source.substringAfter("base64,", missingDelimiterValue = ""),
+                writeChunk = writeChunk,
+            )
+            return
+        }
+        if (!isSupported) return
+        val path = source.removePrefix("file://").toPath()
+        return withContext(Dispatchers.Default) {
+            val rawSource = try {
+                if (!exists(path) || fileSystem.metadata(path).isDirectory) {
+                    return@withContext
+                }
+                fileSystem.source(path)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                return@withContext
+            }
+
+            val buffer = Buffer()
+            val encoder = StreamingBase64ChunkWriter()
+            try {
+                while (true) {
+                    val read = rawSource.read(buffer, Base64SourceChunkSize.toLong())
+                    if (read == -1L) break
+                    val bytes = buffer.readByteArray()
+                    encoder.write(bytes, bytes.size, writeChunk)
+                }
+                encoder.finish(writeChunk)
+            } finally {
+                rawSource.close()
+            }
+        }
+    }
+
     @OptIn(ExperimentalEncodingApi::class)
     suspend fun persistAudioAttachment(bytes: ByteArray, fileName: String): String {
         if (!isSupported) {
@@ -254,3 +301,76 @@ interface KmpFileManager {
  * 平台特定的文件管理器工厂方法。
  */
 expect fun getPlatformFileManager(): KmpFileManager
+
+private const val Base64SourceChunkSize = 24 * 1024
+private const val Base64TextChunkSize = 16 * 1024
+
+internal suspend fun writeBase64TextChunks(
+    encoded: String,
+    writeChunk: suspend (String) -> Unit,
+) {
+    val chunk = StringBuilder(Base64TextChunkSize)
+    for (char in encoded) {
+        if (char == '\r' || char == '\n' || char == ' ' || char == '\t') continue
+        chunk.append(char)
+        if (chunk.length >= Base64TextChunkSize) {
+            writeChunk(chunk.toString())
+            chunk.clear()
+        }
+    }
+    if (chunk.isNotEmpty()) {
+        writeChunk(chunk.toString())
+    }
+}
+
+@OptIn(ExperimentalEncodingApi::class)
+internal class StreamingBase64ChunkWriter {
+    private val pending = ByteArray(2)
+    private var pendingSize = 0
+
+    suspend fun write(
+        bytes: ByteArray,
+        length: Int,
+        writeChunk: suspend (String) -> Unit,
+    ) {
+        if (length <= 0) return
+
+        var offset = 0
+        if (pendingSize > 0) {
+            val needed = 3 - pendingSize
+            if (length < needed) {
+                bytes.copyInto(pending, destinationOffset = pendingSize, startIndex = 0, endIndex = length)
+                pendingSize += length
+                return
+            }
+
+            val firstGroup = ByteArray(3)
+            pending.copyInto(firstGroup, endIndex = pendingSize)
+            bytes.copyInto(firstGroup, destinationOffset = pendingSize, startIndex = 0, endIndex = needed)
+            writeChunk(Base64.Default.encode(firstGroup))
+            offset = needed
+            pendingSize = 0
+        }
+
+        val remaining = length - offset
+        val encodableLength = remaining - (remaining % 3)
+        if (encodableLength > 0) {
+            val encodableBytes = bytes.copyOfRange(offset, offset + encodableLength)
+            writeChunk(Base64.Default.encode(encodableBytes))
+            offset += encodableLength
+        }
+
+        while (offset < length) {
+            pending[pendingSize] = bytes[offset]
+            pendingSize += 1
+            offset += 1
+        }
+    }
+
+    suspend fun finish(writeChunk: suspend (String) -> Unit) {
+        if (pendingSize > 0) {
+            writeChunk(Base64.Default.encode(pending.copyOf(pendingSize)))
+            pendingSize = 0
+        }
+    }
+}

@@ -120,6 +120,44 @@ class AndroidFileManager : KmpFileManager {
         }
     }
 
+    override suspend fun writeSourceBase64(
+        source: String,
+        writeChunk: suspend (String) -> Unit,
+    ) {
+        if (!source.startsWith("content://")) {
+            return super<KmpFileManager>.writeSourceBase64(source, writeChunk)
+        }
+        val context = requireNotNull(AndroidContextHolder.context)
+        withContext(Dispatchers.IO) {
+            val input = try {
+                context.contentResolver.openInputStream(Uri.parse(source))
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                Napier.e("Failed to open source URI for Base64 streaming: $source", error)
+                null
+            } ?: return@withContext
+
+            try {
+                input.use {
+                    val buffer = ByteArray(24 * 1024)
+                    val encoder = StreamingBase64ChunkWriter()
+                    while (true) {
+                        val read = it.read(buffer)
+                        if (read == -1) break
+                        encoder.write(buffer, read, writeChunk)
+                    }
+                    encoder.finish(writeChunk)
+                }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                Napier.e("Failed to stream source URI as Base64: $source", error)
+                throw error
+            }
+        }
+    }
+
     override suspend fun compressImageIfPossible(source: String): String = withContext(Dispatchers.IO) {
         val context = requireNotNull(AndroidContextHolder.context)
         try {

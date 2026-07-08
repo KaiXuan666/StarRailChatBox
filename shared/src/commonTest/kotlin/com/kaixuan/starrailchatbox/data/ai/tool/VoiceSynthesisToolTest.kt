@@ -4,6 +4,7 @@ import com.kaixuan.starrailchatbox.data.ai.AiMessage
 import com.kaixuan.starrailchatbox.data.ai.AiToolCall
 import com.kaixuan.starrailchatbox.data.model.InMemoryModelConfigRepository
 import com.kaixuan.starrailchatbox.data.model.ModelConfig
+import com.kaixuan.starrailchatbox.data.model.VoiceCloneModelConfig
 import com.kaixuan.starrailchatbox.data.model.VoiceModelConfig
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -13,11 +14,18 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import io.ktor.http.content.OutgoingContent
+import io.ktor.http.content.TextContent
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.utils.io.core.readText
+import io.ktor.utils.io.readRemaining
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlin.io.encoding.Base64
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -141,6 +149,87 @@ class VoiceSynthesisToolTest {
         client.close()
     }
 
+    @OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
+    @Test
+    fun cloneRequestStreamsVoiceSampleAsBase64DataUrl() = runTest {
+        val repo = InMemoryModelConfigRepository()
+        repo.saveVoiceClone(
+            ModelConfig(
+                id = VoiceCloneModelConfig.Id,
+                provider = VoiceCloneModelConfig.Provider,
+                name = VoiceCloneModelConfig.Name,
+                baseUrl = "https://api.xiaomimimo.com/v1",
+                apiKey = "test-key",
+                modelName = "mimo-v2.5-tts-voiceclone",
+                contextWindow = 1000,
+                maxOutputTokens = 100,
+                supportVision = false,
+                supportToolCall = false,
+                supportReasoning = false,
+                temperature = 0.7,
+                topP = 1.0,
+                enabled = true
+            )
+        )
+
+        val sampleBytes = ByteArray(25 * 1024 + 2) { index -> (index % 251).toByte() }
+        val sampleUri = "data:audio/wav;base64,${Base64.Default.encode(sampleBytes)}"
+
+        var requestBodyText = ""
+        var usedStreamingBody = false
+        val engine = MockEngine { request ->
+            usedStreamingBody = request.body is OutgoingContent.WriteChannelContent
+            requestBodyText = request.body.readText()
+            respond(
+                content = """
+                    {
+                      "choices": [{
+                        "message": {
+                          "role": "assistant",
+                          "content": null
+                        }
+                      }]
+                    }
+                """.trimIndent(),
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+
+        val client = testClient(engine)
+        val tool = VoiceSynthesisTool(repo, client, coroutineScope = backgroundScope)
+
+        try {
+            val result = tool.execute(
+                AiToolCall(
+                    id = "call-1",
+                    name = VoiceSynthesisTool.Name,
+                    arguments = """
+                        {
+                          "voice_design": "温柔的少女",
+                          "ai_response": "我会一直陪着你。"
+                        }
+                    """.trimIndent()
+                ),
+                ToolContext("流萤", voiceSampleUri = sampleUri)
+            )
+
+            val terminal = assertIs<ToolResult.Terminal>(result)
+            assertEquals("我会一直陪着你。", terminal.content)
+            assertTrue(usedStreamingBody)
+
+            val body = Json.parseToJsonElement(requestBodyText).jsonObject
+            val voice = body["audio"]?.jsonObject
+                ?.get("voice")?.jsonPrimitive?.content
+            assertEquals(
+                "data:audio/wav;base64,${Base64.Default.encode(sampleBytes)}",
+                voice
+            )
+        } finally {
+            client.close()
+        }
+    }
+
     @Test
     fun fallbackInjectsPromptAndParsesMetadata() = runTest {
         val repo = InMemoryModelConfigRepository(
@@ -217,5 +306,19 @@ class VoiceSynthesisToolTest {
         install(ContentNegotiation) {
             json(Json { ignoreUnknownKeys = true })
         }
+    }
+}
+
+private suspend fun OutgoingContent.readText(): String {
+    return when (this) {
+        is TextContent -> text
+        is OutgoingContent.ByteArrayContent -> bytes().decodeToString()
+        is OutgoingContent.WriteChannelContent -> {
+            val channel = io.ktor.utils.io.ByteChannel(true)
+            writeTo(channel)
+            channel.close()
+            channel.readRemaining().readText()
+        }
+        else -> ""
     }
 }

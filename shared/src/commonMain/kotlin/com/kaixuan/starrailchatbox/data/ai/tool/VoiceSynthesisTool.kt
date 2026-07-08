@@ -14,6 +14,9 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.HttpHeaders
+import io.ktor.http.content.OutgoingContent
+import io.ktor.utils.io.ByteWriteChannel
+import io.ktor.utils.io.writeStringUtf8
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -175,56 +178,15 @@ class VoiceSynthesisTool(
         }
 
         return try {
-            val requestBody = if (isClone && !voiceSampleUri.isNullOrBlank()) {
-                val audioBytes = KmpFileManager.Default.readSourceBytes(voiceSampleUri)
-                @OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
-                val audioBase64 = kotlin.io.encoding.Base64.Default.encode(audioBytes)
-                val mimeType = when {
-                    voiceSampleUri.endsWith(".wav", ignoreCase = true) -> "audio/wav"
-                    voiceSampleUri.endsWith(".mp3", ignoreCase = true) -> "audio/mpeg"
-                    voiceSampleUri.endsWith(".m4a", ignoreCase = true) -> "audio/mp4"
-                    voiceSampleUri.endsWith(".ogg", ignoreCase = true) -> "audio/ogg"
-                    else -> "audio/wav" // 默认 wav
-                }
-
-                buildJsonObject {
-                    put("model", voiceConfig.modelName.takeIf(String::isNotBlank) ?: "mimo-v2.5-tts-voiceclone")
-                    putJsonArray("messages") {
-                        add(buildJsonObject {
-                            put("role", "user")
-                            put("content", "")
-                        })
-                        add(buildJsonObject {
-                            put("role", "assistant")
-                            put("content", aiResponse)
-                        })
-                    }
-                    putJsonObject("audio") {
-                        put("format", "wav")
-                        put("voice", "data:$mimeType;base64,$audioBase64")
-                    }
-                }
-            } else {
-                buildJsonObject {
-                    put("model", voiceConfig.modelName.takeIf(String::isNotBlank) ?: "mimo-v2.5-tts-voicedesign")
-                    putJsonArray("messages") {
-                        add(buildJsonObject {
-                            put("role", "user")
-                            put("content", voiceDesign)
-                        })
-                        add(buildJsonObject {
-                            put("role", "assistant")
-                            put("content", aiResponse)
-                        })
-                    }
-                }
-            }
-
             val response = httpClient.post("${voiceConfig.baseUrl.trimEnd('/')}/chat/completions") {
                 header(HttpHeaders.Authorization, "Bearer ${voiceConfig.apiKey.trim()}")
                 header("api-key", voiceConfig.apiKey.trim())
                 contentType(ContentType.Application.Json)
-                setBody(requestBody)
+                if (isClone && !voiceSampleUri.isNullOrBlank()) {
+                    setBody(buildVoiceCloneRequestBody(voiceConfig.modelName, aiResponse, voiceSampleUri))
+                } else {
+                    setBody(buildVoiceDesignRequestBody(voiceConfig.modelName, voiceDesign, aiResponse))
+                }
             }
 
             val responseText = response.bodyAsText()
@@ -252,6 +214,59 @@ class VoiceSynthesisTool(
             t.printStackTrace()
             ToolResult.Terminal(content = aiResponse)
         }
+    }
+
+    private fun buildVoiceDesignRequestBody(
+        modelName: String,
+        voiceDesign: String,
+        aiResponse: String,
+    ) = buildJsonObject {
+        put("model", modelName.takeIf(String::isNotBlank) ?: "mimo-v2.5-tts-voicedesign")
+        putJsonArray("messages") {
+            add(buildJsonObject {
+                put("role", "user")
+                put("content", voiceDesign)
+            })
+            add(buildJsonObject {
+                put("role", "assistant")
+                put("content", aiResponse)
+            })
+        }
+    }
+
+    private fun buildVoiceCloneRequestBody(
+        modelName: String,
+        aiResponse: String,
+        voiceSampleUri: String,
+    ): OutgoingContent = object : OutgoingContent.WriteChannelContent() {
+        override val contentType: ContentType = ContentType.Application.Json
+
+        override suspend fun writeTo(channel: ByteWriteChannel) {
+            val resolvedModelName = modelName.takeIf(String::isNotBlank) ?: "mimo-v2.5-tts-voiceclone"
+            val mimeType = voiceSampleUri.audioMimeType()
+
+            channel.writeStringUtf8("{\"model\":")
+            channel.writeStringUtf8(jsonString(resolvedModelName))
+            channel.writeStringUtf8(",\"messages\":[{\"role\":\"user\",\"content\":\"\"},{\"role\":\"assistant\",\"content\":")
+            channel.writeStringUtf8(jsonString(aiResponse))
+            channel.writeStringUtf8("}],\"audio\":{\"format\":\"wav\",\"voice\":\"data:")
+            channel.writeStringUtf8(mimeType)
+            channel.writeStringUtf8(";base64,")
+            KmpFileManager.Default.writeSourceBase64(voiceSampleUri) { chunk ->
+                channel.writeStringUtf8(chunk)
+            }
+            channel.writeStringUtf8("\"}}")
+        }
+    }
+
+    private fun jsonString(value: String): String = JsonPrimitive(value).toString()
+
+    private fun String.audioMimeType(): String = when {
+        endsWith(".wav", ignoreCase = true) -> "audio/wav"
+        endsWith(".mp3", ignoreCase = true) -> "audio/mpeg"
+        endsWith(".m4a", ignoreCase = true) -> "audio/mp4"
+        endsWith(".ogg", ignoreCase = true) -> "audio/ogg"
+        else -> "audio/wav"
     }
 
     companion object {
