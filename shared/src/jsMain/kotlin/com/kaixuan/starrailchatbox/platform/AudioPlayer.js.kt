@@ -3,6 +3,7 @@ package com.kaixuan.starrailchatbox.platform
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import org.w3c.dom.Audio
+import org.w3c.dom.events.Event
 
 class JsAudioPlayer : AudioPlayer {
     private var audio: Audio? = null
@@ -43,7 +44,7 @@ class JsAudioPlayer : AudioPlayer {
         return kotlinx.coroutines.suspendCancellableCoroutine { continuation ->
             try {
                 val tempAudio = Audio(uri)
-                val onLoadedMetadata = {
+                val onLoadedMetadata: (Event) -> Unit = {
                     val duration = tempAudio.duration
                     if (duration.isNaN() || duration.isInfinite()) {
                         continuation.resume(null) { }
@@ -51,7 +52,7 @@ class JsAudioPlayer : AudioPlayer {
                         continuation.resume(duration.toInt()) { }
                     }
                 }
-                val onError = {
+                val onError: (Event) -> Unit = {
                     continuation.resume(null) { }
                 }
                 tempAudio.addEventListener("loadedmetadata", onLoadedMetadata)

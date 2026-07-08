@@ -5,9 +5,10 @@ import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.kaixuan.starrailchatbox.data.database.StarRailDatabase
 import com.kaixuan.starrailchatbox.data.database.StarRailDatabaseConstructor
 import com.kaixuan.starrailchatbox.data.database.entity.ChatSessionEntity
-import com.kaixuan.starrailchatbox.platform.JvmFileManager
 import com.kaixuan.starrailchatbox.platform.KmpFileManager
 import java.nio.file.Files
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -17,9 +18,10 @@ import okio.Path.Companion.toPath
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
 
 class RoomCharacterStorageTest {
     private fun createMockFileManager(appDir: java.nio.file.Path, cacheDir: java.nio.file.Path) = object : KmpFileManager {
@@ -202,6 +204,54 @@ class RoomCharacterStorageTest {
             val storedUpdated = requireNotNull(database.agentRoleDao().findById("builtin:流萤"))
             assertEquals(0, storedUpdated.sortOrder)
             assertEquals("流萤新版", storedUpdated.name)
+        } finally {
+            database.close()
+            Files.deleteIfExists(databasePath)
+            appDataDirectory.toFile().deleteRecursively()
+            cacheDirectory.toFile().deleteRecursively()
+        }
+    }
+
+    @OptIn(ExperimentalEncodingApi::class)
+    @Test
+    fun saveCharacterPersistsAudioDataUrlAsPrivateFile() = runTest {
+        val databasePath = Files.createTempFile("starrail-agent-role-voice-data-url", ".db")
+        val appDataDirectory = Files.createTempDirectory("starrail-agent-appdata-voice-data-url")
+        val cacheDirectory = Files.createTempDirectory("starrail-agent-cache-voice-data-url")
+        val database = Room.databaseBuilder<StarRailDatabase>(
+            name = databasePath.toString(),
+            factory = StarRailDatabaseConstructor::initialize,
+        )
+            .setDriver(BundledSQLiteDriver())
+            .build()
+        val storage = RoomCharacterStorage(
+            dao = database.agentRoleDao(),
+            fileManager = createMockFileManager(appDataDirectory, cacheDirectory),
+            currentTimeMillis = { 1_000L },
+        )
+        val audioBytes = byteArrayOf(1, 2, 3, 4)
+        val dataUrl = "data:audio/mpeg;base64,${Base64.encode(audioBytes)}"
+
+        try {
+            val saved = storage.saveCharacter(
+                CharacterFiles(
+                    id = "custom:voice",
+                    name = "Voice",
+                    prompt = "prompt",
+                    openingMessage = "",
+                    avatarUri = "avatar",
+                    voiceSampleUri = dataUrl,
+                ),
+                null,
+            )
+
+            val stored = requireNotNull(database.agentRoleDao().findById("custom:voice"))
+            val storedVoiceUri = requireNotNull(stored.voiceSampleUri)
+            assertEquals(storedVoiceUri, saved.voiceSampleUri)
+            assertNotEquals(dataUrl, storedVoiceUri)
+            assertTrue(storedVoiceUri.startsWith(appDataDirectory.toString()))
+            assertTrue(storedVoiceUri.endsWith(".mp3"))
+            assertContentEquals(audioBytes, Files.readAllBytes(java.nio.file.Path.of(storedVoiceUri)))
         } finally {
             database.close()
             Files.deleteIfExists(databasePath)

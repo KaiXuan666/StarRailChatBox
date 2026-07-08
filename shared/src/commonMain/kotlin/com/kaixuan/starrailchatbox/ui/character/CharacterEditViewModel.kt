@@ -55,6 +55,13 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 import com.kaixuan.starrailchatbox.ui.failureDetail
 
+private const val MaxVoiceSampleBytes = 5 * 1024 * 1024
+
+private class VoiceSampleInspection(
+    val isTooLarge: Boolean,
+    val bytes: ByteArray? = null,
+)
+
 data class CharacterEditArgs(
     val characterId: String?,
     val importPath: String?,
@@ -195,20 +202,73 @@ class CharacterEditViewModel(
 
     private fun cacheVoice(uri: String?, extension: String?) {
         viewModelScope.launch {
-            if (uri == null || !shouldCache(uri) || uri.startsWith("builtin:")) {
+            if (uri == null || uri.startsWith("builtin:")) {
                 update { it.copy(voiceSampleUri = uri) }
                 return@launch
             }
+
+            val inspection = inspectVoiceSample(uri, keepBytesWhenRead = true)
+            if (inspection.isTooLarge) {
+                showMessage(CharacterEffectMessage.VOICE_SAMPLE_TOO_LARGE)
+                return@launch
+            }
+
+            if (!shouldCache(uri)) {
+                update { it.copy(voiceSampleUri = uri) }
+                return@launch
+            }
+
             runCatching {
                 val suffix = extension ?: uri.substringAfterLast('.', "mp3")
                 val path = fileManager.cacheDir / "temp_voice_${now()}.$suffix".toPath()
-                fileManager.writeBytes(path, fileManager.readSourceBytes(uri))
+                fileManager.writeBytes(path, inspection.bytes ?: fileManager.readSourceBytes(uri))
                 update { it.copy(voiceSampleUri = path.toString()) }
             }.onFailure {
                 Napier.e("Failed to cache character voice sample", it)
                 update { state -> state.copy(voiceSampleUri = uri) }
             }
         }
+    }
+
+    private suspend fun inspectVoiceSample(
+        uri: String,
+        keepBytesWhenRead: Boolean = false,
+    ): VoiceSampleInspection {
+        if (uri.startsWith("http", ignoreCase = true) || uri.startsWith("picked:", ignoreCase = true)) {
+            return VoiceSampleInspection(isTooLarge = false)
+        }
+        val size = fileManager.sourceSizeBytes(uri)
+        if (size != null) {
+            return VoiceSampleInspection(isTooLarge = size > MaxVoiceSampleBytes)
+        }
+        val bytes = fileManager.readSourceBytesUpTo(uri, MaxVoiceSampleBytes.toLong())
+        return VoiceSampleInspection(
+            isTooLarge = bytes.size > MaxVoiceSampleBytes,
+            bytes = bytes.takeIf { keepBytesWhenRead && it.size <= MaxVoiceSampleBytes },
+        )
+    }
+
+    private fun isEncodedVoiceSampleTooLarge(encoded: String): Boolean {
+        val normalized = encoded.filterNot { it == '\r' || it == '\n' || it == ' ' || it == '\t' }
+        if (normalized.isEmpty()) return false
+        val padding = normalized.takeLast(2).count { it == '=' }
+        return (normalized.length.toLong() / 4L) * 3L - padding > MaxVoiceSampleBytes
+    }
+
+    private suspend fun canSaveVoiceSample(uri: String?): Boolean {
+        if (
+            uri.isNullOrBlank() ||
+            uri.startsWith("builtin:", ignoreCase = true) ||
+            uri.startsWith("http", ignoreCase = true) ||
+            uri.startsWith("picked:", ignoreCase = true)
+        ) {
+            return true
+        }
+        if (inspectVoiceSample(uri).isTooLarge) {
+            showMessage(CharacterEffectMessage.VOICE_SAMPLE_TOO_LARGE)
+            return false
+        }
+        return true
     }
 
     private fun shouldCache(uri: String): Boolean =
@@ -449,6 +509,10 @@ class CharacterEditViewModel(
                     ?.get("data")?.jsonPrimitive?.content
 
                 if (!base64Data.isNullOrBlank()) {
+                    if (isEncodedVoiceSampleTooLarge(base64Data)) {
+                        showMessage(CharacterEffectMessage.VOICE_SAMPLE_TOO_LARGE)
+                        return@launch
+                    }
                     @OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
                     val audioBytes = kotlin.io.encoding.Base64.Default.decode(base64Data.trim())
                     val randomSuffix = now().toString(36)
@@ -535,6 +599,10 @@ class CharacterEditViewModel(
         }
         update { it.copy(isSaving = true) }
         viewModelScope.launch {
+            if (!canSaveVoiceSample(edit.voiceSampleUri)) {
+                update { state -> state.copy(isSaving = false) }
+                return@launch
+            }
             runCatching {
                 val id = edit.characterId ?: Uuid.random().toString()
                 val original = edit.characterId?.let { characterRepository.getCharacter(it) }

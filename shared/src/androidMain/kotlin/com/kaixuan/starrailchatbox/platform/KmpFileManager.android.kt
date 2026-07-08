@@ -9,12 +9,14 @@ import okio.Path.Companion.toPath
 import android.content.ContentValues
 import android.net.Uri
 import android.os.Build
+import android.provider.OpenableColumns
 import android.provider.MediaStore
 import android.os.Environment
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 
@@ -51,6 +53,68 @@ class AndroidFileManager : KmpFileManager {
                 throw cancellation
             } catch (error: Exception) {
                 Napier.e("Failed to read source URI: $source", error)
+                ByteArray(0)
+            }
+        }
+    }
+
+    override suspend fun sourceSizeBytes(source: String): Long? {
+        if (!source.startsWith("content://")) {
+            return super<KmpFileManager>.sourceSizeBytes(source)
+        }
+        val context = requireNotNull(AndroidContextHolder.context)
+        return withContext(Dispatchers.IO) {
+            val uri = Uri.parse(source)
+            val queriedSize = runCatching {
+                context.contentResolver.query(
+                    uri,
+                    arrayOf(OpenableColumns.SIZE),
+                    null,
+                    null,
+                    null,
+                )?.use { cursor ->
+                    val index = cursor.getColumnIndex(OpenableColumns.SIZE)
+                    if (index >= 0 && cursor.moveToFirst() && !cursor.isNull(index)) {
+                        cursor.getLong(index)
+                    } else {
+                        null
+                    }
+                }
+            }.getOrNull()
+            if (queriedSize != null && queriedSize >= 0L) {
+                return@withContext queriedSize
+            }
+            runCatching {
+                context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { descriptor ->
+                    descriptor.length.takeIf { it >= 0L }
+                }
+            }.getOrNull()
+        }
+    }
+
+    override suspend fun readSourceBytesUpTo(source: String, maxBytes: Long): ByteArray {
+        if (!source.startsWith("content://")) {
+            return super<KmpFileManager>.readSourceBytesUpTo(source, maxBytes)
+        }
+        val context = requireNotNull(AndroidContextHolder.context)
+        return withContext(Dispatchers.IO) {
+            try {
+                context.contentResolver.openInputStream(Uri.parse(source))?.use { input ->
+                    val output = ByteArrayOutputStream()
+                    val buffer = ByteArray(8192)
+                    var remaining = maxBytes + 1
+                    while (remaining > 0L) {
+                        val read = input.read(buffer, 0, minOf(buffer.size.toLong(), remaining).toInt())
+                        if (read == -1) break
+                        output.write(buffer, 0, read)
+                        remaining -= read
+                    }
+                    output.toByteArray()
+                } ?: ByteArray(0)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                Napier.e("Failed to read bounded source URI: $source", error)
                 ByteArray(0)
             }
         }

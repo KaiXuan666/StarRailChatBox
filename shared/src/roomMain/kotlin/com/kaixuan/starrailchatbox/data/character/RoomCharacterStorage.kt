@@ -102,18 +102,7 @@ class RoomCharacterStorage(
 
         val oldVoiceSampleUri = existing?.voiceSampleUri
         val voiceSampleUri = if (character.voiceSampleUri != oldVoiceSampleUri) {
-            character.voiceSampleUri?.let { uri ->
-                if (uri.startsWith(fileManager.cacheDir.toString())) {
-                    val extension = uri.substringAfterLast('.', "mp3")
-                    val safeId = characterSafeFileName(character.id)
-                    val targetFileName = "${safeId}_${now}.$extension"
-                    val targetPath = fileManager.appDataDir / "character_voice_samples".toPath() / targetFileName.toPath()
-                    fileManager.move(uri.toPath(), targetPath)
-                    targetPath.toString()
-                } else {
-                    uri
-                }
-            }
+            character.voiceSampleUri?.let { uri -> persistVoiceSampleUri(character.id, uri, now) }
         } else {
             character.voiceSampleUri
         }
@@ -143,6 +132,41 @@ class RoomCharacterStorage(
             deleteFileIfAppOwned(oldVoiceSampleUri)
         }
         return character.copy(avatarUri = avatarUri, voiceSampleUri = voiceSampleUri, sortOrder = sortOrder)
+    }
+
+    private suspend fun persistVoiceSampleUri(characterId: String, uri: String, now: Long): String {
+        if (uri.startsWith(fileManager.cacheDir.toString())) {
+            val extension = uri.substringAfterLast('.', "mp3")
+            val targetPath = characterVoiceSamplePath(characterId, now, extension)
+            fileManager.move(uri.toPath(), targetPath)
+            return targetPath.toString()
+        }
+        if (uri.startsWith("data:audio/", ignoreCase = true)) {
+            val extension = uri.dataUrlAudioExtension()
+            val targetPath = characterVoiceSamplePath(characterId, now, extension)
+            fileManager.writeBytes(targetPath, fileManager.readSourceBytes(uri))
+            return targetPath.toString()
+        }
+        return uri
+    }
+
+    private fun characterVoiceSamplePath(characterId: String, now: Long, extension: String): Path {
+        val safeId = characterSafeFileName(characterId)
+        val targetFileName = "${safeId}_${now}.$extension"
+        return fileManager.appDataDir / "character_voice_samples".toPath() / targetFileName.toPath()
+    }
+
+    private fun String.dataUrlAudioExtension(): String {
+        return when (substringAfter("data:", "").substringBefore(';').lowercase()) {
+            "audio/mpeg", "audio/mp3" -> "mp3"
+            "audio/wav", "audio/wave", "audio/x-wav" -> "wav"
+            "audio/ogg" -> "ogg"
+            "audio/webm" -> "webm"
+            "audio/aac" -> "aac"
+            "audio/flac" -> "flac"
+            "audio/mp4", "audio/m4a", "audio/x-m4a" -> "m4a"
+            else -> "mp3"
+        }
     }
 
     private fun deleteFileIfAppOwned(uri: String) {

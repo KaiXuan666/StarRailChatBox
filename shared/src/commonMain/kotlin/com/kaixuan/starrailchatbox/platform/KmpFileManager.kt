@@ -2,6 +2,7 @@ package com.kaixuan.starrailchatbox.platform
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okio.Buffer
 import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
@@ -103,6 +104,64 @@ interface KmpFileManager {
                     ByteArray(0)
                 }
             } catch (e: Exception) {
+                ByteArray(0)
+            }
+        }
+    }
+
+    /**
+     * 获取文件路径、平台 URI 或 data URI 的字节大小。无法通过元数据获取时返回 null。
+     */
+    suspend fun sourceSizeBytes(source: String): Long? {
+        if (source.isBlank()) return 0L
+        if (source.startsWith("data:")) {
+            val encoded = source.substringAfter("base64,", missingDelimiterValue = "")
+                .filterNot { it == '\r' || it == '\n' || it == ' ' || it == '\t' }
+            if (encoded.isEmpty()) return 0L
+            val padding = encoded.takeLast(2).count { it == '=' }
+            return (encoded.length.toLong() / 4L) * 3L - padding
+        }
+        if (!isSupported) return null
+        val path = source.removePrefix("file://").toPath()
+        return withContext(Dispatchers.Default) {
+            try {
+                fileSystem.metadata(path).takeIf { !it.isDirectory }?.size
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+
+    /**
+     * 最多读取 maxBytes + 1 字节，用于在元数据不可用时安全判断大小。
+     */
+    @OptIn(ExperimentalEncodingApi::class)
+    suspend fun readSourceBytesUpTo(source: String, maxBytes: Long): ByteArray {
+        if (source.isBlank()) return ByteArray(0)
+        if (source.startsWith("data:")) {
+            return readSourceBytes(source)
+        }
+        if (!isSupported) return ByteArray(0)
+        val path = source.removePrefix("file://").toPath()
+        return withContext(Dispatchers.Default) {
+            try {
+                if (!exists(path) || fileSystem.metadata(path).isDirectory) {
+                    return@withContext ByteArray(0)
+                }
+                val rawSource = fileSystem.source(path)
+                try {
+                    val buffer = Buffer()
+                    var remaining = maxBytes + 1
+                    while (remaining > 0L) {
+                        val read = rawSource.read(buffer, minOf(8192L, remaining))
+                        if (read == -1L) break
+                        remaining -= read
+                    }
+                    buffer.readByteArray()
+                } finally {
+                    rawSource.close()
+                }
+            } catch (_: Exception) {
                 ByteArray(0)
             }
         }
