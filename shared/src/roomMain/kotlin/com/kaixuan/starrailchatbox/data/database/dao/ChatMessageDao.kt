@@ -77,6 +77,18 @@ interface ChatMessageDao {
 
     @Transaction
     @Query(
+        """
+        SELECT * FROM chat_message
+        WHERE session_id = :sessionId
+            AND deleted_at IS NULL
+        ORDER BY seq DESC
+        LIMIT 1
+        """,
+    )
+    suspend fun findLatestBySession(sessionId: String): ChatMessageWithAttachments?
+
+    @Transaction
+    @Query(
         "SELECT * FROM chat_message " +
             "WHERE session_id = :sessionId AND is_context_excluded = 0 " +
             "AND status = 'completed' AND deleted_at IS NULL AND seq > :afterSeq " +

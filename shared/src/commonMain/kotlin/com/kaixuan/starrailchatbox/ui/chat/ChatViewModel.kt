@@ -222,6 +222,41 @@ class ChatViewModel(
                 // 已经在 UI 层通过 LocalUriHandler 处理了，ViewModel 暂时不需要处理
             }
             is ChatAction.RetrySendMessage -> retrySendMessage(action.messageId)
+            is ChatAction.RegenerateResponse -> regenerateResponse(action.messageId)
+        }
+    }
+
+    private fun regenerateResponse(messageId: String) {
+        val state = uiState.value
+        val characterId = state.selectedCharacterId ?: return
+        val characterState = state.characterStates[characterId] ?: return
+        if (characterState.isSending) return
+
+        viewModelScope.launch {
+            val character = characterRepository.getCharacter(characterId) ?: return@launch
+            val sessionId = characterState.activeSessionId ?: return@launch
+            val session = chatSessionRepository.findSession(sessionId)
+                ?.takeIf { it.agentId == characterId }
+                ?: return@launch
+            val deleted = chatSessionRepository.deleteLatestAssistantMessage(
+                messageId = messageId,
+                deletedAt = currentTimeMillis(),
+            )
+            if (!deleted) {
+                return@launch
+            }
+
+            updateCharacterState(characterId) { it.copy(isSending = true) }
+            try {
+                performChatRequest(character, session)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (e: Throwable) {
+                Napier.e("Regenerate response failed (msgId: $messageId)", e)
+                emitMessage(EffectMessage.CHAT_REQUEST_FAILED, e.failureDetail())
+            } finally {
+                updateCharacterState(characterId) { it.copy(isSending = false) }
+            }
         }
     }
 

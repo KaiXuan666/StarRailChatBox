@@ -137,6 +137,8 @@ fun ChatMessageList(
                         }
                         MessageItem(
                             message = displayedMessage,
+                            canRegenerate = index == 0 &&
+                                displayedMessage is ChatMessageUiModel.Received,
                             charactersById = charactersById,
                             userAvatarUri = userAvatarUri,
                             compact = compact,

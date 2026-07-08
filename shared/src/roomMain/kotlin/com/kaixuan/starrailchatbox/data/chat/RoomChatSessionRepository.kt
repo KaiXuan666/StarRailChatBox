@@ -195,6 +195,37 @@ class RoomChatSessionRepository(
         messageDao.deleteFailedMessages(sessionId)
     }
 
+    override suspend fun deleteLatestAssistantMessage(messageId: String, deletedAt: Long): Boolean {
+        return database.useWriterConnection { connection ->
+            connection.immediateTransaction {
+                val target = messageDao.findById(messageId)?.message
+                    ?.takeIf {
+                        it.role == ChatRole.ASSISTANT.apiValue &&
+                            it.status == ChatMessageStatus.COMPLETED.storageValue
+                    }
+                    ?: return@immediateTransaction false
+                val latest = messageDao.findLatestBySession(target.sessionId)?.message
+                    ?: return@immediateTransaction false
+                if (latest.id != target.id) {
+                    return@immediateTransaction false
+                }
+                if (messageDao.softDelete(messageId, deletedAt) != 1) {
+                    return@immediateTransaction false
+                }
+                messageDao.findLatestBySession(target.sessionId)?.message?.let { remaining ->
+                    check(
+                        sessionDao.updateLastMessage(
+                            sessionId = target.sessionId,
+                            messageId = remaining.id,
+                            messageAt = remaining.createdAt,
+                        ) == 1,
+                    ) { "Chat session ${target.sessionId} does not exist." }
+                }
+                true
+            }
+        }
+    }
+
 }
 
 private class LoggingChatMessagePagingSource(

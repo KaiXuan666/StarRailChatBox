@@ -52,6 +52,7 @@ import starrailchatbox.shared.generated.resources.Res
 import starrailchatbox.shared.generated.resources.action_copy
 import starrailchatbox.shared.generated.resources.read_status
 import starrailchatbox.shared.generated.resources.received_message_description
+import starrailchatbox.shared.generated.resources.regenerate
 import starrailchatbox.shared.generated.resources.retry
 import starrailchatbox.shared.generated.resources.sent_message_description
 import starrailchatbox.shared.generated.resources.view_attachments
@@ -60,6 +61,7 @@ import kotlin.math.roundToInt
 @Composable
 fun MessageItem(
     message: ChatMessageUiModel,
+    canRegenerate: Boolean,
     charactersById: Map<String, CharacterSummary>,
     userAvatarUri: String?,
     compact: Boolean,
@@ -78,6 +80,8 @@ fun MessageItem(
             onViewAttachments = onViewAttachments,
             onOpenAttachment = onOpenAttachment,
             onAvatarClick = onAvatarClick,
+            canRegenerate = canRegenerate,
+            onAction = onAction,
         )
         is ChatMessageUiModel.Sent -> SentMessage(
             message = message,
@@ -100,6 +104,8 @@ fun ReceivedMessage(
     onViewAttachments: (List<MessageAttachment>) -> Unit,
     onOpenAttachment: (MessageAttachment) -> Unit,
     onAvatarClick: () -> Unit,
+    canRegenerate: Boolean,
+    onAction: (ChatAction) -> Unit,
 ) {
     val text = message.content.resolve()
     val senderName = sender?.name ?: message.senderId
@@ -236,6 +242,15 @@ fun ReceivedMessage(
                                     showMenu = false
                                 }
                             )
+                            if (canRegenerate) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(Res.string.regenerate)) },
+                                    onClick = {
+                                        showMenu = false
+                                        onAction(ChatAction.RegenerateResponse(message.id))
+                                    }
+                                )
+                            }
                         }
                     }
                     Row(

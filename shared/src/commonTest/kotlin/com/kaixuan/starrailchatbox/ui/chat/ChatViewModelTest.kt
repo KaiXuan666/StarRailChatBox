@@ -143,6 +143,38 @@ class ChatViewModelTest {
     }
 
     @Test
+    fun regenerateLatestAssistantMessageDeletesOldResponseAndRequestsAgain() = runTest {
+        val fixture = createFixture()
+        advanceUntilIdle()
+
+        fixture.send("第一句")
+        advanceUntilIdle()
+
+        val session = requireNotNull(fixture.sessions.findLatestSession("builtin:流萤"))
+        val oldAssistant = fixture.sessions.messageSnapshot(session.id).last()
+        assertEquals(ChatRole.ASSISTANT, oldAssistant.role)
+
+        fixture.viewModel.onAction(ChatAction.RegenerateResponse(oldAssistant.id))
+        advanceUntilIdle()
+
+        assertEquals(2, fixture.api.requests.size)
+        assertEquals(
+            listOf(
+                "system" to "role prompt",
+                "assistant" to "今天要聊点什么呢？",
+                "user" to "第一句",
+            ),
+            fixture.api.requests.last().map { it.role to it.content },
+        )
+        val stored = fixture.sessions.messageSnapshot(session.id)
+        assertEquals(
+            listOf("今天要聊点什么呢？", "第一句", "你好呀"),
+            stored.map { it.content },
+        )
+        assertFalse(stored.any { it.id == oldAssistant.id })
+    }
+
+    @Test
     fun secondRoundConversationTriggersSessionAutomaticRenaming() = runTest {
         val fixture = createFixture()
         advanceUntilIdle()

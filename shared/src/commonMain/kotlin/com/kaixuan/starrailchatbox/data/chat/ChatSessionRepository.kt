@@ -191,6 +191,8 @@ interface ChatSessionRepository {
     suspend fun updateSessionTitle(sessionId: String, title: String)
 
     suspend fun deleteFailedMessages(sessionId: String)
+
+    suspend fun deleteLatestAssistantMessage(messageId: String, deletedAt: Long): Boolean
 }
 
 class InMemoryChatSessionRepository : ChatSessionRepository {
@@ -375,6 +377,40 @@ class InMemoryChatSessionRepository : ChatSessionRepository {
             stored.filterNot { it.sessionId == sessionId && it.status == ChatMessageStatus.FAILED }
         }
         invalidatePagingSources(sessionId)
+    }
+
+    override suspend fun deleteLatestAssistantMessage(messageId: String, deletedAt: Long): Boolean {
+        val target = messages.value.firstOrNull { it.id == messageId }
+            ?.takeIf {
+                it.role == ChatRole.ASSISTANT &&
+                    it.status == ChatMessageStatus.COMPLETED
+            }
+            ?: return false
+        val latest = messages.value
+            .filter { it.sessionId == target.sessionId }
+            .maxByOrNull(StoredChatMessage::seq)
+            ?: return false
+        if (latest.id != target.id) {
+            return false
+        }
+
+        messages.update { stored -> stored.filterNot { it.id == messageId } }
+        invalidatePagingSources(target.sessionId)
+        messages.value
+            .filter { it.sessionId == target.sessionId }
+            .maxByOrNull(StoredChatMessage::seq)
+            ?.let { latestRemaining ->
+                sessions.update { stored ->
+                    stored.map {
+                        if (it.id == target.sessionId) {
+                            it.copy(lastMessageAt = latestRemaining.createdAt)
+                        } else {
+                            it
+                        }
+                    }
+                }
+            }
+        return true
     }
 
     fun getAllMessagesDirectly(): List<StoredChatMessage> = messages.value

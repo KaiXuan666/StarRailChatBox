@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -209,6 +210,44 @@ class RoomChatSessionRepositoryTest {
             assertEquals(1, orphanEntries.size)
             assertEquals("orphan-user", orphanEntries.single().message.id)
             assertTrue(orphanEntries.single().hasFailedResponse)
+        } finally {
+            database.close()
+            Files.deleteIfExists(databasePath)
+        }
+    }
+
+    @Test
+    fun deletesOnlyLatestAssistantMessageForRegeneration() = runTest {
+        val databasePath = Files.createTempFile("starrail-chat-regenerate", ".db")
+        val database = Room.databaseBuilder<StarRailDatabase>(
+            name = databasePath.toString(),
+            factory = StarRailDatabaseConstructor::initialize,
+        )
+            .setDriver(BundledSQLiteDriver())
+            .fallbackToDestructiveMigration(true)
+            .build()
+        val repository = RoomChatSessionRepository(database)
+
+        try {
+            database.agentRoleDao().upsert(testRole())
+            repository.createSessionWithMessages(
+                session = newSession("session-regenerate", 1_000L),
+                messages = listOf(
+                    newMessage("user-1", "session-regenerate", ChatRole.USER, "hello", 1_000L),
+                    newMessage("assistant-1", "session-regenerate", ChatRole.ASSISTANT, "hi", 2_000L),
+                    newMessage("user-2", "session-regenerate", ChatRole.USER, "again", 3_000L),
+                    newMessage("assistant-2", "session-regenerate", ChatRole.ASSISTANT, "again hi", 4_000L),
+                ),
+            )
+
+            assertFalse(repository.deleteLatestAssistantMessage("assistant-1", 5_000L))
+            assertTrue(repository.deleteLatestAssistantMessage("assistant-2", 5_000L))
+
+            assertEquals(
+                listOf("hello", "hi", "again"),
+                repository.findContext("session-regenerate", null).messages.map { it.content },
+            )
+            assertEquals("again", repository.observeSessions("agent").first().single().lastMessagePreview)
         } finally {
             database.close()
             Files.deleteIfExists(databasePath)
