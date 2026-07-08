@@ -7,9 +7,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -31,13 +33,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.kaixuan.starrailchatbox.data.character.CharacterSummary
 import com.kaixuan.starrailchatbox.data.chat.MessageAttachment
@@ -54,6 +55,7 @@ import starrailchatbox.shared.generated.resources.received_message_description
 import starrailchatbox.shared.generated.resources.retry
 import starrailchatbox.shared.generated.resources.sent_message_description
 import starrailchatbox.shared.generated.resources.view_attachments
+import kotlin.math.roundToInt
 
 @Composable
 fun MessageItem(
@@ -111,7 +113,6 @@ fun ReceivedMessage(
     val isVoiceOnly = voiceAttachment != null
     var showMenu by remember { mutableStateOf(false) }
     var pressOffset by remember { mutableStateOf(Offset.Zero) }
-    val density = LocalDensity.current
     val clipboardManager = LocalClipboardManager.current
 
     BoxWithConstraints(
@@ -223,10 +224,10 @@ fun ReceivedMessage(
                                 )
                             }
                         }
-                        DropdownMenu(
+                        MessageContextMenu(
                             expanded = showMenu,
                             onDismissRequest = { showMenu = false },
-                            offset = density.toContextMenuOffset(pressOffset),
+                            pressOffset = pressOffset,
                         ) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(Res.string.action_copy)) },
@@ -284,7 +285,6 @@ fun SentMessage(
     val isVoiceOnly = voiceAttachment != null
     var showMenu by remember { mutableStateOf(false) }
     var pressOffset by remember { mutableStateOf(Offset.Zero) }
-    val density = LocalDensity.current
     val clipboardManager = LocalClipboardManager.current
 
     BoxWithConstraints(
@@ -399,10 +399,10 @@ fun SentMessage(
                                 )
                             }
                         }
-                        DropdownMenu(
+                        MessageContextMenu(
                             expanded = showMenu,
                             onDismissRequest = { showMenu = false },
-                            offset = density.toContextMenuOffset(pressOffset),
+                            pressOffset = pressOffset,
                         ) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(Res.string.action_copy)) },
@@ -512,9 +512,33 @@ fun MessageContent.resolve(): String = when (this) {
     is MessageContent.Custom -> text
 }
 
-private fun Density.toContextMenuOffset(offset: Offset): DpOffset = DpOffset(
-    x = offset.x.toDp() + StarRailSpacing.xs,
-    y = offset.y.toDp() - MessageContextMenuVerticalOffset,
-)
+@Composable
+private fun MessageContextMenu(
+    expanded: Boolean,
+    pressOffset: Offset,
+    onDismissRequest: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .offset {
+                IntOffset(
+                    x = pressOffset.x.roundToInt(),
+                    y = pressOffset.y.roundToInt(),
+                )
+            }
+            .size(1.dp),
+    ) {
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = onDismissRequest,
+            offset = DpOffset(
+                x = StarRailSpacing.xs,
+                y = -MessageContextMenuVerticalOffset,
+            ),
+            content = content,
+        )
+    }
+}
 
 private val MessageContextMenuVerticalOffset = 56.dp
