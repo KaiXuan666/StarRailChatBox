@@ -163,7 +163,8 @@ fun ConversationManagementScreen(
                 ConversationCard(
                     session = session,
                     selected = session.id == state.activeSessionId,
-                    enabled = !state.isSending && !state.isLoadingSession,
+                    openEnabled = !state.isLoadingSession,
+                    deleteEnabled = !state.isSending && !state.isLoadingSession,
                     onOpen = {
                         onAction(ChatAction.SessionSelected(session.id))
                         onMainAction(MainAction.PopBackStack)
@@ -301,7 +302,8 @@ private fun CharacterConversationCard(
 private fun ConversationCard(
     session: ConversationSummaryUiModel,
     selected: Boolean,
-    enabled: Boolean,
+    openEnabled: Boolean,
+    deleteEnabled: Boolean,
     onOpen: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -317,7 +319,7 @@ private fun ConversationCard(
             .clip(shape)
             .background(MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.92f))
             .border(if (selected) 2.dp else 1.dp, borderColor, shape)
-            .clickable(enabled = enabled, onClick = onOpen),
+            .clickable(enabled = openEnabled, onClick = onOpen),
     ) {
         Row(
             modifier = Modifier.padding(StarRailSpacing.md),
@@ -396,7 +398,7 @@ private fun ConversationCard(
             }
             Surface(
                 onClick = onDelete,
-                enabled = enabled,
+                enabled = deleteEnabled,
                 modifier = Modifier.size(48.dp),
                 shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,

@@ -643,7 +643,6 @@ class ChatViewModel(
         val characterId = state.selectedCharacterId ?: return
         val characterState = state.characterStates[characterId] ?: return
         if (
-            characterState.isSending ||
             characterState.isLoadingSession ||
             characterState.activeSessionId == sessionId ||
             characterState.sessions.none { it.id == sessionId }

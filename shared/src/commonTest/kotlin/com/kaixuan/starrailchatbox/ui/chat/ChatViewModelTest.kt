@@ -25,6 +25,7 @@ import com.kaixuan.starrailchatbox.ui.character.CharacterEffectMessage
 import com.kaixuan.starrailchatbox.ui.character.CharactersUiState
 import com.kaixuan.starrailchatbox.ui.character.CharacterEditUiState
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
@@ -315,6 +316,86 @@ class ChatViewModelTest {
         )
     }
 
+    @Test
+    fun sendingMessageAllowsSwitchingExistingSessionAndStoresResponseInOriginalSession() = runTest {
+        val sessions = InMemoryChatSessionRepository()
+        sessions.createSessionWithMessages(
+            NewChatSession(
+                id = "session-old",
+                title = "旧对话",
+                agentId = "builtin:流萤",
+                modelConfigId = null,
+                systemPromptSnapshot = "role prompt",
+                maxContextMessageCount = null,
+                createdAt = 10_000L,
+            ),
+            listOf(
+                NewChatMessage(
+                    id = "message-old-user",
+                    sessionId = "session-old",
+                    role = ChatRole.USER,
+                    content = "旧对话消息",
+                    status = ChatMessageStatus.COMPLETED,
+                    modelConfigId = null,
+                    modelNameSnapshot = null,
+                    createdAt = 10_000L,
+                ),
+            ),
+        )
+        sessions.createSessionWithMessages(
+            NewChatSession(
+                id = "session-active",
+                title = "当前对话",
+                agentId = "builtin:流萤",
+                modelConfigId = null,
+                systemPromptSnapshot = "role prompt",
+                maxContextMessageCount = null,
+                createdAt = 20_000L,
+            ),
+            listOf(
+                NewChatMessage(
+                    id = "message-active-user",
+                    sessionId = "session-active",
+                    role = ChatRole.USER,
+                    content = "当前对话消息",
+                    status = ChatMessageStatus.COMPLETED,
+                    modelConfigId = null,
+                    modelNameSnapshot = null,
+                    createdAt = 20_000L,
+                ),
+            ),
+        )
+        val api = BlockingOpenAiRepository()
+        val fixture = createFixture(sessions = sessions, aiRepository = api)
+        advanceUntilIdle()
+
+        assertEquals("session-active", fixture.viewModel.uiState.value.activeSessionId)
+
+        fixture.send("发送中的消息")
+        runCurrent()
+        api.requestStarted.await()
+        assertTrue(fixture.viewModel.uiState.value.isSending)
+
+        fixture.viewModel.onAction(ChatAction.SessionSelected("session-old"))
+        advanceUntilIdle()
+
+        assertEquals("session-old", fixture.viewModel.uiState.value.activeSessionId)
+
+        api.complete("后台回复")
+        advanceUntilIdle()
+
+        assertEquals("session-old", fixture.viewModel.uiState.value.activeSessionId)
+        assertEquals(
+            listOf("当前对话消息", "发送中的消息", "后台回复"),
+            sessions.messageSnapshot("session-active").map { it.content },
+        )
+        assertEquals(
+            listOf("旧对话消息"),
+            sessions.messageSnapshot("session-old").map { it.content },
+        )
+        assertFalse(fixture.viewModel.uiState.value.isSending)
+    }
+
 
     @Test
     fun timelineItemsIncludeDateDividersCorrectly() = runTest {
@@ -468,8 +549,9 @@ class ChatViewModelTest {
         config: ModelConfig? = testConfig(),
         characterRepository: CharacterRepository = FakeCharacterRepository,
         sessions: InMemoryChatSessionRepository = InMemoryChatSessionRepository(),
+        aiRepository: FakeOpenAiRepository = FakeOpenAiRepository(),
     ): Fixture {
-        val api = FakeOpenAiRepository()
+        val api = aiRepository
         var id = 0
         val viewModel = ChatViewModel(
             characterRepository = characterRepository,
@@ -878,7 +960,7 @@ private open class FakeOpenAiRepository : AiRepository {
         providerId: String,
     ): ApiResult<List<String>> = ApiResult.Success(emptyList())
 
-    override suspend fun createChatCompletion(
+    open override suspend fun createChatCompletion(
         config: ModelConfig,
         messages: List<AiMessage>,
         characterName: String,
@@ -952,6 +1034,37 @@ private open class FakeOpenAiRepository : AiRepository {
         model: String,
         providerId: String,
     ): Boolean = false
+}
+
+private class BlockingOpenAiRepository : FakeOpenAiRepository() {
+    val requestStarted = CompletableDeferred<Unit>()
+    private val response = CompletableDeferred<ApiResult<ChatCompletionResult>>()
+
+    override suspend fun createChatCompletion(
+        config: ModelConfig,
+        messages: List<AiMessage>,
+        characterName: String,
+        voiceSampleUri: String?,
+    ): ApiResult<ChatCompletionResult> {
+        requests += messages
+        configs += config
+        requestStarted.complete(Unit)
+        return response.await()
+    }
+
+    fun complete(content: String) {
+        response.complete(
+            ApiResult.Success(
+                ChatCompletionResult(
+                    content = content,
+                    finishReason = "stop",
+                    promptTokens = 10,
+                    completionTokens = 2,
+                    totalTokens = 12,
+                ),
+            ),
+        )
+    }
 }
 
 private fun testConfig() = ModelConfig(

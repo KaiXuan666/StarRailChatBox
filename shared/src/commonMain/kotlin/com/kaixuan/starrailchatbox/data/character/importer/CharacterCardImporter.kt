@@ -40,7 +40,7 @@ class DefaultCharacterCardImporter(
                 return@withContext ApiResult.UnexpectedError("File is empty or not found")
             }
 
-            if (bytes.size > 20 * 1024 * 1024) { // 20MB limit
+            if (bytes.size > 30 * 1024 * 1024) { // 30MB limit
                 return@withContext ApiResult.UnexpectedError("File too large")
             }
 
