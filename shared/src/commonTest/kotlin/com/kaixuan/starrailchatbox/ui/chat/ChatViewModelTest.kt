@@ -11,6 +11,10 @@ import com.kaixuan.starrailchatbox.data.character.Character
 import com.kaixuan.starrailchatbox.data.character.CharacterAvatarSource
 import com.kaixuan.starrailchatbox.data.character.CharacterRepository
 import com.kaixuan.starrailchatbox.data.chat.InMemoryChatSessionRepository
+import com.kaixuan.starrailchatbox.data.chat.ChatMessageStatus
+import com.kaixuan.starrailchatbox.data.chat.ChatRole
+import com.kaixuan.starrailchatbox.data.chat.NewChatMessage
+import com.kaixuan.starrailchatbox.data.chat.NewChatSession
 import com.kaixuan.starrailchatbox.data.model.InMemoryModelConfigRepository
 import com.kaixuan.starrailchatbox.data.model.ModelConfig
 import com.kaixuan.starrailchatbox.data.settings.ProfileStore
@@ -189,6 +193,57 @@ class ChatViewModelTest {
     }
 
     @Test
+    fun latestUserMessageWithoutAssistantResponseIsRetryableAfterRestart() = runTest {
+        val sessions = InMemoryChatSessionRepository()
+        sessions.createSessionWithMessages(
+            session = NewChatSession(
+                id = "session-orphan",
+                title = "新对话",
+                agentId = "builtin:流萤",
+                modelConfigId = null,
+                systemPromptSnapshot = "role prompt",
+                maxContextMessageCount = null,
+                createdAt = 60_000L,
+            ),
+            messages = listOf(
+                NewChatMessage(
+                    id = "orphan-user",
+                    sessionId = "session-orphan",
+                    role = ChatRole.USER,
+                    content = "进程关闭前发出的消息",
+                    status = ChatMessageStatus.COMPLETED,
+                    modelConfigId = null,
+                    modelNameSnapshot = null,
+                    createdAt = 60_000L,
+                ),
+            ),
+        )
+
+        val fixture = createFixture(sessions = sessions)
+        advanceUntilIdle()
+
+        val message = assertIs<ChatMessageUiModel.Sent>(
+            fixture.viewModel.uiState.value.messageSnapshot().single(),
+        )
+        assertEquals(MessageStatus.FAILED, message.status)
+
+        fixture.viewModel.onAction(ChatAction.RetrySendMessage(message.id))
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(
+                "system" to "role prompt",
+                "user" to "进程关闭前发出的消息",
+            ),
+            fixture.api.requests.single().map { it.role to it.content },
+        )
+        assertEquals(
+            listOf("进程关闭前发出的消息", "你好呀"),
+            fixture.sessions.messageSnapshot("session-orphan").map { it.content },
+        )
+    }
+
+    @Test
     fun conversationManagementCreatesSwitchesAndDeletesSessions() = runTest {
         val fixture = createFixture()
         advanceUntilIdle()
@@ -288,8 +343,8 @@ class ChatViewModelTest {
     private fun createFixture(
         config: ModelConfig? = testConfig(),
         characterRepository: CharacterRepository = FakeCharacterRepository,
+        sessions: InMemoryChatSessionRepository = InMemoryChatSessionRepository(),
     ): Fixture {
-        val sessions = InMemoryChatSessionRepository()
         val api = FakeOpenAiRepository()
         var id = 0
         val viewModel = ChatViewModel(

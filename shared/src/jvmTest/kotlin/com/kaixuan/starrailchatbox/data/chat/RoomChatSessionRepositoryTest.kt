@@ -192,6 +192,23 @@ class RoomChatSessionRepositoryTest {
             assertEquals(1, failedEntries.size)
             assertEquals("failed-user", failedEntries.single().message.id)
             assertTrue(failedEntries.single().hasFailedResponse)
+
+            repository.createSessionWithMessages(
+                session = newSession("session-orphan-user", 3_000L),
+                messages = listOf(
+                    newMessage(
+                        id = "orphan-user",
+                        sessionId = "session-orphan-user",
+                        role = ChatRole.USER,
+                        content = "retry after restart",
+                        now = 3_000L,
+                    ),
+                ),
+            )
+            val orphanEntries = repository.pagedMessages("session-orphan-user").asSnapshot()
+            assertEquals(1, orphanEntries.size)
+            assertEquals("orphan-user", orphanEntries.single().message.id)
+            assertTrue(orphanEntries.single().hasFailedResponse)
         } finally {
             database.close()
             Files.deleteIfExists(databasePath)

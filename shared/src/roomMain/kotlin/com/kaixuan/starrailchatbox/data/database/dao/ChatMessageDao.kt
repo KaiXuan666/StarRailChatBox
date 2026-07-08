@@ -19,14 +19,24 @@ interface ChatMessageDao {
     @Query(
         """
         SELECT m.*,
-            EXISTS(
-                SELECT 1 FROM chat_message failed
-                WHERE failed.session_id = m.session_id
-                    AND failed.seq = m.seq + 1
-                    AND failed.role = 'assistant'
-                    AND failed.status = 'failed'
-                    AND failed.deleted_at IS NULL
-            ) AS has_failed_response
+            CASE WHEN m.role = 'user' AND (
+                EXISTS(
+                    SELECT 1 FROM chat_message failed
+                    WHERE failed.session_id = m.session_id
+                        AND failed.seq = m.seq + 1
+                        AND failed.role = 'assistant'
+                        AND failed.status = 'failed'
+                        AND failed.deleted_at IS NULL
+                )
+                OR m.seq = (
+                    SELECT latest.seq FROM chat_message latest
+                    WHERE latest.session_id = m.session_id
+                        AND latest.deleted_at IS NULL
+                        AND NOT (latest.role = 'assistant' AND latest.status = 'failed')
+                    ORDER BY latest.seq DESC
+                    LIMIT 1
+                )
+            ) THEN 1 ELSE 0 END AS has_failed_response
         FROM chat_message m
         WHERE m.session_id = :sessionId
             AND m.deleted_at IS NULL

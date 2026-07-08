@@ -129,8 +129,7 @@ fun ChatMessageList(
                         val displayedMessage = if (
                             index == 0 &&
                             isSending &&
-                            item.message is ChatMessageUiModel.Sent &&
-                            item.message.status == MessageStatus.SENT
+                            item.message is ChatMessageUiModel.Sent
                         ) {
                             item.message.copy(status = MessageStatus.SENDING)
                         } else {

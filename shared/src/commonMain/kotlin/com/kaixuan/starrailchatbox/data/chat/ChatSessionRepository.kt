@@ -396,6 +396,14 @@ private class InMemoryChatMessagePagingSource(
     snapshot: List<StoredChatMessage>,
     sessionId: String,
 ) : PagingSource<Int, ChatMessagePageEntry>() {
+    private val latestVisibleUserSeq = snapshot.asSequence()
+        .filter {
+            it.sessionId == sessionId &&
+                !(it.role == ChatRole.ASSISTANT && it.status == ChatMessageStatus.FAILED)
+        }
+        .maxByOrNull(StoredChatMessage::seq)
+        ?.takeIf { it.role == ChatRole.USER }
+        ?.seq
     private val failedResponseSeqs = snapshot.asSequence()
         .filter {
             it.sessionId == sessionId &&
@@ -414,7 +422,10 @@ private class InMemoryChatMessagePagingSource(
                 ChatMessagePageEntry(
                     message = message,
                     hasFailedResponse = message.role == ChatRole.USER &&
-                        message.seq + 1 in failedResponseSeqs,
+                        (
+                            message.seq + 1 in failedResponseSeqs ||
+                                message.seq == latestVisibleUserSeq
+                        ),
                 )
             }
         }
