@@ -128,7 +128,7 @@ fun ConversationManagementScreen(
                     onAction(ChatAction.NewSessionClicked)
                     onMainAction(MainAction.PopBackStack)
                 },
-                enabled = character != null && !state.isSending && !state.isLoadingSession,
+                enabled = character != null && !state.hasSending && !state.isLoadingSession,
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -164,7 +164,7 @@ fun ConversationManagementScreen(
                     session = session,
                     selected = session.id == state.activeSessionId,
                     openEnabled = !state.isLoadingSession,
-                    deleteEnabled = !state.isSending && !state.isLoadingSession,
+                    deleteEnabled = !state.hasSending && !state.isLoadingSession,
                     onOpen = {
                         onAction(ChatAction.SessionSelected(session.id))
                         onMainAction(MainAction.PopBackStack)

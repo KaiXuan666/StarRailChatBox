@@ -128,32 +128,24 @@ class ChatViewModel(
                 val characterId = state.selectedCharacterId
                 if (characterId != null && !state.isSending && !state.isLoadingSession) {
                     val activeSessionId = state.characterStates[characterId]?.activeSessionId
-                    _uiState.update { s ->
-                        val curState = s.characterStates[characterId] ?: CharacterChatState()
-                        s.copy(
-                            characterStates = s.characterStates + (characterId to curState.copy(
-                                isSending = true,
-                                scrollToLatestRequestId = curState.scrollToLatestRequestId + 1,
-                            ))
+                    updateCharacterState(characterId) { currentState ->
+                        currentState.copy(
+                            sendingSessionIds = currentState.sendingSessionIds + activeSessionId,
+                            scrollToLatestRequestId = currentState.scrollToLatestRequestId + 1,
                         )
                     }
                     viewModelScope.launch {
+                        var sendingSessionId = activeSessionId
                         try {
-                            sendMessage(characterId, activeSessionId, action.message)
+                            sendingSessionId = sendMessage(characterId, activeSessionId, action.message)
+                                ?: activeSessionId
                         } catch (cancellation: CancellationException) {
                             throw cancellation
                         } catch (e: Throwable) {
                             Napier.e("Send message (text-only) failed", e)
                             emitMessage(EffectMessage.CHAT_REQUEST_FAILED, e.failureDetail())
                         } finally {
-                            _uiState.update { s ->
-                                val curState = s.characterStates[characterId] ?: CharacterChatState()
-                                s.copy(
-                                    characterStates = s.characterStates + (characterId to curState.copy(
-                                        isSending = false
-                                    ))
-                                )
-                            }
+                            setSessionSending(characterId, sendingSessionId, isSending = false)
                         }
                     }
                 }
@@ -284,7 +276,7 @@ class ChatViewModel(
                 return@launch
             }
 
-            updateCharacterState(characterId) { it.copy(isSending = true) }
+            setSessionSending(characterId, sessionId, isSending = true)
             try {
                 performChatRequest(character, session)
             } catch (cancellation: CancellationException) {
@@ -293,7 +285,7 @@ class ChatViewModel(
                 Napier.e("Regenerate response failed (msgId: $messageId)", e)
                 emitMessage(EffectMessage.CHAT_REQUEST_FAILED, e.failureDetail())
             } finally {
-                updateCharacterState(characterId) { it.copy(isSending = false) }
+                setSessionSending(characterId, sessionId, isSending = false)
             }
         }
     }
@@ -314,7 +306,7 @@ class ChatViewModel(
 
             val session = chatSessionRepository.findSession(sessionId) ?: return@launch
 
-            updateCharacterState(characterId) { it.copy(isSending = true) }
+            setSessionSending(characterId, sessionId, isSending = true)
             try {
                 performChatRequest(character, session)
             } catch (cancellation: CancellationException) {
@@ -323,7 +315,7 @@ class ChatViewModel(
                 Napier.e("Retry message failed (msgId: ${messageToRetry.id})", e)
                 emitMessage(EffectMessage.CHAT_REQUEST_FAILED, e.failureDetail())
             } finally {
-                updateCharacterState(characterId) { it.copy(isSending = false) }
+                setSessionSending(characterId, sessionId, isSending = false)
             }
         }
     }
@@ -331,37 +323,27 @@ class ChatViewModel(
     private fun sendVoiceMessage(uri: String, durationMs: Long) {
         val state = uiState.value
         val characterId = state.selectedCharacterId ?: return
-        val activeSessionId = state.characterStates[characterId]?.activeSessionId
+        val characterState = state.characterStates[characterId] ?: CharacterChatState()
+        val activeSessionId = characterState.activeSessionId
+        if (characterState.isSending || characterState.isLoadingSession) return
 
-        _uiState.update { s ->
-            val curState = s.characterStates[characterId] ?: CharacterChatState()
-            s.copy(
-                characterStates = s.characterStates + (characterId to curState.copy(
-                    isSending = true
-                ))
-            )
-        }
+        setSessionSending(characterId, activeSessionId, isSending = true)
 
         viewModelScope.launch {
+            var sendingSessionId = activeSessionId
             try {
                 val fileName = uri.substringAfterLast('/')
                 val attachment = SelectedAttachment.Voice(uri, fileName, durationMs)
                 Napier.d { "sendVoiceMessage: uri=$uri, fileName=$fileName" }
-                sendMessage(characterId, activeSessionId, "", listOf(attachment))
+                sendingSessionId = sendMessage(characterId, activeSessionId, "", listOf(attachment))
+                    ?: activeSessionId
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (e: Throwable) {
                 Napier.e("Send voice message failed", e)
                 emitMessage(EffectMessage.CHAT_REQUEST_FAILED, e.failureDetail())
             } finally {
-                _uiState.update { s ->
-                    val curState = s.characterStates[characterId] ?: CharacterChatState()
-                    s.copy(
-                        characterStates = s.characterStates + (characterId to curState.copy(
-                            isSending = false
-                        ))
-                    )
-                }
+                setSessionSending(characterId, sendingSessionId, isSending = false)
             }
         }
     }
@@ -573,13 +555,15 @@ class ChatViewModel(
                 characterStates = s.characterStates + (characterId to curState.copy(
                     messageDraft = "",
                     selectedAttachments = emptyList(),
-                    isSending = true
+                    sendingSessionIds = curState.sendingSessionIds + activeSessionId,
                 ))
             )
         }
         viewModelScope.launch {
+            var sendingSessionId = activeSessionId
             try {
-                sendMessage(characterId, activeSessionId, content, attachments)
+                sendingSessionId = sendMessage(characterId, activeSessionId, content, attachments)
+                    ?: activeSessionId
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (e: Throwable) {
@@ -587,14 +571,7 @@ class ChatViewModel(
                 Napier.e("Send message with attachments failed", e)
                 emitMessage(EffectMessage.CHAT_REQUEST_FAILED, e.failureDetail())
             } finally {
-                _uiState.update { s ->
-                    val curState = s.characterStates[characterId] ?: CharacterChatState()
-                    s.copy(
-                        characterStates = s.characterStates + (characterId to curState.copy(
-                            isSending = false
-                        ))
-                    )
-                }
+                setSessionSending(characterId, sendingSessionId, isSending = false)
             }
         }
     }
@@ -603,7 +580,7 @@ class ChatViewModel(
         val state = uiState.value
         val characterId = state.selectedCharacterId ?: return
         val characterState = state.characterStates[characterId] ?: return
-        if (characterState.isSending || characterState.isLoadingSession) return
+        if (characterState.hasSending || characterState.isLoadingSession) return
 
         sessionJob?.cancel()
         activeSession = null
@@ -686,7 +663,7 @@ class ChatViewModel(
         val characterId = state.selectedCharacterId ?: return
         val characterState = state.characterStates[characterId] ?: return
         if (
-            characterState.isSending ||
+            characterState.hasSending ||
             characterState.isLoadingSession ||
             characterState.sessions.none { it.id == sessionId }
         ) {
@@ -708,8 +685,8 @@ class ChatViewModel(
         activeSessionId: String?,
         content: String,
         attachments: List<SelectedAttachment> = emptyList(),
-    ) {
-        val character = characterRepository.getCharacter(characterId) ?: return
+    ): String? {
+        val character = characterRepository.getCharacter(characterId) ?: return null
         var finalContent = content
         if (enableFileAppend) {
             attachments.forEach { attachment ->
@@ -786,6 +763,7 @@ class ChatViewModel(
                 chatSessionRepository.createSessionWithMessages(newSession, initialMessages)
                 newSession.toDomain(lastMessageAt = now).also {
                     activeSession = it
+                    moveSendingSession(character.id, fromSessionId = null, toSessionId = it.id)
                     observeCreatedSession(it, character.id)
                 }
             }
@@ -819,6 +797,7 @@ class ChatViewModel(
         }
 
         performChatRequest(character, session)
+        return session.id
     }
 
     private suspend fun performChatRequest(
@@ -1126,6 +1105,38 @@ class ChatViewModel(
                     characterId to transform(currentState)
                 ),
             )
+        }
+    }
+
+    private fun setSessionSending(
+        characterId: String,
+        sessionId: String?,
+        isSending: Boolean,
+    ) {
+        updateCharacterState(characterId) { state ->
+            state.copy(
+                sendingSessionIds = if (isSending) {
+                    state.sendingSessionIds + sessionId
+                } else {
+                    state.sendingSessionIds - sessionId
+                },
+            )
+        }
+    }
+
+    private fun moveSendingSession(
+        characterId: String,
+        fromSessionId: String?,
+        toSessionId: String,
+    ) {
+        updateCharacterState(characterId) { state ->
+            if (fromSessionId !in state.sendingSessionIds) {
+                state
+            } else {
+                state.copy(
+                    sendingSessionIds = state.sendingSessionIds - fromSessionId + toSessionId,
+                )
+            }
         }
     }
 

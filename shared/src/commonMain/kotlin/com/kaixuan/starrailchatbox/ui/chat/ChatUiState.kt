@@ -122,13 +122,19 @@ data class CharacterChatState(
     val messagePagingData: ChatMessagePagingData = EmptyChatMessagePagingData,
     val messageDraft: String = "",
     val isLoadingSession: Boolean = false,
-    val isSending: Boolean = false,
+    val sendingSessionIds: Set<String?> = emptySet(),
     val scrollToLatestRequestId: Long = 0,
     val suggestions: List<String> = emptyList(),
     val isAttachmentPanelVisible: Boolean = false,
     val selectedAttachments: List<SelectedAttachment> = emptyList(),
     val isVoiceMode: Boolean = false,
-)
+) {
+    val isSending: Boolean
+        get() = activeSessionId in sendingSessionIds
+
+    val hasSending: Boolean
+        get() = sendingSessionIds.isNotEmpty()
+}
 
 @Immutable
 data class ConversationSummaryUiModel(
@@ -160,6 +166,9 @@ data class ChatUiState(
 
     val isSending: Boolean
         get() = characterStates[selectedCharacterId]?.isSending ?: false
+
+    val hasSending: Boolean
+        get() = characterStates[selectedCharacterId]?.hasSending ?: false
 
     val isLoadingSession: Boolean
         get() = characterStates[selectedCharacterId]?.isLoadingSession ?: false

@@ -380,8 +380,20 @@ class ChatViewModelTest {
         advanceUntilIdle()
 
         assertEquals("session-old", fixture.viewModel.uiState.value.activeSessionId)
+        assertFalse(fixture.viewModel.uiState.value.isSending)
+
+        fixture.send("旧对话继续消息")
+        runCurrent()
+
+        assertTrue(fixture.viewModel.uiState.value.isSending)
+        assertEquals(2, api.requests.size)
 
         api.complete("后台回复")
+        advanceUntilIdle()
+        assertEquals("session-old", fixture.viewModel.uiState.value.activeSessionId)
+        assertTrue(fixture.viewModel.uiState.value.isSending)
+
+        api.complete("旧对话回复")
         advanceUntilIdle()
 
         assertEquals("session-old", fixture.viewModel.uiState.value.activeSessionId)
@@ -390,7 +402,7 @@ class ChatViewModelTest {
             sessions.messageSnapshot("session-active").map { it.content },
         )
         assertEquals(
-            listOf("旧对话消息"),
+            listOf("旧对话消息", "旧对话继续消息", "旧对话回复"),
             sessions.messageSnapshot("session-old").map { it.content },
         )
         assertFalse(fixture.viewModel.uiState.value.isSending)
@@ -1038,7 +1050,7 @@ private open class FakeOpenAiRepository : AiRepository {
 
 private class BlockingOpenAiRepository : FakeOpenAiRepository() {
     val requestStarted = CompletableDeferred<Unit>()
-    private val response = CompletableDeferred<ApiResult<ChatCompletionResult>>()
+    private val responses = mutableListOf<CompletableDeferred<ApiResult<ChatCompletionResult>>>()
 
     override suspend fun createChatCompletion(
         config: ModelConfig,
@@ -1048,12 +1060,14 @@ private class BlockingOpenAiRepository : FakeOpenAiRepository() {
     ): ApiResult<ChatCompletionResult> {
         requests += messages
         configs += config
+        val response = CompletableDeferred<ApiResult<ChatCompletionResult>>()
+        responses += response
         requestStarted.complete(Unit)
         return response.await()
     }
 
     fun complete(content: String) {
-        response.complete(
+        responses.removeAt(0).complete(
             ApiResult.Success(
                 ChatCompletionResult(
                     content = content,
