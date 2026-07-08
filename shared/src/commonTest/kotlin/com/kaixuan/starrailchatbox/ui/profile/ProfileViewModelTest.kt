@@ -31,6 +31,7 @@ class ProfileViewModelTest {
         assertNull(state.customAvatarUri)
         assertEquals(20, state.summaryThreshold)
         assertFalse(state.saveMultimodalToken)
+        assertTrue(state.quickRepliesEnabled)
         assertFalse(state.enableWebSearch)
         assertFalse(state.isSaving)
         assertTrue(state.isLoaded)
@@ -135,6 +136,29 @@ class ProfileViewModelTest {
 
         assertEquals("新昵称", appSettingsStore.userNickname.first())
         assertEquals("新昵称", viewModel.uiState.value.userNickname)
+    }
+
+    @Test
+    fun quickRepliesSettingIsLoaded() = runTest {
+        val appSettingsStore = InMemoryAppSettingsStore()
+        appSettingsStore.setQuickRepliesEnabled(false)
+        val viewModel = createViewModel(appSettingsStore = appSettingsStore, scope = this)
+        runCurrent()
+
+        assertFalse(viewModel.uiState.value.quickRepliesEnabled)
+    }
+
+    @Test
+    fun quickRepliesChangeTriggersSave() = runTest {
+        val appSettingsStore = InMemoryAppSettingsStore()
+        val viewModel = createViewModel(appSettingsStore = appSettingsStore, scope = this)
+        runCurrent()
+
+        viewModel.onAction(ProfileAction.QuickRepliesEnabledChanged(false))
+        advanceUntilIdle()
+
+        assertFalse(appSettingsStore.quickRepliesEnabled.first())
+        assertFalse(viewModel.uiState.value.quickRepliesEnabled)
     }
 
     @Test

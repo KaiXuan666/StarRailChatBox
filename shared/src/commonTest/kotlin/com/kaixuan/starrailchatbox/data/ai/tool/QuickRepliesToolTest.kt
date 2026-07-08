@@ -3,12 +3,15 @@ package com.kaixuan.starrailchatbox.data.ai.tool
 import com.kaixuan.starrailchatbox.data.ai.AiMessage
 import com.kaixuan.starrailchatbox.data.ai.AiResponseFormatType
 import com.kaixuan.starrailchatbox.data.ai.AiToolCall
+import com.kaixuan.starrailchatbox.data.settings.InMemoryAppSettingsStore
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -63,6 +66,23 @@ class QuickRepliesToolTest {
         )
 
         assertEquals("invalid_tool_arguments", assertIs<ToolResult.Error>(result).code)
+    }
+
+    @Test
+    fun availabilityFollowsAppSetting() = runTest {
+        val appSettingsStore = InMemoryAppSettingsStore()
+        val settingBackedTool = QuickRepliesTool(
+            appSettingsStore = appSettingsStore,
+            coroutineScope = this,
+        )
+        runCurrent()
+
+        assertTrue(settingBackedTool.isAvailable())
+
+        appSettingsStore.setQuickRepliesEnabled(false)
+        runCurrent()
+
+        assertFalse(settingBackedTool.isAvailable())
     }
 
     @Test

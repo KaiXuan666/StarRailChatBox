@@ -11,8 +11,12 @@ private class WasmAppSettingsStore : AppSettingsStore {
             if (it == "true") true else if (it == "false") false else null
         }
     )
+    private val _quickRepliesEnabled = MutableStateFlow(
+        localStorage.getItem("quick_replies_enabled")?.toBooleanStrictOrNull() ?: true
+    )
     private val _userNickname = MutableStateFlow(localStorage.getItem("user_nickname") ?: "")
     override val darkThemeOverride: Flow<Boolean?> = _darkThemeOverride.asStateFlow()
+    override val quickRepliesEnabled: Flow<Boolean> = _quickRepliesEnabled.asStateFlow()
     override val userNickname: Flow<String> = _userNickname.asStateFlow()
 
     override suspend fun setDarkThemeOverride(darkThemeOverride: Boolean?) {
@@ -22,6 +26,11 @@ private class WasmAppSettingsStore : AppSettingsStore {
             localStorage.removeItem("dark_theme_override")
         }
         _darkThemeOverride.value = darkThemeOverride
+    }
+
+    override suspend fun setQuickRepliesEnabled(enabled: Boolean) {
+        localStorage.setItem("quick_replies_enabled", enabled.toString())
+        _quickRepliesEnabled.value = enabled
     }
 
     override suspend fun getCharacterUpdateToken(characterKey: String): String? {

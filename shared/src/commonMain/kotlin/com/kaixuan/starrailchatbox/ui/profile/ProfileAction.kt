@@ -10,6 +10,7 @@ sealed interface ProfileAction {
     ) : ProfileAction
     data class SummaryThresholdChanged(val threshold: Int) : ProfileAction
     data class SaveMultimodalTokenChanged(val enabled: Boolean) : ProfileAction
+    data class QuickRepliesEnabledChanged(val enabled: Boolean) : ProfileAction
     data class EnableWebSearchChanged(val enabled: Boolean) : ProfileAction
     data class UserNicknameChanged(val nickname: String) : ProfileAction
     data class ExportData(val directoryPath: PlatformFile) : ProfileAction

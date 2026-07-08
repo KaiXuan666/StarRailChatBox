@@ -180,6 +180,8 @@
     <string name="global_settings_messages_unit">%1$d条消息</string>
     <string name="global_settings_save_multimodal_token">节省多模态 Token</string>
     <string name="global_settings_save_multimodal_token_desc">开启后，仅当用户发送的最新一条消息带有附件时，才调用多模态API</string>
+    <string name="global_settings_quick_replies">快捷回复</string>
+    <string name="global_settings_quick_replies_desc">开启后，AI 回复会生成可点击的快捷回复建议</string>
     <string name="global_settings_enable_web_search">联网搜索</string>
     <string name="global_settings_enable_web_search_desc">允许 AI 获取实时网络信息</string>
     <string name="global_settings_data_management">数据管理</string>

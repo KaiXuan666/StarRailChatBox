@@ -5,7 +5,13 @@ import com.kaixuan.starrailchatbox.data.ai.AiResponseFormat
 import com.kaixuan.starrailchatbox.data.ai.AiResponseFormatType
 import com.kaixuan.starrailchatbox.data.ai.AiToolCall
 import com.kaixuan.starrailchatbox.data.ai.AiToolDefinition
+import com.kaixuan.starrailchatbox.data.settings.AppSettingsStore
 import io.github.aakira.napier.Napier
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
@@ -29,11 +35,28 @@ import kotlinx.serialization.json.putJsonObject
  * 从而让共享聊天上下文构造器保持与具体工具无关。
  */
 class QuickRepliesTool(
+    appSettingsStore: AppSettingsStore? = null,
     private val json: Json = Json { ignoreUnknownKeys = true },
+    coroutineScope: CoroutineScope? = null,
 ) : AiTool {
     override val name: String = Name
     override val executionType: ToolExecutionType = ToolExecutionType.TerminalOutput
     override val risk: ToolRisk = ToolRisk.ReadOnly
+
+    private val activeScope = coroutineScope ?: CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var cachedIsAvailable: Boolean = true
+
+    init {
+        if (appSettingsStore != null) {
+            activeScope.launch {
+                appSettingsStore.quickRepliesEnabled.collectLatest { enabled ->
+                    cachedIsAvailable = enabled
+                }
+            }
+        }
+    }
+
+    override fun isAvailable(): Boolean = cachedIsAvailable
 
     override fun definition(context: ToolContext): AiToolDefinition {
         return AiToolDefinition(

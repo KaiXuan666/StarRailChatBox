@@ -48,6 +48,7 @@ class ProfileViewModel(
                     customAvatarUri = fixedAvatarUri,
                     summaryThreshold = profile?.summaryThreshold ?: 20,
                     saveMultimodalToken = profile?.saveMultimodalToken ?: false,
+                    quickRepliesEnabled = appSettingsStore.quickRepliesEnabled.first(),
                     enableWebSearch = profile?.enableWebSearch ?: false,
                     userNickname = nickname,
                     isLoaded = true
@@ -88,6 +89,12 @@ class ProfileViewModel(
             is ProfileAction.SaveMultimodalTokenChanged -> {
                 _uiState.update { it.copy(saveMultimodalToken = action.enabled) }
                 saveProfile()
+            }
+            is ProfileAction.QuickRepliesEnabledChanged -> {
+                _uiState.update { it.copy(quickRepliesEnabled = action.enabled) }
+                scope().launch {
+                    appSettingsStore.setQuickRepliesEnabled(action.enabled)
+                }
             }
             is ProfileAction.EnableWebSearchChanged -> {
                 _uiState.update { it.copy(enableWebSearch = action.enabled) }

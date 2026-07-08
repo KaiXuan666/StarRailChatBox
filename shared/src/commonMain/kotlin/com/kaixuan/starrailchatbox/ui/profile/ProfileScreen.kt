@@ -62,6 +62,8 @@ import starrailchatbox.shared.generated.resources.global_settings_export_data
 import starrailchatbox.shared.generated.resources.global_settings_general_section
 import starrailchatbox.shared.generated.resources.global_settings_import_data
 import starrailchatbox.shared.generated.resources.global_settings_messages_unit
+import starrailchatbox.shared.generated.resources.global_settings_quick_replies
+import starrailchatbox.shared.generated.resources.global_settings_quick_replies_desc
 import starrailchatbox.shared.generated.resources.global_settings_save_multimodal_token
 import starrailchatbox.shared.generated.resources.global_settings_save_multimodal_token_desc
 import starrailchatbox.shared.generated.resources.global_settings_summary_threshold
@@ -255,6 +257,19 @@ fun ProfileScreen(
                         onCheckedChange = { onAction(ProfileAction.SaveMultimodalTokenChanged(it)) },
                         colors = switchColors()
                     )
+                }
+
+                SettingsItemRow(
+                    title = stringResource(Res.string.global_settings_quick_replies),
+                    description = stringResource(Res.string.global_settings_quick_replies_desc),
+                ) {
+                    if (state.isLoaded) {
+                        Switch(
+                            checked = state.quickRepliesEnabled,
+                            onCheckedChange = { onAction(ProfileAction.QuickRepliesEnabledChanged(it)) },
+                            colors = switchColors()
+                        )
+                    }
                 }
 
                 // Web Search

@@ -29,6 +29,10 @@ private class DataStoreAppSettingsStore(
         }
     }
 
+    override val quickRepliesEnabled: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[QuickRepliesEnabledKey] ?: true
+    }
+
     override suspend fun setDarkThemeOverride(darkThemeOverride: Boolean?) {
         dataStore.edit { preferences ->
             if (darkThemeOverride != null) {
@@ -36,6 +40,12 @@ private class DataStoreAppSettingsStore(
             } else {
                 preferences.remove(DarkThemeKey)
             }
+        }
+    }
+
+    override suspend fun setQuickRepliesEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[QuickRepliesEnabledKey] = enabled
         }
     }
 
@@ -65,6 +75,7 @@ private class DataStoreAppSettingsStore(
 }
 
 private val DarkThemeKey = booleanPreferencesKey("dark_theme_override")
+private val QuickRepliesEnabledKey = booleanPreferencesKey("quick_replies_enabled")
 private val UserNicknameKey = stringPreferencesKey("user_nickname")
 private fun characterUpdateTokenKey(characterKey: String) =
     stringPreferencesKey("character_update_token_$characterKey")

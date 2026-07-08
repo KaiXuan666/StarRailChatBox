@@ -9,7 +9,9 @@ import kotlinx.coroutines.flow.asStateFlow
  */
 interface AppSettingsStore {
     val darkThemeOverride: Flow<Boolean?>
+    val quickRepliesEnabled: Flow<Boolean>
     suspend fun setDarkThemeOverride(darkThemeOverride: Boolean?)
+    suspend fun setQuickRepliesEnabled(enabled: Boolean)
     suspend fun getCharacterUpdateToken(characterKey: String): String?
     suspend fun setCharacterUpdateToken(characterKey: String, token: String)
     suspend fun getCatalogAdminKey(): String?
@@ -22,13 +24,19 @@ class InMemoryAppSettingsStore(
     initialTheme: Boolean? = null
 ) : AppSettingsStore {
     private val _darkThemeOverride = MutableStateFlow(initialTheme)
+    private val _quickRepliesEnabled = MutableStateFlow(true)
     private val characterUpdateTokens = mutableMapOf<String, String>()
     private val _userNickname = MutableStateFlow("")
     override val darkThemeOverride: Flow<Boolean?> = _darkThemeOverride.asStateFlow()
+    override val quickRepliesEnabled: Flow<Boolean> = _quickRepliesEnabled.asStateFlow()
     override val userNickname: Flow<String> = _userNickname.asStateFlow()
 
     override suspend fun setDarkThemeOverride(darkThemeOverride: Boolean?) {
         _darkThemeOverride.value = darkThemeOverride
+    }
+
+    override suspend fun setQuickRepliesEnabled(enabled: Boolean) {
+        _quickRepliesEnabled.value = enabled
     }
 
     override suspend fun getCharacterUpdateToken(characterKey: String): String? {

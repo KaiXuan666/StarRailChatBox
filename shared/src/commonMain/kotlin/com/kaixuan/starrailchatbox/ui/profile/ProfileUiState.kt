@@ -7,6 +7,7 @@ data class ProfileUiState(
     val customAvatarUri: String? = null,
     val summaryThreshold: Int = 20,
     val saveMultimodalToken: Boolean = false,
+    val quickRepliesEnabled: Boolean = true,
     val enableWebSearch: Boolean = false,
     val userNickname: String = "",
     val isSaving: Boolean = false,

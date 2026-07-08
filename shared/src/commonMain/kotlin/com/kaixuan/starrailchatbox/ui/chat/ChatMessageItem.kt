@@ -1,9 +1,7 @@
 package com.kaixuan.starrailchatbox.ui.chat
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,6 +36,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import com.kaixuan.starrailchatbox.data.character.CharacterSummary
@@ -90,7 +89,6 @@ fun MessageItem(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ReceivedMessage(
     message: ChatMessageUiModel.Received,
@@ -194,13 +192,7 @@ fun ReceivedMessage(
                                 MaterialTheme.starRailColors.receivedBubbleBorder,
                             ),
                             shadowElevation = 1.dp,
-                            modifier = Modifier.combinedClickable(
-                                onClick = {},
-                                onLongClick = { 
-                                    // 降级处理，如果没有通过 pointerInput 捕获到位置则默认显示
-                                    showMenu = true 
-                                }
-                            ).pointerInput(Unit) {
+                            modifier = Modifier.pointerInput(Unit) {
                                 detectTapGestures(
                                     onLongPress = { offset ->
                                         pressOffset = offset
@@ -231,9 +223,7 @@ fun ReceivedMessage(
                         DropdownMenu(
                             expanded = showMenu,
                             onDismissRequest = { showMenu = false },
-                            offset = with(density) {
-                                DpOffset(pressOffset.x.toDp(), pressOffset.y.toDp())
-                            }
+                            offset = density.toContextMenuOffset(pressOffset),
                         ) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(Res.string.action_copy)) },
@@ -271,7 +261,6 @@ fun ReceivedMessage(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SentMessage(
     message: ChatMessageUiModel.Sent,
@@ -379,12 +368,7 @@ fun SentMessage(
                                 MaterialTheme.starRailColors.sentBubbleBorder,
                             ),
                             shadowElevation = 1.dp,
-                            modifier = Modifier.combinedClickable(
-                                onClick = {},
-                                onLongClick = { 
-                                    showMenu = true 
-                                }
-                            ).pointerInput(Unit) {
+                            modifier = Modifier.pointerInput(Unit) {
                                 detectTapGestures(
                                     onLongPress = { offset ->
                                         pressOffset = offset
@@ -415,9 +399,7 @@ fun SentMessage(
                         DropdownMenu(
                             expanded = showMenu,
                             onDismissRequest = { showMenu = false },
-                            offset = with(density) {
-                                DpOffset(pressOffset.x.toDp(), pressOffset.y.toDp())
-                            }
+                            offset = density.toContextMenuOffset(pressOffset),
                         ) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(Res.string.action_copy)) },
@@ -526,3 +508,10 @@ fun MessageStatusIcon(
 fun MessageContent.resolve(): String = when (this) {
     is MessageContent.Custom -> text
 }
+
+private fun Density.toContextMenuOffset(offset: Offset): DpOffset = DpOffset(
+    x = offset.x.toDp() + StarRailSpacing.xs,
+    y = offset.y.toDp() - MessageContextMenuVerticalOffset,
+)
+
+private val MessageContextMenuVerticalOffset = 56.dp

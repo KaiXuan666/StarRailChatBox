@@ -94,7 +94,7 @@ fun appModule(
             ),
         )
     }
-    single<AiTool>(named("QuickReplies")) { QuickRepliesTool() }
+    single<AiTool>(named("QuickReplies")) { QuickRepliesTool(get()) }
     single<AiTool>(named("VoiceSynthesis")) { VoiceSynthesisTool(get(), get()) }
     single<AiTool>(named("ImageGeneration")) { ImageGenerationTool(get(), get(), get(), get()) }
     single<AiTool>(named("BochaSearch")) { BochaSearchTool(get(), get()) }
