@@ -60,36 +60,72 @@ sealed interface ToolResult {
  * [PlatformToolExecutor]。
  */
 interface AiTool {
+    /** Provider 请求体中使用的工具名称，必须与模型返回的 [AiToolCall.name] 一致。 */
     val name: String
+
+    /** 工具调用后的处理方式，决定结果是直接展示给用户还是继续回传给模型。 */
     val executionType: ToolExecutionType
+
+    /** 工具执行前需要审批网关评估的最高风险等级。 */
     val risk: ToolRisk
 
+    /**
+     * 根据当前会话上下文生成暴露给模型的工具定义。
+     *
+     * 实现应在这里声明稳定的参数 schema，并避免写入会泄漏隐私或平台细节的上下文。
+     */
     fun definition(context: ToolContext): AiToolDefinition
 
+    /** 返回当前平台和运行环境是否支持该工具；不可用时协调器不会把它暴露给模型。 */
     fun isAvailable(): Boolean = true
 
+    /**
+     * 执行模型发起的工具调用。
+     *
+     * 实现负责解析 [call] 的参数、完成校验、调用必要的平台边界，并把结果映射为
+     * [ToolResult]。
+     */
     suspend fun execute(
         call: AiToolCall,
         context: ToolContext,
     ): ToolResult
 
+    /**
+     * 当模型不支持原生工具调用时，向消息列表注入该工具的文本降级指令。
+     *
+     * 默认保持原消息不变；需要文本降级的工具可返回追加过控制信号的副本。
+     */
     fun prepareFallbackMessages(
         messages: List<AiMessage>,
         context: ToolContext,
     ): List<AiMessage> = messages
 
+    /**
+     * 解析文本降级路径下模型返回的普通文本。
+     *
+     * 返回 `null` 表示当前内容不能被该工具识别，应继续按普通助手消息处理。
+     */
     suspend fun parseFallback(
         content: String,
         context: ToolContext,
     ): ToolResult.Terminal? = null
 
-
+    /**
+     * 为支持结构化输出但不支持工具调用的模型构造降级请求。
+     *
+     * 返回 `null` 表示该工具不需要结构化降级流程。
+     */
     fun prepareStructuredFallback(
         messages: List<AiMessage>,
         assistantContent: String,
         context: ToolContext,
     ): StructuredToolFallbackRequest? = null
 
+    /**
+     * 解析结构化降级请求的模型输出，并提取可展示的建议或结果片段。
+     *
+     * 默认返回空列表，表示没有可消费的结构化结果。
+     */
     fun parseStructuredFallback(
         output: JsonElement,
         context: ToolContext,

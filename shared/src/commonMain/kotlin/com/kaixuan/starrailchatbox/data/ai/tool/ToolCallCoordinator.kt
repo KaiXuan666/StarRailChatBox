@@ -5,6 +5,7 @@ import com.kaixuan.starrailchatbox.data.ai.AiCompletion
 import com.kaixuan.starrailchatbox.data.ai.AiMessage
 import com.kaixuan.starrailchatbox.data.ai.AiProvider
 import com.kaixuan.starrailchatbox.data.ai.AiProviderConfig
+import com.kaixuan.starrailchatbox.data.ai.AiThinkingConfig
 import com.kaixuan.starrailchatbox.data.ai.AiToolCall
 import com.kaixuan.starrailchatbox.data.ai.AiUsage
 import com.kaixuan.starrailchatbox.data.ai.ToolChoice
@@ -192,6 +193,7 @@ class ToolCallCoordinator(
                 tools = emptyList(),
                 toolChoice = ToolChoice.None,
                 responseFormat = fallbackRequest.responseFormat,
+                thinking = AiThinkingConfig.Disabled,
             ),
         )
         val recovery = (recoveryResult as? ApiResult.Success)?.value ?: return initialResult

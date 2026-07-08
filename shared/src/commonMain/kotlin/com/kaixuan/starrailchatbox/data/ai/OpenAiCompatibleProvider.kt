@@ -10,6 +10,7 @@ import com.kaixuan.starrailchatbox.data.api.OpenAiFunctionDefinition
 import com.kaixuan.starrailchatbox.data.api.OpenAiJsonSchema
 import com.kaixuan.starrailchatbox.data.api.OpenAiMessage
 import com.kaixuan.starrailchatbox.data.api.OpenAiResponseFormat
+import com.kaixuan.starrailchatbox.data.api.OpenAiThinkingConfig
 import com.kaixuan.starrailchatbox.data.api.OpenAiToolCall
 import com.kaixuan.starrailchatbox.data.api.OpenAiToolDefinition
 import com.kaixuan.starrailchatbox.data.api.createOpenAiApi
@@ -230,6 +231,7 @@ private fun AiChatRequest.toOpenAiRequest(
     },
     parallelToolCalls = false.takeIf { tools.any(AiToolDefinition::strict) },
     responseFormat = responseFormat?.toOpenAiResponseFormat(),
+    thinking = thinking?.toOpenAiThinkingConfig(),
 )
 
 private const val OpenAiStreamDoneMarker = "[DONE]"
@@ -268,6 +270,10 @@ private fun AiResponseFormat.toOpenAiResponseFormat(): OpenAiResponseFormat {
         AiResponseFormatType.JsonObject -> OpenAiResponseFormat(type = "json_object")
     }
 }
+
+private fun AiThinkingConfig.toOpenAiThinkingConfig() = OpenAiThinkingConfig(
+    type = type,
+)
 
 private fun OpenAiChatResponse.toCompletion(
     responseFormat: AiResponseFormat?,

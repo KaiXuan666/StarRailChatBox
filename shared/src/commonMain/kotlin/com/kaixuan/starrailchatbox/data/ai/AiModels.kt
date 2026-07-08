@@ -18,6 +18,7 @@ data class AiChatRequest(
     val tools: List<AiToolDefinition> = emptyList(),
     val toolChoice: ToolChoice = ToolChoice.None,
     val responseFormat: AiResponseFormat? = null,
+    val thinking: AiThinkingConfig? = null,
 )
 
 data class AiMessage(
@@ -77,6 +78,14 @@ data class AiResponseFormat(
 enum class AiResponseFormatType {
     JsonSchema,
     JsonObject,
+}
+
+data class AiThinkingConfig(
+    val type: String,
+) {
+    companion object {
+        val Disabled = AiThinkingConfig(type = "disabled")
+    }
 }
 
 /** Provider 无关的工具选择策略，由各 Provider 映射为自身协议格式。 */

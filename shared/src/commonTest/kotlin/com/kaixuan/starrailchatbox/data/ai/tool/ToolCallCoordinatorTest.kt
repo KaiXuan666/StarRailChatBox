@@ -239,6 +239,7 @@ class ToolCallCoordinatorTest {
         assertEquals("quick_reply_suggestions", recovery.responseFormat?.name)
         assertEquals(AiResponseFormatType.JsonObject, recovery.responseFormat?.type)
         assertEquals(false, recovery.responseFormat?.strict)
+        assertEquals("disabled", recovery.thinking?.type)
         assertEquals(256, recovery.maxTokens)
         assertEquals(emptyList(), recovery.tools)
         assertEquals(

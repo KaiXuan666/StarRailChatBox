@@ -197,6 +197,30 @@ class OpenAiCompatibleProviderTest {
     }
 
     @Test
+    fun mapsThinkingConfig() = runTest {
+        val engine = MockEngine { request ->
+            val body = request.body.readText()
+            assertTrue(body.contains("\"thinking\":{\"type\":\"disabled\"}"))
+            respond(
+                content = """{"choices":[{"message":{"role":"assistant","content":"ok"}}]}""",
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+        val client = testClient(engine)
+
+        OpenAiCompatibleProvider(client).complete(
+            providerConfig(),
+            AiChatRequest(
+                model = "test-model",
+                messages = listOf(AiMessage("user", "Return JSON.")),
+                thinking = AiThinkingConfig.Disabled,
+            ),
+        )
+
+        client.close()
+    }
+
+    @Test
     fun rejectsInvalidStructuredOutputJson() = runTest {
         val engine = MockEngine {
             respond(

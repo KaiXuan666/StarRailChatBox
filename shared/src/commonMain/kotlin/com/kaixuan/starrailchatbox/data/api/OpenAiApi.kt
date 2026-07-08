@@ -51,6 +51,7 @@ internal data class OpenAiChatRequest(
     val parallelToolCalls: Boolean? = null,
     @SerialName("response_format")
     val responseFormat: OpenAiResponseFormat? = null,
+    val thinking: OpenAiThinkingConfig? = null,
 )
 
 @Serializable
@@ -137,6 +138,11 @@ internal data class OpenAiResponseFormat(
     val type: String,
     @SerialName("json_schema")
     val jsonSchema: OpenAiJsonSchema? = null,
+)
+
+@Serializable
+internal data class OpenAiThinkingConfig(
+    val type: String,
 )
 
 @Serializable
