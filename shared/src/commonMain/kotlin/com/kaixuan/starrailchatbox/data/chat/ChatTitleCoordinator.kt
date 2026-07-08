@@ -17,27 +17,39 @@ class ChatTitleCoordinator(
         session: ChatSession,
         config: ModelConfig,
         defaultTitle: String,
+        additionalDefaultTitles: Set<String> = emptySet(),
     ) {
-        // 只有当会话当前的 title 还是默认标题时才进行自动重命名
-        if (session.title != defaultTitle) return
+        val autoTitleCandidates = additionalDefaultTitles + defaultTitle
+        // 只有当会话当前的 title 还是默认占位标题时才进行自动重命名
+        if (session.title !in autoTitleCandidates) return
 
         titleMutex.withLock {
             // 双重检查，避免在锁等待期间已经被其他协程更新
             val freshSession = chatSessionRepository.findSession(session.id)
-            if (freshSession == null || freshSession.title != defaultTitle) return
+            if (freshSession == null || freshSession.title !in autoTitleCandidates) return
 
             val context = chatSessionRepository.findContext(session.id, maxHistoryMessageCount = null)
             val userMessagesCount = context.messages.count {
                 it.role == ChatRole.USER && it.status == ChatMessageStatus.COMPLETED
             }
+            val ownUserMessagesCount = context.messages.count {
+                it.sessionId == session.id &&
+                    it.role == ChatRole.USER &&
+                    it.status == ChatMessageStatus.COMPLETED
+            }
             val lastMessage = context.messages.lastOrNull()
 
-            // 当且仅当已完成的 USER 消息数量大于等于 2，并且最后一条消息是已完成的 ASSISTANT 消息时才触发
-            val isTwoRoundsFinished = userMessagesCount >= 2 &&
-                lastMessage?.role == ChatRole.ASSISTANT &&
+            val isAssistantFinished = lastMessage?.role == ChatRole.ASSISTANT &&
                 lastMessage.status == ChatMessageStatus.COMPLETED
+            val shouldRename = isAssistantFinished && if (session.parentSessionId == null) {
+                // 普通会话保持原有策略：第二轮完成后自动命名。
+                userMessagesCount >= 2
+            } else {
+                // 分支会话已有继承历史，用户在新分支中完成一轮后即可自动命名。
+                ownUserMessagesCount >= 1
+            }
 
-            if (!isTwoRoundsFinished) return
+            if (!shouldRename) return
 
             val requestMessages = buildTitleRequest(context.messages)
             val result = aiRepository.createSessionTitle(config, requestMessages)
@@ -58,7 +70,7 @@ class ChatTitleCoordinator(
                     title = title.substring(0, 12).trim()
                 }
 
-                if (title.isNotEmpty() && title != defaultTitle) {
+                if (title.isNotEmpty() && title !in autoTitleCandidates) {
                     chatSessionRepository.updateSessionTitle(session.id, title)
                 }
             }

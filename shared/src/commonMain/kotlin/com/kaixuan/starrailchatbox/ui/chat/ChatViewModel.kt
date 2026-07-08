@@ -970,6 +970,7 @@ class ChatViewModel(
                                 session = session,
                                 config = config,
                                 defaultTitle = sessionTitleProvider(),
+                                additionalDefaultTitles = setOf(branchSessionTitleProvider()),
                             )
                         } catch (cancellation: CancellationException) {
                             throw cancellation

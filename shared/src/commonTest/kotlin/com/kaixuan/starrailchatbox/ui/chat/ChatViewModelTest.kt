@@ -397,14 +397,18 @@ class ChatViewModelTest {
         assertEquals(rootSession.id, branch.parentSessionId)
         assertEquals(response.id, branch.branchedFromMessageId)
         assertEquals(1, branch.branchDepth)
+        assertEquals("分支对话", branch.title)
         assertEquals(
             listOf("今天要聊点什么呢？", "你好", "你好呀"),
             fixture.viewModel.uiState.value.messageSnapshot().map { it.content.resolveForTest() },
         )
+        assertEquals(0, fixture.api.titleRequests.size)
 
         fixture.send("从这里继续")
         advanceUntilIdle()
 
+        assertEquals("总结的标题", fixture.sessions.findSession(branchSessionId)?.title)
+        assertEquals(1, fixture.api.titleRequests.size)
         assertEquals(
             listOf(
                 "system" to "role prompt",
