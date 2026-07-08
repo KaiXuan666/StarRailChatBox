@@ -166,6 +166,7 @@ fun ReceivedMessage(
             }
         } else {
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(StarRailSpacing.sm),
                 verticalAlignment = Alignment.Top,
             ) {
@@ -180,10 +181,10 @@ fun ReceivedMessage(
                     }
                 }
                 Column(
-                    modifier = Modifier.widthIn(max = bubbleMaxWidth),
+                    modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(StarRailSpacing.xs),
                 ) {
-                    Box {
+                    Box(modifier = Modifier.fillMaxWidth()) {
                         Surface(
                             shape = MaterialTheme.shapes.large,
                             color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -192,14 +193,16 @@ fun ReceivedMessage(
                                 MaterialTheme.starRailColors.receivedBubbleBorder,
                             ),
                             shadowElevation = 1.dp,
-                            modifier = Modifier.pointerInput(Unit) {
-                                detectTapGestures(
-                                    onLongPress = { offset ->
-                                        pressOffset = offset
-                                        showMenu = true
-                                    }
-                                )
-                            }
+                            modifier = Modifier
+                                .widthIn(max = bubbleMaxWidth)
+                                .pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onLongPress = { offset ->
+                                            pressOffset = offset
+                                            showMenu = true
+                                        }
+                                    )
+                                }
                         ) {
                             Column {
                                 if (text.isNotBlank()) {
