@@ -1,8 +1,8 @@
 {
-  "versionCode": 3,
-  "versionName": "1.1.1",
-  "updateLog": "崩铁ChatBox v1.1.1\n1. 修复PC端无法保存API设置的问题",
-  "downloadUrl": "https://github.com/KaiXuan666/StarRailChatBox/releases/download/v1.1.1/StarRailChatBox-1.1.1.msi",
-  "cloudStorageUpdateText": "我用夸克网盘给你分享了「StarRailChatBox-1.1.1.msi」，点击链接或复制整段内容，打开「夸克APP」即可获取。\n/~5b8f3Z7hAy~:/\n链接：https://pan.quark.cn/s/f675c0e6c32f?pwd=idEp\n提取码：idEp",
+  "versionCode": 4,
+  "versionName": "1.2.0",
+  "updateLog": "崩铁ChatBox v1.2.0\n1. 新增聊天重新生成与分支对话功能，可从任意角色回复继续开启新的聊天线。\n2. 优化多会话发送状态，修复切换会话、重启后重试等异常场景。\n3. 新增快捷回复开关，可在全局设置中自由启用或关闭。\n4. 优化语音样本与音色克隆处理，支持更稳定的大文件 Base64 流式传输。\n5. 其他问题修复，UI优化。",
+  "downloadUrl": "https://github.com/KaiXuan666/StarRailChatBox/releases/download/v1.2.0/StarRailChatBox-1.2.0.msi",
+  "cloudStorageUpdateText": "我用夸克网盘给你分享了「StarRailChatBox-1.2.0.msi」，点击链接或复制整段内容，打开「夸克APP」即可获取。\n/~24203ZTLhv~:/\n链接：https://pan.quark.cn/s/2a6a704f969b?pwd=qmzp\n提取码：qmzp",
   "forceUpdate": false
 }
