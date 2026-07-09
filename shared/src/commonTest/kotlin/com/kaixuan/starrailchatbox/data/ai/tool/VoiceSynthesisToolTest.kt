@@ -2,6 +2,7 @@ package com.kaixuan.starrailchatbox.data.ai.tool
 
 import com.kaixuan.starrailchatbox.data.ai.AiMessage
 import com.kaixuan.starrailchatbox.data.ai.AiToolCall
+import com.kaixuan.starrailchatbox.data.api.SuppressNetworkLogging
 import com.kaixuan.starrailchatbox.data.model.InMemoryModelConfigRepository
 import com.kaixuan.starrailchatbox.data.model.ModelConfig
 import com.kaixuan.starrailchatbox.data.model.VoiceCloneModelConfig
@@ -179,6 +180,7 @@ class VoiceSynthesisToolTest {
         var usedStreamingBody = false
         val engine = MockEngine { request ->
             usedStreamingBody = request.body is OutgoingContent.WriteChannelContent
+            assertEquals(true, request.attributes.getOrNull(SuppressNetworkLogging))
             requestBodyText = request.body.readText()
             respond(
                 content = """

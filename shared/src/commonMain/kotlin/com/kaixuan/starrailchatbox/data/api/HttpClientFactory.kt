@@ -10,8 +10,8 @@ import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.http.HttpHeaders
 import io.ktor.serialization.kotlinx.json.json
-import kotlinx.serialization.json.Json
 import io.ktor.util.AttributeKey
+import kotlinx.serialization.json.Json
 
 expect fun createPlatformHttpClient(): HttpClient
 expect fun saveNetworkLog(message: String)

@@ -40,6 +40,7 @@ private object AndroidHttpFileLogger {
         val context = AndroidContextHolder.context ?: return
         val isDebuggable = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
         if (!isDebuggable) return
+        val safeMessage = message.take(MaxPersistedLogChars)
 
         val logDir = context.filesDir.resolve("log")
         if (!logDir.exists()) {
@@ -50,14 +51,14 @@ private object AndroidHttpFileLogger {
             cleanOldLogs(logDir, "req_")
             val timeStr = SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US).format(Date())
             currentLogFile = File(logDir, "req_${timeStr}.log")
-            currentLogFile?.writeText(message + "\n")
+            currentLogFile?.writeText(safeMessage + "\n")
         } else if (message.startsWith("RESPONSE")) {
             cleanOldLogs(logDir, "res_")
             val timeStr = SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US).format(Date())
             currentLogFile = File(logDir, "res_${timeStr}.log")
-            currentLogFile?.writeText(message + "\n")
+            currentLogFile?.writeText(safeMessage + "\n")
         } else {
-            currentLogFile?.appendText(message + "\n")
+            currentLogFile?.appendText(safeMessage + "\n")
         }
     }
 
@@ -75,4 +76,6 @@ private object AndroidHttpFileLogger {
             // No-op
         }
     }
+
+    private const val MaxPersistedLogChars = 5_000
 }

@@ -3,6 +3,7 @@ package com.kaixuan.starrailchatbox.data.ai.tool
 import com.kaixuan.starrailchatbox.data.ai.AiMessage
 import com.kaixuan.starrailchatbox.data.ai.AiToolCall
 import com.kaixuan.starrailchatbox.data.ai.AiToolDefinition
+import com.kaixuan.starrailchatbox.data.api.SuppressNetworkLogging
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
 import com.kaixuan.starrailchatbox.platform.KmpFileManager
 import io.github.aakira.napier.Napier
@@ -183,6 +184,7 @@ class VoiceSynthesisTool(
                 header("api-key", voiceConfig.apiKey.trim())
                 contentType(ContentType.Application.Json)
                 if (isClone && !voiceSampleUri.isNullOrBlank()) {
+                    attributes.put(SuppressNetworkLogging, true)
                     setBody(buildVoiceCloneRequestBody(voiceConfig.modelName, aiResponse, voiceSampleUri))
                 } else {
                     setBody(buildVoiceDesignRequestBody(voiceConfig.modelName, voiceDesign, aiResponse))
