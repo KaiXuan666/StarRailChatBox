@@ -4,6 +4,7 @@ import com.kaixuan.starrailchatbox.data.ai.AiMessage
 import com.kaixuan.starrailchatbox.data.ai.AiResponseFormatType
 import com.kaixuan.starrailchatbox.data.ai.AiToolCall
 import com.kaixuan.starrailchatbox.data.settings.InMemoryAppSettingsStore
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.jsonArray
@@ -15,6 +16,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class QuickRepliesToolTest {
     private val tool = QuickRepliesTool()
     private val context = ToolContext("流萤")
@@ -73,7 +75,7 @@ class QuickRepliesToolTest {
         val appSettingsStore = InMemoryAppSettingsStore()
         val settingBackedTool = QuickRepliesTool(
             appSettingsStore = appSettingsStore,
-            coroutineScope = this,
+            coroutineScope = backgroundScope,
         )
         runCurrent()
 
