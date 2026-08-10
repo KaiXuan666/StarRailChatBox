@@ -5,6 +5,7 @@ import androidx.compose.runtime.Immutable
 @Immutable
 data class SettingsOverviewUiState(
     val isDefaultConfigured: Boolean = false,
+    val isLocalModelConfigured: Boolean = false,
     val isMultimodalConfigured: Boolean = false,
     val isVoiceConfigured: Boolean = false,
     val isImageGenerationConfigured: Boolean = false,

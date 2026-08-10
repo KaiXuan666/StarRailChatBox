@@ -7,6 +7,8 @@ import okio.Buffer
 import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
+import okio.HashingSource
+import okio.buffer
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
@@ -109,6 +111,55 @@ interface KmpFileManager {
             }
         }
     }
+
+    /** 流式复制路径或平台 URI，适用于数 GB 模型文件。 */
+    suspend fun copySourceTo(source: String, target: Path, append: Boolean = false): Long {
+        if (!isSupported) throw UnsupportedOperationException("File operations are not supported.")
+        val sourcePath = source.removePrefix("file://").toPath()
+        return withContext(Dispatchers.Default) {
+            target.parent?.let(fileSystem::createDirectories)
+            val input = fileSystem.source(sourcePath).buffer()
+            try {
+                val rawSink = if (append) {
+                    fileSystem.appendingSink(target, mustExist = false)
+                } else {
+                    fileSystem.sink(target, mustCreate = false)
+                }
+                val output = rawSink.buffer()
+                try {
+                    var total = 0L
+                    while (true) {
+                        val read = input.read(output.buffer, 64 * 1024L)
+                        if (read == -1L) break
+                        total += read
+                        output.emitCompleteSegments()
+                    }
+                    total
+                } finally {
+                    output.close()
+                }
+            } finally {
+                input.close()
+            }
+        }
+    }
+
+    suspend fun sha256(path: Path): String = withContext(Dispatchers.Default) {
+        val hashingSource = HashingSource.sha256(fileSystem.source(path))
+        val source = hashingSource.buffer()
+        try {
+            val discard = Buffer()
+            while (source.read(discard, 64 * 1024L) != -1L) {
+                discard.clear()
+            }
+        } finally {
+            source.close()
+        }
+        hashingSource.hash.hex()
+    }
+
+    /** 返回目标应用目录所在卷的剩余空间；未知时返回 null。 */
+    suspend fun availableSpaceBytes(path: Path = appDataDir): Long? = null
 
     /**
      * 获取文件路径、平台 URI 或 data URI 的字节大小。无法通过元数据获取时返回 null。

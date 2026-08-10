@@ -9,6 +9,7 @@ import com.kaixuan.starrailchatbox.data.character.DefaultCharacterRepository
 import com.kaixuan.starrailchatbox.data.character.RoomCharacterStorage
 import com.kaixuan.starrailchatbox.data.chat.RoomChatSessionRepository
 import com.kaixuan.starrailchatbox.data.model.RoomModelConfigRepository
+import com.kaixuan.starrailchatbox.data.localmodel.RoomLocalModelRepository
 import com.kaixuan.starrailchatbox.data.settings.createAppSettingsStore
 import com.kaixuan.starrailchatbox.data.settings.createProfileStore
 import platform.Foundation.NSDocumentDirectory
@@ -31,13 +32,14 @@ fun createPersistentRepositories(): PersistentRepositories {
         factory = StarRailDatabaseConstructor::initialize,
     )
         .setDriver(BundledSQLiteDriver())
-        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
         .build()
     return PersistentRepositories(
         modelConfigRepository = RoomModelConfigRepository(
             dao = database.modelConfigDao(),
             cipher = createApiKeyCipher("$directoryPath/api_key.key.preferences_pb"),
         ),
+        localModelRepository = RoomLocalModelRepository(database.localModelDao()),
         characterRepository = DefaultCharacterRepository(
             RoomCharacterStorage(
                 dao = database.agentRoleDao(),

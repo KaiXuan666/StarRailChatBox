@@ -38,6 +38,9 @@ sealed interface Route : NavKey {
     @Serializable
     data object ApiSettings : Route
 
+    @Serializable
+    data object LocalModelSettings : Route
+
     // 多模态 API 配置二级界面 (挂载在“我的”页面之下)
     @Serializable
     data object MultimodalApiSettings : Route

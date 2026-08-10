@@ -5,6 +5,8 @@ import okio.Path
 import okio.Path.Companion.toPath
 import java.io.File
 import java.io.FileOutputStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import javax.imageio.IIOImage
 import javax.imageio.ImageIO
 import javax.imageio.ImageWriteParam
@@ -39,6 +41,13 @@ class JvmFileManager : KmpFileManager {
         val targetFile = File(targetDir, name)
         
         writeBytes(targetFile.absolutePath.toPath(), bytes)
+    }
+
+    override suspend fun availableSpaceBytes(path: Path): Long = withContext(Dispatchers.IO) {
+        generateSequence(File(path.toString())) { it.parentFile }
+            .firstOrNull(File::exists)
+            ?.usableSpace
+            ?: 0L
     }
 
     override suspend fun compressImageIfPossible(source: String): String {

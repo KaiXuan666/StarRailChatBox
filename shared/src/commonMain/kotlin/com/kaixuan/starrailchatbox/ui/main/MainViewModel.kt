@@ -92,6 +92,7 @@ class MainViewModel(
                 when (action.item) {
                     MainSettingsItem.PROFILE,
                     MainSettingsItem.API_SETTINGS,
+                    MainSettingsItem.LOCAL_MODEL_SETTINGS,
                     MainSettingsItem.MULTIMODAL_API_SETTINGS,
                     MainSettingsItem.IMAGE_GENERATION_API_SETTINGS,
                     MainSettingsItem.VOICE_API_SETTINGS,

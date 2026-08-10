@@ -1,5 +1,6 @@
 package com.kaixuan.starrailchatbox.data.settings
 
+import com.kaixuan.starrailchatbox.data.localmodel.ChatModelMode
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -35,6 +36,11 @@ private class DataStoreAppSettingsStore(
     override val quickRepliesEnabled: Flow<Boolean> = dataStore.data.map { preferences ->
         preferences[QuickRepliesEnabledKey] ?: true
     }
+    override val chatModelMode: Flow<ChatModelMode> = dataStore.data.map { preferences ->
+        preferences[ChatModelModeKey]?.let { runCatching { ChatModelMode.valueOf(it) }.getOrNull() }
+            ?: ChatModelMode.ONLINE
+    }
+    override val selectedLocalModelId: Flow<String?> = dataStore.data.map { it[SelectedLocalModelIdKey] }
 
     override suspend fun setDarkThemeOverride(darkThemeOverride: Boolean?) {
         dataStore.edit { preferences ->
@@ -49,6 +55,15 @@ private class DataStoreAppSettingsStore(
     override suspend fun setQuickRepliesEnabled(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[QuickRepliesEnabledKey] = enabled
+        }
+    }
+    override suspend fun setChatModelMode(mode: ChatModelMode) {
+        dataStore.edit { it[ChatModelModeKey] = mode.name }
+    }
+    override suspend fun setSelectedLocalModelId(id: String?) {
+        dataStore.edit { preferences ->
+            if (id == null) preferences.remove(SelectedLocalModelIdKey)
+            else preferences[SelectedLocalModelIdKey] = id
         }
     }
 
@@ -92,5 +107,7 @@ private val DarkThemeKey = booleanPreferencesKey("dark_theme_override")
 private val QuickRepliesEnabledKey = booleanPreferencesKey("quick_replies_enabled")
 private val UserNicknameKey = stringPreferencesKey("user_nickname")
 private val CatalogAdminKey = stringPreferencesKey("catalog_admin_key")
+private val ChatModelModeKey = stringPreferencesKey("chat_model_mode")
+private val SelectedLocalModelIdKey = stringPreferencesKey("selected_local_model_id")
 private fun characterUpdateTokenKey(characterKey: String) =
     stringPreferencesKey("character_update_token_$characterKey")

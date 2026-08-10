@@ -6,11 +6,35 @@ import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.sqlite.execSQL
 import java.nio.file.Files
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.flow.first
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class StarRailDatabaseMigrationTest {
+    @Test
+    fun migratesVersionSevenToEightWithoutLosingExistingData() = runTest {
+        val databasePath = Files.createTempFile("starrail-migration-7-8", ".db")
+        createVersionSevenDatabase(databasePath.toString())
+
+        val database = Room.databaseBuilder<StarRailDatabase>(
+            name = databasePath.toString(),
+            factory = StarRailDatabaseConstructor::initialize,
+        )
+            .setDriver(BundledSQLiteDriver())
+            .addMigrations(MIGRATION_7_8)
+            .build()
+
+        try {
+            assertEquals("title", database.chatSessionDao().findById("session")?.title)
+            assertEquals("role", database.agentRoleDao().findById("role")?.id)
+            assertEquals(0, database.localModelDao().observeAll().first().size)
+        } finally {
+            database.close()
+            runCatching { Files.deleteIfExists(databasePath) }
+        }
+    }
+
     @Test
     fun migratesVersionOneWithoutLosingSessions() = runTest {
         val databasePath = Files.createTempFile("starrail-migration", ".db")
@@ -28,6 +52,7 @@ class StarRailDatabaseMigrationTest {
                 MIGRATION_4_5,
                 MIGRATION_5_6,
                 MIGRATION_6_7,
+                MIGRATION_7_8,
             )
             .build()
 
@@ -43,6 +68,23 @@ class StarRailDatabaseMigrationTest {
             assertEquals("", requireNotNull(database.agentRoleDao().findById("role")).author)
             assertEquals(1, database.chatSessionSegmentDao().findByOwner("session").size)
             assertEquals(0, database.chatSessionHiddenMessageDao().countByOwner("session"))
+            database.localModelDao().upsert(
+                com.kaixuan.starrailchatbox.data.database.entity.LocalModelEntity(
+                    id = "qwen",
+                    name = "Qwen",
+                    filePath = "models/qwen.litertlm",
+                    sizeBytes = 100,
+                    sha256 = "abc",
+                    source = "CATALOG",
+                    sourceUrl = null,
+                    license = "Apache-2.0",
+                    contextWindow = 4096,
+                    maxOutputTokens = 1024,
+                    createdAt = 1,
+                    updatedAt = 1,
+                ),
+            )
+            assertEquals("Qwen", database.localModelDao().findById("qwen")?.name)
         } finally {
             database.close()
             runCatching { Files.deleteIfExists(databasePath) }
@@ -66,6 +108,7 @@ class StarRailDatabaseMigrationTest {
                 MIGRATION_4_5,
                 MIGRATION_5_6,
                 MIGRATION_6_7,
+                MIGRATION_7_8,
             )
             .build()
 
@@ -95,6 +138,19 @@ class StarRailDatabaseMigrationTest {
             database.close()
             runCatching { Files.deleteIfExists(databasePath) }
         }
+    }
+}
+
+private fun createVersionSevenDatabase(path: String) {
+    createVersionOneDatabase(path)
+    BundledSQLiteDriver().open(path).use { connection ->
+        MIGRATION_1_2.migrate(connection)
+        MIGRATION_2_3.migrate(connection)
+        MIGRATION_3_4.migrate(connection)
+        MIGRATION_4_5.migrate(connection)
+        MIGRATION_5_6.migrate(connection)
+        MIGRATION_6_7.migrate(connection)
+        connection.execSQL("PRAGMA user_version = 7")
     }
 }
 

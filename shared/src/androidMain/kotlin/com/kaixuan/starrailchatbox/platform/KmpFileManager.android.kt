@@ -19,6 +19,7 @@ import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
+import android.os.StatFs
 
 import io.github.vinceglb.filekit.div
 
@@ -56,6 +57,37 @@ class AndroidFileManager : KmpFileManager {
                 ByteArray(0)
             }
         }
+    }
+
+    override suspend fun copySourceTo(source: String, target: Path, append: Boolean): Long {
+        if (!source.startsWith("content://")) {
+            return super<KmpFileManager>.copySourceTo(source, target, append)
+        }
+        val context = requireNotNull(AndroidContextHolder.context)
+        return withContext(Dispatchers.IO) {
+            target.parent?.let(fileSystem::createDirectories)
+            context.contentResolver.openInputStream(Uri.parse(source))?.use { input ->
+                FileOutputStream(target.toString(), append).use { output ->
+                    val buffer = ByteArray(64 * 1024)
+                    var total = 0L
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read == -1) break
+                        output.write(buffer, 0, read)
+                        total += read
+                    }
+                    total
+                }
+            } ?: throw IllegalArgumentException("Unable to open selected file.")
+        }
+    }
+
+    override suspend fun availableSpaceBytes(path: Path): Long = withContext(Dispatchers.IO) {
+        val existingPath = generateSequence(File(path.toString())) { it.parentFile }
+            .firstOrNull(File::exists)
+            ?.absolutePath
+            ?: requireNotNull(AndroidContextHolder.context).filesDir.absolutePath
+        StatFs(existingPath).availableBytes
     }
 
     override suspend fun sourceSizeBytes(source: String): Long? {

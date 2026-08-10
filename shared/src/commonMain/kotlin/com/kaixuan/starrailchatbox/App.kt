@@ -13,6 +13,8 @@ import com.kaixuan.starrailchatbox.data.database.DatabaseManager
 import com.kaixuan.starrailchatbox.data.database.InMemoryDatabaseManager
 import com.kaixuan.starrailchatbox.data.model.InMemoryModelConfigRepository
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
+import com.kaixuan.starrailchatbox.data.localmodel.InMemoryLocalModelRepository
+import com.kaixuan.starrailchatbox.data.localmodel.LocalModelRepository
 import com.kaixuan.starrailchatbox.data.chat.ChatSessionRepository
 import com.kaixuan.starrailchatbox.data.chat.InMemoryChatSessionRepository
 import com.kaixuan.starrailchatbox.data.settings.AppSettingsStore
@@ -29,6 +31,7 @@ import org.koin.dsl.koinApplication
 @Composable
 fun App(
     modelConfigRepository: ModelConfigRepository = remember { InMemoryModelConfigRepository() },
+    localModelRepository: LocalModelRepository = remember { InMemoryLocalModelRepository() },
     profileStore: ProfileStore = remember { createProfileStore() },
     appSettingsStore: AppSettingsStore = remember { createAppSettingsStore() },
     characterRepository: CharacterRepository = remember {
@@ -41,6 +44,7 @@ fun App(
 ) {
     val koinApplication = remember(
         modelConfigRepository,
+        localModelRepository,
         profileStore,
         appSettingsStore,
         characterRepository,
@@ -51,6 +55,7 @@ fun App(
             modules(
                 appModule(
                     modelConfigRepository,
+                    localModelRepository,
                     profileStore,
                     appSettingsStore,
                     characterRepository,

@@ -3,6 +3,7 @@ package com.kaixuan.starrailchatbox.ui.settings
 enum class SettingsItem {
     PROFILE,
     API_SETTINGS,
+    LOCAL_MODEL_SETTINGS,
     MULTIMODAL_API_SETTINGS,
     IMAGE_GENERATION_API_SETTINGS,
     VOICE_API_SETTINGS,

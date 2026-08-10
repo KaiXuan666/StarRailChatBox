@@ -38,6 +38,7 @@ kmp-zip = "0.12.1"
 jlayer = "1.0.1"
 mp3spi = "1.9.5.4"
 tritonus-share = "0.3.7.4"
+litertlm = "0.15.0"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -97,6 +98,8 @@ kmp-zip = { module = "no.synth:kmp-zip", version.ref = "kmp-zip" }
 jlayer = { module = "javazoom:jlayer", version.ref = "jlayer" }
 mp3spi = { module = "com.googlecode.soundlibs:mp3spi", version.ref = "mp3spi" }
 tritonus-share = { module = "com.googlecode.soundlibs:tritonus-share", version.ref = "tritonus-share" }
+litertlm-android = { module = "com.google.ai.edge.litertlm:litertlm-android", version.ref = "litertlm" }
+litertlm-jvm = { module = "com.google.ai.edge.litertlm:litertlm-jvm", version.ref = "litertlm" }
 
 filekit-core = { module = "io.github.vinceglb:filekit-core", version.ref = "filekit" }
 filekit-dialogs-compose = { module = "io.github.vinceglb:filekit-dialogs-compose", version.ref = "filekit" }

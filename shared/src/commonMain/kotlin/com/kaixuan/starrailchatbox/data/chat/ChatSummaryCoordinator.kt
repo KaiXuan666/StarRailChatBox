@@ -3,6 +3,7 @@ package com.kaixuan.starrailchatbox.data.chat
 import com.kaixuan.starrailchatbox.data.ai.AiMessage
 import com.kaixuan.starrailchatbox.data.ai.AiRepository
 import com.kaixuan.starrailchatbox.data.api.ApiResult
+import com.kaixuan.starrailchatbox.data.localmodel.persistedModelConfigId
 import com.kaixuan.starrailchatbox.data.model.ModelConfig
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.sync.Mutex
@@ -53,7 +54,7 @@ class ChatSummaryCoordinator(
                     content = content,
                     sourceMessageCount = (source.summary?.sourceMessageCount ?: 0) +
                         messagesToSummarize.size,
-                    modelConfigId = config.id,
+                    modelConfigId = config.persistedModelConfigId(),
                     modelNameSnapshot = config.modelName,
                     promptTokens = completion.promptTokens,
                     completionTokens = completion.completionTokens,

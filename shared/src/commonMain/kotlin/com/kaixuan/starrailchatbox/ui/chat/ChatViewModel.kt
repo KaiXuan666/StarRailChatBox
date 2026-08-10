@@ -34,6 +34,9 @@ import com.kaixuan.starrailchatbox.data.chat.buildChatContext
 import com.kaixuan.starrailchatbox.data.chat.newChatId
 import com.kaixuan.starrailchatbox.data.model.ModelConfig
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
+import com.kaixuan.starrailchatbox.data.localmodel.ChatModelResolver
+import com.kaixuan.starrailchatbox.data.localmodel.isProviderUsable
+import com.kaixuan.starrailchatbox.data.localmodel.persistedModelConfigId
 import com.kaixuan.starrailchatbox.platform.formatLastChatTime
 import kotlin.uuid.Uuid
 import com.kaixuan.starrailchatbox.platform.formatHeaderDate
@@ -73,6 +76,7 @@ class ChatViewModel(
     private val profileStore: ProfileStore,
     private val chatMessageSender: ChatMessageSender = ChatMessageSender(aiRepository),
     private val fileManager: KmpFileManager = KmpFileManager.Default,
+    private val chatModelResolver: ChatModelResolver? = null,
     private val chatSummaryCoordinator: ChatSummaryCoordinator = ChatSummaryCoordinator(
         chatSessionRepository = chatSessionRepository,
         aiRepository = aiRepository,
@@ -857,20 +861,41 @@ class ChatViewModel(
         val hasMultimodalAttachment = hasCurrentMultimodalAttachment || hasHistoryMultimodalAttachment
 
         val config = if (hasMultimodalAttachment) {
-            (modelConfigRepository.getMultimodal()?.takeIf(ModelConfig::isUsable)
-                ?: modelConfigRepository.getDefault()?.takeIf(ModelConfig::isUsable))
+            if (chatModelResolver != null) {
+                chatModelResolver.resolveMultimodalModel()
+            } else {
+                modelConfigRepository.getMultimodal()?.takeIf(ModelConfig::isProviderUsable)
+                    ?: modelConfigRepository.getDefault()?.takeIf(ModelConfig::isProviderUsable)
+            }
         } else {
-            modelConfigRepository.getDefault()?.takeIf(ModelConfig::isUsable)
+            chatModelResolver?.resolveTextModel()
+                ?: modelConfigRepository.getDefault()?.takeIf(ModelConfig::isProviderUsable)
         }
 
         if (config == null) {
+            val localAttachmentUnsupported = hasMultimodalAttachment &&
+                chatModelResolver?.currentMode() == com.kaixuan.starrailchatbox.data.localmodel.ChatModelMode.LOCAL
             appendFailedAssistant(
                 session = session,
                 config = null,
-                errorCode = "model_config_required",
-                errorMessage = "A usable model configuration is required.",
+                errorCode = if (localAttachmentUnsupported) {
+                    "local_multimodal_unsupported"
+                } else {
+                    "model_config_required"
+                },
+                errorMessage = if (localAttachmentUnsupported) {
+                    "An online multimodal model configuration is required for attachments."
+                } else {
+                    "A usable model configuration is required."
+                },
             )
-            emitMessage(EffectMessage.MODEL_CONFIG_REQUIRED)
+            emitMessage(
+                if (localAttachmentUnsupported) {
+                    EffectMessage.LOCAL_MULTIMODAL_UNSUPPORTED
+                } else {
+                    EffectMessage.MODEL_CONFIG_REQUIRED
+                },
+            )
             return
         }
 
@@ -959,7 +984,24 @@ class ChatViewModel(
             }
             is ApiResult.HttpError -> handleFailure(session, config, "http_${result.statusCode}", result.message)
             is ApiResult.NetworkError -> handleFailure(session, config, "network_error", result.message)
-            is ApiResult.UnexpectedError -> handleFailure(session, config, "unexpected_error", result.message)
+            is ApiResult.UnexpectedError -> {
+                val errorCode = result.code ?: "unexpected_error"
+                handleFailure(
+                    session = session,
+                    config = config,
+                    errorCode = errorCode,
+                    errorMessage = result.message,
+                    effectMessage = when (errorCode) {
+                        "local_model_not_installed" -> EffectMessage.LOCAL_MODEL_NOT_INSTALLED
+                        "local_multimodal_unsupported" -> EffectMessage.LOCAL_MULTIMODAL_UNSUPPORTED
+                        "local_context_too_long" -> EffectMessage.LOCAL_CONTEXT_TOO_LONG
+                        "local_inference_failed", "local_model_incompatible", "local_initialization_failed" -> {
+                            EffectMessage.LOCAL_INFERENCE_FAILED
+                        }
+                        else -> EffectMessage.CHAT_REQUEST_FAILED
+                    },
+                )
+            }
         }
     }
 
@@ -1197,7 +1239,7 @@ class ChatViewModel(
                 role = ChatRole.ASSISTANT,
                 content = response,
                 status = ChatMessageStatus.COMPLETED,
-                modelConfigId = config.id,
+                modelConfigId = config.persistedModelConfigId(),
                 modelNameSnapshot = config.modelName,
                 promptTokens = result.promptTokens,
                 completionTokens = result.completionTokens,
@@ -1216,10 +1258,11 @@ class ChatViewModel(
         config: ModelConfig,
         errorCode: String,
         errorMessage: String?,
+        effectMessage: EffectMessage = EffectMessage.CHAT_REQUEST_FAILED,
     ) {
         Napier.e("CHAT API request failed: configModel=${config.modelName}, errorCode=$errorCode, errorMessage=$errorMessage")
         appendFailedAssistant(session, config, errorCode, errorMessage)
-        emitMessage(EffectMessage.CHAT_REQUEST_FAILED, errorMessage)
+        emitMessage(effectMessage, errorMessage)
     }
 
     private suspend fun appendFailedAssistant(
@@ -1237,7 +1280,7 @@ class ChatViewModel(
                 status = ChatMessageStatus.FAILED,
                 errorCode = errorCode,
                 errorMessage = errorMessage,
-                modelConfigId = config?.id,
+                modelConfigId = config?.persistedModelConfigId(),
                 modelNameSnapshot = config?.modelName,
                 createdAt = currentTimeMillis(),
             ),
@@ -1299,13 +1342,6 @@ class ChatViewModel(
     private fun emitMessage(message: EffectMessage, detail: String? = null) {
         _effects.trySend(ChatEffect.ShowMessage(message, detail))
     }
-}
-
-private fun ModelConfig.isUsable(): Boolean {
-    return enabled &&
-        baseUrl.isNotBlank() &&
-        apiKey.isNotBlank() &&
-        modelName.isNotBlank()
 }
 
 private fun NewChatSession.toDomain(lastMessageAt: Long) = ChatSession(

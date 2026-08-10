@@ -10,5 +10,8 @@ sealed interface ApiResult<out T> {
 
     data class NetworkError(val message: String?) : ApiResult<Nothing>
 
-    data class UnexpectedError(val message: String?) : ApiResult<Nothing>
+    data class UnexpectedError(
+        val message: String?,
+        val code: String? = null,
+    ) : ApiResult<Nothing>
 }

@@ -66,6 +66,8 @@ import starrailchatbox.shared.generated.resources.settings_api_configured
 import starrailchatbox.shared.generated.resources.settings_api_desc
 import starrailchatbox.shared.generated.resources.settings_api_not_configured
 import starrailchatbox.shared.generated.resources.settings_api_title
+import starrailchatbox.shared.generated.resources.settings_local_model_title
+import starrailchatbox.shared.generated.resources.settings_local_model_desc
 import starrailchatbox.shared.generated.resources.settings_image_generation_api_desc
 import starrailchatbox.shared.generated.resources.settings_image_generation_api_title
 import starrailchatbox.shared.generated.resources.settings_multimodal_api_desc
@@ -132,6 +134,16 @@ fun SettingsScreen(
             getColors = {
                 MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f) to MaterialTheme.colorScheme.secondary
             }
+        ),
+        SettingsItemUiData(
+            item = SettingsItem.LOCAL_MODEL_SETTINGS,
+            iconKind = StarRailIconKind.DATABASE,
+            titleRes = Res.string.settings_local_model_title,
+            descRes = Res.string.settings_local_model_desc,
+            isConfigured = settingsState.isLocalModelConfigured,
+            getColors = {
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f) to MaterialTheme.colorScheme.primary
+            },
         ),
         SettingsItemUiData(
             item = SettingsItem.MULTIMODAL_API_SETTINGS,
@@ -243,6 +255,7 @@ fun SettingsScreen(
                         onClick = {
                             if (itemData.item == SettingsItem.PROFILE || 
                                 itemData.item == SettingsItem.API_SETTINGS || 
+                                itemData.item == SettingsItem.LOCAL_MODEL_SETTINGS ||
                                 itemData.item == SettingsItem.MULTIMODAL_API_SETTINGS || 
                                 itemData.item == SettingsItem.IMAGE_GENERATION_API_SETTINGS ||
                                 itemData.item == SettingsItem.VOICE_API_SETTINGS || 

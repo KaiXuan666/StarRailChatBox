@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.serialization.json.Json
 import kotlin.io.encoding.Base64
 
+actual fun createCharacterStorage(): CharacterStorage = WasmJsCharacterStorage()
+
 class WasmJsCharacterStorage : CharacterStorage {
     private val key = "characters"
     private val summaries = MutableSharedFlow<List<CharacterSummary>>(replay = 1).apply {

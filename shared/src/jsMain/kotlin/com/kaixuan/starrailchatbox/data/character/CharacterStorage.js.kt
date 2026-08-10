@@ -9,6 +9,8 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.io.encoding.Base64
 
+actual fun createCharacterStorage(): CharacterStorage = JsCharacterStorage()
+
 class JsCharacterStorage : CharacterStorage {
     private val key = "characters"
     private val summaries = MutableSharedFlow<List<CharacterSummary>>(replay = 1).apply {

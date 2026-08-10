@@ -124,6 +124,19 @@ import starrailchatbox.shared.generated.resources.voice_not_ready
 import starrailchatbox.shared.generated.resources.chat_model_config_required
 import starrailchatbox.shared.generated.resources.chat_request_failed
 import starrailchatbox.shared.generated.resources.chat_empty_response
+import starrailchatbox.shared.generated.resources.local_checksum_failed
+import starrailchatbox.shared.generated.resources.local_context_too_long
+import starrailchatbox.shared.generated.resources.local_download_failed
+import starrailchatbox.shared.generated.resources.local_download_paused
+import starrailchatbox.shared.generated.resources.local_import_failed
+import starrailchatbox.shared.generated.resources.local_inference_failed
+import starrailchatbox.shared.generated.resources.local_inference_busy
+import starrailchatbox.shared.generated.resources.local_model_deleted
+import starrailchatbox.shared.generated.resources.local_model_installed
+import starrailchatbox.shared.generated.resources.local_model_not_installed
+import starrailchatbox.shared.generated.resources.local_model_select_required
+import starrailchatbox.shared.generated.resources.local_multimodal_unsupported
+import starrailchatbox.shared.generated.resources.local_storage_insufficient
 import starrailchatbox.shared.generated.resources.character_saved
 import starrailchatbox.shared.generated.resources.character_deleted
 import starrailchatbox.shared.generated.resources.character_delete_builtin_restricted
@@ -209,6 +222,10 @@ import com.kaixuan.starrailchatbox.ui.settings.SettingsOverviewViewModel
 import com.kaixuan.starrailchatbox.ui.settings.api.ApiSettingsViewModel
 import com.kaixuan.starrailchatbox.ui.settings.api.ApiSettingsAction
 import com.kaixuan.starrailchatbox.ui.settings.api.ApiSettingsEffect
+import com.kaixuan.starrailchatbox.ui.settings.localmodel.LocalModelSettingsAction
+import com.kaixuan.starrailchatbox.ui.settings.localmodel.LocalModelSettingsEffect
+import com.kaixuan.starrailchatbox.ui.settings.localmodel.LocalModelSettingsScreen
+import com.kaixuan.starrailchatbox.ui.settings.localmodel.LocalModelSettingsViewModel
 import com.kaixuan.starrailchatbox.ui.profile.ProfileScreen
 import com.kaixuan.starrailchatbox.ui.profile.ProfileAction
 import com.kaixuan.starrailchatbox.ui.profile.ProfileEffect
@@ -248,6 +265,7 @@ private val NavigationSavedStateConfiguration = SavedStateConfiguration {
             subclass(Route.Characters::class, Route.Characters.serializer())
             subclass(Route.Settings::class, Route.Settings.serializer())
             subclass(Route.ApiSettings::class, Route.ApiSettings.serializer())
+            subclass(Route.LocalModelSettings::class, Route.LocalModelSettings.serializer())
             subclass(Route.MultimodalApiSettings::class, Route.MultimodalApiSettings.serializer())
             subclass(Route.VoiceApiSettings::class, Route.VoiceApiSettings.serializer())
             subclass(Route.ImageGenerationApiSettings::class, Route.ImageGenerationApiSettings.serializer())
@@ -358,6 +376,7 @@ fun MainRoute(
                 val route = when (action.item) {
                     MainSettingsItem.PROFILE -> Route.Profile
                     MainSettingsItem.API_SETTINGS -> Route.ApiSettings
+                    MainSettingsItem.LOCAL_MODEL_SETTINGS -> Route.LocalModelSettings
                     MainSettingsItem.MULTIMODAL_API_SETTINGS -> Route.MultimodalApiSettings
                     MainSettingsItem.IMAGE_GENERATION_API_SETTINGS -> Route.ImageGenerationApiSettings
                     MainSettingsItem.VOICE_API_SETTINGS -> Route.VoiceApiSettings
@@ -452,6 +471,7 @@ fun MainRoute(
                 val item = when (action.item) {
                     com.kaixuan.starrailchatbox.ui.settings.SettingsItem.PROFILE -> MainSettingsItem.PROFILE
                     com.kaixuan.starrailchatbox.ui.settings.SettingsItem.API_SETTINGS -> MainSettingsItem.API_SETTINGS
+                    com.kaixuan.starrailchatbox.ui.settings.SettingsItem.LOCAL_MODEL_SETTINGS -> MainSettingsItem.LOCAL_MODEL_SETTINGS
                     com.kaixuan.starrailchatbox.ui.settings.SettingsItem.MULTIMODAL_API_SETTINGS -> MainSettingsItem.MULTIMODAL_API_SETTINGS
                     com.kaixuan.starrailchatbox.ui.settings.SettingsItem.IMAGE_GENERATION_API_SETTINGS -> MainSettingsItem.IMAGE_GENERATION_API_SETTINGS
                     com.kaixuan.starrailchatbox.ui.settings.SettingsItem.VOICE_API_SETTINGS -> MainSettingsItem.VOICE_API_SETTINGS
@@ -478,6 +498,10 @@ fun MainRoute(
         EffectMessage.MODEL_CONFIG_REQUIRED to stringResource(Res.string.chat_model_config_required),
         EffectMessage.CHAT_REQUEST_FAILED to stringResource(Res.string.chat_request_failed),
         EffectMessage.CHAT_EMPTY_RESPONSE to stringResource(Res.string.chat_empty_response),
+        EffectMessage.LOCAL_MODEL_NOT_INSTALLED to stringResource(Res.string.local_model_not_installed),
+        EffectMessage.LOCAL_MULTIMODAL_UNSUPPORTED to stringResource(Res.string.local_multimodal_unsupported),
+        EffectMessage.LOCAL_CONTEXT_TOO_LONG to stringResource(Res.string.local_context_too_long),
+        EffectMessage.LOCAL_INFERENCE_FAILED to stringResource(Res.string.local_inference_failed),
     )
     val characterEffectMessages = mapOf(
         CharacterEffectMessage.CHARACTER_NAME_EMPTY to stringResource(Res.string.character_name_empty),
@@ -1008,6 +1032,21 @@ fun MainNavigationContainer(
                             )
                         }
                     }
+                    entry<Route.LocalModelSettings> {
+                        NavigationTraceDestination(
+                            route = Route.LocalModelSettings,
+                            isPresented = presentedRoute == Route.LocalModelSettings,
+                            onMounted = { presentedRoute = Route.LocalModelSettings },
+                        ) {
+                            LocalModelSettingsRoute(
+                                koin = koin,
+                                contentPadding = contentPadding,
+                                compact = compact,
+                                onMainAction = onMainAction,
+                                snackbarHostState = snackbarHostState,
+                            )
+                        }
+                    }
                     entry<Route.MultimodalApiSettings> {
                         NavigationTraceDestination(
                             route = Route.MultimodalApiSettings,
@@ -1457,6 +1496,64 @@ private fun ApiSettingsRoute(
 }
 
 @Composable
+private fun LocalModelSettingsRoute(
+    koin: Koin,
+    contentPadding: PaddingValues,
+    compact: Boolean,
+    onMainAction: (MainAction) -> Unit,
+    snackbarHostState: SnackbarHostState,
+) {
+    val viewModel = viewModel { koin.get<LocalModelSettingsViewModel>() }
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val effectMessages = mapOf(
+        "local_model_installed" to stringResource(Res.string.local_model_installed),
+        "local_model_deleted" to stringResource(Res.string.local_model_deleted),
+        "local_download_paused" to stringResource(Res.string.local_download_paused),
+        "local_model_select_required" to stringResource(Res.string.local_model_select_required),
+        "local_storage_insufficient" to stringResource(Res.string.local_storage_insufficient),
+        "local_checksum_failed" to stringResource(Res.string.local_checksum_failed),
+        "local_download_failed" to stringResource(Res.string.local_download_failed),
+        "local_import_failed" to stringResource(Res.string.local_import_failed),
+        "local_inference_busy" to stringResource(Res.string.local_inference_busy),
+    )
+    val defaultEffectMessage = stringResource(Res.string.local_download_failed)
+    val picker = rememberFilePickerLauncher(
+        type = FileKitType.File(listOf("litertlm")),
+    ) { file ->
+        if (file != null) {
+            viewModel.onAction(
+                LocalModelSettingsAction.ImportSelected(
+                    source = file.path.orEmpty(),
+                    fileName = file.name,
+                    displayName = file.name.substringBeforeLast('.'),
+                ),
+            )
+        }
+    }
+    LaunchedEffect(viewModel, effectMessages, defaultEffectMessage) {
+        viewModel.effects.collectLatest { effect ->
+            when (effect) {
+                is LocalModelSettingsEffect.ShowMessage -> snackbarHostState.showSnackbar(
+                    appendFailureDetail(
+                        effectMessages[effect.code] ?: defaultEffectMessage,
+                        effect.detail,
+                    ),
+                )
+            }
+        }
+    }
+    LocalModelSettingsScreen(
+        state = state,
+        contentPadding = contentPadding,
+        compact = compact,
+        onBack = { onMainAction(MainAction.PopBackStack) },
+        onImport = { picker.launch() },
+        onOpenSource = { openUri("https://huggingface.co/litert-community/Qwen3-1.7B") },
+        onAction = viewModel::onAction,
+    )
+}
+
+@Composable
 private fun ProfileRoute(
     koin: Koin,
     contentPadding: PaddingValues,
@@ -1610,6 +1707,7 @@ private fun Route.traceName(): String = when (this) {
     Route.Characters -> "Characters"
     Route.Settings -> "Settings"
     Route.ApiSettings -> "ApiSettings"
+    Route.LocalModelSettings -> "LocalModelSettings"
     Route.MultimodalApiSettings -> "MultimodalApiSettings"
     Route.VoiceApiSettings -> "VoiceApiSettings"
     Route.ImageGenerationApiSettings -> "ImageGenerationApiSettings"
@@ -1668,7 +1766,7 @@ private fun MainNavigationBar(
     ) {
         navigationItems.forEach { item ->
             val selected = when (item.route) {
-                Route.Settings -> currentRoute == Route.Settings || currentRoute == Route.ApiSettings || currentRoute == Route.MultimodalApiSettings || currentRoute == Route.VoiceApiSettings || currentRoute == Route.ImageGenerationApiSettings || currentRoute == Route.About || currentRoute == Route.Profile
+                Route.Settings -> currentRoute == Route.Settings || currentRoute == Route.ApiSettings || currentRoute == Route.LocalModelSettings || currentRoute == Route.MultimodalApiSettings || currentRoute == Route.VoiceApiSettings || currentRoute == Route.ImageGenerationApiSettings || currentRoute == Route.About || currentRoute == Route.Profile
                 else -> item.route == currentRoute
             }
             val label = stringResource(item.label)
@@ -1705,7 +1803,7 @@ private fun MainNavigationRail(
         Spacer(Modifier.height(StarRailSpacing.lg))
         navigationItems.forEach { item ->
             val selected = when (item.route) {
-                Route.Settings -> currentRoute == Route.Settings || currentRoute == Route.ApiSettings || currentRoute == Route.MultimodalApiSettings || currentRoute == Route.VoiceApiSettings || currentRoute == Route.ImageGenerationApiSettings || currentRoute == Route.About || currentRoute == Route.Profile
+                Route.Settings -> currentRoute == Route.Settings || currentRoute == Route.ApiSettings || currentRoute == Route.LocalModelSettings || currentRoute == Route.MultimodalApiSettings || currentRoute == Route.VoiceApiSettings || currentRoute == Route.ImageGenerationApiSettings || currentRoute == Route.About || currentRoute == Route.Profile
                 else -> item.route == currentRoute
             }
             val label = stringResource(item.label)

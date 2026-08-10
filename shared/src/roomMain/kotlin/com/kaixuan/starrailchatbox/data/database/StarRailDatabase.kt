@@ -12,6 +12,7 @@ import com.kaixuan.starrailchatbox.data.database.dao.ChatSessionSegmentDao
 import com.kaixuan.starrailchatbox.data.database.dao.ChatSummaryDao
 import com.kaixuan.starrailchatbox.data.database.dao.ModelConfigDao
 import com.kaixuan.starrailchatbox.data.database.dao.MessageAttachmentDao
+import com.kaixuan.starrailchatbox.data.database.dao.LocalModelDao
 import com.kaixuan.starrailchatbox.data.database.entity.AgentRoleEntity
 import com.kaixuan.starrailchatbox.data.database.entity.ChatMessageEntity
 import com.kaixuan.starrailchatbox.data.database.entity.ChatSessionEntity
@@ -20,6 +21,7 @@ import com.kaixuan.starrailchatbox.data.database.entity.ChatSessionSegmentEntity
 import com.kaixuan.starrailchatbox.data.database.entity.ChatSummaryEntity
 import com.kaixuan.starrailchatbox.data.database.entity.ModelConfigEntity
 import com.kaixuan.starrailchatbox.data.database.entity.MessageAttachmentEntity
+import com.kaixuan.starrailchatbox.data.database.entity.LocalModelEntity
 
 @Database(
     entities = [
@@ -31,8 +33,9 @@ import com.kaixuan.starrailchatbox.data.database.entity.MessageAttachmentEntity
         ChatSummaryEntity::class,
         ModelConfigEntity::class,
         MessageAttachmentEntity::class,
+        LocalModelEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = false,
 )
 @ConstructedBy(StarRailDatabaseConstructor::class)
@@ -52,6 +55,8 @@ abstract class StarRailDatabase : RoomDatabase() {
     abstract fun modelConfigDao(): ModelConfigDao
 
     abstract fun messageAttachmentDao(): MessageAttachmentDao
+
+    abstract fun localModelDao(): LocalModelDao
 }
 
 @Suppress("KotlinNoActualForExpect")

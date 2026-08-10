@@ -8,6 +8,7 @@ fun MainViewController(): platform.UIKit.UIViewController {
     return ComposeUIViewController {
         App(
             modelConfigRepository = repositories.modelConfigRepository,
+            localModelRepository = repositories.localModelRepository,
             profileStore = repositories.profileStore,
             appSettingsStore = repositories.appSettingsStore,
             characterRepository = repositories.characterRepository,

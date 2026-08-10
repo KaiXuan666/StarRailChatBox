@@ -152,3 +152,27 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
         )
     }
 }
+
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `local_model` (
+                `id` TEXT NOT NULL,
+                `name` TEXT NOT NULL,
+                `file_path` TEXT NOT NULL,
+                `size_bytes` INTEGER NOT NULL,
+                `sha256` TEXT NOT NULL,
+                `source` TEXT NOT NULL,
+                `source_url` TEXT,
+                `license` TEXT NOT NULL,
+                `context_window` INTEGER NOT NULL,
+                `max_output_tokens` INTEGER NOT NULL,
+                `created_at` INTEGER NOT NULL,
+                `updated_at` INTEGER NOT NULL,
+                PRIMARY KEY(`id`)
+            )
+            """.trimIndent(),
+        )
+    }
+}

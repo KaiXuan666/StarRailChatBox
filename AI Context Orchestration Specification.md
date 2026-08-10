@@ -443,7 +443,7 @@ summaryRetainedMessageCount=5
    服务商响应统一转换为远程图片 URL 或 Base64 图片；工具负责将结果保存到应用私有
    目录后再返回消息附件 URI。
 
-模型配置只有同时满足以下条件时才可使用：
+在线模型配置只有同时满足以下条件时才可使用：
 
 - 配置已启用。
 - API Host 非空。
@@ -451,6 +451,26 @@ summaryRetainedMessageCount=5
 - 模型名称非空。
 
 UI、ViewModel 或上下文构造器不得直接拼接 URL 或泄漏 Ktor/平台异常。
+
+### 7.5 LiteRT-LM 本地文本模型
+
+- `ChatModelResolver` MUST 根据持久化的 `ChatModelMode` 显式选择在线或本地文本模型；
+  切换模式不得覆盖或删除 `ModelConfigRepository` 中的在线配置。
+- 本地配置由已安装的 `LocalModel` 解析产生，Provider 固定为 `litert-lm`，其
+  `baseUrl` 与 `apiKey` 为空。Provider 可用性校验 MUST 按 Provider 区分，不能将在线
+  API Host/API Key 规则强加给本地模型。
+- 发送协程开始时 MUST 捕获解析后的配置快照。同一请求的回复、标题和摘要不得因用户
+  中途切换模式或模型而更换 Provider。
+- LiteRT-LM 映射顺序固定为：全部 system 消息按原顺序合并成
+  `systemInstruction`；当前输入之前的 user/assistant 消息映射为 `initialMessages`；
+  最后一条 user 消息通过 `sendMessageAsync` 发送。当前输入不得被重复放入历史。
+- 本地首版仅支持纯文本。任意非文本 `AiContentPart` MUST 返回
+  `local_multimodal_unsupported`；含附件的聊天只能显式使用可用的在线多模态配置，
+  不得丢弃附件后继续本地生成。
+- 本地 Provider MUST 禁用 thinking channel 与工具调用。快捷回复、标题和摘要仍可走
+  纯文本生成路径；本地 token usage 不可可靠获取时统一记录为 0。
+- 每个已安装模型最多缓存一个 Engine；Conversation 按请求创建并关闭。本地推理使用
+  可取消的 `Mutex` 串行化，GPU 初始化失败后关闭失败实例并仅回退一次 CPU。
 
 ## 8. 响应与错误处理
 
@@ -501,6 +521,10 @@ UI 通过一次性 Effect 提示“模型没有返回有效内容”。
 | 未预期错误 | `unexpected_error` |
 | 模型配置缺失 | `model_config_required` |
 | 空响应 | `empty_response` |
+| 本地模型未安装 | `local_model_not_installed` |
+| 本地多模态不支持 | `local_multimodal_unsupported` |
+| 本地上下文超限 | `local_context_too_long` |
+| 本地初始化或推理失败 | `local_initialization_failed` / `local_inference_failed` |
 
 所有错误都 MUST 保留用户消息，并追加一条 `failed` 助手记录。原始异常对象不得暴露
 给 UI；错误信息不得包含 API Key、Authorization 或其他敏感信息。
@@ -517,6 +541,8 @@ UI 通过一次性 Effect 提示“模型没有返回有效内容”。
 - 消息顺序 MUST 由持久化层的 `seq` 决定，不能依赖时间戳排序。
 - 切换角色时 MUST 取消旧会话 Flow，旧 Flow 不得覆盖新角色 UI。
 - ID MUST 跨平台安全且在本地数据库范围内唯一。
+- 不同角色的本地请求 MAY 并发进入队列，但实际 Engine 推理 MUST 全局串行；排队协程
+  取消后不得启动 Conversation。
 
 分支会话 MUST 保留父会话删除后的可用性。删除父会话只移除其会话入口，不得删除被
 分支引用的历史消息。重新生成只能作用于当前活动会话自身最新的 completed assistant
@@ -544,6 +570,11 @@ UI 通过一次性 Effect 提示“模型没有返回有效内容”。
 Android、iOS 和 Desktop 使用同一个 `StarRailDatabase` 实例提供 Room 仓库。
 JavaScript/WasmJS 不得依赖 Room 实体、DAO 或文件路径，应使用符合相同接口语义的
 浏览器持久化或内存实现。
+
+LiteRT-LM SDK 仅能出现在 Android 与 Desktop/JVM 源码集。iOS、JavaScript 和
+WasmJS 使用明确的 Unsupported runtime 并继续支持在线模型，任何 LiteRT 类型都不得
+泄漏到公共接口。应用备份和数据库导出只包含本地模型元数据，不包含 `.litertlm`
+文件；恢复后必须提示用户重新下载或导入。
 
 不同平台实现 MAY 改变存储介质，但不得改变会话选择、过滤、裁剪、错误记录和请求
 消息顺序。
@@ -652,3 +683,4 @@ JavaScript/WasmJS 不得依赖 Room 实体、DAO 或文件路径，应使用符�
 | 1.23 | 2026-07-08 | 增加分支会话片段路径模型，支持从 assistant 消息开启新对话且不复制历史消息 |
 | 1.24 | 2026-07-08 | 重新生成改为当前会话局部隐藏旧回复，避免破坏分支会话历史快照 |
 | 1.25 | 2026-07-08 | 明确分支会话完成自身首轮对话后参与自动标题生成 |
+| 1.26 | 2026-08-10 | 增加 LiteRT-LM 显式本地文本模式、Provider 特定校验、消息映射、附件边界、配置快照与串行推理规则 |

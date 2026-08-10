@@ -7,6 +7,7 @@ import com.kaixuan.starrailchatbox.data.ai.AliCompatibleProvider
 import com.kaixuan.starrailchatbox.data.ai.DefaultAiRepository
 import com.kaixuan.starrailchatbox.data.ai.OpenAiCompatibleProvider
 import com.kaixuan.starrailchatbox.data.ai.XiaomiMimoProvider
+import com.kaixuan.starrailchatbox.data.ai.LiteRtLmProvider
 import com.kaixuan.starrailchatbox.data.ai.image.AliImageProvider
 import com.kaixuan.starrailchatbox.data.ai.image.ImageGenerationProvider
 import com.kaixuan.starrailchatbox.data.ai.image.ImageGenerationProviderRegistry
@@ -26,6 +27,12 @@ import com.kaixuan.starrailchatbox.data.api.createPlatformHttpClient
 import io.ktor.client.HttpClient
 import com.kaixuan.starrailchatbox.data.database.DatabaseManager
 import com.kaixuan.starrailchatbox.data.model.ModelConfigRepository
+import com.kaixuan.starrailchatbox.data.localmodel.LocalModelRepository
+import com.kaixuan.starrailchatbox.data.localmodel.ChatModelResolver
+import com.kaixuan.starrailchatbox.data.localmodel.LocalLanguageModelRuntime
+import com.kaixuan.starrailchatbox.data.localmodel.createLocalLanguageModelRuntime
+import com.kaixuan.starrailchatbox.data.localmodel.DefaultLocalModelDownloadService
+import com.kaixuan.starrailchatbox.data.localmodel.LocalModelDownloadService
 import com.kaixuan.starrailchatbox.data.character.CharacterRepository
 import com.kaixuan.starrailchatbox.data.character.importer.CharacterCardImporter
 import com.kaixuan.starrailchatbox.data.character.importer.DefaultCharacterCardImporter
@@ -46,6 +53,7 @@ import com.kaixuan.starrailchatbox.platform.KmpFileManager
 import com.kaixuan.starrailchatbox.ui.settings.SettingsViewModel
 import com.kaixuan.starrailchatbox.ui.settings.SettingsOverviewViewModel
 import com.kaixuan.starrailchatbox.ui.settings.api.ApiSettingsViewModel
+import com.kaixuan.starrailchatbox.ui.settings.localmodel.LocalModelSettingsViewModel
 import com.kaixuan.starrailchatbox.ui.profile.ProfileViewModel
 import com.kaixuan.starrailchatbox.ui.chat.ChatViewModel
 import com.kaixuan.starrailchatbox.ui.chat.ChatMessageSender
@@ -60,6 +68,7 @@ import org.koin.dsl.module
 
 fun appModule(
     modelConfigRepository: ModelConfigRepository,
+    localModelRepository: LocalModelRepository,
     profileStore: ProfileStore,
     appSettingsStore: AppSettingsStore,
     characterRepository: CharacterRepository,
@@ -71,12 +80,15 @@ fun appModule(
     single<AiProvider>(named("OpenAiCompatible")) { get<OpenAiCompatibleProvider>() }
     single<AiProvider>(named("AliCompatible")) { AliCompatibleProvider(get()) }
     single<AiProvider>(named("XiaomiMimo")) { XiaomiMimoProvider(get()) }
+    single<LocalLanguageModelRuntime> { createLocalLanguageModelRuntime() }
+    single<AiProvider>(named("LiteRtLm")) { LiteRtLmProvider(get(), get()) }
     single {
         AiProviderRegistry(
             listOf(
                 get(named("OpenAiCompatible")),
                 get(named("AliCompatible")),
                 get(named("XiaomiMimo")),
+                get(named("LiteRtLm")),
             ),
         )
     }
@@ -104,6 +116,9 @@ fun appModule(
     single { ToolCallCoordinator(get(), get()) }
     single<AiRepository> { DefaultAiRepository(get(), get()) }
     single { modelConfigRepository }
+    single { localModelRepository }
+    single { ChatModelResolver(get(), get(), get()) }
+    single<LocalModelDownloadService> { DefaultLocalModelDownloadService(get(), get(), get(), get()) }
     single { profileStore }
     single { appSettingsStore }
     single { characterRepository }
@@ -146,6 +161,7 @@ fun appModule(
             profileStore = get(),
             chatMessageSender = get(),
             fileManager = get(),
+            chatModelResolver = get(),
         )
     }
     factory { SettingsViewModel() }
@@ -159,7 +175,8 @@ fun appModule(
             imageProviderRegistry = get(),
         )
     }
-    factory { SettingsOverviewViewModel(get()) }
+    factory { SettingsOverviewViewModel(get(), get()) }
+    factory { LocalModelSettingsViewModel(get(), get(), get(), get()) }
     factory { ProfileViewModel(get(), get(), get()) }
     factory { CharacterCatalogViewModel(get(), get(), get(), get(), get()) }
     factory { (characterId: String, detailUrl: String, name: String, avatarUrl: String?) ->
