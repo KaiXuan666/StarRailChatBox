@@ -21,6 +21,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -42,6 +45,27 @@ class ImageGenerationToolTest {
         override val cacheDir: Path = "/cache".toPath()
         override val fileSystem: FileSystem = fakeFileSystem
         override suspend fun saveImageToGallery(bytes: ByteArray, name: String) {}
+    }
+
+    @Test
+    fun strictDefinitionRequiresEveryDeclaredProperty() {
+        val client = testClient(MockEngine { respond("") })
+        val tool = ImageGenerationTool(
+            InMemoryModelConfigRepository(),
+            ImageGenerationProviderRegistry(listOf(AliImageProvider(client))),
+            client,
+            mockFileManager,
+        )
+
+        val parameters = tool.definition(context).parameters
+        val propertyNames = parameters["properties"]!!.jsonObject.keys
+        val requiredNames = parameters["required"]!!.jsonArray
+            .map { it.jsonPrimitive.content }
+            .toSet()
+
+        assertEquals(propertyNames, requiredNames)
+
+        client.close()
     }
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
