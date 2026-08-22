@@ -130,7 +130,6 @@ class ApiSettingsViewModel(
                 if (
                     defaultConfig != null &&
                     defaultConfig.apiKey.isNotBlank() &&
-                    defaultConfig.baseUrl.trim().startsWith("https://") &&
                     (!isVoice || defaultConfig.provider == XiaomiMimoProvider.Id) &&
                     (!isImageGeneration || defaultConfig.provider != XiaomiMimoProvider.Id)
                 ) {
@@ -559,7 +558,7 @@ class ApiSettingsViewModel(
         if (!isImageGeneration && state.apiProviderId in ManagedApiProviderIds) {
             return true
         }
-        return state.apiHost.trim().startsWith("https://")
+        return true
     }
 
     private fun defaultHostForCurrentScreen(): String {
