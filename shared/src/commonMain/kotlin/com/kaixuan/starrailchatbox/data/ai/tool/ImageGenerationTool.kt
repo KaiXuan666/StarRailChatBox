@@ -111,6 +111,8 @@ class ImageGenerationTool(
                 }
                 putJsonArray("required") {
                     add(JsonPrimitive("prompt"))
+                    add(JsonPrimitive("aspect_ratio"))
+                    add(JsonPrimitive("attached_text"))
                 }
                 put("additionalProperties", false)
             }
